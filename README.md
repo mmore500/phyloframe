@@ -7,6 +7,9 @@
 ![CI](https://github.com/mmore500/phyloframe/actions/workflows/ci.yaml/badge.svg)
 ](https://github.com/mmore500/phyloframe/actions)
 [
+![codecov](https://codecov.io/gh/mmore500/phyloframe/graph/badge.svg?token=YyQ34WbkqT)
+](https://codecov.io/gh/mmore500/phyloframe)
+[
 ![GitHub stars](https://img.shields.io/github/stars/mmore500/phyloframe.svg?style=round-square&logo=github&label=Stars&logoColor=white)](https://github.com/mmore500/phyloframe)
 
 Dataframe-based tools for working with phylogenetic trees.
