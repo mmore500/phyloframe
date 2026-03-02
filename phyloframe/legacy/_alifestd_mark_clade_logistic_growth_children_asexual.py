@@ -179,7 +179,9 @@ def alifestd_mark_clade_logistic_growth_children_asexual(
                 # scikit docs: for small datasets, 'liblinear' is a good choice
                 # whereas 'sag' and 'saga' are faster for large ones
                 solver=["liblinear", "sag"][
-                    int(ub_exclusive_ - lb_inclusive_ > 10000)  # arbitrary thresh
+                    int(
+                        ub_exclusive_ - lb_inclusive_ > 10000
+                    )  # arbitrary thresh
                 ],
             )
 
