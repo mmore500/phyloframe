@@ -70,12 +70,14 @@ requires = [
 [project.optional-dependencies]
 jit = ["numba>=0.60.0,!=0.62.0", "setuptools>=75.0.0,<81"]
 testing = [
+  "alifedata-phyloinformatics-convert>=0.19.3",
   "contexttimer==0.3.3",
   "coverage>=7.6.1",
   "iterify==0.1.0",
   "more-itertools>=8.13.0",
   "pytest-xdist==2.5.0",
   "pytest==8.3.3",
+  "ruff>=0.1.11",
   "safe-assert==0.2.0",
   "scipy>=1.14.1",
   "setuptools>=75.0.0,<81",
