@@ -2,6 +2,10 @@
 #    uv pip compile --python-version=3.10 ../../pyproject.toml --extra docs --extra release --extra testing --extra jit -o requirements-all.txt
 alabaster==1.0.0
     # via sphinx
+alifedata-phyloinformatics-convert==0.19.3
+    # via phyloframe (../../pyproject.toml)
+anytree==2.13.0
+    # via alifedata-phyloinformatics-convert
 asttokens==3.0.1
     # via stack-data
 attrs==25.4.0
@@ -14,6 +18,8 @@ backcall==0.2.0
     # via ipython
 beautifulsoup4==4.14.3
     # via nbconvert
+biopython==1.86
+    # via alifedata-phyloinformatics-convert
 bleach==6.3.0
     # via nbconvert
 bumpver==2022.1120
@@ -23,7 +29,9 @@ certifi==2026.1.4
 charset-normalizer==3.4.4
     # via requests
 click==8.3.1
-    # via bumpver
+    # via
+    #   alifedata-phyloinformatics-convert
+    #   bumpver
 colorama==0.4.6
     # via bumpver
 comm==0.2.3
@@ -38,6 +46,10 @@ decorator==5.2.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
+dendropy==5.0.8
+    # via alifedata-phyloinformatics-convert
+deprecated==1.3.1
+    # via alifedata-phyloinformatics-convert
 distlib==0.4.0
     # via virtualenv
 docutils==0.21.2
@@ -46,6 +58,8 @@ docutils==0.21.2
     #   readme-renderer
     #   sphinx
     #   sphinx-rtd-theme
+ete3==3.1.3
+    # via alifedata-phyloinformatics-convert
 exceptiongroup==1.3.1
     # via pytest
 execnet==2.1.2
@@ -61,7 +75,9 @@ filelock==3.24.3
 fishersrc==0.1.15
     # via phyloframe (../../pyproject.toml)
 idna==3.11
-    # via requests
+    # via
+    #   requests
+    #   yarl
 imagesize==1.4.1
     # via sphinx
 iniconfig==2.3.0
@@ -74,6 +90,8 @@ ipython==8.12.3
     #   ipykernel
 iterify==0.1.0
     # via phyloframe (../../pyproject.toml)
+iterpop==0.4.1
+    # via alifedata-phyloinformatics-convert
 jedi==0.19.2
     # via ipython
 jinja2==3.1.6
@@ -122,6 +140,10 @@ mistune==3.2.0
     # via nbconvert
 more-itertools==10.8.0
     # via phyloframe (../../pyproject.toml)
+multidict==6.7.1
+    # via yarl
+nanto==0.1.1
+    # via alifedata-phyloinformatics-convert
 nbclient==0.10.4
     # via nbconvert
 nbconvert==7.17.0
@@ -135,6 +157,8 @@ nbsphinx==0.9.3
     # via phyloframe (../../pyproject.toml)
 nest-asyncio==1.6.0
     # via ipykernel
+networkx==3.4.2
+    # via alifedata-phyloinformatics-convert
 nh3==0.3.3
     # via readme-renderer
 numba==0.63.1
@@ -142,6 +166,8 @@ numba==0.63.1
 numpy==2.2.6
     # via
     #   phyloframe (../../pyproject.toml)
+    #   alifedata-phyloinformatics-convert
+    #   biopython
     #   fishersrc
     #   numba
     #   pandas
@@ -150,7 +176,9 @@ numpy==2.2.6
     #   scipy
     #   statsmodels
 opytional==0.1.0
-    # via phyloframe (../../pyproject.toml)
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   alifedata-phyloinformatics-convert
 ordered-set==4.1.0
     # via phyloframe (../../pyproject.toml)
 packaging==26.0
@@ -166,6 +194,7 @@ packaging==26.0
 pandas==2.3.3
     # via
     #   phyloframe (../../pyproject.toml)
+    #   alifedata-phyloinformatics-convert
     #   statsmodels
 pandocfilters==1.5.1
     # via nbconvert
@@ -199,6 +228,8 @@ polars-runtime-64==1.37.1
     # via polars
 prompt-toolkit==3.0.52
     # via ipython
+propcache==0.4.1
+    # via yarl
 psutil==7.2.2
     # via ipykernel
 ptyprocess==0.7.0
@@ -257,6 +288,8 @@ rpds-py==0.30.0
     # via
     #   jsonschema
     #   referencing
+ruff==0.15.4
+    # via phyloframe (../../pyproject.toml)
 safe-assert==0.2.0
     # via phyloframe (../../pyproject.toml)
 scikit-learn==1.7.2
@@ -270,6 +303,7 @@ setuptools==75.5.0
     # via
     #   phyloframe (../../pyproject.toml)
     #   bumpver
+    #   dendropy
     #   setuptools-scm
     #   twine
 setuptools-scm==8.1.0
@@ -282,7 +316,9 @@ six==1.17.0
 snowballstemmer==3.0.1
     # via sphinx
 sortedcontainers==2.4.0
-    # via phyloframe (../../pyproject.toml)
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   alifedata-phyloinformatics-convert
 soupsieve==2.8.3
     # via beautifulsoup4
 sphinx==8.1.3
@@ -348,14 +384,18 @@ traitlets==5.14.3
     #   nbconvert
     #   nbformat
     #   nbsphinx
+treeswift==1.1.45
+    # via alifedata-phyloinformatics-convert
 twine==1.14.0
     # via phyloframe (../../pyproject.toml)
 typing-extensions==4.15.0
     # via
     #   phyloframe (../../pyproject.toml)
+    #   alifedata-phyloinformatics-convert
     #   beautifulsoup4
     #   exceptiongroup
     #   mistune
+    #   multidict
     #   referencing
     #   virtualenv
 tzdata==2025.3
@@ -364,6 +404,8 @@ urllib3==2.6.3
     # via requests
 uv==0.4.18
     # via phyloframe (../../pyproject.toml)
+validators==0.35.0
+    # via alifedata-phyloinformatics-convert
 virtualenv==20.38.0
     # via tox
 wcwidth==0.6.0
@@ -374,3 +416,7 @@ webencodings==0.5.1
     #   tinycss2
 wheel==0.45.0
     # via phyloframe (../../pyproject.toml)
+wrapt==2.1.1
+    # via deprecated
+yarl==1.23.0
+    # via alifedata-phyloinformatics-convert
