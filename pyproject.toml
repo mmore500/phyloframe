@@ -71,7 +71,7 @@ testing = [
   "pytest-xdist==2.5.0",
   "pytest==8.3.3",
   "safe-assert==0.2.0",
-  "scipy==1.14.1",
+  "scipy>=1.14.1",
   "setuptools>=75.0.0,<81",
   "tox==3.24.0",
 ]
