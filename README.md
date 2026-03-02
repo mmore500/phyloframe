@@ -24,10 +24,9 @@ Dataframe-based tools for working with phylogenetic trees.
 ## Usage
 
 ```python3
-import phyloframe as pf
-from phyloframe.legacy import alifestd_make_empty
+from phyloframe import legacy as pfl
 
-df = alifestd_make_empty()
+df = pfl.alifestd_make_empty()
 print(df)
 ```
 
