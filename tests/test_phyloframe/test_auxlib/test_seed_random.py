@@ -1,7 +1,6 @@
 import itertools as it
 
 import numpy as np
-import pytest
 
 from phyloframe._auxlib import seed_random
 from phyloframe._auxlib._jit import jit
