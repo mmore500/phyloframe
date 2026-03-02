@@ -56,6 +56,10 @@ jinja2==3.1.6
     #   nbconvert
     #   nbsphinx
     #   sphinx
+joblib==1.5.3
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   scikit-learn
 joinem==0.11.1
     # via phyloframe (../../pyproject.toml)
 jsonschema==4.26.0
@@ -107,7 +111,13 @@ numpy==2.2.6
     #   phyloframe (../../pyproject.toml)
     #   fishersrc
     #   pandas
+    #   patsy
+    #   scikit-learn
+    #   scipy
+    #   statsmodels
 opytional==0.1.0
+    # via phyloframe (../../pyproject.toml)
+ordered-set==4.1.0
     # via phyloframe (../../pyproject.toml)
 packaging==26.0
     # via
@@ -115,12 +125,17 @@ packaging==26.0
     #   lazy-loader
     #   nbconvert
     #   sphinx
+    #   statsmodels
 pandas==2.3.3
-    # via phyloframe (../../pyproject.toml)
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   statsmodels
 pandocfilters==1.5.1
     # via nbconvert
 parso==0.8.6
     # via jedi
+patsy==1.0.2
+    # via statsmodels
 pexpect==4.9.0
     # via ipython
 pickleshare==0.7.5
@@ -174,10 +189,18 @@ rpds-py==0.30.0
     # via
     #   jsonschema
     #   referencing
+scikit-learn==1.7.2
+    # via phyloframe (../../pyproject.toml)
+scipy==1.15.3
+    # via
+    #   scikit-learn
+    #   statsmodels
 six==1.17.0
     # via python-dateutil
 snowballstemmer==3.0.1
     # via sphinx
+sortedcontainers==2.4.0
+    # via phyloframe (../../pyproject.toml)
 soupsieve==2.8.3
     # via beautifulsoup4
 sphinx==8.1.3
@@ -204,6 +227,10 @@ sphinxcontrib-serializinghtml==2.0.0
     # via sphinx
 stack-data==0.6.3
     # via ipython
+statsmodels==0.14.6
+    # via phyloframe (../../pyproject.toml)
+threadpoolctl==3.6.0
+    # via scikit-learn
 tinycss2==1.4.0
     # via bleach
 tomli==2.4.0
@@ -212,6 +239,8 @@ tornado==6.5.4
     # via
     #   ipykernel
     #   jupyter-client
+tqdist==1.0
+    # via phyloframe (../../pyproject.toml)
 tqdm==4.67.3
     # via
     #   phyloframe (../../pyproject.toml)

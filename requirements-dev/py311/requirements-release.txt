@@ -16,6 +16,10 @@ fishersrc==0.1.15
     # via phyloframe (../../pyproject.toml)
 idna==3.11
     # via requests
+joblib==1.5.3
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   scikit-learn
 joinem==0.11.1
     # via phyloframe (../../pyproject.toml)
 lazy-loader==0.4
@@ -31,16 +35,27 @@ numpy==2.4.2
     #   phyloframe (../../pyproject.toml)
     #   fishersrc
     #   pandas
+    #   patsy
+    #   scikit-learn
+    #   scipy
+    #   statsmodels
 opytional==0.1.0
+    # via phyloframe (../../pyproject.toml)
+ordered-set==4.1.0
     # via phyloframe (../../pyproject.toml)
 packaging==26.0
     # via
     #   lazy-loader
     #   setuptools-scm
+    #   statsmodels
 pandas==2.3.3
-    # via phyloframe (../../pyproject.toml)
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   statsmodels
 pathlib2==2.3.7.post1
     # via bumpver
+patsy==1.0.2
+    # via statsmodels
 pkginfo==1.12.1.2
     # via twine
 polars==1.37.1
@@ -69,6 +84,12 @@ requests==2.32.5
     #   twine
 requests-toolbelt==1.0.0
     # via twine
+scikit-learn==1.8.0
+    # via phyloframe (../../pyproject.toml)
+scipy==1.17.1
+    # via
+    #   scikit-learn
+    #   statsmodels
 setuptools==75.5.0
     # via
     #   phyloframe (../../pyproject.toml)
@@ -81,8 +102,16 @@ six==1.17.0
     # via
     #   pathlib2
     #   python-dateutil
+sortedcontainers==2.4.0
+    # via phyloframe (../../pyproject.toml)
+statsmodels==0.14.6
+    # via phyloframe (../../pyproject.toml)
+threadpoolctl==3.6.0
+    # via scikit-learn
 toml==0.10.2
     # via bumpver
+tqdist==1.0
+    # via phyloframe (../../pyproject.toml)
 tqdm==4.67.3
     # via
     #   phyloframe (../../pyproject.toml)

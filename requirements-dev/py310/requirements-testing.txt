@@ -20,6 +20,10 @@ iniconfig==2.3.0
     # via pytest
 iterify==0.1.0
     # via phyloframe (../../pyproject.toml)
+joblib==1.5.3
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   scikit-learn
 joinem==0.11.1
     # via phyloframe (../../pyproject.toml)
 lazy-loader==0.4
@@ -36,16 +40,26 @@ numpy==2.2.6
     #   fishersrc
     #   numba
     #   pandas
+    #   patsy
+    #   scikit-learn
     #   scipy
+    #   statsmodels
 opytional==0.1.0
+    # via phyloframe (../../pyproject.toml)
+ordered-set==4.1.0
     # via phyloframe (../../pyproject.toml)
 packaging==26.0
     # via
     #   lazy-loader
     #   pytest
+    #   statsmodels
     #   tox
 pandas==2.3.3
-    # via phyloframe (../../pyproject.toml)
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   statsmodels
+patsy==1.0.2
+    # via statsmodels
 platformdirs==4.9.2
     # via virtualenv
 pluggy==1.6.0
@@ -83,19 +97,32 @@ pytz==2025.2
     # via pandas
 safe-assert==0.2.0
     # via phyloframe (../../pyproject.toml)
-scipy==1.14.1
+scikit-learn==1.7.2
     # via phyloframe (../../pyproject.toml)
+scipy==1.14.1
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   scikit-learn
+    #   statsmodels
 setuptools==80.10.2
     # via phyloframe (../../pyproject.toml)
 six==1.17.0
     # via
     #   python-dateutil
     #   tox
+sortedcontainers==2.4.0
+    # via phyloframe (../../pyproject.toml)
+statsmodels==0.14.6
+    # via phyloframe (../../pyproject.toml)
+threadpoolctl==3.6.0
+    # via scikit-learn
 toml==0.10.2
     # via tox
 tomli==2.4.0
     # via pytest
 tox==3.24.0
+    # via phyloframe (../../pyproject.toml)
+tqdist==1.0
     # via phyloframe (../../pyproject.toml)
 tqdm==4.67.3
     # via
