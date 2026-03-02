@@ -231,9 +231,7 @@ def test_contiguous_ids():
     ],
 )
 def test_newick_assets(newick_file: str):
-    newick_path = os.path.join(
-        os.path.dirname(__file__), "..", "assets", newick_file
-    )
+    newick_path = os.path.join(assets_path, newick_file)
     newick = pathlib.Path(newick_path).read_text().strip()
     result = alifestd_from_newick(newick, create_ancestor_list=True)
 

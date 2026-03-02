@@ -55,6 +55,9 @@ from ._alifestd_coarsen_dilate_asexual import alifestd_coarsen_dilate_asexual
 from ._alifestd_coarsen_dilate_polars import alifestd_coarsen_dilate_polars
 from ._alifestd_coarsen_mask import alifestd_coarsen_mask
 from ._alifestd_coarsen_taxa_asexual import alifestd_coarsen_taxa_asexual
+from ._alifestd_coarsen_taxa_asexual import (
+    alifestd_coarsen_taxa_asexual_make_agg,
+)
 from ._alifestd_coerce_chronological_consistency import (
     alifestd_coerce_chronological_consistency,
 )
@@ -375,6 +378,7 @@ __all__ = [
     "alifestd_coarsen_dilate_polars",
     "alifestd_coarsen_mask",
     "alifestd_coarsen_taxa_asexual",
+    "alifestd_coarsen_taxa_asexual_make_agg",
     "alifestd_coerce_chronological_consistency",
     "alifestd_collapse_trunk_asexual",
     "alifestd_collapse_unifurcations",
