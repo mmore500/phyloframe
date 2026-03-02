@@ -1,0 +1,123 @@
+import argparse
+import logging
+import os
+
+import joinem
+from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import polars as pl
+
+from .._auxlib._begin_prod_logging import begin_prod_logging
+from .._auxlib._format_cli_description import format_cli_description
+from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_make_ancestor_list_col_polars import (
+    alifestd_make_ancestor_list_col_polars,
+)
+
+
+def alifestd_try_add_ancestor_list_col_polars(
+    phylogeny_df: pl.DataFrame,
+    root_ancestor_token: str = "none",
+    mutate: bool = False,
+) -> pl.DataFrame:
+    """Add an ancestor_list column to the input DataFrame if the column does
+    not already exist.
+
+    Input dataframe is not mutated by this operation unless `mutate` set True.
+    If mutate set True, operation does not occur in place; still use return
+    value to get transformed phylogeny dataframe.
+
+    Notes
+    -----
+    Even allowed by `mutate` flag, no side effects occur on input dataframe
+    under Polars implementation. Flag is included for API compatibility with
+    Pandas implementation.
+
+    See Also
+    --------
+    alifestd_try_add_ancestor_list_col :
+        Pandas-based implementation.
+    """
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "ancestor_id" in schema_names and "ancestor_list" not in schema_names:
+        logging.info("ancestor_id column present, adding ancestor_list column")
+
+        logging.info(
+            "- alifestd_try_add_ancestor_list_col_polars: "
+            "collecting id and ancestor_id...",
+        )
+        id_col = phylogeny_df.lazy().select("id").collect().to_series()
+        ancestor_id_col = (
+            phylogeny_df.lazy().select("ancestor_id").collect().to_series()
+        )
+
+        logging.info(
+            "- alifestd_try_add_ancestor_list_col_polars: "
+            "making ancestor_list column...",
+        )
+        return phylogeny_df.with_columns(
+            alifestd_make_ancestor_list_col_polars(
+                id_col,
+                ancestor_id_col,
+                root_ancestor_token=root_ancestor_token,
+            ).alias("ancestor_list")
+        )
+    elif "ancestor_list" in schema_names:
+        logging.info("ancestor_list column already present, skipping addition")
+    else:
+        logging.info(
+            "no ancestor_id column available, skipping ancestor_list addition",
+        )
+
+    return phylogeny_df
+
+
+_raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
+
+Create 'ancestor_list' column, if not already present, to comply with Alife standard phylogeny data format.
+
+Additional Notes
+================
+- Requires 'ancestor_id' column to be present in input DataFrame.
+Otherwise, no action is taken.
+
+- Use `--eager-read` if modifying data file inplace.
+
+- This CLI entrypoint is experimental and may be subject to change.
+
+See Also
+========
+phyloframe.legacy._alifestd_try_add_ancestor_list_col :
+    CLI entrypoint for Pandas-based implementation.
+"""
+
+
+def _create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        add_help=False,
+        allow_abbrev=False,
+        description=format_cli_description(_raw_description),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser = _add_parser_base(
+        parser=parser,
+        dfcli_module="phyloframe.legacy._alifestd_try_add_ancestor_list_col_polars",
+        dfcli_version=get_phyloframe_version(),
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    begin_prod_logging()
+
+    parser = _create_parser()
+    args, __ = parser.parse_known_args()
+
+    with log_context_duration(
+        "phyloframe.legacy._alifestd_try_add_ancestor_list_col_polars",
+        logging.info,
+    ):
+        _run_dataframe_cli(
+            base_parser=parser,
+            output_dataframe_op=alifestd_try_add_ancestor_list_col_polars,
+        )

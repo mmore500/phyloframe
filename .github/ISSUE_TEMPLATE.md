@@ -1,4 +1,4 @@
-* hstrat version:
+* phyloframe version:
 * Python version:
 * Operating System:
 

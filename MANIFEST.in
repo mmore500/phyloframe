@@ -2,10 +2,10 @@ include AUTHORS.rst
 include CONTRIBUTING.rst
 include HISTORY.rst
 include LICENSE
-include README.rst
+include README.md
 
 recursive-include tests *
-recursive-include hstrat *.pyi *.cpp *.o *.so *.dylib *.dll *.lib *.a
+recursive-include phyloframe *.pyi
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
 

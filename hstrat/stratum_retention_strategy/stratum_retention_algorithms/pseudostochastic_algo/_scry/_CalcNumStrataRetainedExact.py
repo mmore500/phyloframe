@@ -1,1 +1,0 @@
-CalcNumStrataRetainedExact = None

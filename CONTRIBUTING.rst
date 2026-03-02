@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/mmore500/hstrat/issues.
+Report bugs at https://github.com/mmore500/phyloframe/issues.
 
 If you are reporting a bug, please include:
 
@@ -53,14 +53,14 @@ and "help wanted" is open to whoever wants to implement it.
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
 
-hstrat could always use more documentation, whether as part of the
-official hstrat docs, in docstrings, or even on the web in blog posts,
+phyloframe could always use more documentation, whether as part of the
+official phyloframe docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/mmore500/hstrat/issues.
+The best way to send feedback is to file an issue at https://github.com/mmore500/phyloframe/issues.
 
 If you are proposing a feature:
 
@@ -72,13 +72,13 @@ If you are proposing a feature:
 Get Started!
 ------------
 
-Ready to contribute? Here's how to set up `hstrat` for local development.
+Ready to contribute? Here's how to set up `phyloframe` for local development.
 
-1. Fork the `hstrat` repo on GitHub.
+1. Fork the `phyloframe` repo on GitHub.
 2. Clone your fork locally::
 
-    $ git clone git@github.com:your_name_here/hstrat.git
-    $ cd hstrat
+    $ git clone git@github.com:your_name_here/phyloframe.git
+    $ cd phyloframe
 
 3. Install development requirements into a virtualenv (where `X` is your local major release of Python)::
 
@@ -124,7 +124,7 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
 3. The pull request should work for Python 3.6, 3.7 and 3.8, and for PyPy. Check
-   https://travis-ci.com/mmore500/hstrat/pull_requests
+   https://travis-ci.com/mmore500/phyloframe/pull_requests
    and make sure that the tests pass for all supported Python versions.
 
 Tips
@@ -132,7 +132,7 @@ Tips
 
 To run a subset of tests::
 
-$ pytest tests.test_hstrat
+$ pytest tests.test_phyloframe
 
 
 Deploying
