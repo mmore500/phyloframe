@@ -11,4 +11,8 @@ cd "${0%/*}"
 
 ./py312/regenerate.sh &
 
+./py313/regenerate.sh &
+
+./py314/regenerate.sh &
+
 wait
