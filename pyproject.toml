@@ -54,7 +54,7 @@ namespaces = false
 build-backend = "setuptools.build_meta"
 requires = [
   "setuptools >= 75.0.0",
-  "setuptools_scm >= 2.0.0, <3",
+  "setuptools_scm >= 8.0.0",
 ]
 
 # additional dev requriements
