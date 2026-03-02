@@ -92,9 +92,7 @@ def test_no_branch_length_is_null():
     ],
 )
 def test_newick_assets(newick_file: str):
-    newick_path = os.path.join(
-        os.path.dirname(__file__), "..", "assets", newick_file
-    )
+    newick_path = os.path.join(assets_path, newick_file)
     newick = pathlib.Path(newick_path).read_text().strip()
     result = alifestd_from_newick_polars(newick, create_ancestor_list=True)
 
@@ -154,9 +152,7 @@ def test_column_dtypes():
 )
 def test_roundtrip(newick_file: str):
     """Test roundtrip: newick -> polars alife -> newick -> polars alife."""
-    newick_path = os.path.join(
-        os.path.dirname(__file__), "..", "assets", newick_file
-    )
+    newick_path = os.path.join(assets_path, newick_file)
     newick = pathlib.Path(newick_path).read_text().strip()
     result = alifestd_from_newick_polars(newick)
 
