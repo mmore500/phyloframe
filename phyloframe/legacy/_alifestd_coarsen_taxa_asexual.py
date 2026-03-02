@@ -35,9 +35,9 @@ def alifestd_coarsen_taxa_asexual_make_agg(
         Mapping of column name to aggregation method. Four columns are
         overridden as follows:
 
-        - "destruction_time": "max"
+        - "destruction_time": "last"
         - "is_root": "first"
-        - "origin_time": "min"
+        - "origin_time": "first"
 
         Columns named
 
