@@ -438,9 +438,8 @@ safe-assert==0.2.0
     # via phyloframe (../../pyproject.toml)
 scikit-learn==1.8.0
     # via phyloframe (../../pyproject.toml)
-scipy==1.14.1
+scipy==1.17.1
     # via
-    #   phyloframe (../../pyproject.toml)
     #   scikit-learn
     #   statsmodels
 seaborn==0.13.2
