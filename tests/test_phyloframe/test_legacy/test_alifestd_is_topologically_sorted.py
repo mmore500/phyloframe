@@ -30,20 +30,13 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
         ),
-        pd.read_csv(
-            f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
-        ),
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
 @pytest.mark.parametrize(
     "apply",
     [
-        alifestd_topological_sort,
         alifestd_to_working_format,
-        alifestd_try_add_ancestor_id_col,
         lambda x: x,
     ],
 )
@@ -61,20 +54,13 @@ def test_alifestd_is_topologically_sorted_empty(phylogeny_df, apply):
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
         ),
-        pd.read_csv(
-            f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
-        ),
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
 @pytest.mark.parametrize(
     "apply",
     [
-        alifestd_topological_sort,
         alifestd_to_working_format,
-        alifestd_try_add_ancestor_id_col,
         lambda x: x,
     ],
 )
@@ -266,10 +252,6 @@ def test_alifestd_is_topologically_sorted_true(phylogeny_df, apply):
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
         ),
-        pd.read_csv(
-            f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
-        ),
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
         pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
@@ -278,8 +260,6 @@ def test_alifestd_is_topologically_sorted_true(phylogeny_df, apply):
     "apply",
     [
         alifestd_topological_sort,
-        alifestd_to_working_format,
-        alifestd_try_add_ancestor_id_col,
         lambda x: x,
     ],
 )

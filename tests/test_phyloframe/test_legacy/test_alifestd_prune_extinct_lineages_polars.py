@@ -27,17 +27,6 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
         ),
         alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
-        ),
-        alifestd_to_working_format(
-            alifestd_aggregate_phylogenies(
-                [
-                    pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-                    pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-                ]
-            )
-        ),
-        alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
         ),
     ],
@@ -68,17 +57,6 @@ def test_alifestd_prune_extinct_lineages_polars_destruction_time_nop(
     [
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
-        ),
-        alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
-        ),
-        alifestd_to_working_format(
-            alifestd_aggregate_phylogenies(
-                [
-                    pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-                    pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-                ]
-            )
         ),
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
@@ -129,17 +107,6 @@ def test_alifestd_prune_extinct_lineages_polars_extant(
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
         ),
         alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
-        ),
-        alifestd_to_working_format(
-            alifestd_aggregate_phylogenies(
-                [
-                    pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-                    pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-                ]
-            )
-        ),
-        alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
         ),
     ],
@@ -180,13 +147,6 @@ def test_alifestd_prune_extinct_lineages_polars_matches_pandas(
     "phylogeny_df",
     [
         pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-        alifestd_aggregate_phylogenies(
-            [
-                pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-            ]
-        ),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )

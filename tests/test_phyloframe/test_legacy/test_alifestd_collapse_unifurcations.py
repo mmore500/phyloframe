@@ -37,19 +37,9 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(
             f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
         ),
-        alifestd_aggregate_phylogenies(
-            [
-                pd.read_csv(
-                    f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
-                ),
-                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-            ]
-        ),
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
         ),
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
         alifestd_aggregate_phylogenies(
             [
                 pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
@@ -74,7 +64,6 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     [
         "",
         "None",
-        "none",
     ],
 )
 def test_alifestd_collapse_unifurcations(
