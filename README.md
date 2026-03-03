@@ -16,6 +16,7 @@
 Dataframe-based tools for working with phylogenetic trees.
 
 - Free software: MIT license
+- Documentation: <https://phyloframe.readthedocs.io>
 - Repository: <https://github.com/mmore500/phyloframe>
 
 ## Install
