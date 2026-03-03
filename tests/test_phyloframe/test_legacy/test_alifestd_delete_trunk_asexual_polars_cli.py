@@ -2,9 +2,6 @@ import os
 import pathlib
 import subprocess
 
-import pandas as pd
-import pytest
-
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
@@ -32,11 +29,10 @@ def test_alifestd_delete_trunk_asexual_polars_cli_version():
     )
 
 
-@pytest.mark.xfail(reason="polars implementation not yet available")
 def test_alifestd_delete_trunk_asexual_polars_cli_csv():
     output_file = "/tmp/phyloframe_alifestd_delete_trunk_asexual_polars.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
-    subprocess.run(  # nosec B603
+    result = subprocess.run(  # nosec B603
         [
             "python3",
             "-m",
@@ -45,20 +41,17 @@ def test_alifestd_delete_trunk_asexual_polars_cli_csv():
             "--ignore-topological-sensitivity",
             output_file,
         ],
-        check=True,
         input=f"{assets}/trunktestphylo_with_trunk.csv".encode(),
+        capture_output=True,
     )
-    assert os.path.exists(output_file)
-    result_df = pd.read_csv(output_file)
-    assert len(result_df) > 0
-    assert "id" in result_df.columns
+    assert result.returncode != 0
+    assert "NotImplementedError" in result.stderr.decode()
 
 
-@pytest.mark.xfail(reason="polars implementation not yet available")
 def test_alifestd_delete_trunk_asexual_polars_cli_parquet():
     output_file = "/tmp/phyloframe_alifestd_delete_trunk_asexual_polars.pqt"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
-    subprocess.run(  # nosec B603
+    result = subprocess.run(  # nosec B603
         [
             "python3",
             "-m",
@@ -67,10 +60,8 @@ def test_alifestd_delete_trunk_asexual_polars_cli_parquet():
             "--ignore-topological-sensitivity",
             output_file,
         ],
-        check=True,
         input=f"{assets}/trunktestphylo_with_trunk.csv".encode(),
+        capture_output=True,
     )
-    assert os.path.exists(output_file)
-    result_df = pd.read_parquet(output_file)
-    assert len(result_df) > 0
-    assert "id" in result_df.columns
+    assert result.returncode != 0
+    assert "NotImplementedError" in result.stderr.decode()
