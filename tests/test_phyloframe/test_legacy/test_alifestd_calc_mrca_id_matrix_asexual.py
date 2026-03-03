@@ -42,7 +42,10 @@ def make_expected(phylogeny_df: pd.DataFrame) -> np.ndarray:
 @pytest.mark.parametrize(
     "phylogeny_df",
     [
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
         pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],

@@ -37,19 +37,28 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(
             f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
         ),
-        alifestd_aggregate_phylogenies(
-            [
-                pd.read_csv(
-                    f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
-                ),
-                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-            ]
+        pytest.param(
+            alifestd_aggregate_phylogenies(
+                [
+                    pd.read_csv(
+                        f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
+                    ),
+                    pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+                ]
+            ),
+            marks=pytest.mark.heavy,
         ),
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
         ),
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
         alifestd_aggregate_phylogenies(
             [
                 pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
@@ -74,7 +83,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     [
         "",
         "None",
-        "none",
+        pytest.param("none", marks=pytest.mark.heavy),
     ],
 )
 def test_alifestd_collapse_unifurcations(

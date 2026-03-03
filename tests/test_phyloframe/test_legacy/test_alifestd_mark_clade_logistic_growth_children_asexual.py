@@ -31,7 +31,10 @@ def test_empty():
 
 @pytest.mark.parametrize("apply", [lambda x: x, alifestd_to_working_format])
 @pytest.mark.parametrize("mutate", [True, False])
-@pytest.mark.parametrize("parallel_backend", [None, "loky"])
+@pytest.mark.parametrize(
+    "parallel_backend",
+    [None, pytest.param("loky", marks=pytest.mark.heavy)],
+)
 def test_simple1(
     apply: typing.Callable,
     mutate: bool,
@@ -415,7 +418,10 @@ def test_simple10(
 
 @pytest.mark.parametrize("apply", [lambda x: x, alifestd_to_working_format])
 @pytest.mark.parametrize("mutate", [True, False])
-@pytest.mark.parametrize("parallel_backend", [None, "loky"])
+@pytest.mark.parametrize(
+    "parallel_backend",
+    [None, pytest.param("loky", marks=pytest.mark.heavy)],
+)
 def test_simple11(
     apply: typing.Callable,
     mutate: bool,
@@ -751,8 +757,14 @@ def test_simple18(mutate: bool, parallel_backend: typing.Optional[str]):
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
         ),
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )

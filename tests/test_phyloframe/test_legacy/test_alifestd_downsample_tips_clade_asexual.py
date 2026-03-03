@@ -27,9 +27,14 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
-@pytest.mark.parametrize("n_downsample", [1, 5, 10, 100000000])
+@pytest.mark.parametrize(
+    "n_downsample",
+    [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000],
+)
 @pytest.mark.parametrize("mutate", [True, False])
-@pytest.mark.parametrize("seed", [1, 42])
+@pytest.mark.parametrize(
+    "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
+)
 def test_alifestd_downsample_tips_clade_asexual(
     phylogeny_df, n_downsample, mutate, seed
 ):
@@ -76,8 +81,12 @@ def test_alifestd_downsample_tips_clade_asexual_with_zero_tips(n_downsample):
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
-@pytest.mark.parametrize("n_downsample", [1, 5, 10])
-@pytest.mark.parametrize("seed", [1, 42])
+@pytest.mark.parametrize(
+    "n_downsample", [1, pytest.param(5, marks=pytest.mark.heavy), 10]
+)
+@pytest.mark.parametrize(
+    "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
+)
 def test_prune_tips_vs_downsample(phylogeny_df, n_downsample, seed):
     original_df = phylogeny_df.copy()
 
