@@ -56,11 +56,3 @@ If phyloframe contributes to a scholarly work, please cite it as
 ```
 
 And don't forget to leave a [star on GitHub](https://github.com/mmore500/phyloframe/stargazers)!
-
-## Author
-
-Matthew Andres Moreno
-
-## Credits
-
-This package was created with Cookiecutter and the `audreyr/cookiecutter-pypackage` project template.
