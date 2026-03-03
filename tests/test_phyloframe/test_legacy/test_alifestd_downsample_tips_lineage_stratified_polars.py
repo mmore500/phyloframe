@@ -42,7 +42,9 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     "n_tips",
     [None, 1, pytest.param(5, marks=pytest.mark.heavy), 10],
 )
-@pytest.mark.parametrize("seed", [1, pytest.param(42, marks=pytest.mark.heavy)])
+@pytest.mark.parametrize(
+    "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
+)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -135,7 +137,9 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_empty(
         ),
     ],
 )
-@pytest.mark.parametrize("seed", [1, pytest.param(42, marks=pytest.mark.heavy)])
+@pytest.mark.parametrize(
+    "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
+)
 @pytest.mark.parametrize(
     "apply",
     [

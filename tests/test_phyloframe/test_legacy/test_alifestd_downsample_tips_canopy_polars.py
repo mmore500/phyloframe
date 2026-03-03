@@ -53,7 +53,9 @@ def _count_leaf_nodes_polars(phylogeny_df: pl.DataFrame) -> int:
         ),
     ],
 )
-@pytest.mark.parametrize("num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000])
+@pytest.mark.parametrize(
+    "num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000]
+)
 def test_alifestd_downsample_tips_canopy_polars(
     phylogeny_df: pd.DataFrame,
     num_tips: int,
@@ -115,7 +117,9 @@ def test_alifestd_downsample_tips_canopy_polars_empty(num_tips: int):
         ),
     ],
 )
-@pytest.mark.parametrize("num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10])
+@pytest.mark.parametrize(
+    "num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10]
+)
 def test_alifestd_downsample_tips_canopy_polars_matches_pandas(
     phylogeny_df: pd.DataFrame,
     num_tips: int,

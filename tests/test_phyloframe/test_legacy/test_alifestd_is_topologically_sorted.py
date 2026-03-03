@@ -52,7 +52,9 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     [
         pytest.param(alifestd_topological_sort, marks=pytest.mark.heavy),
         alifestd_to_working_format,
-        pytest.param(alifestd_try_add_ancestor_id_col, marks=pytest.mark.heavy),
+        pytest.param(
+            alifestd_try_add_ancestor_id_col, marks=pytest.mark.heavy
+        ),
         lambda x: x,
     ],
 )
@@ -92,7 +94,9 @@ def test_alifestd_is_topologically_sorted_empty(phylogeny_df, apply):
     [
         pytest.param(alifestd_topological_sort, marks=pytest.mark.heavy),
         alifestd_to_working_format,
-        pytest.param(alifestd_try_add_ancestor_id_col, marks=pytest.mark.heavy),
+        pytest.param(
+            alifestd_try_add_ancestor_id_col, marks=pytest.mark.heavy
+        ),
         lambda x: x,
     ],
 )
@@ -303,7 +307,9 @@ def test_alifestd_is_topologically_sorted_true(phylogeny_df, apply):
     [
         alifestd_topological_sort,
         pytest.param(alifestd_to_working_format, marks=pytest.mark.heavy),
-        pytest.param(alifestd_try_add_ancestor_id_col, marks=pytest.mark.heavy),
+        pytest.param(
+            alifestd_try_add_ancestor_id_col, marks=pytest.mark.heavy
+        ),
         lambda x: x,
     ],
 )
