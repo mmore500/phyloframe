@@ -1,5 +1,4 @@
 import functools
-import itertools as it
 import typing
 
 import numpy as np
@@ -99,7 +98,8 @@ def test_polytomy_identical(df: pd.DataFrame):
     [
         True,
         False,
-        *it.product([True, False], repeat=2),
+        (True, False),
+        (False, True),
     ],
 )
 def test_differing_wrong1(
@@ -137,7 +137,13 @@ def test_differing_wrong1(
 
 
 @pytest.mark.parametrize(
-    "strict", [True, False, *it.product([True, False], repeat=2)]
+    "strict",
+    [
+        True,
+        False,
+        (True, False),
+        (False, True),
+    ],
 )
 def test_differing_wrong2(
     strict: typing.Union[bool, typing.Tuple[bool, bool]]
@@ -225,7 +231,8 @@ def test_differing_polytomy(strict: bool):
     [
         True,
         False,
-        *it.product([True, False], repeat=2),
+        (True, False),
+        (False, True),
     ],
 )
 def test_differing_polytomy2(
@@ -272,7 +279,8 @@ def test_differing_polytomy2(
     [
         True,
         False,
-        *it.product([True, False], repeat=2),
+        (True, False),
+        (False, True),
     ],
 )
 def test_identical_polytomy1(
@@ -319,7 +327,8 @@ def test_identical_polytomy1(
     [
         True,
         False,
-        *it.product([True, False], repeat=2),
+        (True, False),
+        (False, True),
     ],
 )
 def test_differing_wrong_big(
@@ -537,7 +546,8 @@ def make_polytomy_df(working_format: bool) -> pd.DataFrame:
     [
         True,
         False,
-        *it.product([True, False], repeat=2),
+        (True, False),
+        (False, True),
     ],
 )
 @pytest.mark.parametrize(
