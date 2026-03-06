@@ -37,7 +37,8 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     ],
 )
 @pytest.mark.parametrize(
-    "n_downsample", [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000]
+    "n_downsample",
+    [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000],
 )
 @pytest.mark.parametrize(
     "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
