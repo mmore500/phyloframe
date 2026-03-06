@@ -37,7 +37,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     ],
 )
 @pytest.mark.parametrize(
-    "num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000]
+    "n_downsample", [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000]
 )
 @pytest.mark.parametrize(
     "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
@@ -51,14 +51,14 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 )
 def test_alifestd_downsample_tips_lineage_polars(
     phylogeny_df: pd.DataFrame,
-    num_tips: int,
+    n_downsample: int,
     seed: int,
     apply: typing.Callable,
 ):
     phylogeny_df_pl = apply(pl.from_pandas(phylogeny_df))
 
     original_len = len(phylogeny_df_pl.lazy().collect())
-    original_num_tips = (
+    original_n_downsample = (
         alifestd_mark_leaves_polars(phylogeny_df_pl)
         .lazy()
         .select(pl.col("is_leaf").sum())
@@ -69,7 +69,7 @@ def test_alifestd_downsample_tips_lineage_polars(
     result_df = (
         alifestd_downsample_tips_lineage_polars(
             phylogeny_df_pl,
-            num_tips,
+            n_downsample,
             seed=seed,
         )
         .lazy()
@@ -81,7 +81,7 @@ def test_alifestd_downsample_tips_lineage_polars(
     assert set(result_df["id"].to_list()).issubset(
         set(phylogeny_df_pl.lazy().collect()["id"].to_list())
     )
-    result_num_tips = (
+    result_n_downsample = (
         alifestd_mark_leaves_polars(
             alifestd_assign_contiguous_ids_polars(
                 result_df.select("id", "ancestor_id"),
@@ -92,10 +92,10 @@ def test_alifestd_downsample_tips_lineage_polars(
         .collect()
         .item()
     )
-    assert result_num_tips <= min(original_num_tips, num_tips)
+    assert result_n_downsample <= min(original_n_downsample, n_downsample)
 
 
-@pytest.mark.parametrize("num_tips", [0, 1])
+@pytest.mark.parametrize("n_downsample", [0, 1])
 @pytest.mark.parametrize(
     "apply",
     [
@@ -104,7 +104,7 @@ def test_alifestd_downsample_tips_lineage_polars(
     ],
 )
 def test_alifestd_downsample_tips_lineage_polars_empty(
-    num_tips: int, apply: typing.Callable
+    n_downsample: int, apply: typing.Callable
 ):
     phylogeny_df = apply(
         pl.DataFrame(
@@ -124,7 +124,7 @@ def test_alifestd_downsample_tips_lineage_polars_empty(
     result_df = (
         alifestd_downsample_tips_lineage_polars(
             phylogeny_df,
-            num_tips,
+            n_downsample,
         )
         .lazy()
         .collect()
@@ -257,7 +257,7 @@ def test_alifestd_downsample_tips_lineage_polars_missing_criterion(
     ],
 )
 @pytest.mark.parametrize(
-    "num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10]
+    "n_downsample", [1, pytest.param(5, marks=pytest.mark.heavy), 10]
 )
 @pytest.mark.parametrize(
     "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
@@ -271,7 +271,7 @@ def test_alifestd_downsample_tips_lineage_polars_missing_criterion(
 )
 def test_alifestd_downsample_tips_lineage_polars_matches_pandas(
     phylogeny_df: pd.DataFrame,
-    num_tips: int,
+    n_downsample: int,
     seed: int,
     apply: typing.Callable,
 ):
@@ -280,21 +280,21 @@ def test_alifestd_downsample_tips_lineage_polars_matches_pandas(
 
     result_pd = alifestd_downsample_tips_lineage_asexual(
         phylogeny_df,
-        num_tips,
+        n_downsample,
         mutate=False,
         seed=seed,
     )
     result_pl = (
         alifestd_downsample_tips_lineage_polars(
             phylogeny_df_pl,
-            num_tips,
+            n_downsample,
             seed=seed,
         )
         .lazy()
         .collect()
     )
 
-    result_num_tips_pl = (
+    result_n_downsample_pl = (
         alifestd_mark_leaves_polars(
             alifestd_assign_contiguous_ids_polars(
                 result_pl.select("id", "ancestor_id"),
@@ -305,14 +305,14 @@ def test_alifestd_downsample_tips_lineage_polars_matches_pandas(
         .collect()
         .item()
     )
-    original_num_tips = (
+    original_n_downsample = (
         alifestd_mark_leaves_polars(pl.from_pandas(phylogeny_df))
         .lazy()
         .select(pl.col("is_leaf").sum())
         .collect()
         .item()
     )
-    assert result_num_tips_pl == min(num_tips, original_num_tips)
+    assert result_n_downsample_pl == min(n_downsample, original_n_downsample)
     assert set(result_pl["id"].to_list()).issubset(
         set(phylogeny_df_pl.lazy().collect()["id"].to_list())
     )
@@ -320,7 +320,7 @@ def test_alifestd_downsample_tips_lineage_polars_matches_pandas(
     # Both should produce same leaf count
     from phyloframe.legacy import alifestd_count_leaf_nodes
 
-    assert result_num_tips_pl == alifestd_count_leaf_nodes(result_pd)
+    assert result_n_downsample_pl == alifestd_count_leaf_nodes(result_pd)
 
 
 @pytest.mark.parametrize(
@@ -360,7 +360,7 @@ def test_alifestd_downsample_tips_lineage_polars_simple(
         alifestd_downsample_tips_lineage_polars(df, 1, seed=1).lazy().collect()
     )
 
-    result_num_tips = (
+    result_n_downsample = (
         alifestd_mark_leaves_polars(
             alifestd_assign_contiguous_ids_polars(
                 result.select("id", "ancestor_id"),
@@ -371,7 +371,7 @@ def test_alifestd_downsample_tips_lineage_polars_simple(
         .collect()
         .item()
     )
-    assert result_num_tips == 1
+    assert result_n_downsample == 1
     assert 0 in result["id"].to_list()  # root must be present
 
 
@@ -469,7 +469,7 @@ def test_alifestd_downsample_tips_lineage_polars_custom_criterion(
         .collect()
     )
 
-    result_num_tips = (
+    result_n_downsample = (
         alifestd_mark_leaves_polars(
             alifestd_assign_contiguous_ids_polars(
                 result_df.select("id", "ancestor_id"),
@@ -480,7 +480,7 @@ def test_alifestd_downsample_tips_lineage_polars_custom_criterion(
         .collect()
         .item()
     )
-    assert result_num_tips == 5
+    assert result_n_downsample == 5
     assert set(result_df["id"].to_list()).issubset(
         set(phylogeny_df_pl["id"].to_list())
     )

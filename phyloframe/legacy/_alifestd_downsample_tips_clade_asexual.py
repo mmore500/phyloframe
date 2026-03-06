@@ -94,12 +94,12 @@ def alifestd_downsample_tips_clade_asexual(
     mutate: bool = False,
     seed: typing.Optional[int] = None,
 ) -> pd.DataFrame:
-    """Create a subsample phylogeny containing at most `num_tips` tips,
+    """Create a subsample phylogeny containing at most `n_downsample` tips,
     comprising a single clade within the original phylogeny. Candidate clades
     are sampled proportionally to their size.
 
-    If `num_tips` is greater than the number of tips in the phylogeny, the
-    whole phylogeny is returned.
+    If `n_downsample` is greater than the number of tips in the phylogeny,
+    the whole phylogeny is returned.
 
     Only supports asexual phylogenies.
     """
@@ -129,10 +129,10 @@ def alifestd_downsample_tips_clade_asexual(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Create a subsample phylogeny containing at most `num_tips` tips, comprising a single clade within the original phylogeny.
+Create a subsample phylogeny containing at most `-n` tips, comprising a single clade within the original phylogeny.
 Candidate clades are sampled proportionally to their tip count.
 
-If `num_tips` is greater than the number of tips in the phylogeny, the whole phylogeny is returned.
+If `-n` is greater than the number of tips in the phylogeny, the whole phylogeny is returned.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.

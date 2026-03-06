@@ -54,20 +54,20 @@ def _count_leaf_nodes_polars(phylogeny_df: pl.DataFrame) -> int:
     ],
 )
 @pytest.mark.parametrize(
-    "num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000]
+    "n_downsample", [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000]
 )
 def test_alifestd_downsample_tips_canopy_polars(
     phylogeny_df: pd.DataFrame,
-    num_tips: int,
+    n_downsample: int,
 ):
     phylogeny_df_pl = pl.from_pandas(phylogeny_df)
 
     original_len = len(phylogeny_df_pl)
-    original_num_tips = _count_leaf_nodes_polars(phylogeny_df_pl)
+    original_n_downsample = _count_leaf_nodes_polars(phylogeny_df_pl)
 
     result_df = alifestd_downsample_tips_canopy_polars(
         phylogeny_df_pl,
-        num_tips,
+        n_downsample,
         criterion="id",
     )
 
@@ -77,19 +77,19 @@ def test_alifestd_downsample_tips_canopy_polars(
         set(phylogeny_df_pl["id"].to_list())
     )
     assert _count_leaf_nodes_polars(result_df) == min(
-        original_num_tips, num_tips
+        original_n_downsample, n_downsample
     )
 
 
-@pytest.mark.parametrize("num_tips", [0, 1])
-def test_alifestd_downsample_tips_canopy_polars_empty(num_tips: int):
+@pytest.mark.parametrize("n_downsample", [0, 1])
+def test_alifestd_downsample_tips_canopy_polars_empty(n_downsample: int):
     phylogeny_df = pl.DataFrame(
         {"id": [], "ancestor_id": []},
         schema={"id": pl.Int64, "ancestor_id": pl.Int64},
     )
 
     result_df = alifestd_downsample_tips_canopy_polars(
-        phylogeny_df, num_tips, criterion="id"
+        phylogeny_df, n_downsample, criterion="id"
     )
 
     assert result_df.is_empty()
@@ -118,20 +118,20 @@ def test_alifestd_downsample_tips_canopy_polars_empty(num_tips: int):
     ],
 )
 @pytest.mark.parametrize(
-    "num_tips", [1, pytest.param(5, marks=pytest.mark.heavy), 10]
+    "n_downsample", [1, pytest.param(5, marks=pytest.mark.heavy), 10]
 )
 def test_alifestd_downsample_tips_canopy_polars_matches_pandas(
     phylogeny_df: pd.DataFrame,
-    num_tips: int,
+    n_downsample: int,
 ):
     """Verify polars result matches pandas result for same prepared input."""
     phylogeny_df_pl = pl.from_pandas(phylogeny_df)
 
     result_pd = alifestd_downsample_tips_canopy_asexual(
-        phylogeny_df, num_tips, mutate=False, criterion="id"
+        phylogeny_df, n_downsample, mutate=False, criterion="id"
     )
     result_pl = alifestd_downsample_tips_canopy_polars(
-        phylogeny_df_pl, num_tips, criterion="id"
+        phylogeny_df_pl, n_downsample, criterion="id"
     )
 
     assert set(result_pd["id"]) == set(result_pl["id"].to_list())
@@ -156,14 +156,14 @@ def test_alifestd_downsample_tips_canopy_polars_retains_highest_ids(
     phylogeny_df: pd.DataFrame,
 ):
     """Verify that the retained tips are the ones with the highest ids."""
-    num_tips = 5
+    n_downsample = 5
     phylogeny_df_pl = pl.from_pandas(phylogeny_df)
     result_df = alifestd_downsample_tips_canopy_polars(
-        phylogeny_df_pl, num_tips, criterion="id"
+        phylogeny_df_pl, n_downsample, criterion="id"
     )
 
     original_tips = alifestd_find_leaf_ids(phylogeny_df)
-    expected_kept = set(sorted(original_tips)[-num_tips:])
+    expected_kept = set(sorted(original_tips)[-n_downsample:])
 
     result_tips_all = set(result_df["id"].to_list())
     # find leaf ids in result: ids that don't appear as ancestor_id of others
@@ -198,8 +198,8 @@ def test_alifestd_downsample_tips_canopy_polars_simple():
         |   +-- 4 (leaf)
         +-- 2 (leaf)
 
-    With num_tips=2, keep leaves 3 and 4 (highest ids), result is 0, 1, 3, 4.
-    With num_tips=1, keep leaf 4 (highest id), result is 0, 1, 4.
+    With n_downsample=2, keep leaves 3 and 4 (highest ids), result is 0, 1, 3, 4.
+    With n_downsample=1, keep leaf 4 (highest id), result is 0, 1, 4.
     """
     df = pl.DataFrame(
         {
@@ -232,7 +232,7 @@ def test_alifestd_downsample_tips_canopy_polars_all_tips():
 
 
 def test_alifestd_downsample_tips_canopy_polars_tied_criterion():
-    """When all leaves share the same criterion value, exactly num_tips
+    """When all leaves share the same criterion value, exactly n_downsample
     should still be retained (ties broken arbitrarily)."""
     df = pl.DataFrame(
         {
@@ -243,11 +243,11 @@ def test_alifestd_downsample_tips_canopy_polars_tied_criterion():
         }
     )
     # leaves are 2, 3, 4 — all have time=0
-    for num_tips in (1, 2, 3):
+    for n_downsample in (1, 2, 3):
         result = alifestd_downsample_tips_canopy_polars(
-            df, num_tips, criterion="time"
+            df, n_downsample, criterion="time"
         )
-        assert _count_leaf_nodes_polars(result) == num_tips
+        assert _count_leaf_nodes_polars(result) == n_downsample
 
 
 def test_alifestd_downsample_tips_canopy_polars_missing_criterion():

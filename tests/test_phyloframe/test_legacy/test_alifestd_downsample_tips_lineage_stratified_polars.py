@@ -39,7 +39,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     ],
 )
 @pytest.mark.parametrize(
-    "n_tips",
+    "n_downsample",
     [None, 1, pytest.param(5, marks=pytest.mark.heavy), 10],
 )
 @pytest.mark.parametrize(
@@ -54,7 +54,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 )
 def test_alifestd_downsample_tips_lineage_stratified_polars(
     phylogeny_df: pd.DataFrame,
-    n_tips: typing.Optional[int],
+    n_downsample: typing.Optional[int],
     seed: int,
     apply: typing.Callable,
 ):
@@ -65,7 +65,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars(
     result_df = (
         alifestd_downsample_tips_lineage_stratified_polars(
             phylogeny_df_pl,
-            n_tips,
+            n_downsample,
             seed=seed,
         )
         .lazy()
@@ -79,7 +79,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars(
     )
 
 
-@pytest.mark.parametrize("n_tips", [None, 1])
+@pytest.mark.parametrize("n_downsample", [None, 1])
 @pytest.mark.parametrize(
     "apply",
     [
@@ -88,7 +88,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars(
     ],
 )
 def test_alifestd_downsample_tips_lineage_stratified_polars_empty(
-    n_tips: typing.Optional[int], apply: typing.Callable
+    n_downsample: typing.Optional[int], apply: typing.Callable
 ):
     phylogeny_df = apply(
         pl.DataFrame(
@@ -108,7 +108,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_empty(
     result_df = (
         alifestd_downsample_tips_lineage_stratified_polars(
             phylogeny_df,
-            n_tips,
+            n_downsample,
         )
         .lazy()
         .collect()
@@ -391,7 +391,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_n_tips_coarsening(
 
     result3 = (
         alifestd_downsample_tips_lineage_stratified_polars(
-            df, n_tips=3, seed=1
+            df, n_downsample=3, seed=1
         )
         .lazy()
         .collect()
@@ -411,7 +411,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_n_tips_coarsening(
 
     result2 = (
         alifestd_downsample_tips_lineage_stratified_polars(
-            df, n_tips=2, seed=1
+            df, n_downsample=2, seed=1
         )
         .lazy()
         .collect()
@@ -431,7 +431,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_n_tips_coarsening(
 
     result1 = (
         alifestd_downsample_tips_lineage_stratified_polars(
-            df, n_tips=1, seed=1
+            df, n_downsample=1, seed=1
         )
         .lazy()
         .collect()
@@ -503,7 +503,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_shared_stratum(
 
     result_big = (
         alifestd_downsample_tips_lineage_stratified_polars(
-            df, n_tips=100, seed=1
+            df, n_downsample=100, seed=1
         )
         .lazy()
         .collect()
@@ -662,12 +662,12 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_n_tips_per_stratum_v
 
     with pytest.raises(ValueError, match="n_tips_per_stratum"):
         alifestd_downsample_tips_lineage_stratified_polars(
-            df, n_tips=3, seed=1, n_tips_per_stratum=2
+            df, n_downsample=3, seed=1, n_tips_per_stratum=2
         )
 
     with pytest.raises(ValueError, match="n_tips_per_stratum"):
         alifestd_downsample_tips_lineage_stratified_polars(
-            df, n_tips=5, seed=1, n_tips_per_stratum=3
+            df, n_downsample=5, seed=1, n_tips_per_stratum=3
         )
 
 
@@ -736,7 +736,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_n_tips_per_stratum_w
 
     result = (
         alifestd_downsample_tips_lineage_stratified_polars(
-            df, n_tips=4, seed=1, n_tips_per_stratum=2
+            df, n_downsample=4, seed=1, n_tips_per_stratum=2
         )
         .lazy()
         .collect()
@@ -762,12 +762,12 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_less_branch_length_t
     origin_time deltas) than random tip sampling, on asset datasets with a
     spread of origin times.
     """
-    n_tips = 5
+    n_downsample = 5
     phylogeny_df_pl = pl.from_pandas(phylogeny_df)
 
     stratified_result_pl = (
         alifestd_downsample_tips_lineage_stratified_polars(
-            phylogeny_df_pl, n_tips=n_tips, seed=1
+            phylogeny_df_pl, n_downsample=n_downsample, seed=1
         )
         .lazy()
         .collect()
@@ -784,7 +784,7 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_less_branch_length_t
     ].values
     random_bls = []
     for _ in range(20):
-        chosen = rng.choice(leaf_ids, size=n_tips, replace=False)
+        chosen = rng.choice(leaf_ids, size=n_downsample, replace=False)
         keep = set(chosen)
         for leaf_id in chosen:
             cur = leaf_id
@@ -823,13 +823,13 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_correct_tip_count(
     n_tips_per_stratum: int,
 ):
     """Verify correct total tips and tips-per-stratum counts."""
-    n_tips = 4 * n_tips_per_stratum
+    n_downsample = 4 * n_tips_per_stratum
     phylogeny_df_pl = pl.from_pandas(phylogeny_df)
 
     result = (
         alifestd_downsample_tips_lineage_stratified_polars(
             phylogeny_df_pl,
-            n_tips=n_tips,
+            n_downsample=n_downsample,
             seed=1,
             n_tips_per_stratum=n_tips_per_stratum,
         )
@@ -839,5 +839,5 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_correct_tip_count(
 
     result_leaf_count = _count_tips_polars(result)
     # Number of retained tips is min(n_tips, unique_strata * per_stratum)
-    assert result_leaf_count <= n_tips
+    assert result_leaf_count <= n_downsample
     assert result_leaf_count >= 1

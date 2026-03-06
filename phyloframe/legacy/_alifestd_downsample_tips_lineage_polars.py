@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -44,6 +45,8 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 
+_DEPRECATED_SENTINEL = object()
+
 
 @alifestd_topological_sensitivity_warned_polars(
     insert=False,
@@ -52,25 +55,27 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 def alifestd_downsample_tips_lineage_polars(
     phylogeny_df: pl.DataFrame,
-    num_tips: int,
+    n_downsample: typing.Any = _DEPRECATED_SENTINEL,
     seed: typing.Optional[int] = None,
     *,
+    num_tips: typing.Any = _DEPRECATED_SENTINEL,
     criterion_delta: str = "origin_time",
     criterion_target: str = "origin_time",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> pl.DataFrame:
-    """Retain the `num_tips` leaves closest to the lineage of a target leaf.
+    """Retain the `n_downsample` leaves closest to the lineage of a target
+    leaf.
 
     Selects a target leaf as the leaf with the largest `criterion_target`
     value (ties broken randomly). For each leaf, the most recent common
     ancestor (MRCA) with the target leaf is identified and the "off-lineage
     delta" is computed as the absolute difference between the leaf's
     `criterion_delta` value and its MRCA's `criterion_delta` value. The
-    `num_tips` leaves with the smallest off-lineage deltas are retained.
+    `n_downsample` leaves with the smallest off-lineage deltas are retained.
 
-    If `num_tips` is greater than or equal to the number of leaves in the
-    phylogeny, the whole phylogeny is returned. Ties in off-lineage delta
-    are broken arbitrarily.
+    If `n_downsample` is greater than or equal to the number of leaves in
+    the phylogeny, the whole phylogeny is returned. Ties in off-lineage
+    delta are broken arbitrarily.
 
     Only supports asexual phylogenies.
 
@@ -80,7 +85,7 @@ def alifestd_downsample_tips_lineage_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    num_tips : int
+    n_downsample : int
         Number of tips to retain.
     seed : int, optional
         Random seed for reproducible target-leaf selection when there are
@@ -116,6 +121,24 @@ def alifestd_downsample_tips_lineage_polars(
     alifestd_downsample_tips_lineage_asexual :
         Pandas-based implementation.
     """
+    if num_tips is not _DEPRECATED_SENTINEL:
+        warnings.warn(
+            "num_tips is deprecated in favor of n_downsample and "
+            "will be removed in a future release of phyloframe.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if n_downsample is not _DEPRECATED_SENTINEL:
+            raise TypeError(
+                "cannot specify both n_downsample and num_tips",
+            )
+        n_downsample = num_tips
+    elif n_downsample is _DEPRECATED_SENTINEL:
+        raise TypeError(
+            "alifestd_downsample_tips_lineage_polars() missing required "
+            "argument: 'n_downsample'",
+        )
+
     schema_names = phylogeny_df.lazy().collect_schema().names()
     for criterion in (criterion_delta, criterion_target):
         if criterion not in schema_names:
@@ -225,7 +248,7 @@ def alifestd_downsample_tips_lineage_polars(
     is_extant = _alifestd_downsample_tips_lineage_impl(
         is_leaf=is_leaf,
         criterion_values=criterion_values,
-        num_tips=num_tips,
+        n_downsample=n_downsample,
         mrca_vector=mrca_vector,
     )
     del criterion_values, is_leaf, mrca_vector
@@ -348,7 +371,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_downsample_tips_lineage_polars,
-                    num_tips=args.n,
+                    n_downsample=args.n,
                     seed=args.seed,
                     criterion_delta=args.criterion_delta,
                     criterion_target=args.criterion_target,

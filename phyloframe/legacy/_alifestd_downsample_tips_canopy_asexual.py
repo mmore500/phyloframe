@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -28,6 +29,8 @@ from ._alifestd_topological_sensitivity_warned import (
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
+_DEPRECATED_SENTINEL = object()
+
 
 @alifestd_topological_sensitivity_warned(
     insert=False,
@@ -36,15 +39,17 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 )
 def alifestd_downsample_tips_canopy_asexual(
     phylogeny_df: pd.DataFrame,
-    num_tips: typing.Optional[int] = None,
+    n_downsample: typing.Optional[int] = None,
     mutate: bool = False,
     criterion: str = "origin_time",
+    *,
+    num_tips: typing.Any = _DEPRECATED_SENTINEL,
 ) -> pd.DataFrame:
-    """Retain the `num_tips` leaves with the largest `criterion` values and
-    prune extinct lineages.
+    """Retain the `n_downsample` leaves with the largest `criterion` values
+    and prune extinct lineages.
 
-    If `num_tips` is ``None``, it defaults to the number of leaves that
-    share the maximum value of the `criterion` column. If `num_tips` is
+    If `n_downsample` is ``None``, it defaults to the number of leaves that
+    share the maximum value of the `criterion` column. If `n_downsample` is
     greater than or equal to the number of leaves in the phylogeny, the
     whole phylogeny is returned. Ties are broken arbitrarily.
 
@@ -56,13 +61,13 @@ def alifestd_downsample_tips_canopy_asexual(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    num_tips : int, optional
+    n_downsample : int, optional
         Number of tips to retain. If ``None``, defaults to the count of
         leaves with the maximum `criterion` value.
     mutate : bool, default False
         Are side effects on the input argument `phylogeny_df` allowed?
     criterion : str, default "origin_time"
-        Column name used to rank leaves. The `num_tips` leaves with the
+        Column name used to rank leaves. The `n_downsample` leaves with the
         largest values in this column are retained. Ties are broken
         arbitrarily.
 
@@ -76,6 +81,18 @@ def alifestd_downsample_tips_canopy_asexual(
     pandas.DataFrame
         The pruned phylogeny in alife standard format.
     """
+    if num_tips is not _DEPRECATED_SENTINEL:
+        warnings.warn(
+            "num_tips is deprecated in favor of n_downsample and "
+            "will be removed in a future release of phyloframe.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if n_downsample is not None:
+            raise TypeError(
+                "cannot specify both n_downsample and num_tips",
+            )
+        n_downsample = num_tips
     if criterion not in phylogeny_df.columns:
         raise ValueError(
             f"criterion column {criterion!r} not found in phylogeny_df",
@@ -99,20 +116,20 @@ def alifestd_downsample_tips_canopy_asexual(
         # numpy array indexing instead of expensive .isin() calls.
         leaf_positions = alifestd_find_leaf_ids(phylogeny_df)
         leaf_df = phylogeny_df.iloc[leaf_positions]
-        if num_tips is None:
+        if n_downsample is None:
             max_val = leaf_df[criterion].max()
-            num_tips = int((leaf_df[criterion] == max_val).sum())
-        kept_ids = leaf_df.nlargest(num_tips, criterion)["id"]
+            n_downsample = int((leaf_df[criterion] == max_val).sum())
+        kept_ids = leaf_df.nlargest(n_downsample, criterion)["id"]
         phylogeny_df["extant"] = np.bincount(
             kept_ids.to_numpy().astype(np.intp), minlength=len(phylogeny_df)
         ).astype(bool)
     else:
         tips = alifestd_find_leaf_ids(phylogeny_df)
         leaf_df = phylogeny_df.loc[phylogeny_df["id"].isin(tips)]
-        if num_tips is None:
+        if n_downsample is None:
             max_val = leaf_df[criterion].max()
-            num_tips = int((leaf_df[criterion] == max_val).sum())
-        kept_ids = leaf_df.nlargest(num_tips, criterion)["id"]
+            n_downsample = int((leaf_df[criterion] == max_val).sum())
+        kept_ids = leaf_df.nlargest(n_downsample, criterion)["id"]
         phylogeny_df["extant"] = phylogeny_df["id"].isin(kept_ids)
 
     return alifestd_prune_extinct_lineages_asexual(
@@ -198,7 +215,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_downsample_tips_canopy_asexual,
-                    num_tips=args.n,
+                    n_downsample=args.n,
                     criterion=args.criterion,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
