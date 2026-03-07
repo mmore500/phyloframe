@@ -46,7 +46,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 
-_DEPRECATED_SENTINEL = object()
+_DEPRECATED_SENTINEL = "deprecated_sentinel"
 
 
 @alifestd_topological_sensitivity_warned_polars(
@@ -137,7 +137,7 @@ def alifestd_downsample_tips_lineage_stratified_polars(
     alifestd_downsample_tips_lineage_stratified_asexual :
         Pandas-based implementation.
     """
-    if n_tips is not _DEPRECATED_SENTINEL:
+    if n_tips != _DEPRECATED_SENTINEL:
         warnings.warn(
             "n_tips is deprecated in favor of n_downsample and "
             "will be removed in a future release of phyloframe.",

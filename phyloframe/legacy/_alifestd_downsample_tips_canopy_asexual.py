@@ -29,7 +29,7 @@ from ._alifestd_topological_sensitivity_warned import (
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
-_DEPRECATED_SENTINEL = object()
+_DEPRECATED_SENTINEL = "deprecated_sentinel"
 
 
 @alifestd_topological_sensitivity_warned(
@@ -81,7 +81,7 @@ def alifestd_downsample_tips_canopy_asexual(
     pandas.DataFrame
         The pruned phylogeny in alife standard format.
     """
-    if num_tips is not _DEPRECATED_SENTINEL:
+    if num_tips != _DEPRECATED_SENTINEL:
         warnings.warn(
             "num_tips is deprecated in favor of n_downsample and "
             "will be removed in a future release of phyloframe.",
