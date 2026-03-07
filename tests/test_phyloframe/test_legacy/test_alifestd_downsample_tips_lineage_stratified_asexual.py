@@ -284,17 +284,17 @@ def test_alifestd_downsample_tips_lineage_stratified_asexual_n_tips_coarsening()
     )
 
     result3 = alifestd_downsample_tips_lineage_stratified_asexual(
-        phylogeny_df, n_tips=3, seed=1
+        phylogeny_df, n_downsample=3, seed=1
     )
     assert alifestd_count_leaf_nodes(result3) == 3
 
     result2 = alifestd_downsample_tips_lineage_stratified_asexual(
-        phylogeny_df, n_tips=2, seed=1
+        phylogeny_df, n_downsample=2, seed=1
     )
     assert alifestd_count_leaf_nodes(result2) == 2
 
     result1 = alifestd_downsample_tips_lineage_stratified_asexual(
-        phylogeny_df, n_tips=1, seed=1
+        phylogeny_df, n_downsample=1, seed=1
     )
     assert alifestd_count_leaf_nodes(result1) == 1
 
@@ -326,7 +326,7 @@ def test_alifestd_downsample_tips_lineage_stratified_asexual_shared_stratum():
     assert alifestd_count_leaf_nodes(result_none) == 1
 
     result_big = alifestd_downsample_tips_lineage_stratified_asexual(
-        phylogeny_df, n_tips=100, seed=1
+        phylogeny_df, n_downsample=100, seed=1
     )
     assert alifestd_count_leaf_nodes(result_big) == 1
 
@@ -343,12 +343,12 @@ def test_alifestd_downsample_tips_lineage_stratified_asexual_n_tips_per_stratum_
 
     with pytest.raises(ValueError, match="n_tips_per_stratum"):
         alifestd_downsample_tips_lineage_stratified_asexual(
-            phylogeny_df, n_tips=3, seed=1, n_tips_per_stratum=2
+            phylogeny_df, n_downsample=3, seed=1, n_tips_per_stratum=2
         )
 
     with pytest.raises(ValueError, match="n_tips_per_stratum"):
         alifestd_downsample_tips_lineage_stratified_asexual(
-            phylogeny_df, n_tips=5, seed=1, n_tips_per_stratum=3
+            phylogeny_df, n_downsample=5, seed=1, n_tips_per_stratum=3
         )
 
 
@@ -428,7 +428,7 @@ def test_alifestd_downsample_tips_lineage_stratified_asexual_n_tips_per_stratum_
     )
 
     result = alifestd_downsample_tips_lineage_stratified_asexual(
-        phylogeny_df, n_tips=4, seed=1, n_tips_per_stratum=2
+        phylogeny_df, n_downsample=4, seed=1, n_tips_per_stratum=2
     )
     assert alifestd_count_leaf_nodes(result) == 4
 
@@ -502,7 +502,7 @@ def test_alifestd_downsample_tips_lineage_stratified_asexual_less_branch_length_
     n_tips = 5
 
     stratified_result = alifestd_downsample_tips_lineage_stratified_asexual(
-        phylogeny_df, n_tips=n_tips, seed=1
+        phylogeny_df, n_downsample=n_tips, seed=1
     )
     stratified_bl = alifestd_sum_origin_time_deltas_asexual(stratified_result)
 
@@ -558,7 +558,7 @@ def test_alifestd_downsample_tips_lineage_stratified_asexual_correct_tip_count(
 
     result = alifestd_downsample_tips_lineage_stratified_asexual(
         phylogeny_df,
-        n_tips=n_tips,
+        n_downsample=n_tips,
         seed=1,
         n_tips_per_stratum=n_tips_per_stratum,
     )
