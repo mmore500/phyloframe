@@ -26,7 +26,27 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 )
 
 
+def _deprecate_num_tips(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "num_tips" in kwargs:
+            warnings.warn(
+                "num_tips is deprecated in favor of n_downsample and "
+                "will be removed in a future release of phyloframe.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if "n_downsample" in kwargs:
+                raise TypeError(
+                    "cannot specify both n_downsample and num_tips",
+                )
+            kwargs["n_downsample"] = kwargs.pop("num_tips")
+        return fn(*args, **kwargs)
 
+    return wrapper
+
+
+@_deprecate_num_tips
 @alifestd_topological_sensitivity_warned_polars(
     insert=False,
     delete=True,
@@ -36,8 +56,6 @@ def alifestd_downsample_tips_canopy_polars(
     phylogeny_df: pl.DataFrame,
     n_downsample: typing.Optional[int] = None,
     criterion: str = "origin_time",
-    *,
-    num_tips: typing.Any = "deprecated_sentinel",
 ) -> pl.DataFrame:
     """Retain the `n_downsample` leaves with the largest `criterion` values
     and prune extinct lineages.
@@ -80,18 +98,6 @@ def alifestd_downsample_tips_canopy_polars(
     alifestd_downsample_tips_canopy_asexual :
         Pandas-based implementation.
     """
-    if num_tips != "deprecated_sentinel":
-        warnings.warn(
-            "num_tips is deprecated in favor of n_downsample and "
-            "will be removed in a future release of phyloframe.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if n_downsample is not None:
-            raise TypeError(
-                "cannot specify both n_downsample and num_tips",
-            )
-        n_downsample = num_tips
     logging.info(
         "- alifestd_downsample_tips_canopy_polars: collecting schema...",
     )

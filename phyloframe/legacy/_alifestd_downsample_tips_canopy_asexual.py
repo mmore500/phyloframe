@@ -30,7 +30,27 @@ from ._alifestd_topological_sensitivity_warned import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
+def _deprecate_num_tips(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "num_tips" in kwargs:
+            warnings.warn(
+                "num_tips is deprecated in favor of n_downsample and "
+                "will be removed in a future release of phyloframe.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if "n_downsample" in kwargs:
+                raise TypeError(
+                    "cannot specify both n_downsample and num_tips",
+                )
+            kwargs["n_downsample"] = kwargs.pop("num_tips")
+        return fn(*args, **kwargs)
 
+    return wrapper
+
+
+@_deprecate_num_tips
 @alifestd_topological_sensitivity_warned(
     insert=False,
     delete=True,
@@ -41,8 +61,6 @@ def alifestd_downsample_tips_canopy_asexual(
     n_downsample: typing.Optional[int] = None,
     mutate: bool = False,
     criterion: str = "origin_time",
-    *,
-    num_tips: typing.Any = "deprecated_sentinel",
 ) -> pd.DataFrame:
     """Retain the `n_downsample` leaves with the largest `criterion` values
     and prune extinct lineages.
@@ -80,18 +98,6 @@ def alifestd_downsample_tips_canopy_asexual(
     pandas.DataFrame
         The pruned phylogeny in alife standard format.
     """
-    if num_tips != "deprecated_sentinel":
-        warnings.warn(
-            "num_tips is deprecated in favor of n_downsample and "
-            "will be removed in a future release of phyloframe.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if n_downsample is not None:
-            raise TypeError(
-                "cannot specify both n_downsample and num_tips",
-            )
-        n_downsample = num_tips
     if criterion not in phylogeny_df.columns:
         raise ValueError(
             f"criterion column {criterion!r} not found in phylogeny_df",

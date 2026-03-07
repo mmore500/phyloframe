@@ -48,6 +48,27 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 
+def _deprecate_n_tips(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "n_tips" in kwargs:
+            warnings.warn(
+                "n_tips is deprecated in favor of n_downsample and "
+                "will be removed in a future release of phyloframe.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if "n_downsample" in kwargs:
+                raise TypeError(
+                    "cannot specify both n_downsample and n_tips",
+                )
+            kwargs["n_downsample"] = kwargs.pop("n_tips")
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+@_deprecate_n_tips
 @alifestd_topological_sensitivity_warned_polars(
     insert=False,
     delete=True,
@@ -58,7 +79,6 @@ def alifestd_downsample_tips_lineage_stratified_polars(
     n_downsample: typing.Optional[int] = None,
     seed: typing.Optional[int] = None,
     *,
-    n_tips: typing.Any = "deprecated_sentinel",
     criterion_delta: str = "origin_time",
     criterion_stratify: str = "origin_time",
     criterion_target: str = "origin_time",
@@ -136,19 +156,6 @@ def alifestd_downsample_tips_lineage_stratified_polars(
     alifestd_downsample_tips_lineage_stratified_asexual :
         Pandas-based implementation.
     """
-    if n_tips != "deprecated_sentinel":
-        warnings.warn(
-            "n_tips is deprecated in favor of n_downsample and "
-            "will be removed in a future release of phyloframe.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if n_downsample is not None:
-            raise TypeError(
-                "cannot specify both n_downsample and n_tips",
-            )
-        n_downsample = n_tips
-
     if n_downsample is not None and n_downsample % n_tips_per_stratum != 0:
         raise ValueError(
             f"n_tips_per_stratum={n_tips_per_stratum} does not evenly "
