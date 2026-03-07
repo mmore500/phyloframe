@@ -47,9 +47,11 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-def _deprecate_n_tips(fn):
+def _deprecate_n_tips(
+    fn: typing.Callable,
+) -> typing.Callable:
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         if "n_tips" in kwargs:
             warnings.warn(
                 "n_tips is deprecated in favor of n_downsample and "

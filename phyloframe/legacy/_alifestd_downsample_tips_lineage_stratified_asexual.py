@@ -28,6 +28,9 @@ from ._alifestd_calc_mrca_id_vector_asexual import (
 from ._alifestd_downsample_tips_lineage_asexual import (
     _alifestd_downsample_tips_lineage_select_target_id,
 )
+from ._alifestd_downsample_tips_lineage_stratified_polars import (
+    _deprecate_n_tips,
+)
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_mark_leaves import alifestd_mark_leaves
 from ._alifestd_prune_extinct_lineages_asexual import (
@@ -148,26 +151,6 @@ def _alifestd_downsample_tips_lineage_stratified_impl(
         "building extant mask...",
     )
     return np.bincount(kept_ids, minlength=len(is_leaf)).astype(bool)
-
-
-def _deprecate_n_tips(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        if "n_tips" in kwargs:
-            warnings.warn(
-                "n_tips is deprecated in favor of n_downsample and "
-                "will be removed in a future release of phyloframe.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if "n_downsample" in kwargs:
-                raise TypeError(
-                    "cannot specify both n_downsample and n_tips",
-                )
-            kwargs["n_downsample"] = kwargs.pop("n_tips")
-        return fn(*args, **kwargs)
-
-    return wrapper
 
 
 @_deprecate_n_tips

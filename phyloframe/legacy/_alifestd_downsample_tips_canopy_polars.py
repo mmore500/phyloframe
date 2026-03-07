@@ -26,9 +26,11 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 )
 
 
-def _deprecate_num_tips(fn):
+def _deprecate_num_tips(
+    fn: typing.Callable,
+) -> typing.Callable:
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         if "num_tips" in kwargs:
             warnings.warn(
                 "num_tips is deprecated in favor of n_downsample and "

@@ -24,6 +24,9 @@ from .._auxlib._log_memory_usage import log_memory_usage
 from ._alifestd_calc_mrca_id_vector_asexual_polars import (
     alifestd_calc_mrca_id_vector_asexual_polars,
 )
+from ._alifestd_downsample_tips_canopy_polars import (
+    _deprecate_num_tips,
+)
 from ._alifestd_downsample_tips_lineage_asexual import (
     _alifestd_downsample_tips_lineage_impl,
     _alifestd_downsample_tips_lineage_select_target_id,
@@ -44,26 +47,6 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-
-
-def _deprecate_num_tips(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        if "num_tips" in kwargs:
-            warnings.warn(
-                "num_tips is deprecated in favor of n_downsample and "
-                "will be removed in a future release of phyloframe.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if "n_downsample" in kwargs:
-                raise TypeError(
-                    "cannot specify both n_downsample and num_tips",
-                )
-            kwargs["n_downsample"] = kwargs.pop("num_tips")
-        return fn(*args, **kwargs)
-
-    return wrapper
 
 
 @_deprecate_num_tips
