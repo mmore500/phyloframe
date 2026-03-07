@@ -112,6 +112,38 @@ jobs:
         fail_ci_if_error: true
         verbose: true
 
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip setuptools
+        python3 -m pip install -r requirements-dev/py310/requirements-testing.txt
+    - name: Run lint
+      run: ./lint.sh
+
+  style:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip setuptools
+        python3 -m pip install -r requirements-dev/py310/requirements-testing.txt
+    - name: Run style
+      run: |
+        ./style.sh
+        git diff --exit-code
+
   tidy:
     runs-on: ubuntu-24.04
     steps:
@@ -278,9 +310,11 @@ jobs:
       - coverage
       - cli-smoke
       - deploy-test
+      - lint
       - packaging-bdist
       - packaging-sdist
       - packaging-source
+      - style
       - test
       - tidy
     runs-on: ubuntu-24.04
