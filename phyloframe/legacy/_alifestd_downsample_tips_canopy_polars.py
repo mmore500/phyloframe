@@ -17,6 +17,9 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
+from ._alifestd_downsample_tips_canopy_asexual import (
+    _deprecate_num_tips,
+)
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
@@ -24,28 +27,6 @@ from ._alifestd_prune_extinct_lineages_polars import (
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
 )
-
-
-def _deprecate_num_tips(
-    fn: typing.Callable,
-) -> typing.Callable:
-    @functools.wraps(fn)
-    def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        if "num_tips" in kwargs:
-            warnings.warn(
-                "num_tips is deprecated in favor of n_downsample and "
-                "will be removed in a future release of phyloframe.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if "n_downsample" in kwargs:
-                raise TypeError(
-                    "cannot specify both n_downsample and num_tips",
-                )
-            kwargs["n_downsample"] = kwargs.pop("num_tips")
-        return fn(*args, **kwargs)
-
-    return wrapper
 
 
 @_deprecate_num_tips

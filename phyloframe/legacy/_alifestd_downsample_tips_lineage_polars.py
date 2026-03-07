@@ -24,7 +24,7 @@ from .._auxlib._log_memory_usage import log_memory_usage
 from ._alifestd_calc_mrca_id_vector_asexual_polars import (
     alifestd_calc_mrca_id_vector_asexual_polars,
 )
-from ._alifestd_downsample_tips_canopy_polars import (
+from ._alifestd_downsample_tips_canopy_asexual import (
     _deprecate_num_tips,
 )
 from ._alifestd_downsample_tips_lineage_asexual import (

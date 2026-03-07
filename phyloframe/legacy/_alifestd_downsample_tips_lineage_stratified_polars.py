@@ -28,6 +28,7 @@ from ._alifestd_downsample_tips_lineage_asexual import (
 )
 from ._alifestd_downsample_tips_lineage_stratified_asexual import (
     _alifestd_downsample_tips_lineage_stratified_impl,
+    _deprecate_n_tips,
 )
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
@@ -45,28 +46,6 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-
-
-def _deprecate_n_tips(
-    fn: typing.Callable,
-) -> typing.Callable:
-    @functools.wraps(fn)
-    def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        if "n_tips" in kwargs:
-            warnings.warn(
-                "n_tips is deprecated in favor of n_downsample and "
-                "will be removed in a future release of phyloframe.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if "n_downsample" in kwargs:
-                raise TypeError(
-                    "cannot specify both n_downsample and n_tips",
-                )
-            kwargs["n_downsample"] = kwargs.pop("n_tips")
-        return fn(*args, **kwargs)
-
-    return wrapper
 
 
 @_deprecate_n_tips

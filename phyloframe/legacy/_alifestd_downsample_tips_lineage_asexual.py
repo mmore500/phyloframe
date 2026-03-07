@@ -26,7 +26,7 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_calc_mrca_id_vector_asexual import (
     alifestd_calc_mrca_id_vector_asexual,
 )
-from ._alifestd_downsample_tips_canopy_polars import (
+from ._alifestd_downsample_tips_canopy_asexual import (
     _deprecate_num_tips,
 )
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
