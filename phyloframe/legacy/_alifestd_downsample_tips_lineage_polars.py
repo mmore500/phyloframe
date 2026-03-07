@@ -46,7 +46,6 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-
 def _deprecate_num_tips(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):

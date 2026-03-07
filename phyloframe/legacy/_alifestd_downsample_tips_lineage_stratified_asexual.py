@@ -39,7 +39,6 @@ from ._alifestd_topological_sensitivity_warned import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-
 def _alifestd_downsample_tips_lineage_stratified_impl(
     is_leaf: np.ndarray,
     criterion_values: np.ndarray,
