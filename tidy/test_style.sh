@@ -4,4 +4,5 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-./lint.sh
+./style.sh
+git diff --exit-code
