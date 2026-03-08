@@ -38,10 +38,10 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 )
 @pytest.mark.parametrize(
     "n_downsample",
-    [1, 10, 100000000],
+    [1, pytest.param(5, marks=pytest.mark.heavy), 10, 100000000],
 )
 @pytest.mark.parametrize(
-    "seed", [1]
+    "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
 )
 @pytest.mark.parametrize(
     "apply",
@@ -137,13 +137,25 @@ def test_alifestd_downsample_tips_lineage_polars_empty(
 @pytest.mark.parametrize(
     "phylogeny_df",
     [
+        pytest.param(
+            alifestd_to_working_format(
+                pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+            ),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            alifestd_to_working_format(
+                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+            ),
+            marks=pytest.mark.heavy,
+        ),
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
         ),
     ],
 )
 @pytest.mark.parametrize(
-    "seed", [1]
+    "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
 )
 @pytest.mark.parametrize(
     "apply",
@@ -246,10 +258,10 @@ def test_alifestd_downsample_tips_lineage_polars_missing_criterion(
     ],
 )
 @pytest.mark.parametrize(
-    "n_downsample", [1, 10]
+    "n_downsample", [1, pytest.param(5, marks=pytest.mark.heavy), 10]
 )
 @pytest.mark.parametrize(
-    "seed", [1]
+    "seed", [1, pytest.param(42, marks=pytest.mark.heavy)]
 )
 @pytest.mark.parametrize(
     "apply",

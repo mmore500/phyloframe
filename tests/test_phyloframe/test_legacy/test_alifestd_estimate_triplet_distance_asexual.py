@@ -96,6 +96,8 @@ def test_polytomy_identical(df: pd.DataFrame):
 @pytest.mark.parametrize(
     "strict",
     [
+        True,
+        False,
         (True, False),
         (False, True),
     ],
@@ -137,6 +139,8 @@ def test_differing_wrong1(
 @pytest.mark.parametrize(
     "strict",
     [
+        True,
+        False,
         (True, False),
         (False, True),
     ],
@@ -225,6 +229,8 @@ def test_differing_polytomy(strict: bool):
 @pytest.mark.parametrize(
     "strict",
     [
+        True,
+        False,
         (True, False),
         (False, True),
     ],
@@ -271,6 +277,8 @@ def test_differing_polytomy2(
 @pytest.mark.parametrize(
     "strict",
     [
+        True,
+        False,
         (True, False),
         (False, True),
     ],
@@ -317,6 +325,8 @@ def test_identical_polytomy1(
 @pytest.mark.parametrize(
     "strict",
     [
+        True,
+        False,
         (True, False),
         (False, True),
     ],
@@ -534,6 +544,8 @@ def make_polytomy_df(working_format: bool) -> pd.DataFrame:
 @pytest.mark.parametrize(
     "strict",
     [
+        True,
+        False,
         (True, False),
         (False, True),
     ],

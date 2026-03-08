@@ -37,8 +37,33 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(
             f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
         ),
+        pytest.param(
+            alifestd_aggregate_phylogenies(
+                [
+                    pd.read_csv(
+                        f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
+                    ),
+                    pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+                ]
+            ),
+            marks=pytest.mark.heavy,
+        ),
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
+        ),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
+        alifestd_aggregate_phylogenies(
+            [
+                pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+            ]
         ),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
@@ -57,6 +82,8 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     "root_ancestor_token",
     [
         "",
+        "None",
+        pytest.param("none", marks=pytest.mark.heavy),
     ],
 )
 def test_alifestd_collapse_unifurcations(

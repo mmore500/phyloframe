@@ -43,6 +43,26 @@ def test_undersize():
                 "ancestor_id": [0, 0, 0, 0],
             },
         ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "id": [0, 1, 2, 3, 4, 5],
+                    "taxon_label": ["0", "1", "2", "3", "4", "5"],
+                    "ancestor_id": [0, 0, 0, 0, 1, 2],
+                },
+            ),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "id": [9, 1, 2, 3, 4, 5],
+                    "taxon_label": ["9", "1", "2", "3", "4", "5"],
+                    "ancestor_id": [9, 9, 9, 9, 1, 2],
+                },
+            ),
+            marks=pytest.mark.heavy,
+        ),
         pd.DataFrame(
             {
                 "id": [0, 1, 2, 3, 4, 5, 6],

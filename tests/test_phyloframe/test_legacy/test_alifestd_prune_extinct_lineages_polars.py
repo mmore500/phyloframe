@@ -26,6 +26,23 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
         ),
+        pytest.param(
+            alifestd_to_working_format(
+                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+            ),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            alifestd_to_working_format(
+                alifestd_aggregate_phylogenies(
+                    [
+                        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+                        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+                    ]
+                )
+            ),
+            marks=pytest.mark.heavy,
+        ),
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
         ),
@@ -57,6 +74,23 @@ def test_alifestd_prune_extinct_lineages_polars_destruction_time_nop(
     [
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+        ),
+        pytest.param(
+            alifestd_to_working_format(
+                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+            ),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            alifestd_to_working_format(
+                alifestd_aggregate_phylogenies(
+                    [
+                        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+                        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+                    ]
+                )
+            ),
+            marks=pytest.mark.heavy,
         ),
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
@@ -106,6 +140,23 @@ def test_alifestd_prune_extinct_lineages_polars_extant(
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
         ),
+        pytest.param(
+            alifestd_to_working_format(
+                pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+            ),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            alifestd_to_working_format(
+                alifestd_aggregate_phylogenies(
+                    [
+                        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+                        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+                    ]
+                )
+            ),
+            marks=pytest.mark.heavy,
+        ),
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
         ),
@@ -147,6 +198,19 @@ def test_alifestd_prune_extinct_lineages_polars_matches_pandas(
     "phylogeny_df",
     [
         pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+        pytest.param(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+            marks=pytest.mark.heavy,
+        ),
+        pytest.param(
+            alifestd_aggregate_phylogenies(
+                [
+                    pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+                    pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+                ]
+            ),
+            marks=pytest.mark.heavy,
+        ),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
