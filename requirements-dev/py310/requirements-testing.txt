@@ -6,8 +6,12 @@ anytree==2.13.0
     # via alifedata-phyloinformatics-convert
 biopython==1.86
     # via alifedata-phyloinformatics-convert
+black==22.10.0
+    # via phyloframe (../../pyproject.toml)
 click==8.3.1
-    # via alifedata-phyloinformatics-convert
+    # via
+    #   alifedata-phyloinformatics-convert
+    #   black
 contexttimer==0.3.3
     # via phyloframe (../../pyproject.toml)
 coverage==7.13.4
@@ -34,6 +38,8 @@ idna==3.11
     # via yarl
 iniconfig==2.3.0
     # via pytest
+isort==8.0.1
+    # via phyloframe (../../pyproject.toml)
 iterify==0.1.0
     # via phyloframe (../../pyproject.toml)
 iterpop==0.4.1
@@ -52,6 +58,8 @@ more-itertools==10.8.0
     # via phyloframe (../../pyproject.toml)
 multidict==6.7.1
     # via yarl
+mypy-extensions==1.1.0
+    # via black
 nanto==0.1.1
     # via alifedata-phyloinformatics-convert
 networkx==3.4.2
@@ -87,10 +95,14 @@ pandas==2.3.3
     #   phyloframe (../../pyproject.toml)
     #   alifedata-phyloinformatics-convert
     #   statsmodels
+pathspec==1.0.4
+    # via black
 patsy==1.0.2
     # via statsmodels
 platformdirs==4.9.2
-    # via virtualenv
+    # via
+    #   black
+    #   virtualenv
 pluggy==1.6.0
     # via
     #   pytest
@@ -156,7 +168,9 @@ threadpoolctl==3.6.0
 toml==0.10.2
     # via tox
 tomli==2.4.0
-    # via pytest
+    # via
+    #   black
+    #   pytest
 tox==3.24.0
     # via phyloframe (../../pyproject.toml)
 tqdist==1.0

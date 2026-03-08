@@ -17,5 +17,12 @@ elif ! grep -q "$(python3 -m pip freeze | grep "black==")" requirements-dev/requ
     exit 1
 fi
 
+if ! python3 -m pip freeze | grep -q "isort==";
+then
+    echo "isort is not installed!"
+    echo "aborting"
+    exit 1
+fi
+
 python3 -m black .
 python3 -m isort .
