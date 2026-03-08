@@ -6,7 +6,6 @@ import logging
 import os
 import sys
 import typing
-import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
