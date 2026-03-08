@@ -140,9 +140,7 @@ def test_lazyframe_none_present(base_df: pl.DataFrame):
 
 
 @pytest.mark.parametrize("col", sorted(_reassign_only_sensitive_cols))
-def test_shift_only_excludes_reassign_only(
-    base_df: pl.DataFrame, col: str
-):
+def test_shift_only_excludes_reassign_only(base_df: pl.DataFrame, col: str):
     df = base_df.with_columns(pl.lit(0).alias(col))
     result = alifestd_check_chronological_sensitivity_polars(
         df,
@@ -171,9 +169,7 @@ def test_shift_only_includes_non_reassign_sensitive(
 
 
 @pytest.mark.parametrize("col", sorted(_reassign_only_sensitive_cols))
-def test_rescale_only_excludes_reassign_only(
-    base_df: pl.DataFrame, col: str
-):
+def test_rescale_only_excludes_reassign_only(base_df: pl.DataFrame, col: str):
     df = base_df.with_columns(pl.lit(0).alias(col))
     result = alifestd_check_chronological_sensitivity_polars(
         df,
@@ -214,9 +210,7 @@ def test_reassign_includes_all(base_df: pl.DataFrame, col: str):
 
 
 def test_no_ops_returns_empty(base_df: pl.DataFrame):
-    cols = [
-        pl.lit(0).alias(col) for col in _chronologically_sensitive_cols
-    ]
+    cols = [pl.lit(0).alias(col) for col in _chronologically_sensitive_cols]
     df = base_df.with_columns(cols)
     result = alifestd_check_chronological_sensitivity_polars(
         df,

@@ -91,9 +91,7 @@ def test_empty():
 
 
 @pytest.mark.parametrize("col", sorted(_reassign_only_sensitive_cols))
-def test_shift_only_preserves_reassign_only(
-    base_df: pd.DataFrame, col: str
-):
+def test_shift_only_preserves_reassign_only(base_df: pd.DataFrame, col: str):
     df = base_df.copy()
     df[col] = 0
     result = alifestd_drop_chronological_sensitivity(
@@ -124,9 +122,7 @@ def test_shift_only_drops_non_reassign_sensitive(
 
 
 @pytest.mark.parametrize("col", sorted(_reassign_only_sensitive_cols))
-def test_rescale_only_preserves_reassign_only(
-    base_df: pd.DataFrame, col: str
-):
+def test_rescale_only_preserves_reassign_only(base_df: pd.DataFrame, col: str):
     df = base_df.copy()
     df[col] = 0
     result = alifestd_drop_chronological_sensitivity(
