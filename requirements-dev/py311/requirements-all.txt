@@ -20,6 +20,8 @@ beautifulsoup4==4.14.3
     # via nbconvert
 biopython==1.86
     # via alifedata-phyloinformatics-convert
+black==22.10.0
+    # via phyloframe (../../pyproject.toml)
 bleach==6.3.0
     # via nbconvert
 bumpver==2022.1120
@@ -31,6 +33,7 @@ charset-normalizer==3.4.4
 click==8.3.1
     # via
     #   alifedata-phyloinformatics-convert
+    #   black
     #   bumpver
 colorama==0.4.6
     # via bumpver
@@ -86,6 +89,8 @@ ipython==8.12.3
     # via
     #   phyloframe (../../pyproject.toml)
     #   ipykernel
+isort==8.0.1
+    # via phyloframe (../../pyproject.toml)
 iterify==0.1.0
     # via phyloframe (../../pyproject.toml)
 iterpop==0.4.1
@@ -140,6 +145,8 @@ more-itertools==10.8.0
     # via phyloframe (../../pyproject.toml)
 multidict==6.7.1
     # via yarl
+mypy-extensions==1.1.0
+    # via black
 nanto==0.1.1
     # via alifedata-phyloinformatics-convert
 nbclient==0.10.4
@@ -200,6 +207,8 @@ parso==0.8.6
     # via jedi
 pathlib2==2.3.7.post1
     # via bumpver
+pathspec==1.0.4
+    # via black
 patsy==1.0.2
     # via statsmodels
 pexpect==4.9.0
@@ -210,6 +219,7 @@ pkginfo==1.12.1.2
     # via twine
 platformdirs==4.9.2
     # via
+    #   black
     #   jupyter-core
     #   virtualenv
 pluggy==1.6.0
