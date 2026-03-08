@@ -27,16 +27,16 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         ),
     ],
 )
-@pytest.mark.parametrize("num_tips", [1, 5, 10, 100000000])
+@pytest.mark.parametrize("n_downsample", [1, 5, 10, 100000000])
 @pytest.mark.parametrize("mutate", [True, False])
 @pytest.mark.parametrize("seed", [1, 42])
 def test_alifestd_downsample_tips_lineage_asexual(
-    phylogeny_df, num_tips, mutate, seed
+    phylogeny_df, n_downsample, mutate, seed
 ):
     original_df = phylogeny_df.copy()
 
     result_df = alifestd_downsample_tips_lineage_asexual(
-        phylogeny_df, num_tips, mutate=mutate, seed=seed
+        phylogeny_df, n_downsample, mutate=mutate, seed=seed
     )
 
     assert len(result_df) <= len(original_df)
@@ -47,18 +47,18 @@ def test_alifestd_downsample_tips_lineage_asexual(
 
     assert all(result_df["id"].isin(original_df["id"]))
     assert alifestd_count_leaf_nodes(result_df) <= min(
-        alifestd_count_leaf_nodes(original_df), num_tips
+        alifestd_count_leaf_nodes(original_df), n_downsample
     )
 
 
-@pytest.mark.parametrize("num_tips", [0, 1])
-def test_alifestd_downsample_tips_lineage_asexual_empty(num_tips):
+@pytest.mark.parametrize("n_downsample", [0, 1])
+def test_alifestd_downsample_tips_lineage_asexual_empty(n_downsample):
     phylogeny_df = pd.DataFrame(
         {"id": [], "parent_id": [], "ancestor_id": [], "origin_time": []}
     )
 
     result_df = alifestd_downsample_tips_lineage_asexual(
-        phylogeny_df, num_tips
+        phylogeny_df, n_downsample
     )
 
     assert result_df.empty

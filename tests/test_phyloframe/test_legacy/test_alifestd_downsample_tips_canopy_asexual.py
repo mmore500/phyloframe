@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -33,15 +34,15 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
-@pytest.mark.parametrize("num_tips", [1, 5, 10, 100000000])
+@pytest.mark.parametrize("n_downsample", [1, 5, 10, 100000000])
 @pytest.mark.parametrize("mutate", [True, False])
 def test_alifestd_downsample_tips_canopy_asexual(
-    phylogeny_df, num_tips, mutate
+    phylogeny_df, n_downsample, mutate
 ):
     original_df = phylogeny_df.copy()
 
     result_df = alifestd_downsample_tips_canopy_asexual(
-        phylogeny_df, num_tips, mutate, criterion="id"
+        phylogeny_df, n_downsample, mutate, criterion="id"
     )
 
     assert len(result_df) <= len(original_df)
@@ -52,16 +53,16 @@ def test_alifestd_downsample_tips_canopy_asexual(
 
     assert all(result_df["id"].isin(original_df["id"]))
     assert alifestd_count_leaf_nodes(result_df) == min(
-        alifestd_count_leaf_nodes(original_df), num_tips
+        alifestd_count_leaf_nodes(original_df), n_downsample
     )
 
 
-@pytest.mark.parametrize("num_tips", [0, 1])
-def test_alifestd_downsample_tips_canopy_asexual_with_zero_tips(num_tips):
+@pytest.mark.parametrize("n_downsample", [0, 1])
+def test_alifestd_downsample_tips_canopy_asexual_with_zero_tips(n_downsample):
     phylogeny_df = pd.DataFrame({"id": [], "parent_id": [], "ancestor_id": []})
 
     result_df = alifestd_downsample_tips_canopy_asexual(
-        phylogeny_df, num_tips, criterion="id"
+        phylogeny_df, n_downsample, criterion="id"
     )
 
     assert result_df.empty
@@ -81,19 +82,19 @@ def test_alifestd_downsample_tips_canopy_asexual_with_zero_tips(num_tips):
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
-@pytest.mark.parametrize("num_tips", [1, 5, 10])
-def test_downsample_canopy_vs_manual(phylogeny_df, num_tips):
+@pytest.mark.parametrize("n_downsample", [1, 5, 10])
+def test_downsample_canopy_vs_manual(phylogeny_df, n_downsample):
     """Verify canopy prune matches manually marking top tips as extant and
     then pruning extinct lineages."""
     original_df = phylogeny_df.copy()
     canopy_df = alifestd_downsample_tips_canopy_asexual(
-        phylogeny_df, num_tips, mutate=False, criterion="id"
+        phylogeny_df, n_downsample, mutate=False, criterion="id"
     )
 
     # manually replicate: find top tips, mark extant, prune
     tips = alifestd_find_leaf_ids(original_df)
     tips_sorted = np.sort(tips)
-    kept = tips_sorted[-num_tips:]
+    kept = tips_sorted[-n_downsample:]
 
     original_df = alifestd_try_add_ancestor_id_col(original_df)
     original_df["extant"] = original_df["id"].isin(kept)
@@ -116,13 +117,13 @@ def test_alifestd_downsample_tips_canopy_asexual_retains_highest_ids(
     phylogeny_df,
 ):
     """Verify that the retained tips are the ones with the highest ids."""
-    num_tips = 5
+    n_downsample = 5
     result_df = alifestd_downsample_tips_canopy_asexual(
-        phylogeny_df, num_tips, criterion="id"
+        phylogeny_df, n_downsample, criterion="id"
     )
 
     original_tips = alifestd_find_leaf_ids(phylogeny_df)
-    expected_kept = set(sorted(original_tips)[-num_tips:])
+    expected_kept = set(sorted(original_tips)[-n_downsample:])
 
     result_tips = set(alifestd_find_leaf_ids(result_df))
     assert result_tips == expected_kept
@@ -137,9 +138,9 @@ def test_alifestd_downsample_tips_canopy_asexual_retains_highest_ids(
     ],
 )
 def test_alifestd_downsample_tips_canopy_asexual_validates(phylogeny_df):
-    num_tips = 5
+    n_downsample = 5
     result_df = alifestd_downsample_tips_canopy_asexual(
-        phylogeny_df, num_tips, criterion="id"
+        phylogeny_df, n_downsample, criterion="id"
     )
     assert alifestd_validate(result_df)
 
@@ -154,8 +155,9 @@ def test_alifestd_downsample_tips_canopy_asexual_simple():
         |   +-- 4 (leaf)
         +-- 2 (leaf)
 
-    With num_tips=2, keep leaves 3 and 4 (highest ids), result is 0, 1, 3, 4.
-    With num_tips=1, keep leaf 4 (highest id), result is 0, 1, 4.
+    With n_downsample=2, keep leaves 3 and 4 (highest ids), result is
+    0, 1, 3, 4.
+    With n_downsample=1, keep leaf 4 (highest id), result is 0, 1, 4.
     """
     df = pd.DataFrame(
         {
@@ -187,7 +189,7 @@ def test_alifestd_downsample_tips_canopy_asexual_all_tips():
 
 
 def test_alifestd_downsample_tips_canopy_asexual_tied_criterion():
-    """When all leaves share the same criterion value, exactly num_tips
+    """When all leaves share the same criterion value, exactly n_downsample
     should still be retained (ties broken arbitrarily)."""
     df = pd.DataFrame(
         {
@@ -197,11 +199,11 @@ def test_alifestd_downsample_tips_canopy_asexual_tied_criterion():
         }
     )
     # leaves are 2, 3, 4 — all have time=0
-    for num_tips in (1, 2, 3):
+    for n_downsample in (1, 2, 3):
         result = alifestd_downsample_tips_canopy_asexual(
-            df, num_tips, criterion="time"
+            df, n_downsample, criterion="time"
         )
-        assert alifestd_count_leaf_nodes(result) == num_tips
+        assert alifestd_count_leaf_nodes(result) == n_downsample
 
 
 def test_alifestd_downsample_tips_canopy_asexual_missing_criterion():
@@ -215,3 +217,19 @@ def test_alifestd_downsample_tips_canopy_asexual_missing_criterion():
 
     with pytest.raises(ValueError, match="criterion column"):
         alifestd_downsample_tips_canopy_asexual(df, 1, criterion="nonexistent")
+
+
+def test_alifestd_downsample_tips_canopy_asexual_num_tips_deprecated():
+    """Verify that passing num_tips triggers a DeprecationWarning."""
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[none]", "[0]", "[0]"],
+        }
+    )
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        alifestd_downsample_tips_canopy_asexual(df, num_tips=1, criterion="id")
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "num_tips" in str(w[0].message)
