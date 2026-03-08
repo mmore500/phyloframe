@@ -20,17 +20,20 @@ beautifulsoup4==4.14.3
     # via nbconvert
 biopython==1.86
     # via alifedata-phyloinformatics-convert
+black==22.10.0
+    # via phyloframe (../../pyproject.toml)
 bleach==6.3.0
     # via nbconvert
 bumpver==2022.1120
     # via phyloframe (../../pyproject.toml)
 certifi==2026.2.25
     # via requests
-charset-normalizer==3.4.4
+charset-normalizer==3.4.5
     # via requests
 click==8.3.1
     # via
     #   alifedata-phyloinformatics-convert
+    #   black
     #   bumpver
 colorama==0.4.6
     # via bumpver
@@ -77,7 +80,7 @@ idna==3.11
     # via
     #   requests
     #   yarl
-imagesize==1.4.1
+imagesize==2.0.0
     # via sphinx
 iniconfig==2.3.0
     # via pytest
@@ -87,6 +90,8 @@ ipython==8.12.3
     # via
     #   phyloframe (../../pyproject.toml)
     #   ipykernel
+isort==8.0.1
+    # via phyloframe (../../pyproject.toml)
 iterify==0.1.0
     # via phyloframe (../../pyproject.toml)
 iterpop==0.4.1
@@ -121,7 +126,7 @@ jupyter-core==5.9.1
     #   nbformat
 jupyterlab-pygments==0.3.0
     # via nbconvert
-lazy-loader==0.4
+lazy-loader==0.5
     # via phyloframe (../../pyproject.toml)
 lexid==2021.1006
     # via bumpver
@@ -141,6 +146,8 @@ more-itertools==10.8.0
     # via phyloframe (../../pyproject.toml)
 multidict==6.7.1
     # via yarl
+mypy-extensions==1.1.0
+    # via black
 nanto==0.1.1
     # via alifedata-phyloinformatics-convert
 nbclient==0.10.4
@@ -201,6 +208,8 @@ parso==0.8.6
     # via jedi
 pathlib2==2.3.7.post1
     # via bumpver
+pathspec==1.0.4
+    # via black
 patsy==1.0.2
     # via statsmodels
 pexpect==4.9.0
@@ -209,8 +218,9 @@ pickleshare==0.7.5
     # via ipython
 pkginfo==1.12.1.2
     # via twine
-platformdirs==4.9.2
+platformdirs==4.9.4
     # via
+    #   black
     #   jupyter-core
     #   python-discovery
     #   virtualenv
@@ -263,9 +273,9 @@ python-dateutil==2.9.0.post0
     # via
     #   jupyter-client
     #   pandas
-python-discovery==1.1.0
+python-discovery==1.1.1
     # via virtualenv
-pytz==2025.2
+pytz==2026.1.post1
     # via pandas
 pyyaml==6.0.1
     # via phyloframe (../../pyproject.toml)
@@ -290,7 +300,7 @@ rpds-py==0.30.0
     # via
     #   jsonschema
     #   referencing
-ruff==0.15.4
+ruff==0.15.5
     # via phyloframe (../../pyproject.toml)
 safe-assert==0.2.0
     # via phyloframe (../../pyproject.toml)
@@ -409,7 +419,7 @@ webencodings==0.5.1
     #   tinycss2
 wheel==0.45.0
     # via phyloframe (../../pyproject.toml)
-wrapt==2.1.1
+wrapt==2.1.2
     # via deprecated
 yarl==1.23.0
     # via alifedata-phyloinformatics-convert

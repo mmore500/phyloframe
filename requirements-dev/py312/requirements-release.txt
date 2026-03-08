@@ -4,7 +4,7 @@ bumpver==2022.1120
     # via phyloframe (../../pyproject.toml)
 certifi==2026.2.25
     # via requests
-charset-normalizer==3.4.4
+charset-normalizer==3.4.5
     # via requests
 click==8.3.1
     # via bumpver
@@ -22,7 +22,7 @@ joblib==1.5.3
     #   scikit-learn
 joinem==0.11.1
     # via phyloframe (../../pyproject.toml)
-lazy-loader==0.4
+lazy-loader==0.5
     # via phyloframe (../../pyproject.toml)
 lexid==2021.1006
     # via bumpver
@@ -74,7 +74,7 @@ pygments==2.19.2
     # via readme-renderer
 python-dateutil==2.9.0.post0
     # via pandas
-pytz==2025.2
+pytz==2026.1.post1
     # via pandas
 readme-renderer==44.0
     # via twine

@@ -8,7 +8,7 @@ joblib==1.5.3
     #   scikit-learn
 joinem==0.11.1
     # via phyloframe (../../pyproject.toml)
-lazy-loader==0.4
+lazy-loader==0.5
     # via phyloframe (../../pyproject.toml)
 more-itertools==10.8.0
     # via phyloframe (../../pyproject.toml)
@@ -49,7 +49,7 @@ pyarrow==23.0.1
     #   polars
 python-dateutil==2.9.0.post0
     # via pandas
-pytz==2025.2
+pytz==2026.1.post1
     # via pandas
 scikit-learn==1.8.0
     # via phyloframe (../../pyproject.toml)
