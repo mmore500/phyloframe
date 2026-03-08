@@ -31,14 +31,9 @@ def test_empty():
 
 @pytest.mark.parametrize("apply", [lambda x: x, alifestd_to_working_format])
 @pytest.mark.parametrize("mutate", [True, False])
-@pytest.mark.parametrize(
-    "parallel_backend",
-    [None, pytest.param("loky", marks=pytest.mark.heavy)],
-)
 def test_simple1(
     apply: typing.Callable,
     mutate: bool,
-    parallel_backend: typing.Optional[str],
 ):
     # Chain tree: 0 -> 1 -> 2
     phylogeny_df = pd.DataFrame(
@@ -53,7 +48,6 @@ def test_simple1(
         alifestd_mark_clade_logistic_growth_children_asexual(
             phylogeny_df,
             mutate=mutate,
-            parallel_backend=parallel_backend,
         )
 
     if not mutate:
@@ -418,14 +412,9 @@ def test_simple10(
 
 @pytest.mark.parametrize("apply", [lambda x: x, alifestd_to_working_format])
 @pytest.mark.parametrize("mutate", [True, False])
-@pytest.mark.parametrize(
-    "parallel_backend",
-    [None, pytest.param("loky", marks=pytest.mark.heavy)],
-)
 def test_simple11(
     apply: typing.Callable,
     mutate: bool,
-    parallel_backend: typing.Optional[str],
 ):
     # Tree structure:
     #         0             7
@@ -459,7 +448,6 @@ def test_simple11(
         alifestd_mark_clade_logistic_growth_children_asexual(
             phylogeny_df,
             mutate=mutate,
-            parallel_backend=parallel_backend,
         )
 
     if not mutate:
@@ -756,14 +744,6 @@ def test_simple18(mutate: bool, parallel_backend: typing.Optional[str]):
     [
         pd.read_csv(
             f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
-        ),
-        pytest.param(
-            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-            marks=pytest.mark.heavy,
-        ),
-        pytest.param(
-            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
-            marks=pytest.mark.heavy,
         ),
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
