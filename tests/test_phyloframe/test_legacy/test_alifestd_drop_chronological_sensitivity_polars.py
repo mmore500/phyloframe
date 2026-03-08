@@ -80,9 +80,7 @@ def test_empty():
 
 
 @pytest.mark.parametrize("col", sorted(_reassign_only_sensitive_cols))
-def test_shift_only_preserves_reassign_only(
-    base_df: pl.DataFrame, col: str
-):
+def test_shift_only_preserves_reassign_only(base_df: pl.DataFrame, col: str):
     df = base_df.with_columns(pl.lit(0).alias(col))
     result = alifestd_drop_chronological_sensitivity_polars(
         df,
@@ -111,9 +109,7 @@ def test_shift_only_drops_non_reassign_sensitive(
 
 
 @pytest.mark.parametrize("col", sorted(_reassign_only_sensitive_cols))
-def test_rescale_only_preserves_reassign_only(
-    base_df: pl.DataFrame, col: str
-):
+def test_rescale_only_preserves_reassign_only(base_df: pl.DataFrame, col: str):
     df = base_df.with_columns(pl.lit(0).alias(col))
     result = alifestd_drop_chronological_sensitivity_polars(
         df,

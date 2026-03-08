@@ -96,10 +96,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module=(
-            "phyloframe.legacy"
-            "._alifestd_drop_chronological_sensitivity"
-        ),
+        dfcli_module="phyloframe.legacy._alifestd_drop_chronological_sensitivity",
         dfcli_version=get_phyloframe_version(),
     )
     add_bool_arg(
@@ -135,8 +132,7 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
     with log_context_duration(
-        "phyloframe.legacy"
-        "._alifestd_drop_chronological_sensitivity",
+        "phyloframe.legacy._alifestd_drop_chronological_sensitivity",
         logging.info,
     ):
         _run_dataframe_cli(
