@@ -25,6 +25,9 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_calc_mrca_id_vector_asexual import (
     alifestd_calc_mrca_id_vector_asexual,
 )
+from ._alifestd_downsample_tips_canopy_asexual import (
+    _deprecate_num_tips,
+)
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_mark_leaves import alifestd_mark_leaves
 from ._alifestd_prune_extinct_lineages_asexual import (
@@ -73,7 +76,7 @@ def _alifestd_downsample_tips_lineage_select_target_id(
 def _alifestd_downsample_tips_lineage_impl(
     is_leaf: np.ndarray,
     criterion_values: np.ndarray,
-    num_tips: int,
+    n_downsample: int,
     mrca_vector: np.ndarray,
 ) -> np.ndarray:
     """Shared numpy implementation for lineage-based tip downsampling.
@@ -87,7 +90,7 @@ def _alifestd_downsample_tips_lineage_impl(
         Boolean array indicating which taxa are leaves.
     criterion_values : numpy.ndarray
         Values used to compute off-lineage delta (all taxa).
-    num_tips : int
+    n_downsample : int
         Number of tips to retain.
     mrca_vector : numpy.ndarray
         Integer array of MRCA ids for each taxon with respect to the
@@ -124,10 +127,12 @@ def _alifestd_downsample_tips_lineage_impl(
     logging.info(
         "_alifestd_downsample_tips_lineage_impl: selecting kept ids...",
     )
-    if num_tips >= len(eligible_deltas):
+    if n_downsample >= len(eligible_deltas):
         kept_ids = eligible_ids
     else:
-        partition_idx = np.argpartition(eligible_deltas, num_tips)[:num_tips]
+        partition_idx = np.argpartition(eligible_deltas, n_downsample)[
+            :n_downsample
+        ]
         kept_ids = eligible_ids[partition_idx]
 
     logging.info(
@@ -136,6 +141,7 @@ def _alifestd_downsample_tips_lineage_impl(
     return np.bincount(kept_ids, minlength=len(is_leaf)).astype(bool)
 
 
+@_deprecate_num_tips
 @alifestd_topological_sensitivity_warned(
     insert=False,
     delete=True,
@@ -143,7 +149,7 @@ def _alifestd_downsample_tips_lineage_impl(
 )
 def alifestd_downsample_tips_lineage_asexual(
     phylogeny_df: pd.DataFrame,
-    num_tips: int,
+    n_downsample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
     *,
@@ -151,18 +157,19 @@ def alifestd_downsample_tips_lineage_asexual(
     criterion_target: str = "origin_time",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> pd.DataFrame:
-    """Retain the `num_tips` leaves closest to the lineage of a target leaf.
+    """Retain the `n_downsample` leaves closest to the lineage of a target
+    leaf.
 
     Selects a target leaf as the leaf with the largest `criterion_target`
     value (ties broken randomly). For each leaf, the most recent common
     ancestor (MRCA) with the target leaf is identified and the "off-lineage
     delta" is computed as the absolute difference between the leaf's
     `criterion_delta` value and its MRCA's `criterion_delta` value. The
-    `num_tips` leaves with the smallest off-lineage deltas are retained.
+    `n_downsample` leaves with the smallest off-lineage deltas are retained.
 
-    If `num_tips` is greater than or equal to the number of leaves in the
-    phylogeny, the whole phylogeny is returned. Ties in off-lineage delta
-    are broken arbitrarily.
+    If `n_downsample` is greater than or equal to the number of leaves in
+    the phylogeny, the whole phylogeny is returned. Ties in off-lineage
+    delta are broken arbitrarily.
 
     Only supports asexual phylogenies.
 
@@ -172,7 +179,7 @@ def alifestd_downsample_tips_lineage_asexual(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    num_tips : int
+    n_downsample : int
         Number of tips to retain.
     mutate : bool, default False
         Are side effects on the input argument `phylogeny_df` allowed?
@@ -268,7 +275,7 @@ def alifestd_downsample_tips_lineage_asexual(
     is_extant = _alifestd_downsample_tips_lineage_impl(
         is_leaf=is_leaf,
         criterion_values=criterion_values,
-        num_tips=num_tips,
+        n_downsample=n_downsample,
         mrca_vector=mrca_vector,
     )
 
@@ -373,7 +380,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_downsample_tips_lineage_asexual,
-                    num_tips=args.n,
+                    n_downsample=args.n,
                     seed=args.seed,
                     criterion_delta=args.criterion_delta,
                     criterion_target=args.criterion_target,

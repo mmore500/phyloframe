@@ -4,6 +4,7 @@ import functools
 import logging
 import os
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -38,12 +39,34 @@ from ._alifestd_topological_sensitivity_warned import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
+def _deprecate_n_tips(
+    fn: typing.Callable,
+) -> typing.Callable:
+    @functools.wraps(fn)
+    def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        if "n_tips" in kwargs:
+            warnings.warn(
+                "n_tips is deprecated in favor of n_downsample and "
+                "will be removed in a future release of phyloframe.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if "n_downsample" in kwargs:
+                raise TypeError(
+                    "cannot specify both n_downsample and n_tips",
+                )
+            kwargs["n_downsample"] = kwargs.pop("n_tips")
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
 def _alifestd_downsample_tips_lineage_stratified_impl(
     is_leaf: np.ndarray,
     criterion_values: np.ndarray,
     stratify_values: np.ndarray,
     mrca_vector: np.ndarray,
-    n_tips: typing.Optional[int] = None,
+    n_downsample: typing.Optional[int] = None,
     n_tips_per_stratum: int = 1,
 ) -> np.ndarray:
     """Shared numpy implementation for stratified lineage tip
@@ -54,10 +77,11 @@ def _alifestd_downsample_tips_lineage_stratified_impl(
     ``n_tips_per_stratum`` leaves with the smallest delta per
     stratified group.
 
-    When `n_tips` is an integer, stratified values are coarsened by
-    ranking and integer-dividing so that exactly
-    ``n_tips // n_tips_per_stratum`` groups are formed.  When `n_tips`
-    is ``None``, each distinct stratified value defines its own group.
+    When `n_downsample` is an integer, stratified values are coarsened
+    by ranking and integer-dividing so that exactly
+    ``n_downsample // n_tips_per_stratum`` groups are formed.  When
+    `n_downsample` is ``None``, each distinct stratified value defines
+    its own group.
 
     Parameters
     ----------
@@ -70,7 +94,7 @@ def _alifestd_downsample_tips_lineage_stratified_impl(
     mrca_vector : numpy.ndarray
         Integer array of MRCA ids for each taxon with respect to the
         target leaf.  Taxa in a different tree should have ``-1``.
-    n_tips : int, optional
+    n_downsample : int, optional
         Desired number of retained tips.  If ``None``, every distinct
         stratified value forms its own group and
         ``n_tips_per_stratum`` tips are kept per group.
@@ -106,13 +130,13 @@ def _alifestd_downsample_tips_lineage_stratified_impl(
     eligible_deltas = off_lineage_delta[is_eligible]
     eligible_stratified = stratify_values[is_eligible]
 
-    # Coarsen stratified values if n_tips is specified
-    if n_tips is not None:
+    # Coarsen stratified values if n_downsample is specified
+    if n_downsample is not None:
         logging.info(
             "_alifestd_downsample_tips_lineage_stratified_impl: "
             "coarsening stratified values...",
         )
-        n_groups = n_tips // n_tips_per_stratum
+        n_groups = n_downsample // n_tips_per_stratum
         unique_sorted = np.unique(eligible_stratified)
         n_unique = len(unique_sorted)
         ranks = np.searchsorted(unique_sorted, eligible_stratified)
@@ -148,6 +172,7 @@ def _alifestd_downsample_tips_lineage_stratified_impl(
     return np.bincount(kept_ids, minlength=len(is_leaf)).astype(bool)
 
 
+@_deprecate_n_tips
 @alifestd_topological_sensitivity_warned(
     insert=False,
     delete=True,
@@ -155,7 +180,7 @@ def _alifestd_downsample_tips_lineage_stratified_impl(
 )
 def alifestd_downsample_tips_lineage_stratified_asexual(
     phylogeny_df: pd.DataFrame,
-    n_tips: typing.Optional[int] = None,
+    n_downsample: typing.Optional[int] = None,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
     *,
@@ -176,12 +201,12 @@ def alifestd_downsample_tips_lineage_stratified_asexual(
     MRCA's `criterion_delta` value.
 
     Leaves are grouped by their `criterion_stratify` value. When
-    `n_tips` is an integer, stratified values are coarsened by ranking
-    and integer-dividing to form exactly ``n_tips // n_tips_per_stratum``
-    groups. When `n_tips` is ``None``, each distinct stratified value
-    forms its own group (without ranking). Within each group, the
-    ``n_tips_per_stratum`` leaves with the smallest off-lineage delta
-    are retained.
+    `n_downsample` is an integer, stratified values are coarsened by
+    ranking and integer-dividing to form exactly
+    ``n_downsample // n_tips_per_stratum`` groups. When `n_downsample`
+    is ``None``, each distinct stratified value forms its own group
+    (without ranking). Within each group, the ``n_tips_per_stratum``
+    leaves with the smallest off-lineage delta are retained.
 
     Only supports asexual phylogenies.
 
@@ -191,7 +216,7 @@ def alifestd_downsample_tips_lineage_stratified_asexual(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_tips : int, optional
+    n_downsample : int, optional
         Desired number of retained tips.  If ``None``, every distinct
         ``criterion_stratify`` value forms its own group.
     mutate : bool, default False
@@ -212,7 +237,7 @@ def alifestd_downsample_tips_lineage_stratified_asexual(
         provided.
     n_tips_per_stratum : int, default 1
         Number of tips to retain per stratified group.  Must evenly
-        divide ``n_tips`` when ``n_tips`` is not ``None``.
+        divide ``n_downsample`` when ``n_downsample`` is not ``None``.
     progress_wrap : Callable, optional
         Pass tqdm or equivalent to display a progress bar.
 
@@ -222,18 +247,18 @@ def alifestd_downsample_tips_lineage_stratified_asexual(
         If `criterion_delta`, `criterion_stratify`, or
         `criterion_target` is not a column in `phylogeny_df`.
     ValueError
-        If ``n_tips`` is not ``None`` and ``n_tips_per_stratum`` does
-        not evenly divide ``n_tips``.
+        If ``n_downsample`` is not ``None`` and ``n_tips_per_stratum``
+        does not evenly divide ``n_downsample``.
 
     Returns
     -------
     pandas.DataFrame
         The pruned phylogeny in alife standard format.
     """
-    if n_tips is not None and n_tips % n_tips_per_stratum != 0:
+    if n_downsample is not None and n_downsample % n_tips_per_stratum != 0:
         raise ValueError(
             f"n_tips_per_stratum={n_tips_per_stratum} does not evenly "
-            f"divide n_tips={n_tips}",
+            f"divide n_downsample={n_downsample}",
         )
 
     for criterion in (
@@ -310,7 +335,7 @@ def alifestd_downsample_tips_lineage_stratified_asexual(
         criterion_values=criterion_values,
         stratify_values=stratify_values,
         mrca_vector=mrca_vector,
-        n_tips=n_tips,
+        n_downsample=n_downsample,
         n_tips_per_stratum=n_tips_per_stratum,
     )
 
@@ -430,7 +455,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_downsample_tips_lineage_stratified_asexual,
-                    n_tips=args.n,
+                    n_downsample=args.n,
                     seed=args.seed,
                     criterion_delta=args.criterion_delta,
                     criterion_stratify=args.criterion_stratify,

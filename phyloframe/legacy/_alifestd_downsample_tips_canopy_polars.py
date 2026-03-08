@@ -16,6 +16,9 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
+from ._alifestd_downsample_tips_canopy_asexual import (
+    _deprecate_num_tips,
+)
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
@@ -25,6 +28,7 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 )
 
 
+@_deprecate_num_tips
 @alifestd_topological_sensitivity_warned_polars(
     insert=False,
     delete=True,
@@ -32,14 +36,14 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 )
 def alifestd_downsample_tips_canopy_polars(
     phylogeny_df: pl.DataFrame,
-    num_tips: typing.Optional[int] = None,
+    n_downsample: typing.Optional[int] = None,
     criterion: str = "origin_time",
 ) -> pl.DataFrame:
-    """Retain the `num_tips` leaves with the largest `criterion` values and
-    prune extinct lineages.
+    """Retain the `n_downsample` leaves with the largest `criterion` values
+    and prune extinct lineages.
 
-    If `num_tips` is ``None``, it defaults to the number of leaves that
-    share the maximum value of the `criterion` column. If `num_tips` is
+    If `n_downsample` is ``None``, it defaults to the number of leaves that
+    share the maximum value of the `criterion` column. If `n_downsample` is
     greater than or equal to the number of leaves in the phylogeny, the
     whole phylogeny is returned. Ties are broken arbitrarily.
 
@@ -51,11 +55,11 @@ def alifestd_downsample_tips_canopy_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    num_tips : int, optional
+    n_downsample : int, optional
         Number of tips to retain. If ``None``, defaults to the count of
         leaves with the maximum `criterion` value.
     criterion : str, default "origin_time"
-        Column name used to rank leaves. The `num_tips` leaves with the
+        Column name used to rank leaves. The `n_downsample` leaves with the
         largest values in this column are retained. Ties are broken
         arbitrarily.
 
@@ -107,9 +111,9 @@ def alifestd_downsample_tips_canopy_polars(
         "- alifestd_downsample_tips_canopy_polars: selecting top leaf_ids...",
     )
     leaves_lazy = phylogeny_df.lazy().filter(pl.col("is_leaf"))
-    if num_tips is None:
+    if n_downsample is None:
         max_val = leaves_lazy.select(pl.col(criterion).max()).collect().item()
-        num_tips = (
+        n_downsample = (
             leaves_lazy.filter(pl.col(criterion) == max_val)
             .select(pl.len())
             .collect()
@@ -126,17 +130,17 @@ def alifestd_downsample_tips_canopy_polars(
         f"- alifestd_downsample_tips_canopy_polars: {total_leaves=}...",
     )
 
-    if num_tips >= total_leaves:
+    if n_downsample >= total_leaves:
         logging.info(
             "- alifestd_downsample_tips_canopy_polars: taking all...",
         )
         leaf_ids = leaves_lazy.select(pl.col("id")).collect().to_series()
-    else:  # split case to prevent extreme top_k crash where num_tips is high
+    else:  # split case to prevent extreme top_k crash where n_downsample is high
         logging.info(
             "- alifestd_downsample_tips_canopy_polars: taking top k...",
         )
         leaf_ids = (
-            leaves_lazy.top_k(num_tips, by=pl.col(criterion))
+            leaves_lazy.top_k(n_downsample, by=pl.col(criterion))
             .select(pl.col("id"))
             .collect()
             .to_series()
@@ -239,7 +243,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_downsample_tips_canopy_polars,
-                    num_tips=args.n,
+                    n_downsample=args.n,
                     criterion=args.criterion,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
