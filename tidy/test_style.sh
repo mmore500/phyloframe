@@ -4,5 +4,5 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-./style.sh
-git diff --exit-code
+python3 -m black --check --diff .
+python3 -m isort --check-only --diff .
