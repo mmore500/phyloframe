@@ -206,6 +206,48 @@ def test_alifestd_downsample_tips_canopy_asexual_tied_criterion():
         assert alifestd_count_leaf_nodes(result) == n_downsample
 
 
+def test_alifestd_downsample_tips_canopy_asexual_n_none():
+    """When n_downsample is None, keep only leaves with the max criterion value."""
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_list": ["[none]", "[0]", "[0]", "[1]", "[1]"],
+            "origin_time": [0, 1, 2, 3, 3],
+        }
+    )
+    # leaves are 2 (origin_time=2), 3 (origin_time=3), 4 (origin_time=3)
+    # max origin_time among leaves is 3, shared by leaves 3 and 4
+    result = alifestd_downsample_tips_canopy_asexual(
+        df, criterion="origin_time"
+    )
+    result_ids = set(result["id"])
+    assert 3 in result_ids
+    assert 4 in result_ids
+    assert 2 not in result_ids
+    assert alifestd_count_leaf_nodes(result) == 2
+
+
+def test_alifestd_downsample_tips_canopy_asexual_n_none_single_max():
+    """When n_downsample is None and only one leaf has the max, keep just that one."""
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_list": ["[none]", "[0]", "[0]", "[1]", "[1]"],
+            "origin_time": [0, 1, 2, 3, 4],
+        }
+    )
+    # leaves are 2 (origin_time=2), 3 (origin_time=3), 4 (origin_time=4)
+    # max origin_time among leaves is 4, only leaf 4
+    result = alifestd_downsample_tips_canopy_asexual(
+        df, criterion="origin_time"
+    )
+    result_ids = set(result["id"])
+    assert 4 in result_ids
+    assert 2 not in result_ids
+    assert 3 not in result_ids
+    assert alifestd_count_leaf_nodes(result) == 1
+
+
 def test_alifestd_downsample_tips_canopy_asexual_missing_criterion():
     """Verify ValueError when criterion column is missing."""
     df = pd.DataFrame(

@@ -251,6 +251,51 @@ def test_alifestd_downsample_tips_canopy_polars_tied_criterion():
         assert _count_leaf_nodes_polars(result) == n_downsample
 
 
+def test_alifestd_downsample_tips_canopy_polars_n_none():
+    """When n_downsample is None, keep only leaves with the max criterion value."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 0, 1, 1],
+            "destruction_time": [float("inf")] * 5,
+            "origin_time": [0, 1, 2, 3, 3],
+        }
+    )
+    # leaves are 2 (origin_time=2), 3 (origin_time=3), 4 (origin_time=3)
+    # max origin_time among leaves is 3, shared by leaves 3 and 4
+    result = alifestd_downsample_tips_canopy_polars(
+        df, criterion="origin_time"
+    )
+    result_ids = set(result["id"].to_list())
+    # should keep only leaves 3 and 4 (plus ancestors 0 and 1)
+    assert 3 in result_ids
+    assert 4 in result_ids
+    assert 2 not in result_ids
+    assert _count_leaf_nodes_polars(result) == 2
+
+
+def test_alifestd_downsample_tips_canopy_polars_n_none_single_max():
+    """When n_downsample is None and only one leaf has the max, keep just that one."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 0, 1, 1],
+            "destruction_time": [float("inf")] * 5,
+            "origin_time": [0, 1, 2, 3, 4],
+        }
+    )
+    # leaves are 2 (origin_time=2), 3 (origin_time=3), 4 (origin_time=4)
+    # max origin_time among leaves is 4, only leaf 4
+    result = alifestd_downsample_tips_canopy_polars(
+        df, criterion="origin_time"
+    )
+    result_ids = set(result["id"].to_list())
+    assert 4 in result_ids
+    assert 2 not in result_ids
+    assert 3 not in result_ids
+    assert _count_leaf_nodes_polars(result) == 1
+
+
 def test_alifestd_downsample_tips_canopy_polars_missing_criterion():
     """Verify ValueError when criterion column is missing."""
     df = pl.DataFrame(

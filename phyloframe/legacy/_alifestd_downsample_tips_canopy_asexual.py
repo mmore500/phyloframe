@@ -2,7 +2,6 @@ import argparse
 import functools
 import logging
 import os
-import sys
 import typing
 import warnings
 
@@ -183,9 +182,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "-n",
-        default=sys.maxsize,
+        default=None,
         type=int,
-        help="Number of tips to retain.",
+        help="Number of tips to retain. If omitted, defaults to the count of leaves with the maximum criterion value.",
     )
     parser.add_argument(
         "--criterion",
