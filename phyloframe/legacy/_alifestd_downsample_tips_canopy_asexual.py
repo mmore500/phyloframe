@@ -2,7 +2,6 @@ import argparse
 import functools
 import logging
 import os
-import sys
 import typing
 import warnings
 

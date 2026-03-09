@@ -263,7 +263,9 @@ def test_alifestd_downsample_tips_canopy_polars_n_none():
     )
     # leaves are 2 (origin_time=2), 3 (origin_time=3), 4 (origin_time=3)
     # max origin_time among leaves is 3, shared by leaves 3 and 4
-    result = alifestd_downsample_tips_canopy_polars(df, criterion="origin_time")
+    result = alifestd_downsample_tips_canopy_polars(
+        df, criterion="origin_time"
+    )
     result_ids = set(result["id"].to_list())
     # should keep only leaves 3 and 4 (plus ancestors 0 and 1)
     assert 3 in result_ids
@@ -284,7 +286,9 @@ def test_alifestd_downsample_tips_canopy_polars_n_none_single_max():
     )
     # leaves are 2 (origin_time=2), 3 (origin_time=3), 4 (origin_time=4)
     # max origin_time among leaves is 4, only leaf 4
-    result = alifestd_downsample_tips_canopy_polars(df, criterion="origin_time")
+    result = alifestd_downsample_tips_canopy_polars(
+        df, criterion="origin_time"
+    )
     result_ids = set(result["id"].to_list())
     assert 4 in result_ids
     assert 2 not in result_ids

@@ -3,7 +3,6 @@ import functools
 import gc
 import logging
 import os
-import sys
 import typing
 
 import joinem
