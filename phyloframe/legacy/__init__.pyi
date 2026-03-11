@@ -285,6 +285,9 @@ from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 from ._alifestd_mask_descendants_asexual import (
     alifestd_mask_descendants_asexual,
 )
+from ._alifestd_mask_descendants_polars import (
+    alifestd_mask_descendants_polars,
+)
 from ._alifestd_mask_monomorphic_clades_asexual import (
     alifestd_mask_monomorphic_clades_asexual,
 )
@@ -488,6 +491,7 @@ __all__ = [
     "alifestd_mark_sackin_index_asexual",
     "alifestd_mark_sister_asexual",
     "alifestd_mask_descendants_asexual",
+    "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
     "alifestd_parse_ancestor_id",
     "alifestd_parse_ancestor_ids",

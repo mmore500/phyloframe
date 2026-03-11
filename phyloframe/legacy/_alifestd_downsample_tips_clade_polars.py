@@ -27,6 +27,9 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
+from ._alifestd_mask_descendants_polars import (
+    alifestd_mask_descendants_polars,
+)
 from ._alifestd_mark_num_leaves_polars import (
     alifestd_mark_num_leaves_polars,
 )
@@ -103,16 +106,20 @@ def _alifestd_downsample_tips_clade_polars_impl(
     gc.collect()
     log_memory_usage(logging.info)
 
+    del ancestor_ids, num_leaves
+    gc.collect()
+    log_memory_usage(logging.info)
+
     logging.info(
         "- alifestd_downsample_tips_clade_polars: "
         "marking descendants of sampled clade...",
     )
-    is_descendant = np.zeros(len(ancestor_ids), dtype=bool)
-    is_descendant[sampled] = True
-    for idx in range(sampled + 1, len(ancestor_ids)):
-        if is_descendant[ancestor_ids[idx]]:
-            is_descendant[idx] = True
-    del ancestor_ids, num_leaves
+    ancestor_mask = np.zeros(len(phylogeny_df), dtype=bool)
+    ancestor_mask[sampled] = True
+    phylogeny_df = alifestd_mask_descendants_polars(
+        phylogeny_df, ancestor_mask=ancestor_mask,
+    )
+    del ancestor_mask
     gc.collect()
     log_memory_usage(logging.info)
 
@@ -122,8 +129,17 @@ def _alifestd_downsample_tips_clade_polars_impl(
     is_leaf = (
         phylogeny_df.lazy().select("is_leaf").collect().to_series().to_numpy()
     )
+    is_descendant = (
+        phylogeny_df.lazy()
+        .select("alifestd_mask_descendants_polars")
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
     extant = is_descendant & is_leaf
-    phylogeny_df = phylogeny_df.with_columns(extant=extant)
+    phylogeny_df = phylogeny_df.with_columns(extant=extant).drop(
+        "alifestd_mask_descendants_polars",
+    )
     del is_descendant, is_leaf, extant
     gc.collect()
     log_memory_usage(logging.info)
