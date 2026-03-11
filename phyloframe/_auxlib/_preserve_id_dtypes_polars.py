@@ -20,8 +20,11 @@ def preserve_id_dtypes_polars(func: typing.Callable) -> typing.Callable:
 
         schema = phylogeny_df.collect_schema()
         id_dtype = schema["id"]
-        has_ancestor_id = "ancestor_id" in schema.names()
-        ancestor_id_dtype = schema["ancestor_id"] if has_ancestor_id else None
+        ancestor_id_dtype = (
+            schema["ancestor_id"]
+            if "ancestor_id" in schema.names()
+            else id_dtype
+        )
 
         result = func(phylogeny_df, *args, **kwargs)
 
@@ -32,8 +35,7 @@ def preserve_id_dtypes_polars(func: typing.Callable) -> typing.Callable:
         if "id" in result.columns and result["id"].dtype != id_dtype:
             cast_map["id"] = id_dtype
         if (
-            has_ancestor_id
-            and "ancestor_id" in result.columns
+            "ancestor_id" in result.columns
             and result["ancestor_id"].dtype != ancestor_id_dtype
         ):
             cast_map["ancestor_id"] = ancestor_id_dtype
