@@ -37,10 +37,6 @@ def alifestd_prefix_roots_polars(
     An origin time may be specified, in which case only roots with origin times
     past the specified time will be prefixed. If no origin time is specified,
     all roots will be prefixed.
-
-    Input dataframe is not mutated by this operation unless `mutate` set True.
-    If mutate set True, operation does not occur in place; still use return
-    value to get transformed phylogeny dataframe.
     """
     if "origin_time_delta" in phylogeny_df:
         warnings.warn("alifestd_prefix_roots ignores origin_time_delta values")
