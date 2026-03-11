@@ -83,7 +83,8 @@ def alifestd_prefix_roots_polars(
         {
             "row_idx": root_original_ids,
             "new_ancestor_id": pl.int_range(
-                num_prepended, eager=True,
+                num_prepended,
+                eager=True,
             ).cast(root_original_ids.dtype),
         },
     )

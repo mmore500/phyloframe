@@ -258,43 +258,35 @@ def bench(fn, df, **kwargs):
 
 def verify_equivalence(res_orig, res_opt):
     """Check that the two results are schema- and value-equivalent."""
-    assert res_orig.columns == res_opt.columns, (
-        f"Column mismatch: {res_orig.columns} vs {res_opt.columns}"
-    )
-    assert res_orig.shape == res_opt.shape, (
-        f"Shape mismatch: {res_orig.shape} vs {res_opt.shape}"
-    )
+    assert (
+        res_orig.columns == res_opt.columns
+    ), f"Column mismatch: {res_orig.columns} vs {res_opt.columns}"
+    assert (
+        res_orig.shape == res_opt.shape
+    ), f"Shape mismatch: {res_orig.shape} vs {res_opt.shape}"
     for col in res_orig.columns:
         orig_s = res_orig[col]
         opt_s = res_opt[col]
         if orig_s.dtype.is_float():
-            mismatches = (
-                (orig_s.is_null() != opt_s.is_null())
-                | (
-                    orig_s.is_not_null()
-                    & opt_s.is_not_null()
-                    & ((orig_s - opt_s).abs() > 1e-10)
-                )
+            mismatches = (orig_s.is_null() != opt_s.is_null()) | (
+                orig_s.is_not_null()
+                & opt_s.is_not_null()
+                & ((orig_s - opt_s).abs() > 1e-10)
             )
         else:
-            mismatches = (
-                (orig_s.is_null() != opt_s.is_null())
-                | (
-                    orig_s.is_not_null()
-                    & opt_s.is_not_null()
-                    & (orig_s != opt_s)
-                )
+            mismatches = (orig_s.is_null() != opt_s.is_null()) | (
+                orig_s.is_not_null() & opt_s.is_not_null() & (orig_s != opt_s)
             )
         n_bad = mismatches.sum()
-        assert n_bad == 0, (
-            f"Column '{col}': {n_bad} mismatched values"
-        )
+        assert n_bad == 0, f"Column '{col}': {n_bad} mismatched values"
 
 
 if __name__ == "__main__":
     sizes = [10_000, 100_000, 500_000, 1_000_000]
 
-    print(f"{'N':>12} | {'Impl':>12} | {'Peak Mem (MB)':>14} | {'Time (s)':>10}")
+    print(
+        f"{'N':>12} | {'Impl':>12} | {'Peak Mem (MB)':>14} | {'Time (s)':>10}"
+    )
     print("-" * 60)
 
     for n in sizes:
