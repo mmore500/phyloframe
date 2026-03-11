@@ -114,7 +114,8 @@ def _alifestd_downsample_tips_clade_polars_impl(
         "- alifestd_downsample_tips_clade_polars: "
         "marking descendants of sampled clade...",
     )
-    ancestor_mask = np.zeros(len(phylogeny_df), dtype=bool)
+    n_rows = phylogeny_df.lazy().select(pl.len()).collect().item()
+    ancestor_mask = np.zeros(n_rows, dtype=bool)
     ancestor_mask[sampled] = True
     phylogeny_df = alifestd_mask_descendants_polars(
         phylogeny_df,
