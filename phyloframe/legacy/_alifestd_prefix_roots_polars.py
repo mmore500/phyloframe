@@ -7,7 +7,6 @@ import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import opytional as opyt
 import polars as pl
 
@@ -59,91 +58,75 @@ def alifestd_prefix_roots_polars(
 
     phylogeny_df = phylogeny_df.drop("is_root", strict=False)
 
-    logging.info("- alifestd_prefix_roots: marking eligible roots...")
-    eligible_roots = (
-        phylogeny_df.lazy()
-        .with_columns(
-            is_eligible=(
-                pl.col("origin_time") > origin_time
-                if origin_time is not None
-                else True
-            ),
-            is_root=pl.col("id") == pl.col("ancestor_id"),
-        )
-        .select(
-            pl.col("is_eligible") & pl.col("is_root"),
-        )
-        .collect()
-        .to_series()
+    logging.info("- alifestd_prefix_roots: identifying eligible roots...")
+    is_root_expr = pl.col("id") == pl.col("ancestor_id")
+    is_eligible_expr = (
+        (pl.col("origin_time") > origin_time) & is_root_expr
+        if origin_time is not None
+        else is_root_expr
     )
 
     logging.info("- alifestd_prefix_roots: filtering prepended roots...")
-    prepended_roots = (
+    prefix_roots = (
         phylogeny_df.lazy()
-        .filter(
-            eligible_roots,
+        .filter(is_eligible_expr)
+        .select("id", "ancestor_id", "origin_time")
+        .collect()
+    )
+    num_prepended = len(prefix_roots)
+    if num_prepended == 0:
+        return phylogeny_df
+
+    logging.info("- alifestd_prefix_roots: building ancestor remap table...")
+    root_original_ids = prefix_roots["id"]
+    new_ancestor_map = pl.DataFrame(
+        {
+            "row_idx": root_original_ids,
+            "new_ancestor_id": pl.int_range(
+                num_prepended,
+                eager=True,
+            ).cast(root_original_ids.dtype),
+        },
+    )
+
+    logging.info("- alifestd_prefix_roots: shifting ids and remapping...")
+    phylogeny_df = (
+        phylogeny_df.lazy()
+        .with_columns(
+            id=pl.col("id") + num_prepended,
+            ancestor_id=pl.col("ancestor_id") + num_prepended,
         )
-        .select(
-            "id",
-            "origin_time",
-            "ancestor_id",
+        .with_row_index("row_idx")
+        .join(new_ancestor_map.lazy(), on="row_idx", how="left")
+        .with_columns(
+            ancestor_id=pl.coalesce("new_ancestor_id", "ancestor_id"),
         )
+        .drop("row_idx", "new_ancestor_id")
         .collect()
     )
 
-    if "origin_time" in prepended_roots:
-        logging.info("- alifestd_prefix_roots: setting origin time...")
-        prepended_roots = prepended_roots.with_columns(
-            origin_time=pl.lit(opyt.or_value(origin_time, 0))
-        )
-
-    logging.info("- alifestd_prefix_roots: updating phylogeny_df...")
-    phylogeny_df = phylogeny_df.with_columns(
-        id=pl.col("id") + pl.lit(len(prepended_roots)),
-        ancestor_id=pl.col("ancestor_id") + pl.lit(len(prepended_roots)),
-    )
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().copy()
-    ancestor_ids[prepended_roots["id"].to_numpy()] = np.arange(
-        len(prepended_roots),
-    )
-    phylogeny_df = phylogeny_df.with_columns(
-        ancestor_id=pl.Series(ancestor_ids),
-    )
-
-    logging.info("- alifestd_prefix_roots: updating prepended roots...")
-    prepended_roots = prepended_roots.with_columns(
-        id=pl.int_range(len(prepended_roots)),
-        ancestor_id=pl.int_range(len(prepended_roots)),
+    logging.info("- alifestd_prefix_roots: building prepended root rows...")
+    prefix_roots = prefix_roots.with_columns(
+        id=pl.int_range(num_prepended),
+        ancestor_id=pl.int_range(num_prepended),
+        origin_time=pl.lit(opyt.or_value(origin_time, 0)),
     ).cast(
         {
             k: v
             for k, v in phylogeny_df.collect_schema().items()
-            if k in prepended_roots.collect_schema()
+            if k in prefix_roots.collect_schema()
         },
     )
 
-    logging.info("- alifestd_prefix_roots: creating gather_indices...")
-    gather_indices = np.empty(
-        len(phylogeny_df) + len(prepended_roots), dtype=np.int64
-    )
-    gather_indices[: len(prepended_roots)] = np.arange(len(prepended_roots))
-    gather_indices[len(prepended_roots) :] = np.arange(len(phylogeny_df))
+    prefix_roots = prefix_roots.with_columns(
+        **{
+            col: pl.lit(None).cast(phylogeny_df[col].dtype)
+            for col in set(phylogeny_df.columns) - set(prefix_roots.columns)
+        },
+    ).select(phylogeny_df.columns)
 
-    logging.info("- alifestd_prefix_roots: gathering and updating...")
-    return (
-        phylogeny_df.lazy()
-        .select(pl.all().gather(gather_indices))
-        .with_row_index()
-        .with_columns(
-            pl.when(pl.col("index") < len(prepended_roots))
-            .then(None)
-            .otherwise(pl.all())
-            .name.keep()
-        )
-        .drop("index")
-        .update(prepended_roots.lazy())
-        .collect()
-    )
+    logging.info("- alifestd_prefix_roots: concatenating result...")
+    return pl.concat([prefix_roots, phylogeny_df])
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
