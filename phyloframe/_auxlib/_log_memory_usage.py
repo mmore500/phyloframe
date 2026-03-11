@@ -7,7 +7,10 @@ import typing
 # adapted from https://stackoverflow.com/a/47411778/17332200
 def log_memory_usage(logger: typing.Callable = logging.info) -> None:
     """Log memory use."""
-    if "HSTRAT_LOG_MEMORY_USAGE" in os.environ:
+    if (
+        "HSTRAT_LOG_MEMORY_USAGE" in os.environ
+        or "PHYLOFRAME_LOG_MEMORY_USAGE" in os.environ
+    ):
         try:
             message = (
                 "memory usage:\n"
