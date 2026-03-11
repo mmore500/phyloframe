@@ -109,6 +109,9 @@ from ._alifestd_downsample_tips_canopy_polars import (
 from ._alifestd_downsample_tips_clade_asexual import (
     alifestd_downsample_tips_clade_asexual,
 )
+from ._alifestd_downsample_tips_clade_polars import (
+    alifestd_downsample_tips_clade_polars,
+)
 from ._alifestd_downsample_tips_lineage_asexual import (
     alifestd_downsample_tips_lineage_asexual,
 )
@@ -257,6 +260,7 @@ from ._alifestd_mark_num_descendants_asexual import (
     alifestd_mark_num_descendants_asexual,
 )
 from ._alifestd_mark_num_leaves_asexual import alifestd_mark_num_leaves_asexual
+from ._alifestd_mark_num_leaves_polars import alifestd_mark_num_leaves_polars
 from ._alifestd_mark_num_leaves_sibling_asexual import (
     alifestd_mark_num_leaves_sibling_asexual,
 )
@@ -280,6 +284,9 @@ from ._alifestd_mark_sackin_index_asexual import (
 from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 from ._alifestd_mask_descendants_asexual import (
     alifestd_mask_descendants_asexual,
+)
+from ._alifestd_mask_descendants_polars import (
+    alifestd_mask_descendants_polars,
 )
 from ._alifestd_mask_monomorphic_clades_asexual import (
     alifestd_mask_monomorphic_clades_asexual,
@@ -404,6 +411,7 @@ __all__ = [
     "alifestd_downsample_tips_canopy_asexual",
     "alifestd_downsample_tips_canopy_polars",
     "alifestd_downsample_tips_clade_asexual",
+    "alifestd_downsample_tips_clade_polars",
     "alifestd_downsample_tips_lineage_asexual",
     "alifestd_downsample_tips_lineage_polars",
     "alifestd_downsample_tips_lineage_stratified_asexual",
@@ -470,6 +478,7 @@ __all__ = [
     "alifestd_mark_num_children_polars",
     "alifestd_mark_num_descendants_asexual",
     "alifestd_mark_num_leaves_asexual",
+    "alifestd_mark_num_leaves_polars",
     "alifestd_mark_num_leaves_sibling_asexual",
     "alifestd_mark_num_preceding_leaves_asexual",
     "alifestd_mark_oldest_root",
@@ -482,6 +491,7 @@ __all__ = [
     "alifestd_mark_sackin_index_asexual",
     "alifestd_mark_sister_asexual",
     "alifestd_mask_descendants_asexual",
+    "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
     "alifestd_parse_ancestor_id",
     "alifestd_parse_ancestor_ids",
