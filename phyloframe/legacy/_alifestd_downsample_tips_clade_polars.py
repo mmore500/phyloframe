@@ -100,9 +100,13 @@ def _alifestd_downsample_tips_clade_polars_impl(
     ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
     candidate_ids = ids[is_candidate]
     candidate_num_leaves = num_leaves[is_candidate]
-    weighted_candidates = np.repeat(candidate_ids, candidate_num_leaves)
-    sampled = weighted_candidates[np.random.randint(len(weighted_candidates))]
-    del ids, candidate_ids, candidate_num_leaves, weighted_candidates
+    cumulative_weights = np.cumsum(candidate_num_leaves)
+    total_weight = cumulative_weights[-1]
+    sampled_idx = np.searchsorted(
+        cumulative_weights, np.random.randint(total_weight), side="right"
+    )
+    sampled = candidate_ids[sampled_idx]
+    del ids, candidate_ids, candidate_num_leaves, cumulative_weights
     gc.collect()
     log_memory_usage(logging.info)
 
