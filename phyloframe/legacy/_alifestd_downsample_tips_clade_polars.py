@@ -117,7 +117,8 @@ def _alifestd_downsample_tips_clade_polars_impl(
     ancestor_mask = np.zeros(len(phylogeny_df), dtype=bool)
     ancestor_mask[sampled] = True
     phylogeny_df = alifestd_mask_descendants_polars(
-        phylogeny_df, ancestor_mask=ancestor_mask,
+        phylogeny_df,
+        ancestor_mask=ancestor_mask,
     )
     del ancestor_mask
     gc.collect()
