@@ -69,7 +69,9 @@ def _alifestd_downsample_tips_clade_asexual_impl(
     candidate_num_leaves = phylogeny_df.loc[is_candidate, "num_leaves"].values
     cumulative_weights = np.cumsum(candidate_num_leaves)
     total_weight = cumulative_weights[-1]
-    sampled_idx = np.searchsorted(cumulative_weights, np.random.randint(total_weight), side="right")
+    sampled_idx = np.searchsorted(
+        cumulative_weights, np.random.randint(total_weight), side="right"
+    )
     sampled = candidate_ids[sampled_idx]
 
     phylogeny_df = alifestd_mask_descendants_asexual(

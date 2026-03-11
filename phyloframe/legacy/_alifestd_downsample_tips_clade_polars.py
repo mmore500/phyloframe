@@ -102,7 +102,9 @@ def _alifestd_downsample_tips_clade_polars_impl(
     candidate_num_leaves = num_leaves[is_candidate]
     cumulative_weights = np.cumsum(candidate_num_leaves)
     total_weight = cumulative_weights[-1]
-    sampled_idx = np.searchsorted(cumulative_weights, np.random.randint(total_weight), side="right")
+    sampled_idx = np.searchsorted(
+        cumulative_weights, np.random.randint(total_weight), side="right"
+    )
     sampled = candidate_ids[sampled_idx]
     del ids, candidate_ids, candidate_num_leaves, cumulative_weights
     gc.collect()
