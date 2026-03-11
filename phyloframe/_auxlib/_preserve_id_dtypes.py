@@ -22,12 +22,9 @@ def preserve_id_dtypes(func: typing.Callable) -> typing.Callable:
 
         result = func(phylogeny_df, *args, **kwargs)
 
-        if "id" in result.columns and result["id"].dtype != id_dtype:
+        if "id" in result.columns:
             result["id"] = result["id"].astype(id_dtype)
-        if (
-            "ancestor_id" in result.columns
-            and result["ancestor_id"].dtype != ancestor_id_dtype
-        ):
+        if "ancestor_id" in result.columns:
             result["ancestor_id"] = result["ancestor_id"].astype(
                 ancestor_id_dtype,
             )

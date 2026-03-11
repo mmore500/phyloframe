@@ -28,12 +28,9 @@ def preserve_id_dtypes_polars(func: typing.Callable) -> typing.Callable:
             return result
 
         cast_map = {}
-        if "id" in result.columns and result["id"].dtype != id_dtype:
+        if "id" in result.columns:
             cast_map["id"] = id_dtype
-        if (
-            "ancestor_id" in result.columns
-            and result["ancestor_id"].dtype != ancestor_id_dtype
-        ):
+        if "ancestor_id" in result.columns:
             cast_map["ancestor_id"] = ancestor_id_dtype
 
         if cast_map:
