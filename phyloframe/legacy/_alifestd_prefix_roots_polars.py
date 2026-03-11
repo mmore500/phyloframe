@@ -67,18 +67,18 @@ def alifestd_prefix_roots_polars(
     )
 
     logging.info("- alifestd_prefix_roots: filtering prepended roots...")
-    prepended_roots = (
+    prefix_roots = (
         phylogeny_df.lazy()
         .filter(is_eligible_expr)
         .select("id", "ancestor_id", "origin_time")
         .collect()
     )
-    num_prepended = len(prepended_roots)
+    num_prepended = len(prefix_roots)
     if num_prepended == 0:
         return phylogeny_df
 
     logging.info("- alifestd_prefix_roots: building ancestor remap table...")
-    root_original_ids = prepended_roots["id"]
+    root_original_ids = prefix_roots["id"]
     new_ancestor_map = pl.DataFrame(
         {
             "row_idx": root_original_ids,
@@ -106,7 +106,7 @@ def alifestd_prefix_roots_polars(
     )
 
     logging.info("- alifestd_prefix_roots: building prepended root rows...")
-    prepended_root_rows = prepended_roots.with_columns(
+    prefix_roots = prefix_roots.with_columns(
         id=pl.int_range(num_prepended),
         ancestor_id=pl.int_range(num_prepended),
         origin_time=pl.lit(opyt.or_value(origin_time, 0)),
@@ -114,18 +114,19 @@ def alifestd_prefix_roots_polars(
         {
             k: v
             for k, v in phylogeny_df.collect_schema().items()
-            if k in prepended_roots.collect_schema()
+            if k in prefix_roots.collect_schema()
         },
     )
-    for col_name in phylogeny_df.columns:
-        if col_name not in prepended_root_rows.columns:
-            prepended_root_rows = prepended_root_rows.with_columns(
-                pl.lit(None).cast(phylogeny_df[col_name].dtype).alias(col_name)
-            )
-    prepended_root_rows = prepended_root_rows.select(phylogeny_df.columns)
+
+    prefix_roots = prefix_roots.with_columns(
+        **{
+            col: pl.lit(None).cast(phylogeny_df[col].dtype)
+            for col in set(phylogeny_df.columns) - set(prefix_roots.columns)
+        },
+    ).select(phylogeny_df.columns)
 
     logging.info("- alifestd_prefix_roots: concatenating result...")
-    return pl.concat([prepended_root_rows, phylogeny_df])
+    return pl.concat([prefix_roots, phylogeny_df])
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
