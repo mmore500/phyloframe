@@ -295,6 +295,18 @@ def test_fast_path_no_eligible_roots(mutate: bool):
 # --- polars-specific tests ---
 
 
+def _cross_check(pd_df, polars_result, **kwargs):
+    """Run pandas implementation on same data and compare to polars result."""
+    kwargs.setdefault("allow_id_reassign", True)
+    pandas_result = alifestd_prefix_roots(pd_df, **kwargs)
+    pdt.assert_frame_equal(
+        pandas_result.reset_index(drop=True),
+        polars_result.to_pandas(),
+        check_dtype=False,
+        check_like=True,
+    )
+
+
 def test_polars_empty_dataframe():
     df = pl.DataFrame({"id": [], "ancestor_id": [], "origin_time": []},).cast(
         {
@@ -397,6 +409,7 @@ def test_polars_singleton_no_origin_time():
         },
     )
     pltest.assert_frame_equal(result, expected, check_dtypes=False)
+    _cross_check(df.to_pandas(), result)
 
 
 def test_polars_singleton_with_origin_time_eligible():
@@ -416,6 +429,7 @@ def test_polars_singleton_with_origin_time_eligible():
         },
     )
     pltest.assert_frame_equal(result, expected, check_dtypes=False)
+    _cross_check(df.to_pandas(), result, origin_time=5)
 
 
 def test_polars_singleton_with_origin_time_not_eligible():
@@ -428,6 +442,7 @@ def test_polars_singleton_with_origin_time_not_eligible():
     )
     result = _call_polars(df, origin_time=10)
     pltest.assert_frame_equal(result, df, check_dtypes=False)
+    _cross_check(df.to_pandas(), result, origin_time=10)
 
 
 def test_polars_singleton_with_origin_time_equal_boundary():
@@ -441,6 +456,7 @@ def test_polars_singleton_with_origin_time_equal_boundary():
     result = _call_polars(df, origin_time=10)
     # origin_time == threshold is not > threshold, so not eligible
     pltest.assert_frame_equal(result, df, check_dtypes=False)
+    _cross_check(df.to_pandas(), result, origin_time=10)
 
 
 def test_polars_single_tree_no_eligible_roots():
@@ -453,6 +469,7 @@ def test_polars_single_tree_no_eligible_roots():
     )
     result = _call_polars(df, origin_time=10)
     pltest.assert_frame_equal(result, df, check_dtypes=False)
+    _cross_check(df.to_pandas(), result, origin_time=10)
 
 
 def test_polars_multiple_roots_none_eligible():
@@ -465,6 +482,7 @@ def test_polars_multiple_roots_none_eligible():
     )
     result = _call_polars(df, origin_time=10)
     pltest.assert_frame_equal(result, df, check_dtypes=False)
+    _cross_check(df.to_pandas(), result, origin_time=10)
 
 
 def test_polars_two_roots_all_eligible_no_origin_time():
@@ -486,6 +504,7 @@ def test_polars_two_roots_all_eligible_no_origin_time():
     assert result["ancestor_id"][5] == 4
     assert result["origin_time"][0] == 0.0
     assert result["origin_time"][1] == 0.0
+    _cross_check(df.to_pandas(), result)
 
 
 def test_polars_two_roots_one_eligible():
@@ -504,6 +523,7 @@ def test_polars_two_roots_one_eligible():
     assert result["ancestor_id"][2] == 1
     assert result["ancestor_id"][3] == 3
     assert result["ancestor_id"][4] == 3
+    _cross_check(df.to_pandas(), result, origin_time=10)
 
 
 def test_polars_three_independent_roots():
@@ -521,6 +541,7 @@ def test_polars_three_independent_roots():
         assert result["origin_time"][i] == 0.0
     for i in range(3):
         assert result["ancestor_id"][i + 3] == i
+    _cross_check(df.to_pandas(), result)
 
 
 def test_polars_extra_columns_filled_with_null():
@@ -542,6 +563,7 @@ def test_polars_extra_columns_filled_with_null():
     assert result["taxon_label"][2] == "child"
     assert result["fitness"][1] == 1.0
     assert result["fitness"][2] == 0.5
+    _cross_check(df.to_pandas(), result)
 
 
 def test_polars_is_root_column_dropped():
@@ -555,6 +577,7 @@ def test_polars_is_root_column_dropped():
     )
     result = _call_polars(df, origin_time=5)
     assert "is_root" not in result.columns
+    _cross_check(df.to_pandas(), result, origin_time=5)
 
 
 @pytest.mark.parametrize("dtype", [pl.Int32, pl.Int64])
@@ -569,6 +592,8 @@ def test_polars_id_dtype_preserved(dtype):
     result = _call_polars(df, origin_time=5)
     assert result["id"].dtype == dtype
     assert result["ancestor_id"].dtype == dtype
+    if dtype == pl.Int64:
+        _cross_check(df.to_pandas(), result, origin_time=5)
 
 
 def test_polars_input_not_mutated():
@@ -580,5 +605,6 @@ def test_polars_input_not_mutated():
         },
     )
     original = df.clone()
-    _call_polars(df, origin_time=5)
+    result = _call_polars(df, origin_time=5)
     pltest.assert_frame_equal(df, original)
+    _cross_check(df.to_pandas(), result, origin_time=5)
