@@ -10,6 +10,13 @@ from phyloframe.legacy import (
     alifestd_prefix_roots_polars,
 )
 
+from ._impl import enforce_dtype_consistency
+
+alifestd_prefix_roots_ = enforce_dtype_consistency(alifestd_prefix_roots)
+alifestd_prefix_roots_polars_ = enforce_dtype_consistency(
+    alifestd_prefix_roots_polars,
+)
+
 
 def _call_polars(df, **kwargs):
     """Shorthand that sets allow_id_reassign=True by default."""
@@ -608,3 +615,71 @@ def test_polars_input_not_mutated():
     result = _call_polars(df, origin_time=5)
     pltest.assert_frame_equal(df, original)
     _cross_check(df.to_pandas(), result, origin_time=5)
+
+
+# --- dtype consistency tests ---
+
+
+def test_prefix_roots_dtype_slow_path():
+    df = pd.DataFrame(
+        {
+            "id": [0],
+            "origin_time": [10],
+            "ancestor_id": [0],
+            "ancestor_list": ["[none]"],
+        }
+    )
+    alifestd_prefix_roots_(df, origin_time=5)
+
+
+def test_prefix_roots_dtype_fast_path():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "origin_time": [10, 9, 8],
+            "ancestor_id": [0, 0, 1],
+        },
+    )
+    alifestd_prefix_roots_(df, allow_id_reassign=True, origin_time=5)
+
+
+def test_prefix_roots_dtype_multiple_roots():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "origin_time": [20, 15, 10, 5],
+            "ancestor_id": [0, 0, 2, 2],
+            "ancestor_list": ["[none]", "[0]", "[none]", "[2]"],
+        }
+    )
+    alifestd_prefix_roots_(df, origin_time=12)
+
+
+def test_prefix_roots_polars_dtype():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "origin_time": [10, 9, 8],
+            "ancestor_id": [0, 0, 1],
+        },
+    )
+    alifestd_prefix_roots_polars_(
+        df,
+        allow_id_reassign=True,
+        origin_time=5,
+    )
+
+
+def test_prefix_roots_polars_dtype_multiple_roots():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "origin_time": [20, 15, 10, 5],
+            "ancestor_id": [0, 0, 2, 2],
+        },
+    )
+    alifestd_prefix_roots_polars_(
+        df,
+        allow_id_reassign=True,
+        origin_time=12,
+    )

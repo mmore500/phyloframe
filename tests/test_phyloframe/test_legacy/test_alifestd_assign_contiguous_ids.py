@@ -19,6 +19,15 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
+from ._impl import enforce_dtype_consistency
+
+alifestd_assign_contiguous_ids_ = enforce_dtype_consistency(
+    alifestd_assign_contiguous_ids,
+)
+alifestd_assign_contiguous_ids_polars_ = enforce_dtype_consistency(
+    alifestd_assign_contiguous_ids_polars,
+)
+
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
@@ -120,3 +129,48 @@ def test_alifestd_assign_contiguous_ids(phylogeny_df, apply):
             for tree in reassigned_trees
             for node in tree
         )
+
+
+# --- dtype consistency tests ---
+
+
+def test_assign_contiguous_ids_dtype_simple():
+    df = pd.DataFrame(
+        {
+            "id": [10, 20, 30],
+            "ancestor_id": [10, 10, 20],
+            "ancestor_list": ["[none]", "[10]", "[20]"],
+        }
+    )
+    alifestd_assign_contiguous_ids_(df)
+
+
+def test_assign_contiguous_ids_dtype_single_node():
+    df = pd.DataFrame(
+        {
+            "id": [0],
+            "ancestor_id": [0],
+            "ancestor_list": ["[none]"],
+        }
+    )
+    alifestd_assign_contiguous_ids_(df)
+
+
+def test_assign_contiguous_ids_polars_dtype_simple():
+    df = pl.DataFrame(
+        {
+            "id": [10, 20, 30],
+            "ancestor_id": [10, 10, 20],
+        }
+    )
+    alifestd_assign_contiguous_ids_polars_(df)
+
+
+def test_assign_contiguous_ids_polars_dtype_single_node():
+    df = pl.DataFrame(
+        {
+            "id": [0],
+            "ancestor_id": [0],
+        }
+    )
+    alifestd_assign_contiguous_ids_polars_(df)

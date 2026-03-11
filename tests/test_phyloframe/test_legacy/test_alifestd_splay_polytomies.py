@@ -9,6 +9,12 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
+from ._impl import enforce_dtype_consistency
+
+alifestd_splay_polytomies_ = enforce_dtype_consistency(
+    alifestd_splay_polytomies,
+)
+
 
 def test_alifestd_splay_polytomies_empty():
     pd.testing.assert_frame_equal(
@@ -337,3 +343,36 @@ def test_alifestd_splay_polytomies_mutate(df):
     df_ = df.copy()
     alifestd_splay_polytomies(df, mutate=False)
     pd.testing.assert_frame_equal(df_, df)
+
+
+# --- dtype consistency tests ---
+
+
+def test_splay_polytomies_dtype_no_polytomies():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[none]", "[0]", "[1]"],
+            "ancestor_id": [0, 0, 1],
+        }
+    )
+    alifestd_splay_polytomies_(df)
+
+
+def test_splay_polytomies_dtype_with_polytomy():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6],
+            "ancestor_list": [
+                "[1]",
+                "[none]",
+                "[1]",
+                "[1]",
+                "[2]",
+                "[3]",
+                "[5]",
+            ],
+            "ancestor_id": [1, 1, 1, 1, 2, 3, 5],
+        }
+    )
+    alifestd_splay_polytomies_(df)
