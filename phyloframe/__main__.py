@@ -69,6 +69,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_num_children_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_children_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_descendants_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_sibling_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_preceding_leaves_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_oldest_root
