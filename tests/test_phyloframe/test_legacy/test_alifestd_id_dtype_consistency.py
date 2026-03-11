@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
 
 from phyloframe.legacy import (
@@ -7,6 +8,15 @@ from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
     alifestd_prefix_roots,
     alifestd_splay_polytomies,
+)
+from phyloframe.legacy._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
+from phyloframe.legacy._alifestd_prefix_roots_polars import (
+    alifestd_prefix_roots_polars,
+)
+from phyloframe.legacy._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
 )
 
 from ._impl import enforce_dtype_consistency
@@ -21,9 +31,18 @@ alifestd_splay_polytomies_ = enforce_dtype_consistency(
 alifestd_add_inner_leaves_ = enforce_dtype_consistency(
     alifestd_add_inner_leaves,
 )
+alifestd_assign_contiguous_ids_polars_ = enforce_dtype_consistency(
+    alifestd_assign_contiguous_ids_polars,
+)
+alifestd_prefix_roots_polars_ = enforce_dtype_consistency(
+    alifestd_prefix_roots_polars,
+)
+alifestd_try_add_ancestor_id_col_polars_ = enforce_dtype_consistency(
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
-# --- alifestd_assign_contiguous_ids ---
+# --- pandas: alifestd_assign_contiguous_ids ---
 
 
 def test_assign_contiguous_ids_dtype_simple():
@@ -48,7 +67,7 @@ def test_assign_contiguous_ids_dtype_single_node():
     alifestd_assign_contiguous_ids_(df)
 
 
-# --- alifestd_prefix_roots ---
+# --- pandas: alifestd_prefix_roots ---
 
 
 def test_prefix_roots_dtype_slow_path():
@@ -86,7 +105,7 @@ def test_prefix_roots_dtype_multiple_roots():
     alifestd_prefix_roots_(df, origin_time=12)
 
 
-# --- alifestd_splay_polytomies ---
+# --- pandas: alifestd_splay_polytomies ---
 
 
 def test_splay_polytomies_dtype_no_polytomies():
@@ -119,7 +138,7 @@ def test_splay_polytomies_dtype_with_polytomy():
     alifestd_splay_polytomies_(df)
 
 
-# --- alifestd_add_inner_leaves ---
+# --- pandas: alifestd_add_inner_leaves ---
 
 
 def test_add_inner_leaves_dtype_chain():
@@ -141,3 +160,73 @@ def test_add_inner_leaves_dtype_with_ancestor_list():
         }
     )
     alifestd_add_inner_leaves_(df)
+
+
+# --- polars: alifestd_assign_contiguous_ids_polars ---
+
+
+def test_assign_contiguous_ids_polars_dtype_simple():
+    df = pl.DataFrame(
+        {
+            "id": [10, 20, 30],
+            "ancestor_id": [10, 10, 20],
+        }
+    )
+    alifestd_assign_contiguous_ids_polars_(df)
+
+
+def test_assign_contiguous_ids_polars_dtype_single_node():
+    df = pl.DataFrame(
+        {
+            "id": [0],
+            "ancestor_id": [0],
+        }
+    )
+    alifestd_assign_contiguous_ids_polars_(df)
+
+
+# --- polars: alifestd_prefix_roots_polars ---
+
+
+def test_prefix_roots_polars_dtype():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "origin_time": [10, 9, 8],
+            "ancestor_id": [0, 0, 1],
+        },
+    )
+    alifestd_prefix_roots_polars_(
+        df, allow_id_reassign=True, origin_time=5,
+    )
+
+
+def test_prefix_roots_polars_dtype_multiple_roots():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "origin_time": [20, 15, 10, 5],
+            "ancestor_id": [0, 0, 2, 2],
+        },
+    )
+    alifestd_prefix_roots_polars_(
+        df, allow_id_reassign=True, origin_time=12,
+    )
+
+
+# --- polars: alifestd_try_add_ancestor_id_col_polars ---
+
+
+@pytest.mark.parametrize("id_dtype", [pl.Int64, pl.UInt64])
+def test_try_add_ancestor_id_col_polars_dtype(id_dtype):
+    df = pl.DataFrame(
+        {
+            "id": pl.Series([0, 1, 2], dtype=id_dtype),
+            "ancestor_list": ["[none]", "[0]", "[1]"],
+        }
+    )
+    result = alifestd_try_add_ancestor_id_col_polars(df)
+    assert result["ancestor_id"].dtype == id_dtype, (
+        f"ancestor_id dtype {result['ancestor_id'].dtype} != id dtype "
+        f"{id_dtype}"
+    )

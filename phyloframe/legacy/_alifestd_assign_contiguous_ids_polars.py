@@ -26,6 +26,9 @@ def alifestd_assign_contiguous_ids_polars(
     if "ancestor_list" in phylogeny_df.columns:
         raise NotImplementedError
 
+    id_dtype = phylogeny_df["id"].dtype
+    ancestor_id_dtype = phylogeny_df["ancestor_id"].dtype
+
     new_ancestor_ids = _reassign_ids_asexual(
         phylogeny_df["id"].to_numpy(),
         phylogeny_df["ancestor_id"].to_numpy(),
@@ -35,7 +38,8 @@ def alifestd_assign_contiguous_ids_polars(
         phylogeny_df.drop("id")
         .with_row_index("id")
         .with_columns(
-            ancestor_id=pl.Series(new_ancestor_ids),
+            id=pl.col("id").cast(id_dtype),
+            ancestor_id=pl.Series(new_ancestor_ids).cast(ancestor_id_dtype),
         )
     )
 
