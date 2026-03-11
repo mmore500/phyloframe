@@ -20,6 +20,9 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
+from ._alifestd_count_leaf_nodes_polars import (
+    alifestd_count_leaf_nodes_polars,
+)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -40,6 +43,15 @@ def _alifestd_downsample_tips_clade_polars_impl(
     n_downsample: int,
 ) -> pl.DataFrame:
     """Implementation detail for alifestd_downsample_tips_clade_polars."""
+
+    logging.info(
+        "- alifestd_downsample_tips_clade_polars: " "counting leaf nodes...",
+    )
+    total_leaves = alifestd_count_leaf_nodes_polars(phylogeny_df)
+    if total_leaves <= n_downsample:
+        return phylogeny_df
+    gc.collect()
+    log_memory_usage(logging.info)
 
     logging.info(
         "- alifestd_downsample_tips_clade_polars: marking leaves...",
@@ -78,9 +90,6 @@ def _alifestd_downsample_tips_clade_polars_impl(
         "- alifestd_downsample_tips_clade_polars: finding candidates...",
     )
     is_candidate = num_leaves <= n_downsample
-    if is_candidate.all():
-        return phylogeny_df
-
     is_candidate &= num_leaves[ancestor_ids] > n_downsample
     gc.collect()
     log_memory_usage(logging.info)
