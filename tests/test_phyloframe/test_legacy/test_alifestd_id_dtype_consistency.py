@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
@@ -197,7 +196,9 @@ def test_prefix_roots_polars_dtype():
         },
     )
     alifestd_prefix_roots_polars_(
-        df, allow_id_reassign=True, origin_time=5,
+        df,
+        allow_id_reassign=True,
+        origin_time=5,
     )
 
 
@@ -210,7 +211,9 @@ def test_prefix_roots_polars_dtype_multiple_roots():
         },
     )
     alifestd_prefix_roots_polars_(
-        df, allow_id_reassign=True, origin_time=12,
+        df,
+        allow_id_reassign=True,
+        origin_time=12,
     )
 
 
