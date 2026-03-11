@@ -20,6 +20,7 @@ from .._auxlib._jit import jit
 from .._auxlib._jit_numba_dict_t import jit_numba_dict_t
 from .._auxlib._jit_numpy_int64_t import jit_numpy_int64_t
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._preserve_id_dtypes import preserve_id_dtypes
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
@@ -143,6 +144,7 @@ def _alifestd_splay_polytomies_slow_path(
     return phylogeny_df.reset_index(drop=True)
 
 
+@preserve_id_dtypes
 @alifestd_topological_sensitivity_warned(
     insert=True,
     delete=False,

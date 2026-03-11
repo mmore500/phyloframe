@@ -18,6 +18,7 @@ from .._auxlib._jit import jit
 from .._auxlib._jit_numba_dict_t import jit_numba_dict_t
 from .._auxlib._jit_numpy_int64_t import jit_numpy_int64_t
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._preserve_id_dtypes import preserve_id_dtypes
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 
@@ -60,6 +61,7 @@ def _reassign_ids_sexual(ids: np.ndarray) -> typing.Dict[int, int]:
     return reassignment
 
 
+@preserve_id_dtypes
 def alifestd_assign_contiguous_ids(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
