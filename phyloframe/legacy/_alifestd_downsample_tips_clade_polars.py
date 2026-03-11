@@ -27,11 +27,11 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
-from ._alifestd_mask_descendants_polars import (
-    alifestd_mask_descendants_polars,
-)
 from ._alifestd_mark_num_leaves_polars import (
     alifestd_mark_num_leaves_polars,
+)
+from ._alifestd_mask_descendants_polars import (
+    alifestd_mask_descendants_polars,
 )
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
