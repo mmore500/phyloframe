@@ -3,13 +3,7 @@ import typing
 
 import numpy as np
 import pandas as pd
-
-try:
-    import polars as pl
-
-    _HAS_POLARS = True
-except ImportError:
-    _HAS_POLARS = False
+import polars as pl
 
 
 def enforce_dtype_consistency(
@@ -30,7 +24,7 @@ def enforce_dtype_consistency(
 
         if isinstance(phylogeny_df, pd.DataFrame):
             _check_pandas(func, phylogeny_df, rest_args, kwargs)
-        elif _HAS_POLARS and isinstance(phylogeny_df, pl.DataFrame):
+        elif isinstance(phylogeny_df, pl.DataFrame):
             _check_polars(func, phylogeny_df, rest_args, kwargs)
 
         # Return the result from the original (uncast) call for downstream use
