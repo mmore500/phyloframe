@@ -6,7 +6,6 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
-    alifestd_count_leaf_nodes,
     alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_downsample_tips_clade_asexual import (

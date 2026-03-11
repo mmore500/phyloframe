@@ -89,9 +89,7 @@ def _alifestd_downsample_tips_clade_polars_impl(
         "- alifestd_downsample_tips_clade_polars: "
         "sampling weighted candidate...",
     )
-    ids = (
-        phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
-    )
+    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
     candidate_ids = ids[is_candidate]
     candidate_num_leaves = num_leaves[is_candidate]
     weighted_candidates = np.repeat(candidate_ids, candidate_num_leaves)
@@ -117,11 +115,7 @@ def _alifestd_downsample_tips_clade_polars_impl(
         "- alifestd_downsample_tips_clade_polars: marking extant...",
     )
     is_leaf = (
-        phylogeny_df.lazy()
-        .select("is_leaf")
-        .collect()
-        .to_series()
-        .to_numpy()
+        phylogeny_df.lazy().select("is_leaf").collect().to_series().to_numpy()
     )
     extant = is_descendant & is_leaf
     phylogeny_df = phylogeny_df.with_columns(extant=extant)
