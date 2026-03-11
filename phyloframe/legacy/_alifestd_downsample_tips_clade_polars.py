@@ -27,6 +27,9 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
+from ._alifestd_mark_num_leaves_polars import (
+    alifestd_mark_num_leaves_polars,
+)
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
 )
@@ -49,6 +52,13 @@ def _alifestd_downsample_tips_clade_polars_impl(
     log_memory_usage(logging.info)
 
     logging.info(
+        "- alifestd_downsample_tips_clade_polars: marking num_leaves...",
+    )
+    phylogeny_df = alifestd_mark_num_leaves_polars(phylogeny_df)
+    gc.collect()
+    log_memory_usage(logging.info)
+
+    logging.info(
         "- alifestd_downsample_tips_clade_polars: "
         "collecting ancestor_id values...",
     )
@@ -59,18 +69,13 @@ def _alifestd_downsample_tips_clade_polars_impl(
         .to_series()
         .to_numpy()
     )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: computing num_leaves...",
+    num_leaves = (
+        phylogeny_df.lazy()
+        .select("num_leaves")
+        .collect()
+        .to_series()
+        .to_numpy()
     )
-    num_leaves = np.zeros(len(ancestor_ids), dtype=np.int64)
-    for idx_r, ancestor_id in enumerate(ancestor_ids[::-1]):
-        idx = len(ancestor_ids) - 1 - idx_r
-        num_leaves[idx] = max(num_leaves[idx], 1)
-        if ancestor_id != idx:  # exclude genesis cases
-            num_leaves[ancestor_id] += num_leaves[idx]
     gc.collect()
     log_memory_usage(logging.info)
 

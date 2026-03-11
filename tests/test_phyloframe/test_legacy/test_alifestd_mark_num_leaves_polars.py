@@ -1,0 +1,364 @@
+import os
+import typing
+
+import pandas as pd
+import polars as pl
+import pytest
+
+from phyloframe.legacy import (
+    alifestd_mark_num_leaves_asexual,
+    alifestd_to_working_format,
+)
+from phyloframe.legacy._alifestd_mark_num_leaves_polars import (
+    alifestd_mark_num_leaves_polars,
+)
+
+assets_path = os.path.join(os.path.dirname(__file__), "assets")
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        alifestd_to_working_format(
+            pd.read_csv(
+                f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
+            )
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_fuzz(
+    phylogeny_df: pd.DataFrame, apply: typing.Callable
+):
+    """Verify num_leaves column is correctly added."""
+    df_prepared = pl.from_pandas(phylogeny_df)
+    df_pl = apply(df_prepared)
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert "num_leaves" in result.columns
+    assert len(result) == len(df_prepared)
+
+    # every id in result should match original
+    assert result["id"].to_list() == df_prepared["id"].to_list()
+
+    # all counts should be >= 1 (every node has at least itself if leaf)
+    assert (result["num_leaves"] >= 1).all()
+
+    # all counts should be <= total number of nodes
+    assert (result["num_leaves"] <= len(result)).all()
+
+    # leaves should have num_leaves == 1
+    internal_ids = set(
+        df_prepared.filter(pl.col("ancestor_id") != pl.col("id"))
+        .select("ancestor_id")
+        .to_series()
+        .to_list()
+    )
+    for row in result.iter_rows(named=True):
+        if row["id"] not in internal_ids:
+            assert row["num_leaves"] == 1
+        else:
+            assert row["num_leaves"] >= 1
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        alifestd_to_working_format(
+            pd.read_csv(
+                f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
+            )
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_matches_pandas(
+    phylogeny_df: pd.DataFrame, apply: typing.Callable
+):
+    """Verify polars result matches pandas result."""
+    result_pd = alifestd_mark_num_leaves_asexual(phylogeny_df, mutate=False)
+
+    df_pl = apply(pl.from_pandas(phylogeny_df))
+    result_pl = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert result_pd["num_leaves"].tolist() == (
+        result_pl["num_leaves"].to_list()
+    )
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_simple_chain(
+    apply: typing.Callable,
+):
+    """Test a simple chain: 0 -> 1 -> 2."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 1],
+            }
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert result["num_leaves"].to_list() == [1, 1, 1]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_simple_tree(apply: typing.Callable):
+    """Test a simple tree.
+
+    Tree structure:
+        0 (root)
+        +-- 1
+        |   +-- 3
+        |   +-- 4
+        +-- 2
+    """
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4],
+                "ancestor_id": [0, 0, 0, 1, 1],
+            }
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert result["num_leaves"].to_list() == [3, 2, 1, 1, 1]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_two_roots(apply: typing.Callable):
+    """Two independent roots with children."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3],
+                "ancestor_id": [0, 1, 0, 1],
+            }
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert result["num_leaves"].to_list() == [1, 1, 1, 1]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_all_roots(apply: typing.Callable):
+    """All self-referencing roots have 1 leaf (themselves)."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 1, 2],
+            }
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert result["num_leaves"].to_list() == [1, 1, 1]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_single_node(apply: typing.Callable):
+    """A single root node has 1 leaf (itself)."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0],
+                "ancestor_id": [0],
+            }
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert result["num_leaves"].to_list() == [1]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_empty(apply: typing.Callable):
+    """Empty dataframe gets num_leaves column."""
+    df_pl = apply(
+        pl.DataFrame(
+            {"id": [], "ancestor_id": []},
+            schema={"id": pl.Int64, "ancestor_id": pl.Int64},
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert "num_leaves" in result.columns
+    assert result.is_empty()
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_preserves_columns(
+    apply: typing.Callable,
+):
+    """Verify original columns are preserved."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 1],
+                "origin_time": [0.0, 1.0, 2.0],
+                "taxon_label": ["a", "b", "c"],
+            }
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert "num_leaves" in result.columns
+    assert "origin_time" in result.columns
+    assert "taxon_label" in result.columns
+    assert result["origin_time"].to_list() == [0.0, 1.0, 2.0]
+    assert result["taxon_label"].to_list() == ["a", "b", "c"]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_non_contiguous_ids(
+    apply: typing.Callable,
+):
+    """Verify NotImplementedError for non-contiguous ids."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 2, 5],
+                "ancestor_id": [0, 0, 2],
+            }
+        ),
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_unsorted(apply: typing.Callable):
+    """Verify NotImplementedError for topologically unsorted data."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 2, 0],
+            }
+        ),
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_num_leaves_polars_star_topology(
+    apply: typing.Callable,
+):
+    """Root with many direct children (all leaves)."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4, 5],
+                "ancestor_id": [0, 0, 0, 0, 0, 0],
+            }
+        ),
+    )
+
+    result = alifestd_mark_num_leaves_polars(df_pl).lazy().collect()
+
+    assert result["num_leaves"].to_list() == [5, 1, 1, 1, 1, 1]
