@@ -54,7 +54,7 @@ def _alifestd_downsample_tips_clade_asexual_impl(
     if alifestd_has_contiguous_ids(phylogeny_df):
         is_candidate &= (
             phylogeny_df["num_leaves"].values[
-                phylogeny_df["ancestor_id"].values
+                phylogeny_df["ancestor_id"].values.astype(np.intp)
             ]
             > n_downsample
         )
