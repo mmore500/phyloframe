@@ -109,6 +109,9 @@ from ._alifestd_downsample_tips_canopy_polars import (
 from ._alifestd_downsample_tips_clade_asexual import (
     alifestd_downsample_tips_clade_asexual,
 )
+from ._alifestd_downsample_tips_clade_polars import (
+    alifestd_downsample_tips_clade_polars,
+)
 from ._alifestd_downsample_tips_lineage_asexual import (
     alifestd_downsample_tips_lineage_asexual,
 )
@@ -404,6 +407,7 @@ __all__ = [
     "alifestd_downsample_tips_canopy_asexual",
     "alifestd_downsample_tips_canopy_polars",
     "alifestd_downsample_tips_clade_asexual",
+    "alifestd_downsample_tips_clade_polars",
     "alifestd_downsample_tips_lineage_asexual",
     "alifestd_downsample_tips_lineage_polars",
     "alifestd_downsample_tips_lineage_stratified_asexual",

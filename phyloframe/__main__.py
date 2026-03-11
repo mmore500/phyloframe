@@ -29,6 +29,7 @@ $ python3 -m phyloframe.legacy._alifestd_downsample_tips_asexual
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_canopy_asexual
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_canopy_polars
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_clade_asexual
+$ python3 -m phyloframe.legacy._alifestd_downsample_tips_clade_polars
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_lineage_asexual
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_lineage_polars
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_lineage_stratified_asexual
