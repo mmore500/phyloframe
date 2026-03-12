@@ -21,7 +21,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_delete_trunk_asexual = assert_dtype_consistency(alifestd_delete_trunk_asexual_)
+alifestd_delete_trunk_asexual = assert_dtype_consistency(
+    alifestd_delete_trunk_asexual_
+)
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 

@@ -7,7 +7,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_unfurl_lineage_asexual = assert_dtype_consistency(alifestd_unfurl_lineage_asexual_)
+alifestd_unfurl_lineage_asexual = assert_dtype_consistency(
+    alifestd_unfurl_lineage_asexual_
+)
 
 
 def test_alifestd_unfurl_lineage_asexual():

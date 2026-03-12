@@ -19,7 +19,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_from_newick_polars = assert_dtype_consistency(alifestd_from_newick_polars_)
+alifestd_from_newick_polars = assert_dtype_consistency(
+    alifestd_from_newick_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

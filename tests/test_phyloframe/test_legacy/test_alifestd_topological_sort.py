@@ -17,7 +17,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_topological_sort = assert_dtype_consistency(alifestd_topological_sort_)
+alifestd_topological_sort = assert_dtype_consistency(
+    alifestd_topological_sort_
+)
 
 
 def swap_rows_and_indices(df, loc1, loc2):

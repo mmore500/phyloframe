@@ -11,7 +11,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_mask_monomorphic_clades_asexual = assert_dtype_consistency(alifestd_mask_monomorphic_clades_asexual_)
+alifestd_mask_monomorphic_clades_asexual = assert_dtype_consistency(
+    alifestd_mask_monomorphic_clades_asexual_
+)
 
 
 def test_empty():

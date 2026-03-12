@@ -34,7 +34,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_collapse_unifurcations = assert_dtype_consistency(alifestd_collapse_unifurcations_)
+alifestd_collapse_unifurcations = assert_dtype_consistency(
+    alifestd_collapse_unifurcations_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

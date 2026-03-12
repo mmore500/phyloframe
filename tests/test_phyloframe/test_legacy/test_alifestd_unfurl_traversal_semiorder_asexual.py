@@ -17,7 +17,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_unfurl_traversal_semiorder_asexual = assert_dtype_consistency(alifestd_unfurl_traversal_semiorder_asexual_)
+alifestd_unfurl_traversal_semiorder_asexual = assert_dtype_consistency(
+    alifestd_unfurl_traversal_semiorder_asexual_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

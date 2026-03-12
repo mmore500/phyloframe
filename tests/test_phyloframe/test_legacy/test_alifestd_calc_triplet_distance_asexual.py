@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_calc_triplet_distance_asexual = assert_dtype_consistency(alifestd_calc_triplet_distance_asexual_)
+alifestd_calc_triplet_distance_asexual = assert_dtype_consistency(
+    alifestd_calc_triplet_distance_asexual_
+)
 
 
 @pytest.mark.parametrize(

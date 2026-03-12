@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_reroot_at_id_asexual = assert_dtype_consistency(alifestd_reroot_at_id_asexual_)
+alifestd_reroot_at_id_asexual = assert_dtype_consistency(
+    alifestd_reroot_at_id_asexual_
+)
 
 
 def test_alifestd_reroot_at_id_asexual_inner_node_terminal_node():

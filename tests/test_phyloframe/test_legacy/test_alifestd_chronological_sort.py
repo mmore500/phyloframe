@@ -11,7 +11,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_chronological_sort = assert_dtype_consistency(alifestd_chronological_sort_)
+alifestd_chronological_sort = assert_dtype_consistency(
+    alifestd_chronological_sort_
+)
 
 
 def test_chronological_sort_empty():

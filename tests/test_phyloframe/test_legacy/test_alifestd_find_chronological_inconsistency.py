@@ -18,7 +18,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_find_chronological_inconsistency = assert_dtype_consistency(alifestd_find_chronological_inconsistency_)
+alifestd_find_chronological_inconsistency = assert_dtype_consistency(
+    alifestd_find_chronological_inconsistency_
+)
 
 
 # see https://blog.miguelgrinberg.com/post/it-s-time-for-a-change-datetime-utcnow-is-now-deprecated

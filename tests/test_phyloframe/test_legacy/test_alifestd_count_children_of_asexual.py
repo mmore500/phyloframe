@@ -7,7 +7,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_count_children_of_asexual = assert_dtype_consistency(alifestd_count_children_of_asexual_)
+alifestd_count_children_of_asexual = assert_dtype_consistency(
+    alifestd_count_children_of_asexual_
+)
 
 
 def sample_phylogeny_df1():

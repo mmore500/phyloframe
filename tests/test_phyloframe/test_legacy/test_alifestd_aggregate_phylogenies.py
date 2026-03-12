@@ -22,7 +22,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_aggregate_phylogenies = assert_dtype_consistency(alifestd_aggregate_phylogenies_)
+alifestd_aggregate_phylogenies = assert_dtype_consistency(
+    alifestd_aggregate_phylogenies_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

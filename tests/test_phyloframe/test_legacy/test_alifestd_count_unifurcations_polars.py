@@ -6,7 +6,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_count_unifurcations_polars = assert_dtype_consistency(alifestd_count_unifurcations_polars_)
+alifestd_count_unifurcations_polars = assert_dtype_consistency(
+    alifestd_count_unifurcations_polars_
+)
 
 
 def test_empty_df():

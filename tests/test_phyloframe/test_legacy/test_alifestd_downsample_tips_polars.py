@@ -22,7 +22,9 @@ from phyloframe.legacy._alifestd_mark_leaves_polars import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_downsample_tips_polars = assert_dtype_consistency(alifestd_downsample_tips_polars_)
+alifestd_downsample_tips_polars = assert_dtype_consistency(
+    alifestd_downsample_tips_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

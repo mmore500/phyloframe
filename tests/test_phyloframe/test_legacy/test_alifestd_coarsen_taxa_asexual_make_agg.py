@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_coarsen_taxa_asexual_make_agg = assert_dtype_consistency(alifestd_coarsen_taxa_asexual_make_agg_)
+alifestd_coarsen_taxa_asexual_make_agg = assert_dtype_consistency(
+    alifestd_coarsen_taxa_asexual_make_agg_
+)
 
 
 @pytest.fixture

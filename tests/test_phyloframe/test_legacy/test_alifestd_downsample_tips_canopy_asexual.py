@@ -19,7 +19,9 @@ from phyloframe.legacy._alifestd_downsample_tips_canopy_asexual import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_downsample_tips_canopy_asexual = assert_dtype_consistency(alifestd_downsample_tips_canopy_asexual_)
+alifestd_downsample_tips_canopy_asexual = assert_dtype_consistency(
+    alifestd_downsample_tips_canopy_asexual_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

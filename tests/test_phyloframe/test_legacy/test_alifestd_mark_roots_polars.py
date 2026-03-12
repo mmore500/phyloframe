@@ -15,7 +15,9 @@ from phyloframe.legacy._alifestd_mark_roots_polars import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_mark_roots_polars = assert_dtype_consistency(alifestd_mark_roots_polars_)
+alifestd_mark_roots_polars = assert_dtype_consistency(
+    alifestd_mark_roots_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

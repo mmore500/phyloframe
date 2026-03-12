@@ -9,7 +9,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_is_chronologically_sorted = assert_dtype_consistency(alifestd_is_chronologically_sorted_)
+alifestd_is_chronologically_sorted = assert_dtype_consistency(
+    alifestd_is_chronologically_sorted_
+)
 
 
 def test_is_chronologically_sorted_empty():

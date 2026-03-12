@@ -17,7 +17,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_has_multiple_roots = assert_dtype_consistency(alifestd_has_multiple_roots_)
+alifestd_has_multiple_roots = assert_dtype_consistency(
+    alifestd_has_multiple_roots_
+)
 
 
 def swap_rows_and_indices(df, loc1, loc2):

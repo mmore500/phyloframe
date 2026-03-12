@@ -18,7 +18,9 @@ from phyloframe.legacy._alifestd_try_add_ancestor_list_col_polars import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_try_add_ancestor_list_col_polars = assert_dtype_consistency(alifestd_try_add_ancestor_list_col_polars_)
+alifestd_try_add_ancestor_list_col_polars = assert_dtype_consistency(
+    alifestd_try_add_ancestor_list_col_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

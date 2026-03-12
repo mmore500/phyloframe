@@ -12,7 +12,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency, enforce_identical_polars_result
 
-alifestd_make_ancestor_list_col = assert_dtype_consistency(alifestd_make_ancestor_list_col_)
+alifestd_make_ancestor_list_col = assert_dtype_consistency(
+    alifestd_make_ancestor_list_col_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

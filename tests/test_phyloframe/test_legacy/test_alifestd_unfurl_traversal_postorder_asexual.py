@@ -15,7 +15,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_unfurl_traversal_postorder_asexual = assert_dtype_consistency(alifestd_unfurl_traversal_postorder_asexual_)
+alifestd_unfurl_traversal_postorder_asexual = assert_dtype_consistency(
+    alifestd_unfurl_traversal_postorder_asexual_
+)
 
 
 def is_nondecreasing(seq):

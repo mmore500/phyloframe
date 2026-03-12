@@ -13,7 +13,9 @@ from phyloframe.legacy._alifestd_find_pair_mrca_id_asexual import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_find_pair_mrca_id_asexual = assert_dtype_consistency(alifestd_find_pair_mrca_id_asexual_)
+alifestd_find_pair_mrca_id_asexual = assert_dtype_consistency(
+    alifestd_find_pair_mrca_id_asexual_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

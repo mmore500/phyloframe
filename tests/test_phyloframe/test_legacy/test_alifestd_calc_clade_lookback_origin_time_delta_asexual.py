@@ -11,7 +11,11 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_calc_clade_lookback_origin_time_delta_asexual = assert_dtype_consistency(alifestd_calc_clade_lookback_origin_time_delta_asexual_)
+alifestd_calc_clade_lookback_origin_time_delta_asexual = (
+    assert_dtype_consistency(
+        alifestd_calc_clade_lookback_origin_time_delta_asexual_
+    )
+)
 
 
 def test_empty():

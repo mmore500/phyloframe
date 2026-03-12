@@ -6,7 +6,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_is_strictly_bifurcating_asexual = assert_dtype_consistency(alifestd_is_strictly_bifurcating_asexual_)
+alifestd_is_strictly_bifurcating_asexual = assert_dtype_consistency(
+    alifestd_is_strictly_bifurcating_asexual_
+)
 
 
 def test_valid_bifurcating_tree():

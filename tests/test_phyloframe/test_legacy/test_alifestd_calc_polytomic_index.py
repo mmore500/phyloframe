@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_calc_polytomic_index = assert_dtype_consistency(alifestd_calc_polytomic_index_)
+alifestd_calc_polytomic_index = assert_dtype_consistency(
+    alifestd_calc_polytomic_index_
+)
 
 
 def test_empty_df():

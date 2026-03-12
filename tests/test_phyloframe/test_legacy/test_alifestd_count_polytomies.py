@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_count_polytomies = assert_dtype_consistency(alifestd_count_polytomies_)
+alifestd_count_polytomies = assert_dtype_consistency(
+    alifestd_count_polytomies_
+)
 
 
 def test_empty_df():

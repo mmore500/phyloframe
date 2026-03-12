@@ -22,7 +22,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_to_working_format = assert_dtype_consistency(alifestd_to_working_format_)
+alifestd_to_working_format = assert_dtype_consistency(
+    alifestd_to_working_format_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

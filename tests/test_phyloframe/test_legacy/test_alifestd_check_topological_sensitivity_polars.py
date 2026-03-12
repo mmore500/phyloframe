@@ -16,7 +16,9 @@ from phyloframe.legacy._alifestd_check_topological_sensitivity import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_check_topological_sensitivity_polars = assert_dtype_consistency(alifestd_check_topological_sensitivity_polars_)
+alifestd_check_topological_sensitivity_polars = assert_dtype_consistency(
+    alifestd_check_topological_sensitivity_polars_
+)
 
 
 @pytest.fixture

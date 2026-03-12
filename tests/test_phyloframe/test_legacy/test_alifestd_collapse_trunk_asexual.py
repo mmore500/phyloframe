@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_collapse_trunk_asexual = assert_dtype_consistency(alifestd_collapse_trunk_asexual_)
+alifestd_collapse_trunk_asexual = assert_dtype_consistency(
+    alifestd_collapse_trunk_asexual_
+)
 
 
 @pytest.mark.parametrize("mutate", [True, False])

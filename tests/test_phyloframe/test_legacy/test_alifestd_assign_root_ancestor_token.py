@@ -15,7 +15,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_assign_root_ancestor_token = assert_dtype_consistency(alifestd_assign_root_ancestor_token_)
+alifestd_assign_root_ancestor_token = assert_dtype_consistency(
+    alifestd_assign_root_ancestor_token_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

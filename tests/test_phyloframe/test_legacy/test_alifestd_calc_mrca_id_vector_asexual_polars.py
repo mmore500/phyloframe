@@ -19,7 +19,9 @@ from phyloframe.legacy._alifestd_calc_mrca_id_vector_asexual_polars import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_calc_mrca_id_vector_asexual_polars = assert_dtype_consistency(alifestd_calc_mrca_id_vector_asexual_polars_)
+alifestd_calc_mrca_id_vector_asexual_polars = assert_dtype_consistency(
+    alifestd_calc_mrca_id_vector_asexual_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

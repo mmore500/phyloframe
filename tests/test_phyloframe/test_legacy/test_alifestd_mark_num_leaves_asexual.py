@@ -18,7 +18,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_mark_num_leaves_asexual = assert_dtype_consistency(alifestd_mark_num_leaves_asexual_)
+alifestd_mark_num_leaves_asexual = assert_dtype_consistency(
+    alifestd_mark_num_leaves_asexual_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

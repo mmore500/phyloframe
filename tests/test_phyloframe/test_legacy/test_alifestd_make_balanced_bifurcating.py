@@ -13,7 +13,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_make_balanced_bifurcating = assert_dtype_consistency(alifestd_make_balanced_bifurcating_)
+alifestd_make_balanced_bifurcating = assert_dtype_consistency(
+    alifestd_make_balanced_bifurcating_
+)
 
 
 @pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])

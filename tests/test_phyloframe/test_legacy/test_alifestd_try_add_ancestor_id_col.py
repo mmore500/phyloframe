@@ -16,7 +16,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_try_add_ancestor_id_col = assert_dtype_consistency(alifestd_try_add_ancestor_id_col_)
+alifestd_try_add_ancestor_id_col = assert_dtype_consistency(
+    alifestd_try_add_ancestor_id_col_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

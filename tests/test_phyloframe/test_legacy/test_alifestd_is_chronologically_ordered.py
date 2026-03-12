@@ -13,7 +13,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_is_chronologically_ordered = assert_dtype_consistency(alifestd_is_chronologically_ordered_)
+alifestd_is_chronologically_ordered = assert_dtype_consistency(
+    alifestd_is_chronologically_ordered_
+)
 
 
 def test_is_chronologically_ordered_empty():

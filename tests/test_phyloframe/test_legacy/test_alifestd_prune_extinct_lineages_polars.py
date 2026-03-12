@@ -23,7 +23,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_prune_extinct_lineages_polars = assert_dtype_consistency(alifestd_prune_extinct_lineages_polars_)
+alifestd_prune_extinct_lineages_polars = assert_dtype_consistency(
+    alifestd_prune_extinct_lineages_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

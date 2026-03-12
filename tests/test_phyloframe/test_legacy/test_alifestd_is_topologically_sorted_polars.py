@@ -15,7 +15,9 @@ from phyloframe.legacy._alifestd_is_topologically_sorted_polars import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_is_topologically_sorted_polars = assert_dtype_consistency(alifestd_is_topologically_sorted_polars_)
+alifestd_is_topologically_sorted_polars = assert_dtype_consistency(
+    alifestd_is_topologically_sorted_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

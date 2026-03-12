@@ -9,7 +9,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_has_increasing_ids = assert_dtype_consistency(alifestd_has_increasing_ids_)
+alifestd_has_increasing_ids = assert_dtype_consistency(
+    alifestd_has_increasing_ids_
+)
 
 
 def test_empty():

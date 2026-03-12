@@ -11,7 +11,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_add_inner_knuckles_asexual = assert_dtype_consistency(alifestd_add_inner_knuckles_asexual_)
+alifestd_add_inner_knuckles_asexual = assert_dtype_consistency(
+    alifestd_add_inner_knuckles_asexual_
+)
 
 
 def test_empty_df():

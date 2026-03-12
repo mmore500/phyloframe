@@ -17,7 +17,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_estimate_triplet_distance_asexual = assert_dtype_consistency(alifestd_estimate_triplet_distance_asexual_)
+alifestd_estimate_triplet_distance_asexual = assert_dtype_consistency(
+    alifestd_estimate_triplet_distance_asexual_
+)
 
 
 def test_empty():

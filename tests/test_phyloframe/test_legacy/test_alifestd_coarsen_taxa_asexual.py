@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_coarsen_taxa_asexual = assert_dtype_consistency(alifestd_coarsen_taxa_asexual_)
+alifestd_coarsen_taxa_asexual = assert_dtype_consistency(
+    alifestd_coarsen_taxa_asexual_
+)
 
 
 @pytest.mark.parametrize("col", ["id", "ancestor_id", "ancestor_list"])

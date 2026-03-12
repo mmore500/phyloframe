@@ -13,7 +13,9 @@ from phyloframe.legacy._alifestd_coarsen_dilate_polars import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_coarsen_dilate_polars = assert_dtype_consistency(alifestd_coarsen_dilate_polars_)
+alifestd_coarsen_dilate_polars = assert_dtype_consistency(
+    alifestd_coarsen_dilate_polars_
+)
 
 
 @pytest.mark.parametrize(

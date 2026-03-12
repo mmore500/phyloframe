@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_count_unifurcations = assert_dtype_consistency(alifestd_count_unifurcations_)
+alifestd_count_unifurcations = assert_dtype_consistency(
+    alifestd_count_unifurcations_
+)
 
 
 def test_empty_df():

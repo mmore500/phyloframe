@@ -10,7 +10,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_coarsen_dilate_asexual = assert_dtype_consistency(alifestd_coarsen_dilate_asexual_)
+alifestd_coarsen_dilate_asexual = assert_dtype_consistency(
+    alifestd_coarsen_dilate_asexual_
+)
 
 
 def test_empty():

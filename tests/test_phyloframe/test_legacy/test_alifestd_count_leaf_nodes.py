@@ -9,7 +9,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_count_leaf_nodes = assert_dtype_consistency(alifestd_count_leaf_nodes_)
+alifestd_count_leaf_nodes = assert_dtype_consistency(
+    alifestd_count_leaf_nodes_
+)
 
 
 def test_empty_df():

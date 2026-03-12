@@ -12,7 +12,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_mark_clade_duration_ratio_sister_asexual = assert_dtype_consistency(alifestd_mark_clade_duration_ratio_sister_asexual_)
+alifestd_mark_clade_duration_ratio_sister_asexual = assert_dtype_consistency(
+    alifestd_mark_clade_duration_ratio_sister_asexual_
+)
 
 
 def test_empty():

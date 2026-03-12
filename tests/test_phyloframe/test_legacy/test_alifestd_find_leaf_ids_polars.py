@@ -16,7 +16,9 @@ from phyloframe.legacy._alifestd_find_leaf_ids_polars import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_find_leaf_ids_polars = assert_dtype_consistency(alifestd_find_leaf_ids_polars_)
+alifestd_find_leaf_ids_polars = assert_dtype_consistency(
+    alifestd_find_leaf_ids_polars_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

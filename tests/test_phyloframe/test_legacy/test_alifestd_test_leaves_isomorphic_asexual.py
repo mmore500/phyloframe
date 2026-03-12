@@ -14,7 +14,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_test_leaves_isomorphic_asexual = assert_dtype_consistency(alifestd_test_leaves_isomorphic_asexual_)
+alifestd_test_leaves_isomorphic_asexual = assert_dtype_consistency(
+    alifestd_test_leaves_isomorphic_asexual_
+)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

@@ -15,7 +15,9 @@ from phyloframe.legacy import (
 
 from ._impl import assert_dtype_consistency
 
-alifestd_mark_num_preceding_leaves_asexual = assert_dtype_consistency(alifestd_mark_num_preceding_leaves_asexual_)
+alifestd_mark_num_preceding_leaves_asexual = assert_dtype_consistency(
+    alifestd_mark_num_preceding_leaves_asexual_
+)
 
 
 def test_empty():
