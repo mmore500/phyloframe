@@ -1,9 +1,4 @@
-from phyloframe.legacy import alifestd_make_empty as alifestd_make_empty_
-from phyloframe.legacy import alifestd_validate
-
-from ._impl import enforce_dtype_stability_pandas
-
-alifestd_make_empty = enforce_dtype_stability_pandas(alifestd_make_empty_)
+from phyloframe.legacy import alifestd_make_empty, alifestd_validate
 
 
 def test_alifestd_make_empty():

@@ -3,15 +3,9 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
-)
-from phyloframe.legacy import (
+    alifestd_make_comb,
     alifestd_validate,
 )
-from phyloframe.legacy import alifestd_make_comb as alifestd_make_comb_
-
-from ._impl import enforce_dtype_stability_pandas
-
-alifestd_make_comb = enforce_dtype_stability_pandas(alifestd_make_comb_)
 
 
 @pytest.mark.parametrize("n_leaves", [2, 3, 4, 5, 8])

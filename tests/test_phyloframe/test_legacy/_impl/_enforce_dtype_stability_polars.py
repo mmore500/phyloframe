@@ -16,18 +16,20 @@ def enforce_dtype_stability_polars(
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> typing.Any:
-        if not args:
-            return func(*args, **kwargs)
-
-        phylogeny_df, *rest_args = args
-
+    def wrapper(
+        phylogeny_df: typing.Union[pl.DataFrame, pl.LazyFrame],
+        *args,
+        **kwargs,
+    ) -> typing.Any:
         if not isinstance(phylogeny_df, (pl.DataFrame, pl.LazyFrame)):
-            return func(phylogeny_df, *rest_args, **kwargs)
+            raise ValueError(
+                f"enforce_dtype_stability_polars: expected polars "
+                f"DataFrame or LazyFrame, got {type(phylogeny_df)}"
+            )
 
         input_schema = phylogeny_df.lazy().collect_schema()
         if "id" not in input_schema:
-            return func(phylogeny_df, *rest_args, **kwargs)
+            return func(phylogeny_df, *args, **kwargs)
 
         id_dtype = input_schema["id"]
         ancestor_id_dtype = (
@@ -36,7 +38,7 @@ def enforce_dtype_stability_polars(
             else None
         )
 
-        result = func(phylogeny_df, *rest_args, **kwargs)
+        result = func(phylogeny_df, *args, **kwargs)
 
         if isinstance(result, (pl.DataFrame, pl.LazyFrame)):
             result_schema = result.lazy().collect_schema()

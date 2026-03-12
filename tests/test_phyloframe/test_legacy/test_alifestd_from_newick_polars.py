@@ -9,18 +9,8 @@ import pytest
 from phyloframe.legacy import (
     alifestd_as_newick_asexual,
     alifestd_from_newick,
-)
-from phyloframe.legacy import (
-    alifestd_from_newick_polars as alifestd_from_newick_polars_,
-)
-from phyloframe.legacy import (
+    alifestd_from_newick_polars,
     alifestd_try_add_ancestor_id_col,
-)
-
-from ._impl import enforce_dtype_stability_polars
-
-alifestd_from_newick_polars = enforce_dtype_stability_polars(
-    alifestd_from_newick_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

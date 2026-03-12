@@ -3,18 +3,8 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
-)
-from phyloframe.legacy import (
-    alifestd_make_balanced_bifurcating as alifestd_make_balanced_bifurcating_,
-)
-from phyloframe.legacy import (
+    alifestd_make_balanced_bifurcating,
     alifestd_validate,
-)
-
-from ._impl import enforce_dtype_stability_pandas
-
-alifestd_make_balanced_bifurcating = enforce_dtype_stability_pandas(
-    alifestd_make_balanced_bifurcating_
 )
 
 

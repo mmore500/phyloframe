@@ -7,15 +7,9 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_as_newick_asexual,
-)
-from phyloframe.legacy import (
+    alifestd_from_newick,
     alifestd_try_add_ancestor_id_col,
 )
-from phyloframe.legacy import alifestd_from_newick as alifestd_from_newick_
-
-from ._impl import enforce_dtype_stability_pandas
-
-alifestd_from_newick = enforce_dtype_stability_pandas(alifestd_from_newick_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

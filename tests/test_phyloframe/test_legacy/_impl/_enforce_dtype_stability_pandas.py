@@ -11,16 +11,14 @@ def enforce_dtype_stability_pandas(
     ``ancestor_id`` dtypes match the input dtypes."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> typing.Any:
-        if not args:
-            return func(*args, **kwargs)
-
-        phylogeny_df, *rest_args = args
-
+    def wrapper(phylogeny_df: pd.DataFrame, *args, **kwargs) -> typing.Any:
         if not isinstance(phylogeny_df, pd.DataFrame):
-            return func(phylogeny_df, *rest_args, **kwargs)
+            raise ValueError(
+                f"enforce_dtype_stability_pandas: expected pandas "
+                f"DataFrame, got {type(phylogeny_df)}"
+            )
         if "id" not in phylogeny_df.columns:
-            return func(phylogeny_df, *rest_args, **kwargs)
+            return func(phylogeny_df, *args, **kwargs)
 
         id_dtype = phylogeny_df["id"].dtype
         ancestor_id_dtype = (
@@ -29,7 +27,7 @@ def enforce_dtype_stability_pandas(
             else None
         )
 
-        result = func(phylogeny_df, *rest_args, **kwargs)
+        result = func(phylogeny_df, *args, **kwargs)
 
         if isinstance(result, pd.DataFrame) and "id" in result.columns:
             assert result["id"].dtype == id_dtype, (
