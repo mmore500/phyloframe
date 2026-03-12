@@ -5,10 +5,14 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_find_root_ids,
     alifestd_make_empty,
     alifestd_try_add_ancestor_id_col,
 )
+from phyloframe.legacy import alifestd_find_root_ids as alifestd_find_root_ids_
+
+from ._impl import assert_dtype_consistency
+
+alifestd_find_root_ids = assert_dtype_consistency(alifestd_find_root_ids_)
 
 
 @pytest.mark.parametrize(

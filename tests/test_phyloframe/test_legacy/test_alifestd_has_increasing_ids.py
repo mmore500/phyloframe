@@ -1,9 +1,15 @@
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_has_increasing_ids,
+    alifestd_has_increasing_ids as alifestd_has_increasing_ids_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_has_increasing_ids = assert_dtype_consistency(alifestd_has_increasing_ids_)
 
 
 def test_empty():

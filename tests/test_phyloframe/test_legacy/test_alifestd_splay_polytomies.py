@@ -4,14 +4,18 @@ import pytest
 from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
     alifestd_make_empty,
+)
+from phyloframe.legacy import (
     alifestd_splay_polytomies as alifestd_splay_polytomies_,
+)
+from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
 )
 
-from ._impl import enforce_dtype_consistency
+from ._impl import assert_dtype_consistency
 
-alifestd_splay_polytomies = enforce_dtype_consistency(
+alifestd_splay_polytomies = assert_dtype_consistency(
     alifestd_splay_polytomies_,
 )
 

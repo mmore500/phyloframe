@@ -11,11 +11,19 @@ from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
     alifestd_find_leaf_ids,
     alifestd_prune_extinct_lineages_asexual,
-    alifestd_prune_extinct_lineages_polars,
+)
+from phyloframe.legacy import (
+    alifestd_prune_extinct_lineages_polars as alifestd_prune_extinct_lineages_polars_,
+)
+from phyloframe.legacy import (
     alifestd_to_working_format,
     alifestd_topological_sort,
     alifestd_try_add_ancestor_id_col,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_prune_extinct_lineages_polars = assert_dtype_consistency(alifestd_prune_extinct_lineages_polars_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

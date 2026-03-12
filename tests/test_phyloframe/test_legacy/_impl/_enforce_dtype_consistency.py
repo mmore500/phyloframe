@@ -6,7 +6,7 @@ import pandas as pd
 import polars as pl
 
 
-def enforce_dtype_consistency(
+def assert_dtype_consistency(
     func: typing.Callable,
 ) -> typing.Callable:
     """Decorates ``func`` so that it is called with both int64 and uint64

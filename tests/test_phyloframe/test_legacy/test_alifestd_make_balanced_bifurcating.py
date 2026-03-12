@@ -3,9 +3,17 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
-    alifestd_make_balanced_bifurcating,
+)
+from phyloframe.legacy import (
+    alifestd_make_balanced_bifurcating as alifestd_make_balanced_bifurcating_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_make_balanced_bifurcating = assert_dtype_consistency(alifestd_make_balanced_bifurcating_)
 
 
 @pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])

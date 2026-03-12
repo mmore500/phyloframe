@@ -6,9 +6,15 @@ import pytest
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
     alifestd_make_empty,
-    alifestd_mark_leaves,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+from phyloframe.legacy import alifestd_mark_leaves as alifestd_mark_leaves_
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_leaves = assert_dtype_consistency(alifestd_mark_leaves_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

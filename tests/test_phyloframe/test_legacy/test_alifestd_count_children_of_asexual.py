@@ -1,7 +1,13 @@
 import pandas as pd
 import pytest
 
-from phyloframe.legacy import alifestd_count_children_of_asexual
+from phyloframe.legacy import (
+    alifestd_count_children_of_asexual as alifestd_count_children_of_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_count_children_of_asexual = assert_dtype_consistency(alifestd_count_children_of_asexual_)
 
 
 def sample_phylogeny_df1():

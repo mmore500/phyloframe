@@ -7,9 +7,17 @@ import pytest
 from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_make_empty,
-    alifestd_mark_oldest_root,
+)
+from phyloframe.legacy import (
+    alifestd_mark_oldest_root as alifestd_mark_oldest_root_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_oldest_root = assert_dtype_consistency(alifestd_mark_oldest_root_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

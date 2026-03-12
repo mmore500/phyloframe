@@ -2,9 +2,15 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_count_polytomies,
+    alifestd_count_polytomies as alifestd_count_polytomies_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_count_polytomies = assert_dtype_consistency(alifestd_count_polytomies_)
 
 
 def test_empty_df():

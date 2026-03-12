@@ -4,12 +4,14 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_add_inner_leaves as alifestd_add_inner_leaves_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
 
-from ._impl import enforce_dtype_consistency
+from ._impl import assert_dtype_consistency
 
-alifestd_add_inner_leaves = enforce_dtype_consistency(
+alifestd_add_inner_leaves = assert_dtype_consistency(
     alifestd_add_inner_leaves_,
 )
 

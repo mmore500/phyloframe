@@ -3,9 +3,15 @@ import pandas.testing as pdt
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_add_inner_knuckles_asexual,
+    alifestd_add_inner_knuckles_asexual as alifestd_add_inner_knuckles_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_add_inner_knuckles_asexual = assert_dtype_consistency(alifestd_add_inner_knuckles_asexual_)
 
 
 def test_empty_df():

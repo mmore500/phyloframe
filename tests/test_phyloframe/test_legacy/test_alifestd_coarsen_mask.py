@@ -5,10 +5,14 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_coarsen_mask,
     alifestd_make_empty,
     alifestd_validate,
 )
+from phyloframe.legacy import alifestd_coarsen_mask as alifestd_coarsen_mask_
+
+from ._impl import assert_dtype_consistency
+
+alifestd_coarsen_mask = assert_dtype_consistency(alifestd_coarsen_mask_)
 
 
 def make_asexual_phylo_df() -> pd.DataFrame:

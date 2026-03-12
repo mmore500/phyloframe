@@ -1,9 +1,15 @@
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_is_chronologically_sorted,
+    alifestd_is_chronologically_sorted as alifestd_is_chronologically_sorted_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_is_chronologically_sorted = assert_dtype_consistency(alifestd_is_chronologically_sorted_)
 
 
 def test_is_chronologically_sorted_empty():

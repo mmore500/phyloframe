@@ -4,11 +4,17 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_add_global_root,
+    alifestd_add_global_root as alifestd_add_global_root_,
+)
+from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_make_empty,
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_add_global_root = assert_dtype_consistency(alifestd_add_global_root_)
 
 
 def test_empty():

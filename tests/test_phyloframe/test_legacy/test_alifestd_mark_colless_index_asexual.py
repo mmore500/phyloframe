@@ -12,7 +12,11 @@ from phyloframe.legacy import (
     alifestd_make_balanced_bifurcating,
     alifestd_make_comb,
     alifestd_make_empty,
-    alifestd_mark_colless_index_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_colless_index_asexual as alifestd_mark_colless_index_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_mark_num_leaves_asexual,
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
@@ -24,6 +28,10 @@ from phyloframe.legacy._alifestd_mark_colless_index_asexual import (
 from phyloframe.legacy._alifestd_mark_left_child_asexual import (
     alifestd_mark_left_child_asexual,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_colless_index_asexual = assert_dtype_consistency(alifestd_mark_colless_index_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

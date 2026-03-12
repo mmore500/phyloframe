@@ -5,9 +5,17 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_clade_leafcount_ratio_sister_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_clade_leafcount_ratio_sister_asexual as alifestd_mark_clade_leafcount_ratio_sister_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_to_working_format,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_clade_leafcount_ratio_sister_asexual = assert_dtype_consistency(alifestd_mark_clade_leafcount_ratio_sister_asexual_)
 
 
 def test_empty():

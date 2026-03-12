@@ -10,7 +10,11 @@ from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_has_multiple_roots,
     alifestd_make_empty,
-    alifestd_mark_colless_like_index_var_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_colless_like_index_var_asexual as alifestd_mark_colless_like_index_var_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_mark_num_children_asexual,
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
@@ -373,6 +377,10 @@ def test_relationship_var_mdm_bifurcating():
     from phyloframe.legacy import (
         alifestd_mark_colless_like_index_mdm_asexual,
     )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_colless_like_index_var_asexual = assert_dtype_consistency(alifestd_mark_colless_like_index_var_asexual_)
 
     result_mdm = alifestd_mark_colless_like_index_mdm_asexual(
         phylogeny_df,

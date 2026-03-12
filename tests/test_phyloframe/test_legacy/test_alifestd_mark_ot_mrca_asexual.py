@@ -6,10 +6,18 @@ import pytest
 from phyloframe.legacy import (
     alifestd_is_chronologically_ordered,
     alifestd_make_empty,
-    alifestd_mark_ot_mrca_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_ot_mrca_asexual as alifestd_mark_ot_mrca_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_to_working_format,
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_ot_mrca_asexual = assert_dtype_consistency(alifestd_mark_ot_mrca_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

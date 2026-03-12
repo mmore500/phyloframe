@@ -4,10 +4,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_delete_unifurcating_roots_asexual,
+    alifestd_delete_unifurcating_roots_asexual as alifestd_delete_unifurcating_roots_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_try_add_ancestor_list_col,
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_delete_unifurcating_roots_asexual = assert_dtype_consistency(alifestd_delete_unifurcating_roots_asexual_)
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 

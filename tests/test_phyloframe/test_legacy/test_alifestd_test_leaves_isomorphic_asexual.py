@@ -7,8 +7,14 @@ from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
     alifestd_collapse_unifurcations,
     alifestd_make_empty,
-    alifestd_test_leaves_isomorphic_asexual,
 )
+from phyloframe.legacy import (
+    alifestd_test_leaves_isomorphic_asexual as alifestd_test_leaves_isomorphic_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_test_leaves_isomorphic_asexual = assert_dtype_consistency(alifestd_test_leaves_isomorphic_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

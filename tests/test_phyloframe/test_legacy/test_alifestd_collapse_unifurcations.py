@@ -11,7 +11,11 @@ import pytest
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
     alifestd_assign_contiguous_ids,
-    alifestd_collapse_unifurcations,
+)
+from phyloframe.legacy import (
+    alifestd_collapse_unifurcations as alifestd_collapse_unifurcations_,
+)
+from phyloframe.legacy import (
     alifestd_collapse_unifurcations_polars,
     alifestd_count_root_nodes,
     alifestd_find_leaf_ids,
@@ -27,6 +31,10 @@ from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_collapse_unifurcations = assert_dtype_consistency(alifestd_collapse_unifurcations_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

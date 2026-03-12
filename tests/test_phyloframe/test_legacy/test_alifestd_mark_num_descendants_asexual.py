@@ -8,9 +8,17 @@ from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_has_multiple_roots,
     alifestd_make_empty,
-    alifestd_mark_num_descendants_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_num_descendants_asexual as alifestd_mark_num_descendants_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_num_descendants_asexual = assert_dtype_consistency(alifestd_mark_num_descendants_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

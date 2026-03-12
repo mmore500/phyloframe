@@ -8,8 +8,14 @@ from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_make_empty,
     alifestd_mark_node_depth_asexual,
-    alifestd_unfurl_traversal_postorder_asexual,
 )
+from phyloframe.legacy import (
+    alifestd_unfurl_traversal_postorder_asexual as alifestd_unfurl_traversal_postorder_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_unfurl_traversal_postorder_asexual = assert_dtype_consistency(alifestd_unfurl_traversal_postorder_asexual_)
 
 
 def is_nondecreasing(seq):

@@ -5,10 +5,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_as_newick_asexual,
+    alifestd_as_newick_asexual as alifestd_as_newick_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_try_add_ancestor_id_col,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_as_newick_asexual = assert_dtype_consistency(alifestd_as_newick_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

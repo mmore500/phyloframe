@@ -2,10 +2,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_chronological_sort,
+    alifestd_chronological_sort as alifestd_chronological_sort_,
+)
+from phyloframe.legacy import (
     alifestd_is_chronologically_sorted,
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_chronological_sort = assert_dtype_consistency(alifestd_chronological_sort_)
 
 
 def test_chronological_sort_empty():

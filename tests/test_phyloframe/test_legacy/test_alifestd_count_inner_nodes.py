@@ -1,9 +1,15 @@
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_count_inner_nodes,
+    alifestd_count_inner_nodes as alifestd_count_inner_nodes_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_count_inner_nodes = assert_dtype_consistency(alifestd_count_inner_nodes_)
 
 
 def test_empty_df():

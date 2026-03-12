@@ -2,9 +2,15 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_calc_polytomic_index,
+    alifestd_calc_polytomic_index as alifestd_calc_polytomic_index_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_calc_polytomic_index = assert_dtype_consistency(alifestd_calc_polytomic_index_)
 
 
 def test_empty_df():

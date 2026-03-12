@@ -14,8 +14,12 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_calc_mrca_id_vector_asexual_polars import (
-    alifestd_calc_mrca_id_vector_asexual_polars,
+    alifestd_calc_mrca_id_vector_asexual_polars as alifestd_calc_mrca_id_vector_asexual_polars_,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_calc_mrca_id_vector_asexual_polars = assert_dtype_consistency(alifestd_calc_mrca_id_vector_asexual_polars_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

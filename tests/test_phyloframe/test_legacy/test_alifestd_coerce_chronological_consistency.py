@@ -6,11 +6,19 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
-    alifestd_coerce_chronological_consistency,
+)
+from phyloframe.legacy import (
+    alifestd_coerce_chronological_consistency as alifestd_coerce_chronological_consistency_,
+)
+from phyloframe.legacy import (
     alifestd_find_chronological_inconsistency,
     alifestd_make_empty,
     alifestd_try_add_ancestor_id_col,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_coerce_chronological_consistency = assert_dtype_consistency(alifestd_coerce_chronological_consistency_)
 
 
 # see https://blog.miguelgrinberg.com/post/it-s-time-for-a-change-datetime-utcnow-is-now-deprecated

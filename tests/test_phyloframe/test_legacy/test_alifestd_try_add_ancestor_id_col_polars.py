@@ -7,12 +7,14 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
+)
+from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col_polars as alifestd_try_add_ancestor_id_col_polars_,
 )
 
-from ._impl import enforce_dtype_consistency
+from ._impl import assert_dtype_consistency
 
-alifestd_try_add_ancestor_id_col_polars = enforce_dtype_consistency(
+alifestd_try_add_ancestor_id_col_polars = assert_dtype_consistency(
     alifestd_try_add_ancestor_id_col_polars_,
 )
 

@@ -3,9 +3,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
-    alifestd_make_comb,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+from phyloframe.legacy import alifestd_make_comb as alifestd_make_comb_
+
+from ._impl import assert_dtype_consistency
+
+alifestd_make_comb = assert_dtype_consistency(alifestd_make_comb_)
 
 
 @pytest.mark.parametrize("n_leaves", [2, 3, 4, 5, 8])

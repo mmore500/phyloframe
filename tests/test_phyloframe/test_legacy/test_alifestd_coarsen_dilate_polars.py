@@ -8,8 +8,12 @@ from phyloframe.legacy._alifestd_coarsen_dilate_asexual import (
     alifestd_coarsen_dilate_asexual,
 )
 from phyloframe.legacy._alifestd_coarsen_dilate_polars import (
-    alifestd_coarsen_dilate_polars,
+    alifestd_coarsen_dilate_polars as alifestd_coarsen_dilate_polars_,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_coarsen_dilate_polars = assert_dtype_consistency(alifestd_coarsen_dilate_polars_)
 
 
 @pytest.mark.parametrize(

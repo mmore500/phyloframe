@@ -7,12 +7,18 @@ import pytest
 from tqdm import tqdm
 
 from phyloframe.legacy import (
-    alifestd_calc_mrca_id_matrix_asexual,
+    alifestd_calc_mrca_id_matrix_asexual as alifestd_calc_mrca_id_matrix_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_find_mrca_id_asexual,
     alifestd_is_chronologically_ordered,
     alifestd_mark_root_id,
     alifestd_to_working_format,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_calc_mrca_id_matrix_asexual = assert_dtype_consistency(alifestd_calc_mrca_id_matrix_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

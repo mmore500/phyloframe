@@ -1,6 +1,12 @@
 import pandas as pd
 
-from phyloframe.legacy import alifestd_is_strictly_bifurcating_asexual
+from phyloframe.legacy import (
+    alifestd_is_strictly_bifurcating_asexual as alifestd_is_strictly_bifurcating_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_is_strictly_bifurcating_asexual = assert_dtype_consistency(alifestd_is_strictly_bifurcating_asexual_)
 
 
 def test_valid_bifurcating_tree():

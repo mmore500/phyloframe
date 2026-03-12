@@ -12,9 +12,17 @@ from phyloframe.legacy import (
     alifestd_is_asexual,
     alifestd_is_topologically_sorted,
     alifestd_parse_ancestor_ids,
-    alifestd_to_working_format,
+)
+from phyloframe.legacy import (
+    alifestd_to_working_format as alifestd_to_working_format_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_to_working_format = assert_dtype_consistency(alifestd_to_working_format_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

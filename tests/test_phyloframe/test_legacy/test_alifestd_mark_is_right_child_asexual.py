@@ -3,8 +3,14 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_is_right_child_asexual,
 )
+from phyloframe.legacy import (
+    alifestd_mark_is_right_child_asexual as alifestd_mark_is_right_child_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_is_right_child_asexual = assert_dtype_consistency(alifestd_mark_is_right_child_asexual_)
 
 
 def test_empty():

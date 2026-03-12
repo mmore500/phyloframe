@@ -2,9 +2,15 @@ import numpy as np
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_reroot_at_id_asexual,
+    alifestd_reroot_at_id_asexual as alifestd_reroot_at_id_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_reroot_at_id_asexual = assert_dtype_consistency(alifestd_reroot_at_id_asexual_)
 
 
 def test_alifestd_reroot_at_id_asexual_inner_node_terminal_node():

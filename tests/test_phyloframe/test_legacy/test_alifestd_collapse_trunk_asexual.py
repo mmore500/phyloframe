@@ -2,9 +2,15 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_collapse_trunk_asexual,
+    alifestd_collapse_trunk_asexual as alifestd_collapse_trunk_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_collapse_trunk_asexual = assert_dtype_consistency(alifestd_collapse_trunk_asexual_)
 
 
 @pytest.mark.parametrize("mutate", [True, False])

@@ -4,8 +4,14 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mask_monomorphic_clades_asexual,
 )
+from phyloframe.legacy import (
+    alifestd_mask_monomorphic_clades_asexual as alifestd_mask_monomorphic_clades_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mask_monomorphic_clades_asexual = assert_dtype_consistency(alifestd_mask_monomorphic_clades_asexual_)
 
 
 def test_empty():

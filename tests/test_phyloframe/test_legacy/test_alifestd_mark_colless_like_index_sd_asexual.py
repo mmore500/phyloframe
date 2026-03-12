@@ -10,7 +10,11 @@ from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_has_multiple_roots,
     alifestd_make_empty,
-    alifestd_mark_colless_like_index_sd_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_colless_like_index_sd_asexual as alifestd_mark_colless_like_index_sd_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_mark_num_children_asexual,
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
@@ -371,6 +375,10 @@ def test_relationship_sd_var():
     from phyloframe.legacy import (
         alifestd_mark_colless_like_index_var_asexual,
     )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_colless_like_index_sd_asexual = assert_dtype_consistency(alifestd_mark_colless_like_index_sd_asexual_)
 
     result_sd = alifestd_mark_colless_like_index_sd_asexual(
         phylogeny_df,

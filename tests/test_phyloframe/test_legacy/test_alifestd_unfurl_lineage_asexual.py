@@ -1,7 +1,13 @@
 import numpy as np
 import pandas as pd
 
-from phyloframe.legacy import alifestd_unfurl_lineage_asexual
+from phyloframe.legacy import (
+    alifestd_unfurl_lineage_asexual as alifestd_unfurl_lineage_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_unfurl_lineage_asexual = assert_dtype_consistency(alifestd_unfurl_lineage_asexual_)
 
 
 def test_alifestd_unfurl_lineage_asexual():

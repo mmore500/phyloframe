@@ -15,7 +15,7 @@ from phyloframe.legacy._alifestd_assign_contiguous_ids_polars import (
     alifestd_assign_contiguous_ids_polars,
 )
 from phyloframe.legacy._alifestd_downsample_tips_lineage_stratified_polars import (
-    alifestd_downsample_tips_lineage_stratified_polars,
+    alifestd_downsample_tips_lineage_stratified_polars as alifestd_downsample_tips_lineage_stratified_polars_,
 )
 from phyloframe.legacy._alifestd_mark_leaves_polars import (
     alifestd_mark_leaves_polars,
@@ -296,6 +296,10 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_matches_pandas(
 
     # Both should produce same leaf count
     from phyloframe.legacy import alifestd_count_leaf_nodes
+
+from ._impl import assert_dtype_consistency
+
+alifestd_downsample_tips_lineage_stratified_polars = assert_dtype_consistency(alifestd_downsample_tips_lineage_stratified_polars_)
 
     assert result_num_tips_pl == alifestd_count_leaf_nodes(result_pd)
 

@@ -9,9 +9,17 @@ from phyloframe.legacy import (
     alifestd_make_balanced_bifurcating,
     alifestd_make_comb,
     alifestd_make_empty,
-    alifestd_mark_colless_index_corrected_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_colless_index_corrected_asexual as alifestd_mark_colless_index_corrected_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_colless_index_corrected_asexual = assert_dtype_consistency(alifestd_mark_colless_index_corrected_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

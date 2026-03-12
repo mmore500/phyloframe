@@ -1,6 +1,12 @@
 import polars as pl
 
-from phyloframe.legacy import alifestd_count_unifurcating_roots_polars
+from phyloframe.legacy import (
+    alifestd_count_unifurcating_roots_polars as alifestd_count_unifurcating_roots_polars_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_count_unifurcating_roots_polars = assert_dtype_consistency(alifestd_count_unifurcating_roots_polars_)
 
 
 def test_empty_df():

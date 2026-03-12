@@ -6,8 +6,12 @@ import pytest
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
     alifestd_try_add_ancestor_id_col,
-    alifestd_validate,
 )
+from phyloframe.legacy import alifestd_validate as alifestd_validate_
+
+from ._impl import assert_dtype_consistency
+
+alifestd_validate = assert_dtype_consistency(alifestd_validate_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

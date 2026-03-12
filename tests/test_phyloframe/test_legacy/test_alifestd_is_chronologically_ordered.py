@@ -2,10 +2,18 @@ import pandas as pd
 
 from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
-    alifestd_is_chronologically_ordered,
+)
+from phyloframe.legacy import (
+    alifestd_is_chronologically_ordered as alifestd_is_chronologically_ordered_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_try_add_ancestor_id_col,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_is_chronologically_ordered = assert_dtype_consistency(alifestd_is_chronologically_ordered_)
 
 
 def test_is_chronologically_ordered_empty():

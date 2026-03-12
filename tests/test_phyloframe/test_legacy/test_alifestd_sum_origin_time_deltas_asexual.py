@@ -5,8 +5,14 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_sum_origin_time_deltas_asexual,
 )
+from phyloframe.legacy import (
+    alifestd_sum_origin_time_deltas_asexual as alifestd_sum_origin_time_deltas_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_sum_origin_time_deltas_asexual = assert_dtype_consistency(alifestd_sum_origin_time_deltas_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

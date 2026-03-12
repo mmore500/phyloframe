@@ -10,9 +10,17 @@ from phyloframe.legacy import (
     alifestd_make_balanced_bifurcating,
     alifestd_make_comb,
     alifestd_make_empty,
-    alifestd_mark_sackin_index_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_sackin_index_asexual as alifestd_mark_sackin_index_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_sackin_index_asexual = assert_dtype_consistency(alifestd_mark_sackin_index_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

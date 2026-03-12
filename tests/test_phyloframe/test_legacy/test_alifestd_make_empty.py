@@ -1,4 +1,9 @@
-from phyloframe.legacy import alifestd_make_empty, alifestd_validate
+from phyloframe.legacy import alifestd_make_empty as alifestd_make_empty_
+from phyloframe.legacy import alifestd_validate
+
+from ._impl import assert_dtype_consistency
+
+alifestd_make_empty = assert_dtype_consistency(alifestd_make_empty_)
 
 
 def test_alifestd_make_empty():

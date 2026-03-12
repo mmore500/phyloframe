@@ -11,8 +11,12 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_find_leaf_ids_polars import (
-    alifestd_find_leaf_ids_polars,
+    alifestd_find_leaf_ids_polars as alifestd_find_leaf_ids_polars_,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_find_leaf_ids_polars = assert_dtype_consistency(alifestd_find_leaf_ids_polars_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

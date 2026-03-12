@@ -14,11 +14,15 @@ from phyloframe.legacy._alifestd_assign_contiguous_ids_polars import (
     alifestd_assign_contiguous_ids_polars,
 )
 from phyloframe.legacy._alifestd_downsample_tips_polars import (
-    alifestd_downsample_tips_polars,
+    alifestd_downsample_tips_polars as alifestd_downsample_tips_polars_,
 )
 from phyloframe.legacy._alifestd_mark_leaves_polars import (
     alifestd_mark_leaves_polars,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_downsample_tips_polars = assert_dtype_consistency(alifestd_downsample_tips_polars_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

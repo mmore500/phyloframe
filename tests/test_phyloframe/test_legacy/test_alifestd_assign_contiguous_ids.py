@@ -9,8 +9,14 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
+)
+from phyloframe.legacy import (
     alifestd_assign_contiguous_ids as alifestd_assign_contiguous_ids_,
+)
+from phyloframe.legacy import (
     alifestd_assign_contiguous_ids_polars as alifestd_assign_contiguous_ids_polars_,
+)
+from phyloframe.legacy import (
     alifestd_find_leaf_ids,
     alifestd_has_contiguous_ids,
     alifestd_is_asexual,
@@ -19,12 +25,12 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import enforce_dtype_consistency
+from ._impl import assert_dtype_consistency
 
-alifestd_assign_contiguous_ids = enforce_dtype_consistency(
+alifestd_assign_contiguous_ids = assert_dtype_consistency(
     alifestd_assign_contiguous_ids_,
 )
-alifestd_assign_contiguous_ids_polars = enforce_dtype_consistency(
+alifestd_assign_contiguous_ids_polars = assert_dtype_consistency(
     alifestd_assign_contiguous_ids_polars_,
 )
 

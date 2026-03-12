@@ -6,9 +6,17 @@ import pytest
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
     alifestd_count_leaf_nodes,
-    alifestd_downsample_tips_lineage_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_downsample_tips_lineage_asexual as alifestd_downsample_tips_lineage_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_to_working_format,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_downsample_tips_lineage_asexual = assert_dtype_consistency(alifestd_downsample_tips_lineage_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

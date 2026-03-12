@@ -6,12 +6,18 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_estimate_triplet_distance_asexual,
+    alifestd_estimate_triplet_distance_asexual as alifestd_estimate_triplet_distance_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_ancestor_list_col,
     alifestd_make_empty,
     alifestd_to_working_format,
     alifestd_validate,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_estimate_triplet_distance_asexual = assert_dtype_consistency(alifestd_estimate_triplet_distance_asexual_)
 
 
 def test_empty():

@@ -10,8 +10,14 @@ from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_splay_polytomies,
     alifestd_to_working_format,
-    alifestd_unfurl_traversal_inorder_asexual,
 )
+from phyloframe.legacy import (
+    alifestd_unfurl_traversal_inorder_asexual as alifestd_unfurl_traversal_inorder_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_unfurl_traversal_inorder_asexual = assert_dtype_consistency(alifestd_unfurl_traversal_inorder_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

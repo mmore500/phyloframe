@@ -3,8 +3,14 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_max_descendant_origin_time_asexual,
 )
+from phyloframe.legacy import (
+    alifestd_mark_max_descendant_origin_time_asexual as alifestd_mark_max_descendant_origin_time_asexual_,
+)
+
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_max_descendant_origin_time_asexual = assert_dtype_consistency(alifestd_mark_max_descendant_origin_time_asexual_)
 
 
 def test_empty():

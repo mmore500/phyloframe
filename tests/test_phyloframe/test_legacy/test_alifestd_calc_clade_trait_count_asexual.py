@@ -5,12 +5,18 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_calc_clade_trait_count_asexual,
+    alifestd_calc_clade_trait_count_asexual as alifestd_calc_clade_trait_count_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_mark_leaves,
     alifestd_mark_num_leaves_asexual,
     alifestd_to_working_format,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_calc_clade_trait_count_asexual = assert_dtype_consistency(alifestd_calc_clade_trait_count_asexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

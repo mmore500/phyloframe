@@ -5,12 +5,20 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
-    alifestd_is_topologically_sorted,
+)
+from phyloframe.legacy import (
+    alifestd_is_topologically_sorted as alifestd_is_topologically_sorted_,
+)
+from phyloframe.legacy import (
     alifestd_parse_ancestor_ids,
     alifestd_to_working_format,
     alifestd_topological_sort,
     alifestd_try_add_ancestor_id_col,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_is_topologically_sorted = assert_dtype_consistency(alifestd_is_topologically_sorted_)
 
 
 def swap_rows_and_indices(df, loc1, loc2):

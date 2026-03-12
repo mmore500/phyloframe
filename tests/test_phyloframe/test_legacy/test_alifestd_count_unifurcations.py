@@ -2,9 +2,15 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_count_unifurcations,
+    alifestd_count_unifurcations as alifestd_count_unifurcations_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_count_unifurcations = assert_dtype_consistency(alifestd_count_unifurcations_)
 
 
 def test_empty_df():

@@ -10,8 +10,12 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_is_topologically_sorted_polars import (
-    alifestd_is_topologically_sorted_polars,
+    alifestd_is_topologically_sorted_polars as alifestd_is_topologically_sorted_polars_,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_is_topologically_sorted_polars = assert_dtype_consistency(alifestd_is_topologically_sorted_polars_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

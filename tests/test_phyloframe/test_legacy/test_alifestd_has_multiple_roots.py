@@ -6,10 +6,18 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
-    alifestd_has_multiple_roots,
+)
+from phyloframe.legacy import (
+    alifestd_has_multiple_roots as alifestd_has_multiple_roots_,
+)
+from phyloframe.legacy import (
     alifestd_parse_ancestor_ids,
     alifestd_to_working_format,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_has_multiple_roots = assert_dtype_consistency(alifestd_has_multiple_roots_)
 
 
 def swap_rows_and_indices(df, loc1, loc2):

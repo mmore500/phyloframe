@@ -1,9 +1,15 @@
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_categorize_triplet_asexual,
+    alifestd_categorize_triplet_asexual as alifestd_categorize_triplet_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_ancestor_list_col,
 )
+
+from ._impl import assert_dtype_consistency
+
+alifestd_categorize_triplet_asexual = assert_dtype_consistency(alifestd_categorize_triplet_asexual_)
 
 
 def test_polytomy():
