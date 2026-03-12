@@ -8,7 +8,11 @@ def enforce_dtype_stability_pandas(
     func: typing.Callable,
 ) -> typing.Callable:
     """Decorates a pandas function to assert that output ``id`` and
-    ``ancestor_id`` dtypes match the input dtypes."""
+    ``ancestor_id`` dtypes match the input dtypes.
+
+    The first positional argument must be a pandas DataFrame with an
+    ``id`` column.
+    """
 
     @functools.wraps(func)
     def wrapper(phylogeny_df: pd.DataFrame, *args, **kwargs) -> typing.Any:
@@ -17,8 +21,6 @@ def enforce_dtype_stability_pandas(
                 f"enforce_dtype_stability_pandas: expected pandas "
                 f"DataFrame, got {type(phylogeny_df)}"
             )
-        if "id" not in phylogeny_df.columns:
-            return func(phylogeny_df, *args, **kwargs)
 
         id_dtype = phylogeny_df["id"].dtype
         ancestor_id_dtype = (
@@ -29,7 +31,7 @@ def enforce_dtype_stability_pandas(
 
         result = func(phylogeny_df, *args, **kwargs)
 
-        if isinstance(result, pd.DataFrame) and "id" in result.columns:
+        if isinstance(result, pd.DataFrame):
             assert result["id"].dtype == id_dtype, (
                 f"{func.__name__}: id dtype changed from {id_dtype} "
                 f"to {result['id'].dtype}"

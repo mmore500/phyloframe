@@ -13,6 +13,9 @@ def enforce_dtype_stability_polars(
     Handles both ``pl.DataFrame`` and ``pl.LazyFrame`` inputs. Schema
     inspection is done lazily via ``collect_schema()`` to avoid
     materializing the full frame.
+
+    The first positional argument must be a polars DataFrame or
+    LazyFrame with an ``id`` column.
     """
 
     @functools.wraps(func)
@@ -28,9 +31,6 @@ def enforce_dtype_stability_polars(
             )
 
         input_schema = phylogeny_df.lazy().collect_schema()
-        if "id" not in input_schema:
-            return func(phylogeny_df, *args, **kwargs)
-
         id_dtype = input_schema["id"]
         ancestor_id_dtype = (
             input_schema["ancestor_id"]
@@ -42,20 +42,19 @@ def enforce_dtype_stability_polars(
 
         if isinstance(result, (pl.DataFrame, pl.LazyFrame)):
             result_schema = result.lazy().collect_schema()
-            if "id" in result_schema:
-                assert result_schema["id"] == id_dtype, (
-                    f"{func.__name__}: id dtype changed "
-                    f"from {id_dtype} to {result_schema['id']}"
+            assert result_schema["id"] == id_dtype, (
+                f"{func.__name__}: id dtype changed "
+                f"from {id_dtype} to {result_schema['id']}"
+            )
+            if (
+                ancestor_id_dtype is not None
+                and "ancestor_id" in result_schema
+            ):
+                assert result_schema["ancestor_id"] == ancestor_id_dtype, (
+                    f"{func.__name__}: ancestor_id dtype changed "
+                    f"from {ancestor_id_dtype} "
+                    f"to {result_schema['ancestor_id']}"
                 )
-                if (
-                    ancestor_id_dtype is not None
-                    and "ancestor_id" in result_schema
-                ):
-                    assert result_schema["ancestor_id"] == ancestor_id_dtype, (
-                        f"{func.__name__}: ancestor_id dtype changed "
-                        f"from {ancestor_id_dtype} "
-                        f"to {result_schema['ancestor_id']}"
-                    )
 
         return result
 
