@@ -10,9 +10,9 @@ from phyloframe.legacy import (
     alifestd_mark_origin_time_delta_asexual as alifestd_mark_origin_time_delta_asexual_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_origin_time_delta_asexual = assert_dtype_consistency(
+alifestd_mark_origin_time_delta_asexual = enforce_dtype_stability_pandas(
     alifestd_mark_origin_time_delta_asexual_
 )
 

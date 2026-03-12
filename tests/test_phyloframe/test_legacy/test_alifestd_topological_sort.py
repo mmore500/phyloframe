@@ -15,9 +15,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_topological_sort = assert_dtype_consistency(
+alifestd_topological_sort = enforce_dtype_stability_pandas(
     alifestd_topological_sort_
 )
 

@@ -10,9 +10,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_coarsen_mask as alifestd_coarsen_mask_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_coarsen_mask = assert_dtype_consistency(alifestd_coarsen_mask_)
+alifestd_coarsen_mask = enforce_dtype_stability_pandas(alifestd_coarsen_mask_)
 
 
 def make_asexual_phylo_df() -> pd.DataFrame:

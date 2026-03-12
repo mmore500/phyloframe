@@ -13,9 +13,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_from_newick as alifestd_from_newick_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_from_newick = assert_dtype_consistency(alifestd_from_newick_)
+alifestd_from_newick = enforce_dtype_stability_pandas(alifestd_from_newick_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

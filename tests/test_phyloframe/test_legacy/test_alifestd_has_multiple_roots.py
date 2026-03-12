@@ -15,9 +15,9 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_has_multiple_roots = assert_dtype_consistency(
+alifestd_has_multiple_roots = enforce_dtype_stability_pandas(
     alifestd_has_multiple_roots_
 )
 

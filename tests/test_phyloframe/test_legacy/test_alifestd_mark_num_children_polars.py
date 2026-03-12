@@ -13,9 +13,9 @@ from phyloframe.legacy._alifestd_mark_num_children_polars import (
     alifestd_mark_num_children_polars as alifestd_mark_num_children_polars_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_polars
 
-alifestd_mark_num_children_polars = assert_dtype_consistency(
+alifestd_mark_num_children_polars = enforce_dtype_stability_polars(
     alifestd_mark_num_children_polars_
 )
 

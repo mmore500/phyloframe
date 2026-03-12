@@ -9,9 +9,9 @@ from phyloframe.legacy import (
     alifestd_sample_triplet_comparisons_asexual as alifestd_sample_triplet_comparisons_asexual_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_sample_triplet_comparisons_asexual = assert_dtype_consistency(
+alifestd_sample_triplet_comparisons_asexual = enforce_dtype_stability_pandas(
     alifestd_sample_triplet_comparisons_asexual_
 )
 

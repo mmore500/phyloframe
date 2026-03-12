@@ -13,9 +13,9 @@ from phyloframe.legacy._alifestd_mark_node_depth_polars import (
     alifestd_mark_node_depth_polars as alifestd_mark_node_depth_polars_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_polars
 
-alifestd_mark_node_depth_polars = assert_dtype_consistency(
+alifestd_mark_node_depth_polars = enforce_dtype_stability_polars(
     alifestd_mark_node_depth_polars_
 )
 

@@ -9,9 +9,9 @@ from phyloframe.legacy import (
     alifestd_mask_monomorphic_clades_asexual as alifestd_mask_monomorphic_clades_asexual_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mask_monomorphic_clades_asexual = assert_dtype_consistency(
+alifestd_mask_monomorphic_clades_asexual = enforce_dtype_stability_pandas(
     alifestd_mask_monomorphic_clades_asexual_
 )
 

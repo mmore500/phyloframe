@@ -7,9 +7,9 @@ from phyloframe.legacy import (
     alifestd_make_ancestor_list_col,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_categorize_triplet_asexual = assert_dtype_consistency(
+alifestd_categorize_triplet_asexual = enforce_dtype_stability_pandas(
     alifestd_categorize_triplet_asexual_
 )
 

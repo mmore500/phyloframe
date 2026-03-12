@@ -20,9 +20,9 @@ from phyloframe.legacy._alifestd_mark_leaves_polars import (
     alifestd_mark_leaves_polars,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_polars
 
-alifestd_downsample_tips_polars = assert_dtype_consistency(
+alifestd_downsample_tips_polars = enforce_dtype_stability_polars(
     alifestd_downsample_tips_polars_
 )
 

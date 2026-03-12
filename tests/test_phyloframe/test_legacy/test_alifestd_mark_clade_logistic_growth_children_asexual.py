@@ -21,10 +21,10 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
 alifestd_mark_clade_logistic_growth_children_asexual = (
-    assert_dtype_consistency(
+    enforce_dtype_stability_pandas(
         alifestd_mark_clade_logistic_growth_children_asexual_
     )
 )

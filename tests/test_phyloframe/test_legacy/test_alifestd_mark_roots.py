@@ -14,9 +14,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_mark_roots as alifestd_mark_roots_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_roots = assert_dtype_consistency(alifestd_mark_roots_)
+alifestd_mark_roots = enforce_dtype_stability_pandas(alifestd_mark_roots_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

@@ -16,9 +16,9 @@ from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_coerce_chronological_consistency = assert_dtype_consistency(
+alifestd_coerce_chronological_consistency = enforce_dtype_stability_pandas(
     alifestd_coerce_chronological_consistency_
 )
 

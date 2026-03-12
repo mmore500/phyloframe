@@ -4,9 +4,9 @@ from phyloframe.legacy import (
     alifestd_count_unifurcating_roots_polars as alifestd_count_unifurcating_roots_polars_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_polars
 
-alifestd_count_unifurcating_roots_polars = assert_dtype_consistency(
+alifestd_count_unifurcating_roots_polars = enforce_dtype_stability_polars(
     alifestd_count_unifurcating_roots_polars_
 )
 

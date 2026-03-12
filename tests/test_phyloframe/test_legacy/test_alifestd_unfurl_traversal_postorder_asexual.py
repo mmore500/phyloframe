@@ -13,9 +13,9 @@ from phyloframe.legacy import (
     alifestd_unfurl_traversal_postorder_asexual as alifestd_unfurl_traversal_postorder_asexual_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_unfurl_traversal_postorder_asexual = assert_dtype_consistency(
+alifestd_unfurl_traversal_postorder_asexual = enforce_dtype_stability_pandas(
     alifestd_unfurl_traversal_postorder_asexual_
 )
 

@@ -20,9 +20,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_prune_extinct_lineages_asexual = assert_dtype_consistency(
+alifestd_prune_extinct_lineages_asexual = enforce_dtype_stability_pandas(
     alifestd_prune_extinct_lineages_asexual_
 )
 

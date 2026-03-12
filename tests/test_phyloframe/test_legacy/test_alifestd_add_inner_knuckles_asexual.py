@@ -9,9 +9,9 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_add_inner_knuckles_asexual = assert_dtype_consistency(
+alifestd_add_inner_knuckles_asexual = enforce_dtype_stability_pandas(
     alifestd_add_inner_knuckles_asexual_
 )
 

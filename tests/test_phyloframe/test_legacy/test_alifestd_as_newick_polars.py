@@ -16,9 +16,9 @@ from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_polars
 
-alifestd_as_newick_polars = assert_dtype_consistency(
+alifestd_as_newick_polars = enforce_dtype_stability_polars(
     alifestd_as_newick_polars_
 )
 

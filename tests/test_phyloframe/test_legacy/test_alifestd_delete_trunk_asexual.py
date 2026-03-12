@@ -19,9 +19,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_delete_trunk_asexual = assert_dtype_consistency(
+alifestd_delete_trunk_asexual = enforce_dtype_stability_pandas(
     alifestd_delete_trunk_asexual_
 )
 

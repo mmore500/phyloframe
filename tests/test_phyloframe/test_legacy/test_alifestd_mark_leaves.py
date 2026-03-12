@@ -12,9 +12,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_mark_leaves as alifestd_mark_leaves_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_leaves = assert_dtype_consistency(alifestd_mark_leaves_)
+alifestd_mark_leaves = enforce_dtype_stability_pandas(alifestd_mark_leaves_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

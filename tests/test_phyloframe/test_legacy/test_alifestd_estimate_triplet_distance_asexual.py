@@ -15,9 +15,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_estimate_triplet_distance_asexual = assert_dtype_consistency(
+alifestd_estimate_triplet_distance_asexual = enforce_dtype_stability_pandas(
     alifestd_estimate_triplet_distance_asexual_
 )
 

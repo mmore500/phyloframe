@@ -11,9 +11,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_make_balanced_bifurcating = assert_dtype_consistency(
+alifestd_make_balanced_bifurcating = enforce_dtype_stability_pandas(
     alifestd_make_balanced_bifurcating_
 )
 

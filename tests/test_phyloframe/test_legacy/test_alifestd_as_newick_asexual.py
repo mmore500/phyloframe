@@ -12,9 +12,9 @@ from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_as_newick_asexual = assert_dtype_consistency(
+alifestd_as_newick_asexual = enforce_dtype_stability_pandas(
     alifestd_as_newick_asexual_
 )
 

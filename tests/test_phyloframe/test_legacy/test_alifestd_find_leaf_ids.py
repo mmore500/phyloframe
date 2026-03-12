@@ -15,9 +15,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_find_leaf_ids as alifestd_find_leaf_ids_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_find_leaf_ids = assert_dtype_consistency(alifestd_find_leaf_ids_)
+alifestd_find_leaf_ids = enforce_dtype_stability_pandas(alifestd_find_leaf_ids_)
 
 
 def swap_rows_and_indices(df, loc1, loc2):

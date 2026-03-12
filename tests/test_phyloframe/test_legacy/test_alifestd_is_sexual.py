@@ -9,9 +9,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_is_sexual as alifestd_is_sexual_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_is_sexual = assert_dtype_consistency(alifestd_is_sexual_)
+alifestd_is_sexual = enforce_dtype_stability_pandas(alifestd_is_sexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

@@ -13,9 +13,9 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_clade_nodecount_ratio_sister_asexual = assert_dtype_consistency(
+alifestd_mark_clade_nodecount_ratio_sister_asexual = enforce_dtype_stability_pandas(
     alifestd_mark_clade_nodecount_ratio_sister_asexual_
 )
 

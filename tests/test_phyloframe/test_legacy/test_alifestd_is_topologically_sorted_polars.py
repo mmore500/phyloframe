@@ -13,9 +13,9 @@ from phyloframe.legacy._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars as alifestd_is_topologically_sorted_polars_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_polars
 
-alifestd_is_topologically_sorted_polars = assert_dtype_consistency(
+alifestd_is_topologically_sorted_polars = enforce_dtype_stability_polars(
     alifestd_is_topologically_sorted_polars_
 )
 

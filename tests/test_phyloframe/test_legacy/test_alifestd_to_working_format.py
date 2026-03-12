@@ -20,9 +20,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_to_working_format = assert_dtype_consistency(
+alifestd_to_working_format = enforce_dtype_stability_pandas(
     alifestd_to_working_format_
 )
 

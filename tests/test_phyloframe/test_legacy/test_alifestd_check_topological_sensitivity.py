@@ -14,9 +14,9 @@ from phyloframe.legacy._alifestd_check_topological_sensitivity import (
     _update_only_sensitive_cols,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_check_topological_sensitivity = assert_dtype_consistency(
+alifestd_check_topological_sensitivity = enforce_dtype_stability_pandas(
     alifestd_check_topological_sensitivity_
 )
 

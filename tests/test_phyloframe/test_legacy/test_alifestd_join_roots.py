@@ -13,9 +13,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_join_roots as alifestd_join_roots_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_join_roots = assert_dtype_consistency(alifestd_join_roots_)
+alifestd_join_roots = enforce_dtype_stability_pandas(alifestd_join_roots_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

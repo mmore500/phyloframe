@@ -9,10 +9,10 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
 alifestd_calc_clade_lookback_origin_time_delta_asexual = (
-    assert_dtype_consistency(
+    enforce_dtype_stability_pandas(
         alifestd_calc_clade_lookback_origin_time_delta_asexual_
     )
 )

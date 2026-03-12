@@ -12,9 +12,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_add_global_root = assert_dtype_consistency(alifestd_add_global_root_)
+alifestd_add_global_root = enforce_dtype_stability_pandas(alifestd_add_global_root_)
 
 
 def test_empty():

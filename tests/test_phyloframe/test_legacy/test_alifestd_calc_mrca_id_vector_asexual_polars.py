@@ -17,9 +17,9 @@ from phyloframe.legacy._alifestd_calc_mrca_id_vector_asexual_polars import (
     alifestd_calc_mrca_id_vector_asexual_polars as alifestd_calc_mrca_id_vector_asexual_polars_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_polars
 
-alifestd_calc_mrca_id_vector_asexual_polars = assert_dtype_consistency(
+alifestd_calc_mrca_id_vector_asexual_polars = enforce_dtype_stability_polars(
     alifestd_calc_mrca_id_vector_asexual_polars_
 )
 

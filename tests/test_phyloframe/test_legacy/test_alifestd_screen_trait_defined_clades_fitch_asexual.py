@@ -14,9 +14,9 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_screen_trait_defined_clades_fitch_asexual = assert_dtype_consistency(
+alifestd_screen_trait_defined_clades_fitch_asexual = enforce_dtype_stability_pandas(
     alifestd_screen_trait_defined_clades_fitch_asexual_
 )
 

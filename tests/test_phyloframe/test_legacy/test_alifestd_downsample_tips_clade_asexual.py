@@ -14,9 +14,9 @@ from phyloframe.legacy import (
     alifestd_prune_extinct_lineages_asexual,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_downsample_tips_clade_asexual = assert_dtype_consistency(
+alifestd_downsample_tips_clade_asexual = enforce_dtype_stability_pandas(
     alifestd_downsample_tips_clade_asexual_
 )
 

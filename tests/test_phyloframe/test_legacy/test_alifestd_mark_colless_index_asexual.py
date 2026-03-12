@@ -29,9 +29,9 @@ from phyloframe.legacy._alifestd_mark_left_child_asexual import (
     alifestd_mark_left_child_asexual,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_colless_index_asexual = assert_dtype_consistency(
+alifestd_mark_colless_index_asexual = enforce_dtype_stability_pandas(
     alifestd_mark_colless_index_asexual_
 )
 

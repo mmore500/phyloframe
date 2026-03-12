@@ -10,9 +10,9 @@ from phyloframe.legacy import (
     alifestd_make_ancestor_list_col as alifestd_make_ancestor_list_col_,
 )
 
-from ._impl import assert_dtype_consistency, enforce_identical_polars_result
+from ._impl import enforce_dtype_stability_pandas, enforce_identical_polars_result
 
-alifestd_make_ancestor_list_col = assert_dtype_consistency(
+alifestd_make_ancestor_list_col = enforce_dtype_stability_pandas(
     alifestd_make_ancestor_list_col_
 )
 

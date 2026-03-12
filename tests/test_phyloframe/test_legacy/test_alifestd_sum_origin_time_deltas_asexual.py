@@ -10,9 +10,9 @@ from phyloframe.legacy import (
     alifestd_sum_origin_time_deltas_asexual as alifestd_sum_origin_time_deltas_asexual_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_sum_origin_time_deltas_asexual = assert_dtype_consistency(
+alifestd_sum_origin_time_deltas_asexual = enforce_dtype_stability_pandas(
     alifestd_sum_origin_time_deltas_asexual_
 )
 

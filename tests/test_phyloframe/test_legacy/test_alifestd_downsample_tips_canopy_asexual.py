@@ -17,9 +17,9 @@ from phyloframe.legacy._alifestd_downsample_tips_canopy_asexual import (
     alifestd_downsample_tips_canopy_asexual as alifestd_downsample_tips_canopy_asexual_,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_downsample_tips_canopy_asexual = assert_dtype_consistency(
+alifestd_downsample_tips_canopy_asexual = enforce_dtype_stability_pandas(
     alifestd_downsample_tips_canopy_asexual_
 )
 

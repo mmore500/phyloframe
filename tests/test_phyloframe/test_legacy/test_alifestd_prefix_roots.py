@@ -12,10 +12,10 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import alifestd_prefix_roots as alifestd_prefix_roots_
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_prefix_roots = assert_dtype_consistency(alifestd_prefix_roots_)
-alifestd_prefix_roots_polars = assert_dtype_consistency(
+alifestd_prefix_roots = enforce_dtype_stability_pandas(alifestd_prefix_roots_)
+alifestd_prefix_roots_polars = enforce_dtype_stability_pandas(
     alifestd_prefix_roots_polars_,
 )
 

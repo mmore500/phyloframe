@@ -18,9 +18,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_sackin_index_asexual = assert_dtype_consistency(
+alifestd_mark_sackin_index_asexual = enforce_dtype_stability_pandas(
     alifestd_mark_sackin_index_asexual_
 )
 

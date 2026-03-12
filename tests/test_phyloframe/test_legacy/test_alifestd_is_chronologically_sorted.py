@@ -7,9 +7,9 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_is_chronologically_sorted = assert_dtype_consistency(
+alifestd_is_chronologically_sorted = enforce_dtype_stability_pandas(
     alifestd_is_chronologically_sorted_
 )
 

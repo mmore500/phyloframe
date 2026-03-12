@@ -24,9 +24,9 @@ from phyloframe.legacy._alifestd_mark_colless_like_index_mdm_asexual import (
     _colless_like_slow_path,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_colless_like_index_sd_asexual = assert_dtype_consistency(
+alifestd_mark_colless_like_index_sd_asexual = enforce_dtype_stability_pandas(
     alifestd_mark_colless_like_index_sd_asexual_,
 )
 

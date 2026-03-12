@@ -8,9 +8,9 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_coarsen_taxa_asexual_make_agg = assert_dtype_consistency(
+alifestd_coarsen_taxa_asexual_make_agg = enforce_dtype_stability_pandas(
     alifestd_coarsen_taxa_asexual_make_agg_
 )
 

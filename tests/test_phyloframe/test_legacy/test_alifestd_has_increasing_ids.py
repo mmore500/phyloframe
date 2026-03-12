@@ -7,9 +7,9 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_has_increasing_ids = assert_dtype_consistency(
+alifestd_has_increasing_ids = enforce_dtype_stability_pandas(
     alifestd_has_increasing_ids_
 )
 

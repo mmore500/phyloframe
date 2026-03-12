@@ -13,9 +13,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_assign_root_ancestor_token = assert_dtype_consistency(
+alifestd_assign_root_ancestor_token = enforce_dtype_stability_pandas(
     alifestd_assign_root_ancestor_token_
 )
 

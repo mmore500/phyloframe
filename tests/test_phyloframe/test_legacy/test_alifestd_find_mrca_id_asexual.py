@@ -12,9 +12,9 @@ from phyloframe.legacy import (
     alifestd_is_chronologically_ordered,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_find_mrca_id_asexual = assert_dtype_consistency(
+alifestd_find_mrca_id_asexual = enforce_dtype_stability_pandas(
     alifestd_find_mrca_id_asexual_
 )
 

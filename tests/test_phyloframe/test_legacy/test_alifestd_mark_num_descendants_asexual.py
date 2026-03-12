@@ -16,9 +16,9 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import assert_dtype_consistency
+from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_num_descendants_asexual = assert_dtype_consistency(
+alifestd_mark_num_descendants_asexual = enforce_dtype_stability_pandas(
     alifestd_mark_num_descendants_asexual_
 )
 
