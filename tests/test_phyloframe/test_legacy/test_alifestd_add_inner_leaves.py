@@ -3,14 +3,14 @@ import pandas.testing as pdt
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_add_inner_leaves,
+    alifestd_add_inner_leaves as alifestd_add_inner_leaves_,
     alifestd_make_empty,
 )
 
 from ._impl import enforce_dtype_consistency
 
-alifestd_add_inner_leaves_ = enforce_dtype_consistency(
-    alifestd_add_inner_leaves,
+alifestd_add_inner_leaves = enforce_dtype_consistency(
+    alifestd_add_inner_leaves_,
 )
 
 
@@ -172,27 +172,3 @@ def test_add_inner_leaves_ancestor_list_only2(mutate: bool):
     )
 
     pdt.assert_frame_equal(result, expected_list)
-
-
-# --- dtype consistency tests ---
-
-
-def test_add_inner_leaves_dtype_chain():
-    df = pd.DataFrame(
-        {
-            "id": [0, 1, 2],
-            "ancestor_id": [0, 0, 1],
-        },
-    )
-    alifestd_add_inner_leaves_(df)
-
-
-def test_add_inner_leaves_dtype_with_ancestor_list():
-    df = pd.DataFrame(
-        {
-            "id": [0, 1],
-            "ancestor_id": [0, 0],
-            "ancestor_list": ["[none]", "[0]"],
-        }
-    )
-    alifestd_add_inner_leaves_(df)

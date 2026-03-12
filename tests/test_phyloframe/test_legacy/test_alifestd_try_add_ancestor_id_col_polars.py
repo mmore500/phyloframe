@@ -7,13 +7,13 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
-    alifestd_try_add_ancestor_id_col_polars,
+    alifestd_try_add_ancestor_id_col_polars as alifestd_try_add_ancestor_id_col_polars_,
 )
 
 from ._impl import enforce_dtype_consistency
 
-alifestd_try_add_ancestor_id_col_polars_ = enforce_dtype_consistency(
-    alifestd_try_add_ancestor_id_col_polars,
+alifestd_try_add_ancestor_id_col_polars = enforce_dtype_consistency(
+    alifestd_try_add_ancestor_id_col_polars_,
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
@@ -331,21 +331,3 @@ def test_alifestd_try_add_ancestor_id_col_polars_idempotent(
     )
 
     assert result1["ancestor_id"].to_list() == result2["ancestor_id"].to_list()
-
-
-# --- dtype consistency tests ---
-
-
-@pytest.mark.parametrize("id_dtype", [pl.Int64, pl.UInt64])
-def test_try_add_ancestor_id_col_polars_dtype(id_dtype):
-    df = pl.DataFrame(
-        {
-            "id": pl.Series([0, 1, 2], dtype=id_dtype),
-            "ancestor_list": ["[none]", "[0]", "[1]"],
-        }
-    )
-    result = alifestd_try_add_ancestor_id_col_polars(df)
-    assert result["ancestor_id"].dtype == id_dtype, (
-        f"ancestor_id dtype {result['ancestor_id'].dtype} != id dtype "
-        f"{id_dtype}"
-    )
