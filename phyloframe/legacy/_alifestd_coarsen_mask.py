@@ -50,7 +50,7 @@ def _alifestd_coarsen_mask_asexual(
         res["id"]
         .map(new_ancestor_ids)
         .fillna(res["id"])
-        .astype(int)
+        .astype(phylogeny_df["id"].dtype)
     )
 
     res["ancestor_list"] = alifestd_make_ancestor_list_col(

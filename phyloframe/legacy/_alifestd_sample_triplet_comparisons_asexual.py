@@ -3,6 +3,7 @@ import typing
 import numpy as np
 import pandas as pd
 
+from .._auxlib._preserve_id_dtypes import preserve_id_dtypes
 from ._alifestd_categorize_triplet_asexual import (
     alifestd_categorize_triplet_asexual,
 )
@@ -10,6 +11,7 @@ from ._alifestd_find_leaf_ids import alifestd_find_leaf_ids
 from ._alifestd_find_mrca_id_asexual import alifestd_find_mrca_id_asexual
 
 
+@preserve_id_dtypes
 def alifestd_sample_triplet_comparisons_asexual(
     first_df: pd.DataFrame,
     second_df: pd.DataFrame,

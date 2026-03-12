@@ -107,10 +107,10 @@ def alifestd_find_pair_mrca_id_asexual(
     ):
         raise NotImplementedError("non-contiguous ids not yet supported")
 
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy(dtype=np.intp)
     result = _alifestd_find_pair_mrca_id_asexual_fast_path(
         ancestor_ids,
-        first,
-        second,
+        int(first),
+        int(second),
     )
     return None if result == -1 else int(result)

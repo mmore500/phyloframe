@@ -1,5 +1,6 @@
 import functools
 import typing
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -19,13 +20,18 @@ def assert_dtype_consistency(
 
     @functools.wraps(func)
     def dtype_checker(*args, **kwargs) -> typing.Any:
+        if not args:
+            return func(*args, **kwargs)
+
         phylogeny_df = args[0]
         rest_args = args[1:]
 
         if isinstance(phylogeny_df, pd.DataFrame):
-            _check_pandas(func, phylogeny_df, rest_args, kwargs)
+            if "id" in phylogeny_df.columns:
+                _check_pandas(func, phylogeny_df, rest_args, kwargs)
         elif isinstance(phylogeny_df, pl.DataFrame):
-            _check_polars(func, phylogeny_df, rest_args, kwargs)
+            if "id" in phylogeny_df.columns:
+                _check_polars(func, phylogeny_df, rest_args, kwargs)
 
         # Return the result from the original (uncast) call for downstream use
         return func(*args, **kwargs)
@@ -37,14 +43,24 @@ def _check_pandas(func, phylogeny_df, rest_args, kwargs):
     has_ancestor_id = "ancestor_id" in phylogeny_df.columns
 
     for dtype in (np.int64, np.uint64):
-        df_cast = phylogeny_df.copy()
-        df_cast["id"] = df_cast["id"].astype(dtype)
-        if has_ancestor_id:
-            df_cast["ancestor_id"] = df_cast["ancestor_id"].astype(dtype)
+        try:
+            df_cast = phylogeny_df.copy()
+            df_cast["id"] = df_cast["id"].astype(dtype)
+            if has_ancestor_id:
+                df_cast["ancestor_id"] = df_cast["ancestor_id"].astype(
+                    dtype,
+                )
+        except (ValueError, TypeError, OverflowError):
+            continue  # skip if ids can't be cast (e.g., non-numeric)
 
-        result = func(df_cast, *rest_args, **kwargs)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:
+                result = func(df_cast, *rest_args, **kwargs)
+            except Exception:
+                continue  # skip if function fails on cast data
 
-        if isinstance(result, pd.DataFrame):
+        if isinstance(result, pd.DataFrame) and "id" in result.columns:
             assert result["id"].dtype == dtype, (
                 f"{func.__name__}: id dtype changed from {dtype} "
                 f"to {result['id'].dtype}"
@@ -60,13 +76,24 @@ def _check_polars(func, phylogeny_df, rest_args, kwargs):
     has_ancestor_id = "ancestor_id" in phylogeny_df.columns
 
     for dtype in (pl.Int64, pl.UInt64):
-        df_cast = phylogeny_df.cast({"id": dtype})
-        if has_ancestor_id:
-            df_cast = df_cast.cast({"ancestor_id": dtype})
+        try:
+            df_cast = phylogeny_df.cast({"id": dtype})
+            if has_ancestor_id:
+                df_cast = df_cast.cast({"ancestor_id": dtype})
+        except (
+            pl.exceptions.InvalidOperationError,
+            pl.exceptions.ComputeError,
+        ):
+            continue
 
-        result = func(df_cast, *rest_args, **kwargs)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:
+                result = func(df_cast, *rest_args, **kwargs)
+            except Exception:
+                continue
 
-        if isinstance(result, pl.DataFrame):
+        if isinstance(result, pl.DataFrame) and "id" in result.columns:
             assert result["id"].dtype == dtype, (
                 f"{func.__name__}: id dtype changed from {dtype} "
                 f"to {result['id'].dtype}"

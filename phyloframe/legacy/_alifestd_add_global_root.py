@@ -18,12 +18,14 @@ from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._preserve_id_dtypes import preserve_id_dtypes
 from ._alifestd_find_root_ids import alifestd_find_root_ids
 from ._alifestd_topological_sensitivity_warned import (
     alifestd_topological_sensitivity_warned,
 )
 
 
+@preserve_id_dtypes
 @alifestd_topological_sensitivity_warned(
     insert=True,
     delete=False,
