@@ -24,6 +24,12 @@ from phyloframe.legacy._alifestd_mark_colless_like_index_mdm_asexual import (
     _colless_like_slow_path,
 )
 
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_colless_like_index_var_asexual = assert_dtype_consistency(
+    alifestd_mark_colless_like_index_var_asexual_,
+)
+
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
@@ -377,10 +383,6 @@ def test_relationship_var_mdm_bifurcating():
     from phyloframe.legacy import (
         alifestd_mark_colless_like_index_mdm_asexual,
     )
-
-from ._impl import assert_dtype_consistency
-
-alifestd_mark_colless_like_index_var_asexual = assert_dtype_consistency(alifestd_mark_colless_like_index_var_asexual_)
 
     result_mdm = alifestd_mark_colless_like_index_mdm_asexual(
         phylogeny_df,

@@ -24,6 +24,12 @@ from phyloframe.legacy._alifestd_mark_colless_like_index_mdm_asexual import (
     _colless_like_slow_path,
 )
 
+from ._impl import assert_dtype_consistency
+
+alifestd_mark_colless_like_index_sd_asexual = assert_dtype_consistency(
+    alifestd_mark_colless_like_index_sd_asexual_,
+)
+
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
@@ -375,10 +381,6 @@ def test_relationship_sd_var():
     from phyloframe.legacy import (
         alifestd_mark_colless_like_index_var_asexual,
     )
-
-from ._impl import assert_dtype_consistency
-
-alifestd_mark_colless_like_index_sd_asexual = assert_dtype_consistency(alifestd_mark_colless_like_index_sd_asexual_)
 
     result_sd = alifestd_mark_colless_like_index_sd_asexual(
         phylogeny_df,
