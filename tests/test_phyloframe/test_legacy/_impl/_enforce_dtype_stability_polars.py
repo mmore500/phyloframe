@@ -30,7 +30,7 @@ def enforce_dtype_stability_polars(
                 f"DataFrame or LazyFrame, got {type(phylogeny_df)}"
             )
 
-        input_schema = phylogeny_df.lazy().collect_schema()
+        input_schema = phylogeny_df.collect_schema()
         id_dtype = input_schema["id"]
         ancestor_id_dtype = (
             input_schema["ancestor_id"]
@@ -41,7 +41,7 @@ def enforce_dtype_stability_polars(
         result = func(phylogeny_df, *args, **kwargs)
 
         if isinstance(result, (pl.DataFrame, pl.LazyFrame)):
-            result_schema = result.lazy().collect_schema()
+            result_schema = result.collect_schema()
             assert result_schema["id"] == id_dtype, (
                 f"{func.__name__}: id dtype changed "
                 f"from {id_dtype} to {result_schema['id']}"

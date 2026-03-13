@@ -1,6 +1,8 @@
 import functools
 import typing
 
+import pandas as pd
+
 
 def preserve_id_dtypes(func: typing.Callable) -> typing.Callable:
     """Decorator that preserves id/ancestor_id dtypes through a transform.
@@ -12,7 +14,7 @@ def preserve_id_dtypes(func: typing.Callable) -> typing.Callable:
     """
 
     @functools.wraps(func)
-    def wrapper(phylogeny_df, *args, **kwargs):
+    def wrapper(phylogeny_df: pd.DataFrame, *args, **kwargs):
         id_dtype = phylogeny_df["id"].dtype
         ancestor_id_dtype = (
             phylogeny_df["ancestor_id"].dtype
