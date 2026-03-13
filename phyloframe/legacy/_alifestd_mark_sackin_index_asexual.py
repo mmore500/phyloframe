@@ -130,17 +130,17 @@ def alifestd_mark_sackin_index_asexual(
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df.reset_index(drop=True, inplace=True)
-        phylogeny_df[
-            "sackin_index"
-        ] = alifestd_mark_sackin_index_asexual_fast_path(
-            phylogeny_df["ancestor_id"].to_numpy(),
-            phylogeny_df["num_leaves"].to_numpy(),
+        phylogeny_df["sackin_index"] = (
+            alifestd_mark_sackin_index_asexual_fast_path(
+                phylogeny_df["ancestor_id"].to_numpy(),
+                phylogeny_df["num_leaves"].to_numpy(),
+            )
         )
     else:
-        phylogeny_df[
-            "sackin_index"
-        ] = alifestd_mark_sackin_index_asexual_slow_path(
-            phylogeny_df,
+        phylogeny_df["sackin_index"] = (
+            alifestd_mark_sackin_index_asexual_slow_path(
+                phylogeny_df,
+            )
         )
 
     return phylogeny_df

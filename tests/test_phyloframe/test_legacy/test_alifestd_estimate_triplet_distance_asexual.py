@@ -111,7 +111,7 @@ def test_polytomy_identical(df: pd.DataFrame):
     ],
 )
 def test_differing_wrong1(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -154,7 +154,7 @@ def test_differing_wrong1(
     ],
 )
 def test_differing_wrong2(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -244,7 +244,7 @@ def test_differing_polytomy(strict: bool):
     ],
 )
 def test_differing_polytomy2(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -292,7 +292,7 @@ def test_differing_polytomy2(
     ],
 )
 def test_identical_polytomy1(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -340,7 +340,7 @@ def test_identical_polytomy1(
     ],
 )
 def test_differing_wrong_big(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
