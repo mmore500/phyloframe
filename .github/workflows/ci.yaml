@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }} pandas${{ matrix.pandas-version || '(latest)' }}"
+    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }} pandas${{ matrix.pandas-version || '==3' }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
