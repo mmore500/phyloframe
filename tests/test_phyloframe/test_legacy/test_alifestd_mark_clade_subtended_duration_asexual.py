@@ -10,8 +10,10 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_clade_subtended_duration_asexual = enforce_dtype_stability_pandas(
-    alifestd_mark_clade_subtended_duration_asexual_
+alifestd_mark_clade_subtended_duration_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_clade_subtended_duration_asexual_
+    )
 )
 
 

@@ -23,8 +23,10 @@ from phyloframe.legacy._alifestd_mark_leaves_polars import (
 
 from ._impl import enforce_dtype_stability_polars
 
-alifestd_downsample_tips_lineage_stratified_polars = enforce_dtype_stability_polars(
-    alifestd_downsample_tips_lineage_stratified_polars_,
+alifestd_downsample_tips_lineage_stratified_polars = (
+    enforce_dtype_stability_polars(
+        alifestd_downsample_tips_lineage_stratified_polars_,
+    )
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

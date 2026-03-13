@@ -18,8 +18,10 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_screen_trait_defined_clades_fisher_asexual = enforce_dtype_stability_pandas(
-    alifestd_screen_trait_defined_clades_fisher_asexual_
+alifestd_screen_trait_defined_clades_fisher_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_screen_trait_defined_clades_fisher_asexual_
+    )
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
