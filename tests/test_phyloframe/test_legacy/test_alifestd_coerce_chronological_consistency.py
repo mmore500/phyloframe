@@ -6,10 +6,20 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
-    alifestd_coerce_chronological_consistency,
+)
+from phyloframe.legacy import (
+    alifestd_coerce_chronological_consistency as alifestd_coerce_chronological_consistency_,
+)
+from phyloframe.legacy import (
     alifestd_find_chronological_inconsistency,
     alifestd_make_empty,
     alifestd_try_add_ancestor_id_col,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_coerce_chronological_consistency = enforce_dtype_stability_pandas(
+    alifestd_coerce_chronological_consistency_
 )
 
 

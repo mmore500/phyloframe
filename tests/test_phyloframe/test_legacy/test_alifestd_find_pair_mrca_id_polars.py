@@ -10,7 +10,13 @@ from phyloframe.legacy._alifestd_find_pair_mrca_id_asexual import (
     alifestd_find_pair_mrca_id_asexual,
 )
 from phyloframe.legacy._alifestd_find_pair_mrca_id_polars import (
-    alifestd_find_pair_mrca_id_polars,
+    alifestd_find_pair_mrca_id_polars as alifestd_find_pair_mrca_id_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_find_pair_mrca_id_polars = enforce_dtype_stability_polars(
+    alifestd_find_pair_mrca_id_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

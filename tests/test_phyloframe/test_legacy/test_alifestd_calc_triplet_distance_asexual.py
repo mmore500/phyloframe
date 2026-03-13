@@ -2,8 +2,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_calc_triplet_distance_asexual,
+    alifestd_calc_triplet_distance_asexual as alifestd_calc_triplet_distance_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_ancestor_list_col,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_calc_triplet_distance_asexual = enforce_dtype_stability_pandas(
+    alifestd_calc_triplet_distance_asexual_
 )
 
 

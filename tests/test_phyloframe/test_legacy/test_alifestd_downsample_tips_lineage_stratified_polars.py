@@ -15,10 +15,18 @@ from phyloframe.legacy._alifestd_assign_contiguous_ids_polars import (
     alifestd_assign_contiguous_ids_polars,
 )
 from phyloframe.legacy._alifestd_downsample_tips_lineage_stratified_polars import (
-    alifestd_downsample_tips_lineage_stratified_polars,
+    alifestd_downsample_tips_lineage_stratified_polars as alifestd_downsample_tips_lineage_stratified_polars_,
 )
 from phyloframe.legacy._alifestd_mark_leaves_polars import (
     alifestd_mark_leaves_polars,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_downsample_tips_lineage_stratified_polars = (
+    enforce_dtype_stability_polars(
+        alifestd_downsample_tips_lineage_stratified_polars_,
+    )
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

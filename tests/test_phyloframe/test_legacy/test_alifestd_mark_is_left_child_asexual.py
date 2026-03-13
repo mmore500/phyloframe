@@ -3,7 +3,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_is_left_child_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_is_left_child_asexual as alifestd_mark_is_left_child_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_is_left_child_asexual = enforce_dtype_stability_pandas(
+    alifestd_mark_is_left_child_asexual_
 )
 
 

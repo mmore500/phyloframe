@@ -6,10 +6,20 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
-    alifestd_find_chronological_inconsistency,
+)
+from phyloframe.legacy import (
+    alifestd_find_chronological_inconsistency as alifestd_find_chronological_inconsistency_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_parse_ancestor_ids,
     alifestd_try_add_ancestor_id_col,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_find_chronological_inconsistency = enforce_dtype_stability_pandas(
+    alifestd_find_chronological_inconsistency_
 )
 
 

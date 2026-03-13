@@ -9,14 +9,32 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
-    alifestd_assign_contiguous_ids,
-    alifestd_assign_contiguous_ids_polars,
+)
+from phyloframe.legacy import (
+    alifestd_assign_contiguous_ids as alifestd_assign_contiguous_ids_,
+)
+from phyloframe.legacy import (
+    alifestd_assign_contiguous_ids_polars as alifestd_assign_contiguous_ids_polars_,
+)
+from phyloframe.legacy import (
     alifestd_find_leaf_ids,
     alifestd_has_contiguous_ids,
     alifestd_is_asexual,
     alifestd_make_ancestor_id_col,
     alifestd_to_working_format,
     alifestd_validate,
+)
+
+from ._impl import (
+    enforce_dtype_stability_pandas,
+    enforce_dtype_stability_polars,
+)
+
+alifestd_assign_contiguous_ids = enforce_dtype_stability_pandas(
+    alifestd_assign_contiguous_ids_,
+)
+alifestd_assign_contiguous_ids_polars = enforce_dtype_stability_polars(
+    alifestd_assign_contiguous_ids_polars_,
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

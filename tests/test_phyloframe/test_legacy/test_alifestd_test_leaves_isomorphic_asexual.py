@@ -7,7 +7,15 @@ from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
     alifestd_collapse_unifurcations,
     alifestd_make_empty,
-    alifestd_test_leaves_isomorphic_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_test_leaves_isomorphic_asexual as alifestd_test_leaves_isomorphic_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_test_leaves_isomorphic_asexual = enforce_dtype_stability_pandas(
+    alifestd_test_leaves_isomorphic_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

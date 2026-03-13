@@ -8,12 +8,22 @@ from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
     alifestd_assign_contiguous_ids,
     alifestd_find_leaf_ids,
-    alifestd_prune_extinct_lineages_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_prune_extinct_lineages_asexual as alifestd_prune_extinct_lineages_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_to_working_format,
     alifestd_topological_sort,
     alifestd_try_add_ancestor_id_col,
     alifestd_unfurl_lineage_asexual,
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_prune_extinct_lineages_asexual = enforce_dtype_stability_pandas(
+    alifestd_prune_extinct_lineages_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

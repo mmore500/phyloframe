@@ -161,9 +161,9 @@ def alifestd_unfurl_traversal_semiorder_asexual(
                 phylogeny_df, mutate=True
             )
         return _alifestd_unfurl_traversal_semiorder_asexual_fast_path(
-            phylogeny_df["ancestor_id"].to_numpy(),
-            phylogeny_df["num_descendants"].to_numpy(),
-            alifestd_find_leaf_ids(phylogeny_df),
+            phylogeny_df["ancestor_id"].to_numpy(dtype=np.intp),
+            phylogeny_df["num_descendants"].to_numpy(dtype=np.intp),
+            alifestd_find_leaf_ids(phylogeny_df).astype(np.intp),
         )
     else:
         return _alifestd_unfurl_traversal_semiorder_asexual_slow_path(

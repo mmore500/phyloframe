@@ -5,7 +5,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_collapse_unifurcations,
-    alifestd_count_unifurcating_roots_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_count_unifurcating_roots_asexual as alifestd_count_unifurcating_roots_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_count_unifurcating_roots_asexual = enforce_dtype_stability_pandas(
+    alifestd_count_unifurcating_roots_asexual_
 )
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")

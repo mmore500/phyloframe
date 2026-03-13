@@ -12,7 +12,11 @@ from phyloframe.legacy import (
     alifestd_make_balanced_bifurcating,
     alifestd_make_comb,
     alifestd_make_empty,
-    alifestd_mark_colless_like_index_mdm_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_colless_like_index_mdm_asexual as alifestd_mark_colless_like_index_mdm_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_mark_num_children_asexual,
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
@@ -20,6 +24,12 @@ from phyloframe.legacy import (
 from phyloframe.legacy._alifestd_mark_colless_like_index_mdm_asexual import (
     _colless_like_fast_path,
     _colless_like_slow_path,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_colless_like_index_mdm_asexual = enforce_dtype_stability_pandas(
+    alifestd_mark_colless_like_index_mdm_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

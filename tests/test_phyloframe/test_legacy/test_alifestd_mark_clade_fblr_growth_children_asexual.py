@@ -11,10 +11,22 @@ from phyloframe.legacy import (
     alifestd_collapse_unifurcations,
     alifestd_delete_unifurcating_roots_asexual,
     alifestd_make_empty,
-    alifestd_mark_clade_fblr_growth_children_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_clade_fblr_growth_children_asexual as alifestd_mark_clade_fblr_growth_children_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_mark_leaves,
     alifestd_splay_polytomies,
     alifestd_to_working_format,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_clade_fblr_growth_children_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_clade_fblr_growth_children_asexual_
+    )
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

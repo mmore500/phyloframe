@@ -7,10 +7,16 @@ import pytest
 from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_make_empty,
-    alifestd_mark_roots,
+)
+from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
 )
+from phyloframe.legacy import alifestd_mark_roots as alifestd_mark_roots_
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_roots = enforce_dtype_stability_pandas(alifestd_mark_roots_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

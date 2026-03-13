@@ -5,7 +5,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_origin_time_delta_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_origin_time_delta_asexual as alifestd_mark_origin_time_delta_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_origin_time_delta_asexual = enforce_dtype_stability_pandas(
+    alifestd_mark_origin_time_delta_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

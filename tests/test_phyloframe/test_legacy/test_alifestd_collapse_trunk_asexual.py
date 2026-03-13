@@ -2,8 +2,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_collapse_trunk_asexual,
+    alifestd_collapse_trunk_asexual as alifestd_collapse_trunk_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_collapse_trunk_asexual = enforce_dtype_stability_pandas(
+    alifestd_collapse_trunk_asexual_
 )
 
 

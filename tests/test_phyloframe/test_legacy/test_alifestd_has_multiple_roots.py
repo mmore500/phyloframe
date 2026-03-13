@@ -6,9 +6,19 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
-    alifestd_has_multiple_roots,
+)
+from phyloframe.legacy import (
+    alifestd_has_multiple_roots as alifestd_has_multiple_roots_,
+)
+from phyloframe.legacy import (
     alifestd_parse_ancestor_ids,
     alifestd_to_working_format,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_has_multiple_roots = enforce_dtype_stability_pandas(
+    alifestd_has_multiple_roots_
 )
 
 

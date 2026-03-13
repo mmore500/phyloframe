@@ -4,12 +4,20 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_check_topological_sensitivity,
+    alifestd_check_topological_sensitivity as alifestd_check_topological_sensitivity_,
+)
+from phyloframe.legacy import (
     alifestd_warn_topological_sensitivity,
 )
 from phyloframe.legacy._alifestd_check_topological_sensitivity import (
     _topologically_sensitive_cols,
     _update_only_sensitive_cols,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_check_topological_sensitivity = enforce_dtype_stability_pandas(
+    alifestd_check_topological_sensitivity_
 )
 
 

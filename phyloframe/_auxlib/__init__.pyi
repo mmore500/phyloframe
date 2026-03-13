@@ -32,6 +32,8 @@ from ._lazy_attach_stub import lazy_attach_stub
 from ._log_context_duration import log_context_duration
 from ._log_memory_usage import log_memory_usage
 from ._pairwise import pairwise
+from ._preserve_id_dtypes import preserve_id_dtypes
+from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
 from ._seed_random import seed_random
 from ._textwrap_respect_indents import textwrap_respect_indents
 from ._unfurl_lineage_with_contiguous_ids import (
@@ -73,6 +75,8 @@ __all__ = [
     "log_context_duration",
     "log_memory_usage",
     "pairwise",
+    "preserve_id_dtypes",
+    "preserve_id_dtypes_polars",
     "seed_random",
     "textwrap_respect_indents",
     "unfurl_lineage_with_contiguous_ids",

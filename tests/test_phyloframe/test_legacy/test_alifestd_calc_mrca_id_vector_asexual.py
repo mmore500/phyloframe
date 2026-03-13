@@ -7,9 +7,19 @@ from tqdm import tqdm
 
 from phyloframe.legacy import (
     alifestd_calc_mrca_id_matrix_asexual,
-    alifestd_calc_mrca_id_vector_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_calc_mrca_id_vector_asexual as alifestd_calc_mrca_id_vector_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_is_chronologically_ordered,
     alifestd_to_working_format,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_calc_mrca_id_vector_asexual = enforce_dtype_stability_pandas(
+    alifestd_calc_mrca_id_vector_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

@@ -2,8 +2,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_count_unifurcations,
+    alifestd_count_unifurcations as alifestd_count_unifurcations_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_count_unifurcations = enforce_dtype_stability_pandas(
+    alifestd_count_unifurcations_
 )
 
 

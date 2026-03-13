@@ -1,8 +1,16 @@
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_has_increasing_ids,
+    alifestd_has_increasing_ids as alifestd_has_increasing_ids_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_has_increasing_ids = enforce_dtype_stability_pandas(
+    alifestd_has_increasing_ids_
 )
 
 

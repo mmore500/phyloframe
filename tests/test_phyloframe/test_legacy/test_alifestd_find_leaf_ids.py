@@ -6,11 +6,19 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
-    alifestd_find_leaf_ids,
+)
+from phyloframe.legacy import (
     alifestd_is_asexual,
     alifestd_parse_ancestor_ids,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
+)
+from phyloframe.legacy import alifestd_find_leaf_ids as alifestd_find_leaf_ids_
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_find_leaf_ids = enforce_dtype_stability_pandas(
+    alifestd_find_leaf_ids_
 )
 
 

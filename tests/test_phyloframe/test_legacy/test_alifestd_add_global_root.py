@@ -4,10 +4,18 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_add_global_root,
+    alifestd_add_global_root as alifestd_add_global_root_,
+)
+from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_make_empty,
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_add_global_root = enforce_dtype_stability_pandas(
+    alifestd_add_global_root_
 )
 
 

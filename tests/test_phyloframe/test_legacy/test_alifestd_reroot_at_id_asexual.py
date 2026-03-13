@@ -2,8 +2,16 @@ import numpy as np
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_reroot_at_id_asexual,
+    alifestd_reroot_at_id_asexual as alifestd_reroot_at_id_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_reroot_at_id_asexual = enforce_dtype_stability_pandas(
+    alifestd_reroot_at_id_asexual_
 )
 
 

@@ -1,8 +1,16 @@
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_count_leaf_nodes,
+    alifestd_count_leaf_nodes as alifestd_count_leaf_nodes_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_count_leaf_nodes = enforce_dtype_stability_pandas(
+    alifestd_count_leaf_nodes_
 )
 
 

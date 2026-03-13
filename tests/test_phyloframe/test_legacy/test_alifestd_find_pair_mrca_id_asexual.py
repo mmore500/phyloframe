@@ -8,7 +8,13 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_find_pair_mrca_id_asexual import (
-    alifestd_find_pair_mrca_id_asexual,
+    alifestd_find_pair_mrca_id_asexual as alifestd_find_pair_mrca_id_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_find_pair_mrca_id_asexual = enforce_dtype_stability_pandas(
+    alifestd_find_pair_mrca_id_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

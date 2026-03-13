@@ -1,7 +1,15 @@
 import pandas as pd
 import pytest
 
-from phyloframe.legacy import alifestd_count_children_of_asexual
+from phyloframe.legacy import (
+    alifestd_count_children_of_asexual as alifestd_count_children_of_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_count_children_of_asexual = enforce_dtype_stability_pandas(
+    alifestd_count_children_of_asexual_
+)
 
 
 def sample_phylogeny_df1():

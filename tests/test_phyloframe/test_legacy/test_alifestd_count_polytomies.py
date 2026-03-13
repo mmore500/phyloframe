@@ -2,8 +2,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_count_polytomies,
+    alifestd_count_polytomies as alifestd_count_polytomies_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_count_polytomies = enforce_dtype_stability_pandas(
+    alifestd_count_polytomies_
 )
 
 

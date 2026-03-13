@@ -6,11 +6,19 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_estimate_triplet_distance_asexual,
+    alifestd_estimate_triplet_distance_asexual as alifestd_estimate_triplet_distance_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_ancestor_list_col,
     alifestd_make_empty,
     alifestd_to_working_format,
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_estimate_triplet_distance_asexual = enforce_dtype_stability_pandas(
+    alifestd_estimate_triplet_distance_asexual_
 )
 
 
@@ -103,7 +111,7 @@ def test_polytomy_identical(df: pd.DataFrame):
     ],
 )
 def test_differing_wrong1(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -146,7 +154,7 @@ def test_differing_wrong1(
     ],
 )
 def test_differing_wrong2(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -236,7 +244,7 @@ def test_differing_polytomy(strict: bool):
     ],
 )
 def test_differing_polytomy2(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -284,7 +292,7 @@ def test_differing_polytomy2(
     ],
 )
 def test_identical_polytomy1(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {
@@ -332,7 +340,7 @@ def test_identical_polytomy1(
     ],
 )
 def test_differing_wrong_big(
-    strict: typing.Union[bool, typing.Tuple[bool, bool]]
+    strict: typing.Union[bool, typing.Tuple[bool, bool]],
 ):
     adf = pd.DataFrame(
         {

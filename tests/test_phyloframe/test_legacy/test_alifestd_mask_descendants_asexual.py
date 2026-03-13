@@ -4,7 +4,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mask_descendants_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mask_descendants_asexual as alifestd_mask_descendants_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mask_descendants_asexual = enforce_dtype_stability_pandas(
+    alifestd_mask_descendants_asexual_
 )
 
 

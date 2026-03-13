@@ -5,7 +5,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_clade_faithpd_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_clade_faithpd_asexual as alifestd_mark_clade_faithpd_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_clade_faithpd_asexual = enforce_dtype_stability_pandas(
+    alifestd_mark_clade_faithpd_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

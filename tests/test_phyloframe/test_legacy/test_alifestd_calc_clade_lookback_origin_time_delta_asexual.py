@@ -3,8 +3,18 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_calc_clade_lookback_origin_time_delta_asexual,
+    alifestd_calc_clade_lookback_origin_time_delta_asexual as alifestd_calc_clade_lookback_origin_time_delta_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_calc_clade_lookback_origin_time_delta_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_calc_clade_lookback_origin_time_delta_asexual_
+    )
 )
 
 

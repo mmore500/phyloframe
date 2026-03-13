@@ -5,8 +5,20 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_clade_nodecount_ratio_sister_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_clade_nodecount_ratio_sister_asexual as alifestd_mark_clade_nodecount_ratio_sister_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_to_working_format,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_clade_nodecount_ratio_sister_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_clade_nodecount_ratio_sister_asexual_
+    )
 )
 
 

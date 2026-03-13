@@ -10,7 +10,13 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_mark_leaves_polars import (
-    alifestd_mark_leaves_polars,
+    alifestd_mark_leaves_polars as alifestd_mark_leaves_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_mark_leaves_polars = enforce_dtype_stability_polars(
+    alifestd_mark_leaves_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

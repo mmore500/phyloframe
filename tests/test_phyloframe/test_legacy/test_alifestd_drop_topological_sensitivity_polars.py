@@ -1,10 +1,18 @@
 import polars as pl
 import pytest
 
-from phyloframe.legacy import alifestd_drop_topological_sensitivity_polars
+from phyloframe.legacy import (
+    alifestd_drop_topological_sensitivity_polars as alifestd_drop_topological_sensitivity_polars_,
+)
 from phyloframe.legacy._alifestd_check_topological_sensitivity import (
     _topologically_sensitive_cols,
     _update_only_sensitive_cols,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_drop_topological_sensitivity_polars = enforce_dtype_stability_polars(
+    alifestd_drop_topological_sensitivity_polars_
 )
 
 

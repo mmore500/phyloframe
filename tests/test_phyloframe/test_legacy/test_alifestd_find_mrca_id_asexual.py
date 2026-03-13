@@ -6,8 +6,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_find_mrca_id_asexual,
+    alifestd_find_mrca_id_asexual as alifestd_find_mrca_id_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_is_chronologically_ordered,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_find_mrca_id_asexual = enforce_dtype_stability_pandas(
+    alifestd_find_mrca_id_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

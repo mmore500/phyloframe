@@ -3,7 +3,17 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_clade_subtended_duration_ratio_sister_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_clade_subtended_duration_ratio_sister_asexual as alifestd_mark_clade_subtended_duration_ratio_sister_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_clade_subtended_duration_ratio_sister_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_clade_subtended_duration_ratio_sister_asexual_
+    )
 )
 
 

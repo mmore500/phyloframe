@@ -6,8 +6,20 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_prefix_roots,
-    alifestd_prefix_roots_polars,
+)
+from phyloframe.legacy import (
+    alifestd_prefix_roots_polars as alifestd_prefix_roots_polars_,
+)
+from phyloframe.legacy import alifestd_prefix_roots as alifestd_prefix_roots_
+
+from ._impl import (
+    enforce_dtype_stability_pandas,
+    enforce_dtype_stability_polars,
+)
+
+alifestd_prefix_roots = enforce_dtype_stability_pandas(alifestd_prefix_roots_)
+alifestd_prefix_roots_polars = enforce_dtype_stability_polars(
+    alifestd_prefix_roots_polars_,
 )
 
 

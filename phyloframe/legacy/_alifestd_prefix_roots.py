@@ -20,6 +20,7 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._preserve_id_dtypes import preserve_id_dtypes
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_mark_roots import alifestd_mark_roots
 from ._alifestd_topological_sensitivity_warned import (
@@ -47,6 +48,7 @@ def _alifestd_prefix_roots_fast(
     return pd.concat([prepended_roots, phylogeny_df], ignore_index=True)
 
 
+@preserve_id_dtypes
 @alifestd_topological_sensitivity_warned(
     insert=True,
     delete=False,

@@ -13,7 +13,13 @@ from phyloframe.legacy._alifestd_downsample_tips_canopy_asexual import (
     alifestd_downsample_tips_canopy_asexual,
 )
 from phyloframe.legacy._alifestd_downsample_tips_canopy_polars import (
-    alifestd_downsample_tips_canopy_polars,
+    alifestd_downsample_tips_canopy_polars as alifestd_downsample_tips_canopy_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_downsample_tips_canopy_polars = enforce_dtype_stability_polars(
+    alifestd_downsample_tips_canopy_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

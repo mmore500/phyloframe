@@ -3,8 +3,16 @@ import pandas.testing as pdt
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_add_inner_knuckles_asexual,
+    alifestd_add_inner_knuckles_asexual as alifestd_add_inner_knuckles_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_add_inner_knuckles_asexual = enforce_dtype_stability_pandas(
+    alifestd_add_inner_knuckles_asexual_
 )
 
 

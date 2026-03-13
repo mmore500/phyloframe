@@ -10,9 +10,21 @@ from phyloframe.legacy import (
     alifestd_delete_unifurcating_roots_asexual,
     alifestd_join_roots,
     alifestd_make_empty,
-    alifestd_mark_clade_logistic_growth_sister_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_clade_logistic_growth_sister_asexual as alifestd_mark_clade_logistic_growth_sister_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_splay_polytomies,
     alifestd_to_working_format,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_clade_logistic_growth_sister_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_clade_logistic_growth_sister_asexual_
+    )
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

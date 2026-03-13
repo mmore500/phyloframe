@@ -7,12 +7,22 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_collapse_unifurcations,
-    alifestd_delete_trunk_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_delete_trunk_asexual as alifestd_delete_trunk_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_delete_trunk_asexual_polars,
     alifestd_prefix_roots,
     alifestd_test_leaves_isomorphic_asexual,
     alifestd_to_working_format,
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_delete_trunk_asexual = enforce_dtype_stability_pandas(
+    alifestd_delete_trunk_asexual_
 )
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")

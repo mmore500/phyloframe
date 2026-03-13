@@ -1,7 +1,15 @@
 import numpy as np
 import pandas as pd
 
-from phyloframe.legacy import alifestd_unfurl_lineage_asexual
+from phyloframe.legacy import (
+    alifestd_unfurl_lineage_asexual as alifestd_unfurl_lineage_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_unfurl_lineage_asexual = enforce_dtype_stability_pandas(
+    alifestd_unfurl_lineage_asexual_
+)
 
 
 def test_alifestd_unfurl_lineage_asexual():

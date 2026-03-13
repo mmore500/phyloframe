@@ -8,7 +8,13 @@ from phyloframe.legacy._alifestd_coarsen_dilate_asexual import (
     alifestd_coarsen_dilate_asexual,
 )
 from phyloframe.legacy._alifestd_coarsen_dilate_polars import (
-    alifestd_coarsen_dilate_polars,
+    alifestd_coarsen_dilate_polars as alifestd_coarsen_dilate_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_coarsen_dilate_polars = enforce_dtype_stability_polars(
+    alifestd_coarsen_dilate_polars_
 )
 
 

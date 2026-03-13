@@ -8,8 +8,18 @@ from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_has_multiple_roots,
     alifestd_make_empty,
-    alifestd_mark_num_leaves_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_num_leaves_asexual as alifestd_mark_num_leaves_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_num_leaves_asexual = enforce_dtype_stability_pandas(
+    alifestd_mark_num_leaves_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

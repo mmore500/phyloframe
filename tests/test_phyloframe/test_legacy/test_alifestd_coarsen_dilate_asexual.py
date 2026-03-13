@@ -2,8 +2,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_coarsen_dilate_asexual,
+    alifestd_coarsen_dilate_asexual as alifestd_coarsen_dilate_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_coarsen_dilate_asexual = enforce_dtype_stability_pandas(
+    alifestd_coarsen_dilate_asexual_
 )
 
 

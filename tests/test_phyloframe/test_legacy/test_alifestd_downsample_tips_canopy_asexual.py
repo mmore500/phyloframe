@@ -14,7 +14,13 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 from phyloframe.legacy._alifestd_downsample_tips_canopy_asexual import (
-    alifestd_downsample_tips_canopy_asexual,
+    alifestd_downsample_tips_canopy_asexual as alifestd_downsample_tips_canopy_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_downsample_tips_canopy_asexual = enforce_dtype_stability_pandas(
+    alifestd_downsample_tips_canopy_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

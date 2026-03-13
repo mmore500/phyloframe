@@ -5,8 +5,18 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_num_preceding_leaves_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_mark_num_preceding_leaves_asexual as alifestd_mark_num_preceding_leaves_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_to_working_format,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_mark_num_preceding_leaves_asexual = enforce_dtype_stability_pandas(
+    alifestd_mark_num_preceding_leaves_asexual_
 )
 
 

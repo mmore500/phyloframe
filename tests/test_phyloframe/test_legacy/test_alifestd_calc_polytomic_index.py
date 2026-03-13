@@ -2,8 +2,16 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_calc_polytomic_index,
+    alifestd_calc_polytomic_index as alifestd_calc_polytomic_index_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_calc_polytomic_index = enforce_dtype_stability_pandas(
+    alifestd_calc_polytomic_index_
 )
 
 

@@ -13,7 +13,13 @@ from phyloframe.legacy._alifestd_make_ancestor_list_col_polars import (
     alifestd_make_ancestor_list_col_polars,
 )
 from phyloframe.legacy._alifestd_try_add_ancestor_list_col_polars import (
-    alifestd_try_add_ancestor_list_col_polars,
+    alifestd_try_add_ancestor_list_col_polars as alifestd_try_add_ancestor_list_col_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_try_add_ancestor_list_col_polars = enforce_dtype_stability_polars(
+    alifestd_try_add_ancestor_list_col_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

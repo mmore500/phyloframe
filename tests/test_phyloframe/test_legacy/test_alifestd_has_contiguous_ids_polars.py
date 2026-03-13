@@ -7,7 +7,13 @@ import pytest
 
 from phyloframe.legacy import alifestd_has_contiguous_ids
 from phyloframe.legacy._alifestd_has_contiguous_ids_polars import (
-    alifestd_has_contiguous_ids_polars,
+    alifestd_has_contiguous_ids_polars as alifestd_has_contiguous_ids_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_has_contiguous_ids_polars = enforce_dtype_stability_polars(
+    alifestd_has_contiguous_ids_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

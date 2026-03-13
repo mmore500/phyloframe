@@ -6,9 +6,17 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_calc_clade_trait_frequency_asexual,
+    alifestd_calc_clade_trait_frequency_asexual as alifestd_calc_clade_trait_frequency_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_to_working_format,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_calc_clade_trait_frequency_asexual = enforce_dtype_stability_pandas(
+    alifestd_calc_clade_trait_frequency_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

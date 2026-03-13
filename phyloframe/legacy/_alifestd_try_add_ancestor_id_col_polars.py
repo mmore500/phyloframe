@@ -10,8 +10,12 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._preserve_id_dtypes_polars import (
+    preserve_id_dtypes_polars,
+)
 
 
+@preserve_id_dtypes_polars
 def alifestd_try_add_ancestor_id_col_polars(
     phylogeny_df: pl.DataFrame,
 ) -> pl.DataFrame:
@@ -33,7 +37,7 @@ def alifestd_try_add_ancestor_id_col_polars(
         ancestor_id=pl.col("ancestor_list")
         .str.extract(r"(\d+)", 1)
         .cast(pl.Int64, strict=False)
-        .fill_null(pl.col("id").cast(pl.Int64))
+        .fill_null(pl.col("id"))
     )
 
 

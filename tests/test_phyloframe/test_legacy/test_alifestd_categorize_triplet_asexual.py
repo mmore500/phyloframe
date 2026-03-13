@@ -1,8 +1,16 @@
 import pandas as pd
 
 from phyloframe.legacy import (
-    alifestd_categorize_triplet_asexual,
+    alifestd_categorize_triplet_asexual as alifestd_categorize_triplet_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_make_ancestor_list_col,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_categorize_triplet_asexual = enforce_dtype_stability_pandas(
+    alifestd_categorize_triplet_asexual_
 )
 
 

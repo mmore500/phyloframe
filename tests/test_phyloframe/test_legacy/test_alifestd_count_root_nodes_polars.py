@@ -1,6 +1,14 @@
 import polars as pl
 
-from phyloframe.legacy import alifestd_count_root_nodes_polars
+from phyloframe.legacy import (
+    alifestd_count_root_nodes_polars as alifestd_count_root_nodes_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_count_root_nodes_polars = enforce_dtype_stability_polars(
+    alifestd_count_root_nodes_polars_
+)
 
 
 def test_empty_df():

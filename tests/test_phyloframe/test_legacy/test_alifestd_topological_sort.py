@@ -7,8 +7,18 @@ from phyloframe.legacy import (
     alifestd_aggregate_phylogenies,
     alifestd_is_topologically_sorted,
     alifestd_parse_ancestor_ids,
-    alifestd_topological_sort,
+)
+from phyloframe.legacy import (
+    alifestd_topological_sort as alifestd_topological_sort_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_topological_sort = enforce_dtype_stability_pandas(
+    alifestd_topological_sort_
 )
 
 

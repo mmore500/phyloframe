@@ -4,7 +4,15 @@ import pytest
 from phyloframe.legacy import (
     alifestd_make_ancestor_list_col,
     alifestd_make_empty,
-    alifestd_sample_triplet_comparisons_asexual,
+)
+from phyloframe.legacy import (
+    alifestd_sample_triplet_comparisons_asexual as alifestd_sample_triplet_comparisons_asexual_,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_sample_triplet_comparisons_asexual = enforce_dtype_stability_pandas(
+    alifestd_sample_triplet_comparisons_asexual_
 )
 
 

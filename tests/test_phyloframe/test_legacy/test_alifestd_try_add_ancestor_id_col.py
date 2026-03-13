@@ -6,8 +6,18 @@ import pytest
 from phyloframe.legacy import (
     alifestd_make_ancestor_id_col,
     alifestd_to_working_format,
-    alifestd_try_add_ancestor_id_col,
+)
+from phyloframe.legacy import (
+    alifestd_try_add_ancestor_id_col as alifestd_try_add_ancestor_id_col_,
+)
+from phyloframe.legacy import (
     alifestd_validate,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_try_add_ancestor_id_col = enforce_dtype_stability_pandas(
+    alifestd_try_add_ancestor_id_col_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

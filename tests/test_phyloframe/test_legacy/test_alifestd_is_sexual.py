@@ -4,10 +4,14 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_is_sexual,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
 )
+from phyloframe.legacy import alifestd_is_sexual as alifestd_is_sexual_
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_is_sexual = enforce_dtype_stability_pandas(alifestd_is_sexual_)
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 

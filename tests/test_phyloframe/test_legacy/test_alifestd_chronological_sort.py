@@ -2,9 +2,17 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_chronological_sort,
+    alifestd_chronological_sort as alifestd_chronological_sort_,
+)
+from phyloframe.legacy import (
     alifestd_is_chronologically_sorted,
     alifestd_make_empty,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_chronological_sort = enforce_dtype_stability_pandas(
+    alifestd_chronological_sort_
 )
 
 

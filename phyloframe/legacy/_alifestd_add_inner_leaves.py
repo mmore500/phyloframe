@@ -16,6 +16,7 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._preserve_id_dtypes import preserve_id_dtypes
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 from ._alifestd_mark_leaves import alifestd_mark_leaves
 from ._alifestd_topological_sensitivity_warned import (
@@ -23,6 +24,7 @@ from ._alifestd_topological_sensitivity_warned import (
 )
 
 
+@preserve_id_dtypes
 @alifestd_topological_sensitivity_warned(
     insert=True,
     delete=False,

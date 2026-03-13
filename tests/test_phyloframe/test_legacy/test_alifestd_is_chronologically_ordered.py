@@ -2,9 +2,19 @@ import pandas as pd
 
 from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
-    alifestd_is_chronologically_ordered,
+)
+from phyloframe.legacy import (
+    alifestd_is_chronologically_ordered as alifestd_is_chronologically_ordered_,
+)
+from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_try_add_ancestor_id_col,
+)
+
+from ._impl import enforce_dtype_stability_pandas
+
+alifestd_is_chronologically_ordered = enforce_dtype_stability_pandas(
+    alifestd_is_chronologically_ordered_
 )
 
 
