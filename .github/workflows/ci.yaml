@@ -52,7 +52,6 @@ jobs:
         fi
 
   test-heavy:
-    name: "test-heavy py${{ matrix.python-version }} ${{ matrix.subdivision }}"
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     strategy:
