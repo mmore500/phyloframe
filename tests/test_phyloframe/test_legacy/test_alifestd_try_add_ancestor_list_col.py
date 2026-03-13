@@ -29,7 +29,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
 alifestd_try_add_ancestor_list_col_ = enforce_identical_polars_result(
-    alifestd_try_add_ancestor_list_col,
+    alifestd_try_add_ancestor_list_col_,
 )
 
 
