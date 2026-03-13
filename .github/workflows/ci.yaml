@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }} pandas${{ matrix.pandas-version || '==3' }}"
+    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }} pandas${{ matrix.pandas-version }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -23,7 +23,7 @@ jobs:
         subdivision:
           - "test_legacy"
           - "test_auxlib"
-        pandas-version: [""]
+        pandas-version: ["==3"]
         include:
           - python-version: "3.12"
             subdivision: "test_legacy"
@@ -45,11 +45,7 @@ jobs:
     - name: Test with tox
       run: |
         export PHYLOFRAME_TESTS_SUBDIVISION=${{ matrix.subdivision }}
-        if [ -n "${{ matrix.pandas-version }}" ]; then
-          tox --force-dep "pandas${{ matrix.pandas-version }}"
-        else
-          tox
-        fi
+        tox --force-dep "pandas${{ matrix.pandas-version }}"
 
   test-heavy:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
