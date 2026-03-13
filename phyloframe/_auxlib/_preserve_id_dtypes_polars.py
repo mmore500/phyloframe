@@ -14,28 +14,21 @@ def preserve_id_dtypes_polars(func: typing.Callable) -> typing.Callable:
     """
 
     @functools.wraps(func)
-    def wrapper(phylogeny_df, *args, **kwargs):
-        if not isinstance(phylogeny_df, pl.DataFrame):
-            return func(phylogeny_df, *args, **kwargs)
-
+    def wrapper(phylogeny_df: pl.DataFrame, *args, **kwargs):
         schema = phylogeny_df.collect_schema()
         id_dtype = schema["id"]
         ancestor_id_dtype = schema.get("ancestor_id", id_dtype)
 
         result = func(phylogeny_df, *args, **kwargs)
 
-        if not isinstance(result, pl.DataFrame):
-            return result
-
-        cast_map = {}
-        if "id" in result.columns:
-            cast_map["id"] = id_dtype
-        if "ancestor_id" in result.columns:
-            cast_map["ancestor_id"] = ancestor_id_dtype
-
-        if cast_map:
-            result = result.cast(cast_map)
-
-        return result
+        cast_map = {
+            col: dtype
+            for col, dtype in [
+                ("id", id_dtype),
+                ("ancestor_id", ancestor_id_dtype),
+            ]
+            if col in result.columns
+        }
+        return result.cast(cast_map)
 
     return wrapper
