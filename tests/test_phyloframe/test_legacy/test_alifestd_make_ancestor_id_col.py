@@ -5,16 +5,8 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_make_ancestor_id_col as alifestd_make_ancestor_id_col_,
-)
-from phyloframe.legacy import (
+    alifestd_make_ancestor_id_col,
     alifestd_parse_ancestor_id,
-)
-
-from ._impl import enforce_dtype_stability_pandas
-
-alifestd_make_ancestor_id_col = enforce_dtype_stability_pandas(
-    alifestd_make_ancestor_id_col_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

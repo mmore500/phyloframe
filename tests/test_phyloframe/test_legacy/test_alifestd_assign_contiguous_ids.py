@@ -25,12 +25,15 @@ from phyloframe.legacy import (
     alifestd_validate,
 )
 
-from ._impl import enforce_dtype_stability_pandas
+from ._impl import (
+    enforce_dtype_stability_pandas,
+    enforce_dtype_stability_polars,
+)
 
 alifestd_assign_contiguous_ids = enforce_dtype_stability_pandas(
     alifestd_assign_contiguous_ids_,
 )
-alifestd_assign_contiguous_ids_polars = enforce_dtype_stability_pandas(
+alifestd_assign_contiguous_ids_polars = enforce_dtype_stability_polars(
     alifestd_assign_contiguous_ids_polars_,
 )
 
