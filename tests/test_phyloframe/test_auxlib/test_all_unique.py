@@ -13,7 +13,7 @@ class TestAllUnique(unittest.TestCase):
 
     def test(self):
 
-        for (num_unique, num_duplications, shuffle,) in it.product(
+        for num_unique, num_duplications, shuffle in it.product(
             np.arange(10),
             np.arange(1, 10),
             [True, False],
