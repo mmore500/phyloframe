@@ -317,9 +317,7 @@ def _cross_check(pd_df, polars_result, **kwargs):
 
 
 def test_polars_empty_dataframe():
-    df = pl.DataFrame(
-        {"id": [], "ancestor_id": [], "origin_time": []},
-    ).cast(
+    df = pl.DataFrame({"id": [], "ancestor_id": [], "origin_time": []},).cast(
         {
             "id": pl.Int64,
             "ancestor_id": pl.Int64,
