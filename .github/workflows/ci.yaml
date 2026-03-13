@@ -14,6 +14,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
+    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }} pandas${{ matrix.pandas-version || '(latest)' }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -51,6 +52,7 @@ jobs:
         fi
 
   test-heavy:
+    name: "test-heavy py${{ matrix.python-version }} ${{ matrix.subdivision }}"
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     strategy:
@@ -96,6 +98,7 @@ jobs:
         python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col --help
 
   coverage:
+    name: "coverage ${{ matrix.subdivision }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
