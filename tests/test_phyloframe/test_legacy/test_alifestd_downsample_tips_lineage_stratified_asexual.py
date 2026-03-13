@@ -19,8 +19,10 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_downsample_tips_lineage_stratified_asexual = enforce_dtype_stability_pandas(
-    alifestd_downsample_tips_lineage_stratified_asexual_
+alifestd_downsample_tips_lineage_stratified_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_downsample_tips_lineage_stratified_asexual_
+    )
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

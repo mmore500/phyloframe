@@ -12,7 +12,9 @@ from phyloframe.legacy import alifestd_find_root_ids as alifestd_find_root_ids_
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_find_root_ids = enforce_dtype_stability_pandas(alifestd_find_root_ids_)
+alifestd_find_root_ids = enforce_dtype_stability_pandas(
+    alifestd_find_root_ids_
+)
 
 
 @pytest.mark.parametrize(

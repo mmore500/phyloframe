@@ -15,8 +15,10 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_clade_leafcount_ratio_sister_asexual = enforce_dtype_stability_pandas(
-    alifestd_mark_clade_leafcount_ratio_sister_asexual_
+alifestd_mark_clade_leafcount_ratio_sister_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_clade_leafcount_ratio_sister_asexual_
+    )
 )
 
 

@@ -14,7 +14,9 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_add_global_root = enforce_dtype_stability_pandas(alifestd_add_global_root_)
+alifestd_add_global_root = enforce_dtype_stability_pandas(
+    alifestd_add_global_root_
+)
 
 
 def test_empty():

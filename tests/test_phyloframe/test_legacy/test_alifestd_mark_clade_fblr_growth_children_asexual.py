@@ -23,8 +23,10 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_clade_fblr_growth_children_asexual = enforce_dtype_stability_pandas(
-    alifestd_mark_clade_fblr_growth_children_asexual_
+alifestd_mark_clade_fblr_growth_children_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_clade_fblr_growth_children_asexual_
+    )
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")

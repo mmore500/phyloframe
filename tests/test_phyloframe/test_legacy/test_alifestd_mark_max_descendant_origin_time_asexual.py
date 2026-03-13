@@ -10,8 +10,10 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_max_descendant_origin_time_asexual = enforce_dtype_stability_pandas(
-    alifestd_mark_max_descendant_origin_time_asexual_
+alifestd_mark_max_descendant_origin_time_asexual = (
+    enforce_dtype_stability_pandas(
+        alifestd_mark_max_descendant_origin_time_asexual_
+    )
 )
 
 
