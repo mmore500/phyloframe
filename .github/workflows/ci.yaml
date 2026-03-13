@@ -22,6 +22,14 @@ jobs:
         subdivision:
           - "test_legacy"
           - "test_auxlib"
+        pandas-version: [""]
+        include:
+          - python-version: "3.12"
+            subdivision: "test_legacy"
+            pandas-version: "==2.3.3"
+          - python-version: "3.12"
+            subdivision: "test_auxlib"
+            pandas-version: "==2.3.3"
 
     steps:
     - uses: actions/checkout@v1
@@ -36,7 +44,11 @@ jobs:
     - name: Test with tox
       run: |
         export PHYLOFRAME_TESTS_SUBDIVISION=${{ matrix.subdivision }}
-        tox
+        if [ -n "${{ matrix.pandas-version }}" ]; then
+          tox --force-dep "pandas${{ matrix.pandas-version }}"
+        else
+          tox
+        fi
 
   test-heavy:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

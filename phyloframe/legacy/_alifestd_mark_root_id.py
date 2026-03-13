@@ -55,20 +55,22 @@ def alifestd_mark_root_id(
 
     phylogeny_df["root_id"] = phylogeny_df["id"]
     if "ancestor_id" in phylogeny_df.columns:  # asexual
-        root_id_col = phylogeny_df["root_id"]
-        ancestor_id_col = phylogeny_df["ancestor_id"]
         for index in phylogeny_df.index:
-            ancestor_id = ancestor_id_col.at[index]
-            root_id_col.at[index] = root_id_col.at[ancestor_id]
+            ancestor_id = phylogeny_df.at[index, "ancestor_id"]
+            phylogeny_df.at[index, "root_id"] = phylogeny_df.at[
+                ancestor_id, "root_id"
+            ]
     else:  # sexual
-        root_id_col = phylogeny_df["root_id"]
-        ancestor_list_col = phylogeny_df["ancestor_list"]
         for index in phylogeny_df.index:
-            ancestor_list = ancestor_list_col.at[index]
+            ancestor_list = phylogeny_df.at[index, "ancestor_list"]
             ancestor_ids = alifestd_parse_ancestor_ids(ancestor_list)
-            candidate_roots = [*map(root_id_col.at.__getitem__, ancestor_ids)]
+            candidate_roots = [
+                phylogeny_df.at[aid, "root_id"] for aid in ancestor_ids
+            ]
             # "or" covers genesis empty list case
-            root_id_col.at[index] = selector(candidate_roots or [index])
+            phylogeny_df.at[index, "root_id"] = selector(
+                candidate_roots or [index]
+            )
 
     return phylogeny_df
 
