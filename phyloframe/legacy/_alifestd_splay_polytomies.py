@@ -197,9 +197,9 @@ def alifestd_splay_polytomies(
             new_ids,
             new_ancestor_ids,
         ) = _alifestd_splay_polytomies_fast_path(
-            phylogeny_df["ancestor_id"]
-            .to_numpy(dtype=np.int64)
-            .copy()  # pandas 3.x compat
+            phylogeny_df["ancestor_id"].to_numpy(
+                dtype=np.int64, copy=True
+            )  # pandas 3.x compat
         )
         addendum = phylogeny_df.loc[new_source_ids].copy()
         addendum["id"] = new_ids

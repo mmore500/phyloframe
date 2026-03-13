@@ -143,12 +143,16 @@ def alifestd_mask_monomorphic_clades_asexual(
             "alifestd_mask_monomorphic_clades_asexual"
         ] = _alifestd_mask_monomorphic_clades_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
-            phylogeny_df["alifestd_mask_monomorphic_clades_asexual_mask"]
-            .to_numpy(dtype=np.bool_)
-            .copy(),
-            phylogeny_df["alifestd_mask_monomorphic_clades_asexual_trait"]
-            .to_numpy()
-            .copy(),
+            phylogeny_df[
+                "alifestd_mask_monomorphic_clades_asexual_mask"
+            ].to_numpy(
+                dtype=np.bool_, copy=True
+            ),  # pandas 3.x compat
+            phylogeny_df[
+                "alifestd_mask_monomorphic_clades_asexual_trait"
+            ].to_numpy(
+                copy=True
+            ),  # pandas 3.x compat
         )
     else:
         phylogeny_df = _alifestd_mask_monomorphic_clades_asexual_slow_path(

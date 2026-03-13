@@ -65,8 +65,12 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
 
     phylogeny_df["fitch_trait_intersect"] = 0
 
-    ft_intersect = phylogeny_df["fitch_trait_intersect"].to_numpy().copy()
-    ft_set = phylogeny_df["fitch_trait_set"].to_numpy().copy()
+    ft_intersect = phylogeny_df["fitch_trait_intersect"].to_numpy(
+        copy=True
+    )  # pandas 3.x compat
+    ft_set = phylogeny_df["fitch_trait_set"].to_numpy(
+        copy=True
+    )  # pandas 3.x compat
     ft_union = ft_set.copy()
     node_depth = phylogeny_df["node_depth"].to_numpy(copy=False)
 
