@@ -22,9 +22,41 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_aggregate_phylogenies = enforce_dtype_stability_pandas(
-    alifestd_aggregate_phylogenies_
-)
+
+def alifestd_aggregate_phylogenies(
+    phylogeny_dfs,
+    *args,
+    **kwargs,
+):
+    """Wrapper that enforces dtype stability across all input DataFrames."""
+    input_dtypes = {}
+    for df in phylogeny_dfs:
+        if len(df) == 0:
+            continue
+        input_dtypes["id"] = df["id"].dtype
+        if "ancestor_id" in df.columns:
+            input_dtypes["ancestor_id"] = df["ancestor_id"].dtype
+        break
+
+    result = alifestd_aggregate_phylogenies_(phylogeny_dfs, *args, **kwargs)
+
+    if input_dtypes and isinstance(result, pd.DataFrame):
+        if "id" in input_dtypes:
+            assert result["id"].dtype == input_dtypes["id"], (
+                f"alifestd_aggregate_phylogenies: id dtype changed "
+                f"from {input_dtypes['id']} to {result['id'].dtype}"
+            )
+        if "ancestor_id" in input_dtypes and "ancestor_id" in result.columns:
+            assert (
+                result["ancestor_id"].dtype == input_dtypes["ancestor_id"]
+            ), (
+                f"alifestd_aggregate_phylogenies: ancestor_id dtype changed "
+                f"from {input_dtypes['ancestor_id']} "
+                f"to {result['ancestor_id'].dtype}"
+            )
+
+    return result
+
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
