@@ -154,7 +154,7 @@ def alifestd_coarsen_taxa_asexual(
             phylogeny_df["ancestor_id"],
             phylogeny_df["alifestd_coarsen_taxa_asexual_taxon_founder_id"],
         ) = _alifestd_coarsen_taxa_asexual_fast_path(
-            phylogeny_df["ancestor_id"].values.copy(),
+            phylogeny_df["ancestor_id"].values.copy(),  # pandas 3.x compat
             phylogeny_df[
                 "alifestd_coarsen_taxa_asexual_is_taxon_founder"
             ].values,
