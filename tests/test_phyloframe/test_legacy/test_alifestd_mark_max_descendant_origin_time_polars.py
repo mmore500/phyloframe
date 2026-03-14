@@ -1,0 +1,183 @@
+import os
+import typing
+
+import pandas as pd
+import polars as pl
+import pytest
+
+from phyloframe.legacy import (
+    alifestd_mark_max_descendant_origin_time_asexual,
+    alifestd_to_working_format,
+)
+from phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars import (
+    alifestd_mark_max_descendant_origin_time_polars as alifestd_mark_max_descendant_origin_time_polars_,
+)
+
+from ._impl import enforce_dtype_stability_polars
+
+alifestd_mark_max_descendant_origin_time_polars = (
+    enforce_dtype_stability_polars(
+        alifestd_mark_max_descendant_origin_time_polars_
+    )
+)
+
+assets_path = os.path.join(os.path.dirname(__file__), "assets")
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_max_descendant_origin_time_polars_matches_pandas(
+    phylogeny_df: pd.DataFrame, apply: typing.Callable
+):
+    """Verify polars result matches pandas result."""
+    result_pd = alifestd_mark_max_descendant_origin_time_asexual(
+        phylogeny_df, mutate=False
+    )
+
+    df_pl = apply(pl.from_pandas(phylogeny_df))
+    result_pl = (
+        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+    )
+
+    pd_vals = result_pd["max_descendant_origin_time"].tolist()
+    pl_vals = result_pl["max_descendant_origin_time"].to_list()
+    assert pd_vals == pytest.approx(pl_vals)
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_max_descendant_origin_time_polars_simple(
+    apply: typing.Callable,
+):
+    """Test simple tree with origin times."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3],
+                "ancestor_id": [0, 0, 0, 1],
+                "origin_time": [0.0, 1.0, 5.0, 3.0],
+            }
+        ),
+    )
+
+    result = (
+        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+    )
+
+    assert "max_descendant_origin_time" in result.columns
+    # root 0: max of all descendant origin_times = 5.0
+    assert result["max_descendant_origin_time"][0] == 5.0
+    # node 1: max descendant is node 3 at 3.0
+    assert result["max_descendant_origin_time"][1] == 3.0
+    # leaf 2: no descendants, max is own origin_time 5.0
+    assert result["max_descendant_origin_time"][2] == 5.0
+    # leaf 3: no descendants, max is own origin_time 3.0
+    assert result["max_descendant_origin_time"][3] == 3.0
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_max_descendant_origin_time_polars_single_node(
+    apply: typing.Callable,
+):
+    """A single root returns its own origin_time."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0],
+                "ancestor_id": [0],
+                "origin_time": [42.0],
+            }
+        ),
+    )
+
+    result = (
+        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+    )
+
+    assert result["max_descendant_origin_time"][0] == 42.0
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_max_descendant_origin_time_polars_empty(
+    apply: typing.Callable,
+):
+    """Empty dataframe gets max_descendant_origin_time column."""
+    df_pl = apply(
+        pl.DataFrame(
+            {"id": [], "ancestor_id": [], "origin_time": []},
+            schema={
+                "id": pl.Int64,
+                "ancestor_id": pl.Int64,
+                "origin_time": pl.Float64,
+            },
+        ),
+    )
+
+    result = (
+        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+    )
+
+    assert "max_descendant_origin_time" in result.columns
+    assert result.is_empty()
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_max_descendant_origin_time_polars_non_contiguous_ids(
+    apply: typing.Callable,
+):
+    """Verify NotImplementedError for non-contiguous ids."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 2, 5],
+                "ancestor_id": [0, 0, 2],
+                "origin_time": [0.0, 1.0, 2.0],
+            }
+        ),
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_max_descendant_origin_time_polars(
+            df_pl,
+        ).lazy().collect()

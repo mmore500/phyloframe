@@ -1,0 +1,19 @@
+import polars as pl
+
+
+def alifestd_has_multiple_roots_polars(
+    phylogeny_df: pl.DataFrame,
+) -> bool:
+    """Does the phylogeny have two or more root organisms?
+
+    Input dataframe is not mutated by this operation.
+    """
+    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
+        raise NotImplementedError("ancestor_id column required")
+
+    return (
+        phylogeny_df.lazy()
+        .select((pl.col("ancestor_id") == pl.col("id")).sum())
+        .collect()
+        .item()
+    ) >= 2
