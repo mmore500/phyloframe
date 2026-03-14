@@ -1,4 +1,3 @@
-import polars as pl
 import pytest
 
 from phyloframe.legacy._alifestd_make_comb_polars import (
