@@ -23,7 +23,7 @@ jobs:
         subdivision:
           - "test_legacy"
           - "test_auxlib"
-        pandas-version: ["==3"]
+        pandas-version: ["==3.*"]
         include:
           - python-version: "3.12"
             subdivision: "test_legacy"
