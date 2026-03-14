@@ -10,6 +10,9 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -20,6 +23,9 @@ from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
 from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
+from ._alifestd_topological_sort_polars import (
+    alifestd_topological_sort_polars,
+)
 
 
 def alifestd_mark_num_children_polars(

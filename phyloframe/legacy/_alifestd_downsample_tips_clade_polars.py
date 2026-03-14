@@ -20,6 +20,9 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -38,6 +41,12 @@ from ._alifestd_prune_extinct_lineages_polars import (
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
+)
+from ._alifestd_topological_sort_polars import (
+    alifestd_topological_sort_polars,
+)
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
 )
 
 
@@ -62,8 +71,7 @@ def _alifestd_downsample_tips_clade_polars_impl(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "collecting ancestor_id values...",
+        "- alifestd_downsample_tips_clade_polars: collecting ancestor_id values...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -94,8 +102,7 @@ def _alifestd_downsample_tips_clade_polars_impl(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "sampling weighted candidate...",
+        "- alifestd_downsample_tips_clade_polars: sampling weighted candidate...",
     )
     ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
     candidate_ids = ids[is_candidate]
@@ -115,8 +122,7 @@ def _alifestd_downsample_tips_clade_polars_impl(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "marking descendants of sampled clade...",
+        "- alifestd_downsample_tips_clade_polars: marking descendants of sampled clade...",
     )
     n_rows = phylogeny_df.lazy().select(pl.len()).collect().item()
     ancestor_mask = np.zeros(n_rows, dtype=bool)
@@ -210,15 +216,13 @@ def alifestd_downsample_tips_clade_polars(
         return phylogeny_df
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "checking contiguous ids...",
+        "- alifestd_downsample_tips_clade_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "checking topological sort...",
+        "- alifestd_downsample_tips_clade_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)

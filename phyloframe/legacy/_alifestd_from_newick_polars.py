@@ -151,11 +151,7 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         default=[],
         help=(
-            "Additional keyword arguments to pass to output engine call. "
-            "Provide as 'key=value'. "
-            "Specify multiple kwargs by using this flag multiple times. "
-            "Arguments will be evaluated as Python expressions. "
-            "Example: 'include_header=False'"
+            "Additional keyword arguments to pass to output engine call. Provide as 'key=value'. Specify multiple kwargs by using this flag multiple times. Arguments will be evaluated as Python expressions. Example: 'include_header=False'"
         ),
     )
     parser.add_argument(

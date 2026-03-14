@@ -20,6 +20,9 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_calc_mrca_id_vector_asexual_polars import (
     alifestd_calc_mrca_id_vector_asexual_polars,
 )
@@ -42,6 +45,9 @@ from ._alifestd_prune_extinct_lineages_polars import (
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
+)
+from ._alifestd_topological_sort_polars import (
+    alifestd_topological_sort_polars,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -132,27 +138,23 @@ def alifestd_downsample_tips_lineage_polars(
         return phylogeny_df
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "adding ancestor_id col...",
+        "- alifestd_downsample_tips_lineage_polars: adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
-            "alifestd_downsample_tips_lineage_polars only supports "
-            "asexual phylogenies.",
+            "alifestd_downsample_tips_lineage_polars only supports asexual phylogenies.",
         )
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "checking contiguous ids...",
+        "- alifestd_downsample_tips_lineage_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "checking topological sort...",
+        "- alifestd_downsample_tips_lineage_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
@@ -164,16 +166,14 @@ def alifestd_downsample_tips_lineage_polars(
     phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "collecting is_leaf values...",
+        "- alifestd_downsample_tips_lineage_polars: collecting is_leaf values...",
     )
     is_leaf = (
         phylogeny_df.lazy().select("is_leaf").collect().to_series().to_numpy()
     )
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "collecting criterion_target values...",
+        "- alifestd_downsample_tips_lineage_polars: collecting criterion_target values...",
     )
     target_values = (
         phylogeny_df.lazy()
@@ -184,8 +184,7 @@ def alifestd_downsample_tips_lineage_polars(
     )
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "selecting target leaf...",
+        "- alifestd_downsample_tips_lineage_polars: selecting target leaf...",
     )
     with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
         target_id = _alifestd_downsample_tips_lineage_select_target_id(
@@ -197,8 +196,7 @@ def alifestd_downsample_tips_lineage_polars(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "collecting criterion_delta values...",
+        "- alifestd_downsample_tips_lineage_polars: collecting criterion_delta values...",
     )
     criterion_values = (
         phylogeny_df.lazy()
@@ -221,8 +219,7 @@ def alifestd_downsample_tips_lineage_polars(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "dispatching _alifestd_downsample_tips_lineage_impl...",
+        "- alifestd_downsample_tips_lineage_polars: dispatching _alifestd_downsample_tips_lineage_impl...",
     )
     is_extant = _alifestd_downsample_tips_lineage_impl(
         is_leaf=is_leaf,

@@ -1,5 +1,9 @@
 import polars as pl
 
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
+
 
 def alifestd_has_increasing_ids_polars(phylogeny_df: pl.DataFrame) -> bool:
     """Do offspring have larger id values than ancestors?

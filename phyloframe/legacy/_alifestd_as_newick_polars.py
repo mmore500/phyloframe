@@ -14,11 +14,17 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_as_newick_asexual import _build_newick_string
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
+)
+from ._alifestd_topological_sort_polars import (
+    alifestd_topological_sort_polars,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -166,11 +172,7 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         default=[],
         help=(
-            "Additional keyword arguments to pass to input engine call. "
-            "Provide as 'key=value'. "
-            "Specify multiple kwargs by using this flag multiple times. "
-            "Arguments will be evaluated as Python expressions. "
-            "Example: 'infer_schema_length=None'"
+            "Additional keyword arguments to pass to input engine call. Provide as 'key=value'. Specify multiple kwargs by using this flag multiple times. Arguments will be evaluated as Python expressions. Example: 'infer_schema_length=None'"
         ),
     )
     parser.add_argument(

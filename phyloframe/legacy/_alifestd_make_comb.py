@@ -1,8 +1,32 @@
 import itertools as it
 
+from numba import jit
+import numpy as np
 import pandas as pd
 
 from ._alifestd_make_empty import alifestd_make_empty
+
+
+@jit(nopython=True)
+def _make_comb_fast_path(n_leaves):
+    """Build id and ancestor_id arrays for a comb tree."""
+    n_nodes = 2 * n_leaves - 1
+    ids = np.empty(n_nodes, dtype=np.int64)
+    ancestor_ids = np.empty(n_nodes, dtype=np.int64)
+    ids[0] = 0
+    ancestor_ids[0] = 0
+    idx = 1
+    for i in range(n_leaves - 1):
+        parent = 2 * i
+        child_internal = 2 * (i + 1)
+        child_leaf = child_internal - 1
+        ids[idx] = child_leaf
+        ancestor_ids[idx] = parent
+        idx += 1
+        ids[idx] = child_internal
+        ancestor_ids[idx] = parent
+        idx += 1
+    return ids, ancestor_ids
 
 
 def alifestd_make_comb(n_leaves: int) -> pd.DataFrame:

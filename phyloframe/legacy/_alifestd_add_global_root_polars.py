@@ -26,18 +26,19 @@ def alifestd_add_global_root_polars(
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    df = phylogeny_df.lazy().collect()
 
-    if df.is_empty():
+    if phylogeny_df.lazy().limit(1).collect().is_empty():
         new_root_id = 0
     else:
-        new_root_id = df.select(pl.col("id").max()).item() + 1
+        new_root_id = (
+            phylogeny_df.lazy().select(pl.col("id").max()).collect().item() + 1
+        )
 
     logging.info(
         "- alifestd_add_global_root_polars: reparenting roots...",
     )
     # Point existing roots to new root
-    df = df.with_columns(
+    phylogeny_df = phylogeny_df.with_columns(
         ancestor_id=pl.when(pl.col("id") == pl.col("ancestor_id"))
         .then(pl.lit(new_root_id))
         .otherwise(pl.col("ancestor_id")),
@@ -45,14 +46,16 @@ def alifestd_add_global_root_polars(
 
     # Build new root row
     new_root_data = {"id": [new_root_id], "ancestor_id": [new_root_id]}
-    # Add null columns for all other columns
     for col_name in schema_names:
         if col_name not in new_root_data:
             new_root_data[col_name] = [None]
 
-    new_root_df = pl.DataFrame(new_root_data, schema=df.schema)
+    new_root_df = pl.DataFrame(
+        new_root_data,
+        schema=phylogeny_df.schema,
+    )
 
-    return pl.concat([df, new_root_df], how="align")
+    return pl.concat([phylogeny_df, new_root_df], how="align")
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
