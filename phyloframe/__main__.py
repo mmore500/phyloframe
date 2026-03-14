@@ -21,12 +21,14 @@ $ python3 -m phyloframe.legacy._alifestd_coarsen_dilate_asexual
 $ python3 -m phyloframe.legacy._alifestd_coarsen_dilate_polars
 $ python3 -m phyloframe.legacy._alifestd_coerce_chronological_consistency
 $ python3 -m phyloframe.legacy._alifestd_collapse_trunk_asexual
+$ python3 -m phyloframe.legacy._alifestd_collapse_trunk_polars
 $ python3 -m phyloframe.legacy._alifestd_collapse_unifurcations
 $ python3 -m phyloframe.legacy._alifestd_collapse_unifurcations_polars
 $ python3 -m phyloframe.legacy._alifestd_count_root_nodes
 $ python3 -m phyloframe.legacy._alifestd_delete_trunk_asexual
 $ python3 -m phyloframe.legacy._alifestd_delete_trunk_asexual_polars
 $ python3 -m phyloframe.legacy._alifestd_delete_unifurcating_roots_asexual
+$ python3 -m phyloframe.legacy._alifestd_delete_unifurcating_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_asexual
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_canopy_asexual
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_canopy_polars
@@ -127,6 +129,7 @@ $ python3 -m phyloframe.legacy._alifestd_reroot_at_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_sort_children_asexual
 $ python3 -m phyloframe.legacy._alifestd_sort_children_polars
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies
+$ python3 -m phyloframe.legacy._alifestd_splay_polytomies_polars
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual
 $ python3 -m phyloframe.legacy._alifestd_to_working_format
 $ python3 -m phyloframe.legacy._alifestd_topological_sort
