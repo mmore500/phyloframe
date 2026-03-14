@@ -3,9 +3,15 @@ from ._alifestd_add_global_root_polars import alifestd_add_global_root_polars
 from ._alifestd_add_inner_knuckles_asexual import (
     alifestd_add_inner_knuckles_asexual,
 )
+from ._alifestd_add_inner_knuckles_polars import (
+    alifestd_add_inner_knuckles_polars,
+)
 from ._alifestd_add_inner_leaves import alifestd_add_inner_leaves
 from ._alifestd_add_inner_niblings_asexual import (
     alifestd_add_inner_niblings_asexual,
+)
+from ._alifestd_add_inner_niblings_polars import (
+    alifestd_add_inner_niblings_polars,
 )
 from ._alifestd_aggregate_phylogenies import alifestd_aggregate_phylogenies
 from ._alifestd_as_newick_asexual import alifestd_as_newick_asexual
@@ -398,6 +404,7 @@ from ._alifestd_mark_origin_time_delta_polars import (
     alifestd_mark_origin_time_delta_polars,
 )
 from ._alifestd_mark_ot_mrca_asexual import alifestd_mark_ot_mrca_asexual
+from ._alifestd_mark_ot_mrca_polars import alifestd_mark_ot_mrca_polars
 from ._alifestd_mark_prev_sibling_id_asexual import (
     alifestd_mark_prev_sibling_id_asexual,
 )
@@ -442,6 +449,7 @@ from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
 )
 from ._alifestd_reroot_at_id_asexual import alifestd_reroot_at_id_asexual
+from ._alifestd_reroot_at_id_polars import alifestd_reroot_at_id_polars
 from ._alifestd_sample_triplet_comparisons_asexual import (
     alifestd_sample_triplet_comparisons_asexual,
 )
@@ -530,8 +538,10 @@ __all__ = [
     "alifestd_add_global_root",
     "alifestd_add_global_root_polars",
     "alifestd_add_inner_knuckles_asexual",
+    "alifestd_add_inner_knuckles_polars",
     "alifestd_add_inner_leaves",
     "alifestd_add_inner_niblings_asexual",
+    "alifestd_add_inner_niblings_polars",
     "alifestd_aggregate_phylogenies",
     "alifestd_as_newick_asexual",
     "alifestd_as_newick_polars",
@@ -703,6 +713,7 @@ __all__ = [
     "alifestd_mark_origin_time_delta_asexual",
     "alifestd_mark_origin_time_delta_polars",
     "alifestd_mark_ot_mrca_asexual",
+    "alifestd_mark_ot_mrca_polars",
     "alifestd_mark_prev_sibling_id_asexual",
     "alifestd_mark_prev_sibling_id_polars",
     "alifestd_mark_right_child_asexual",
@@ -725,6 +736,7 @@ __all__ = [
     "alifestd_prune_extinct_lineages_asexual",
     "alifestd_prune_extinct_lineages_polars",
     "alifestd_reroot_at_id_asexual",
+    "alifestd_reroot_at_id_polars",
     "alifestd_sample_triplet_comparisons_asexual",
     "alifestd_screen_trait_defined_clades_fisher_asexual",
     "alifestd_screen_trait_defined_clades_fitch_asexual",

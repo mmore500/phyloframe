@@ -9,8 +9,10 @@ Available commands (experimental API):
 $ python3 -m phyloframe.legacy._alifestd_add_global_root
 $ python3 -m phyloframe.legacy._alifestd_add_global_root_polars
 $ python3 -m phyloframe.legacy._alifestd_add_inner_knuckles_asexual
+$ python3 -m phyloframe.legacy._alifestd_add_inner_knuckles_polars
 $ python3 -m phyloframe.legacy._alifestd_add_inner_leaves
 $ python3 -m phyloframe.legacy._alifestd_add_inner_niblings_asexual
+$ python3 -m phyloframe.legacy._alifestd_add_inner_niblings_polars
 $ python3 -m phyloframe.legacy._alifestd_as_newick_asexual
 $ python3 -m phyloframe.legacy._alifestd_assign_contiguous_ids
 $ python3 -m phyloframe.legacy._alifestd_assign_contiguous_ids_polars
@@ -109,6 +111,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_oldest_root_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_origin_time_delta_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_origin_time_delta_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ot_mrca_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_ot_mrca_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_right_child_asexual
@@ -126,6 +129,7 @@ $ python3 -m phyloframe.legacy._alifestd_prefix_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_asexual
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_polars
 $ python3 -m phyloframe.legacy._alifestd_reroot_at_id_asexual
+$ python3 -m phyloframe.legacy._alifestd_reroot_at_id_polars
 $ python3 -m phyloframe.legacy._alifestd_sort_children_asexual
 $ python3 -m phyloframe.legacy._alifestd_sort_children_polars
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies
