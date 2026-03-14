@@ -86,15 +86,16 @@ def alifestd_reroot_at_id_polars(
         ancestor_id=pl.Series("ancestor_id", ancestor_ids),
     )
 
-    logging.info(
-        "- alifestd_reroot_at_id_polars: recomputing ancestor_list...",
-    )
-    phylogeny_df = phylogeny_df.with_columns(
-        ancestor_list=alifestd_make_ancestor_list_col_polars(
-            phylogeny_df["id"],
-            phylogeny_df["ancestor_id"],
-        ),
-    )
+    if "ancestor_list" in phylogeny_df.lazy().collect_schema().names():
+        logging.info(
+            "- alifestd_reroot_at_id_polars: recomputing ancestor_list...",
+        )
+        phylogeny_df = phylogeny_df.with_columns(
+            ancestor_list=alifestd_make_ancestor_list_col_polars(
+                phylogeny_df["id"],
+                phylogeny_df["ancestor_id"],
+            ),
+        )
 
     return phylogeny_df
 
