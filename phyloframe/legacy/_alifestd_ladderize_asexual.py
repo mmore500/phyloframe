@@ -48,8 +48,7 @@ def alifestd_ladderize_asexual(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    had_num_leaves = "num_leaves" in phylogeny_df.columns
-    if not had_num_leaves:
+    if "num_leaves" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_num_leaves_asexual(
             phylogeny_df,
             mutate=True,
@@ -60,8 +59,6 @@ def alifestd_ladderize_asexual(
         reverse=reverse,
         mutate=True,
     )
-    if not had_num_leaves:
-        phylogeny_df.drop(columns=["num_leaves"], inplace=True)
     return phylogeny_df
 
 

@@ -57,23 +57,17 @@ def _alifestd_sort_children_asexual_slow_path(
     reverse: bool = False,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_sort_children_asexual`."""
-    had_node_depth = "node_depth" in phylogeny_df.columns
-    if not had_node_depth:
+    if "node_depth" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_node_depth_asexual(
             phylogeny_df,
             mutate=True,
         )
 
-    result = phylogeny_df.sort_values(
+    return phylogeny_df.sort_values(
         by=["node_depth", "ancestor_id", criterion],
         ascending=[True, True, not reverse],
         kind="mergesort",
     ).reset_index(drop=True)
-
-    if not had_node_depth:
-        result = result.drop(columns=["node_depth"])
-
-    return result
 
 
 def alifestd_sort_children_asexual(
