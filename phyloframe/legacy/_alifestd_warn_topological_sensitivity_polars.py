@@ -34,8 +34,6 @@ def alifestd_warn_topological_sensitivity_polars(
     update : bool
         Whether the operation updates ancestor relationships.
 
-    Input dataframe is not mutated by this operation.
-
     See Also
     --------
     alifestd_warn_topological_sensitivity :

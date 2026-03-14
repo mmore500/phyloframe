@@ -5,6 +5,7 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import pandas as pd
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -13,12 +14,25 @@ from .._auxlib._delegate_polars_implementation import (
 )
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
+
+
+@jit(nopython=True)
+def _alifestd_mark_root_id_asexual_fast_path(
+    ancestor_ids: np.ndarray,
+) -> np.ndarray:
+    """Implementation detail for `alifestd_mark_root_id`."""
+    root_ids = np.arange(len(ancestor_ids), dtype=ancestor_ids.dtype)
+    for idx in range(len(ancestor_ids)):
+        ancestor_id = ancestor_ids[idx]
+        root_ids[idx] = root_ids[ancestor_id]
+    return root_ids
 
 
 def alifestd_mark_root_id(
@@ -48,19 +62,24 @@ def alifestd_mark_root_id(
     if not alifestd_is_topologically_sorted(phylogeny_df):
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
-    if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df.reset_index(drop=True, inplace=True)
-    else:
+    if (
+        alifestd_has_contiguous_ids(phylogeny_df)
+        and "ancestor_id" in phylogeny_df.columns
+    ):
+        phylogeny_df["root_id"] = _alifestd_mark_root_id_asexual_fast_path(
+            phylogeny_df["ancestor_id"].to_numpy(),
+        )
+    elif "ancestor_id" in phylogeny_df.columns:  # asexual, non-contiguous
         phylogeny_df.index = phylogeny_df["id"]
-
-    phylogeny_df["root_id"] = phylogeny_df["id"]
-    if "ancestor_id" in phylogeny_df.columns:  # asexual
+        phylogeny_df["root_id"] = phylogeny_df["id"]
         for index in phylogeny_df.index:
             ancestor_id = phylogeny_df.at[index, "ancestor_id"]
             phylogeny_df.at[index, "root_id"] = phylogeny_df.at[
                 ancestor_id, "root_id"
             ]
     else:  # sexual
+        phylogeny_df.index = phylogeny_df["id"]
+        phylogeny_df["root_id"] = phylogeny_df["id"]
         for index in phylogeny_df.index:
             ancestor_list = phylogeny_df.at[index, "ancestor_list"]
             ancestor_ids = alifestd_parse_ancestor_ids(ancestor_list)

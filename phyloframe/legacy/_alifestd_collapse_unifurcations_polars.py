@@ -37,9 +37,6 @@ def alifestd_collapse_unifurcations_polars(
 ) -> pl.DataFrame:
     """Pare record to bypass organisms with one ancestor and one descendant.
 
-    Input dataframe is not mutated by this operation unless `mutate` set True.
-    If mutate set True, operation does not occur in place; still use return
-    value to get transformed phylogeny dataframe.
 
     See Also
     --------

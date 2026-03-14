@@ -16,55 +16,41 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_num_descendants_asexual import (
-    _alifestd_mark_num_descendants_asexual_fast_path,
+from ._alifestd_mark_root_id import (
+    _alifestd_mark_root_id_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 
 
-def alifestd_mark_num_descendants_polars(
+def alifestd_mark_root_id_polars(
     phylogeny_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Add column `num_descendants`, excluding self.
-
-    Parameters
-    ----------
-    phylogeny_df : polars.DataFrame
-        The phylogeny as a dataframe in alife standard format.
-
-        Must represent an asexual phylogeny.
-
-    Returns
-    -------
-    polars.DataFrame
-        The phylogeny with an added `num_descendants` column.
-
-    See Also
-    --------
-    alifestd_mark_num_descendants_asexual :
-        Pandas-based implementation.
+    """Add column `root_id`, containing the `id` of entries' ultimate
+    ancestor.
     """
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: adding ancestor_id col...",
+        "- alifestd_mark_root_id_polars: adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            num_descendants=pl.lit(0).cast(pl.Int64),
+            root_id=pl.lit(0).cast(pl.Int64),
         )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: checking contiguous ids...",
+        "- alifestd_mark_root_id_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
+        raise NotImplementedError(
+            "non-contiguous ids not yet supported",
+        )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: checking topological sort...",
+        "- alifestd_mark_root_id_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
@@ -72,7 +58,7 @@ def alifestd_mark_num_descendants_polars(
         )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: extracting ancestor ids...",
+        "- alifestd_mark_root_id_polars: extracting ancestor ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -83,35 +69,32 @@ def alifestd_mark_num_descendants_polars(
     )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: tabulating descendant counts...",
+        "- alifestd_mark_root_id_polars: calculating root ids...",
     )
-    descendant_counts = _alifestd_mark_num_descendants_asexual_fast_path(
-        ancestor_ids,
-    )
+    root_ids = _alifestd_mark_root_id_asexual_fast_path(ancestor_ids)
 
     return phylogeny_df.with_columns(
-        num_descendants=descendant_counts,
+        root_id=root_ids,
     )
 
 
-_raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
+_raw_description = f"""\
+{os.path.basename(__file__)} | \
+(phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column `num_descendants`, excluding self.
+Add column `root_id`, containing the `id` of entries' ultimate ancestor.
 
 Data is assumed to be in alife standard format.
 
 Additional Notes
 ================
-- Requires 'ancestor_id' column to be present in input DataFrame.
-Otherwise, no action is taken.
-
 - Use `--eager-read` if modifying data file inplace.
 
 - This CLI entrypoint is experimental and may be subject to change.
 
 See Also
 ========
-phyloframe.legacy._alifestd_mark_num_descendants_asexual :
+phyloframe.legacy._alifestd_mark_root_id :
     CLI entrypoint for Pandas-based implementation.
 """
 
@@ -125,9 +108,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module=(
-            "phyloframe.legacy._alifestd_mark_num_descendants_polars"
-        ),
+        dfcli_module="phyloframe.legacy._alifestd_mark_root_id_polars",
         dfcli_version=get_phyloframe_version(),
     )
     return parser
@@ -141,12 +122,12 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_num_descendants_polars",
+            "phyloframe.legacy._alifestd_mark_root_id_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_num_descendants_polars,
+                output_dataframe_op=alifestd_mark_root_id_polars,
             )
     except NotImplementedError as e:
         logging.error(

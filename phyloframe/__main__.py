@@ -43,6 +43,7 @@ $ python3 -m phyloframe.legacy._alifestd_join_roots
 $ python3 -m phyloframe.legacy._alifestd_ladderize_asexual
 $ python3 -m phyloframe.legacy._alifestd_ladderize_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_ratio_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_faithpd_asexual
@@ -61,6 +62,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_colless_like_index_sd_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_colless_like_index_var_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_first_child_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_first_child_id_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_is_left_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_is_right_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_leaves
@@ -80,15 +82,19 @@ $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_sibling_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_preceding_leaves_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_oldest_root
+$ python3 -m phyloframe.legacy._alifestd_mark_oldest_root_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_origin_time_delta_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_origin_time_delta_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ot_mrca_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_right_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_root_id
+$ python3 -m phyloframe.legacy._alifestd_mark_root_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_roots
 $ python3 -m phyloframe.legacy._alifestd_mark_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sackin_index_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_sackin_index_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots_polars
