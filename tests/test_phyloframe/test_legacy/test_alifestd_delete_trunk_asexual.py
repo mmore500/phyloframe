@@ -270,7 +270,16 @@ def test_alifestd_delete_trunk_asexual_unifurcation():
     pdt.assert_frame_equal(
         alifestd_delete_trunk_asexual(phylo),
         alifestd_delete_trunk_asexual_polars(
-            pl.from_pandas(phylo, nan_to_null=False),
+            pl.from_pandas(
+                phylo.astype(
+                    {
+                        c: "string"
+                        for c in phylo.columns
+                        if phylo[c].dtype == "object"
+                    },
+                ),
+                nan_to_null=False,
+            ),
         ).to_pandas(),
         check_dtype=False,
     )
