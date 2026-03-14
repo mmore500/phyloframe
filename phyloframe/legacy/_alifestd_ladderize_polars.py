@@ -12,20 +12,11 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_has_contiguous_ids_polars import (
-    alifestd_has_contiguous_ids_polars,
+from ._alifestd_mark_num_leaves_polars import (
+    alifestd_mark_num_leaves_polars,
 )
-from ._alifestd_is_topologically_sorted_polars import (
-    alifestd_is_topologically_sorted_polars,
-)
-from ._alifestd_ladderize_asexual import (
-    _alifestd_ladderize_asexual_fast_path,
-)
-from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
-)
-from ._alifestd_mark_num_leaves_asexual import (
-    _alifestd_mark_num_leaves_asexual_fast_path,
+from ._alifestd_sort_children_polars import (
+    alifestd_sort_children_polars,
 )
 
 
@@ -37,6 +28,10 @@ def alifestd_ladderize_polars(
 
     By default, subtrees with fewer leaves come first (ascending). Set
     ``reverse=True`` to sort descending (more leaves first).
+
+    Note: after ladderizing, ids will no longer be contiguous with respect to
+    row indices. Call ``alifestd_assign_contiguous_ids_polars`` on the result
+    to reassign contiguous ids if needed.
 
     Parameters
     ----------
@@ -65,54 +60,13 @@ def alifestd_ladderize_polars(
         Pandas-based implementation.
     """
 
-    logging.info(
-        "- alifestd_ladderize_polars: checking contiguous ids...",
+    phylogeny_df = alifestd_mark_num_leaves_polars(phylogeny_df)
+    result = alifestd_sort_children_polars(
+        phylogeny_df,
+        criterion="num_leaves",
+        reverse=reverse,
     )
-    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
-
-    logging.info(
-        "- alifestd_ladderize_polars: checking topological sort...",
-    )
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
-
-    if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df
-
-    logging.info(
-        "- alifestd_ladderize_polars: extracting ancestor ids...",
-    )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-
-    logging.info(
-        "- alifestd_ladderize_polars: computing leaf counts...",
-    )
-    num_leaves = _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)
-
-    logging.info(
-        "- alifestd_ladderize_polars: computing child counts...",
-    )
-    num_children = _alifestd_mark_num_children_asexual_fast_path(
-        ancestor_ids,
-    )
-
-    logging.info(
-        "- alifestd_ladderize_polars: computing ladderized order...",
-    )
-    order = _alifestd_ladderize_asexual_fast_path(
-        ancestor_ids, num_leaves, num_children, reverse=reverse
-    )
-
-    return phylogeny_df.lazy().collect()[order.tolist()]
+    return result.drop("num_leaves")
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
@@ -121,6 +75,10 @@ Reorder rows so children are sorted by number of descendant leaves.
 
 By default, subtrees with fewer leaves come first (ascending). Use
 ``--reverse`` to sort descending (more leaves first).
+
+Note: after ladderizing, ids will no longer be contiguous with respect to
+row indices. Call ``alifestd_assign_contiguous_ids_polars`` on the result to
+reassign contiguous ids if needed.
 
 Data is assumed to be in alife standard format.
 

@@ -337,6 +337,8 @@ from ._alifestd_screen_trait_defined_clades_fitch_asexual import (
 from ._alifestd_screen_trait_defined_clades_naive_asexual import (
     alifestd_screen_trait_defined_clades_naive_asexual,
 )
+from ._alifestd_sort_children_asexual import alifestd_sort_children_asexual
+from ._alifestd_sort_children_polars import alifestd_sort_children_polars
 from ._alifestd_splay_polytomies import alifestd_splay_polytomies
 from ._alifestd_sum_origin_time_deltas_asexual import (
     alifestd_sum_origin_time_deltas_asexual,
@@ -536,6 +538,8 @@ __all__ = [
     "alifestd_screen_trait_defined_clades_fisher_asexual",
     "alifestd_screen_trait_defined_clades_fitch_asexual",
     "alifestd_screen_trait_defined_clades_naive_asexual",
+    "alifestd_sort_children_asexual",
+    "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_test_leaves_isomorphic_asexual",
