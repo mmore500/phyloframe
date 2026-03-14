@@ -40,6 +40,8 @@ $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity_polars
 $ python3 -m phyloframe.legacy._alifestd_from_newick
 $ python3 -m phyloframe.legacy._alifestd_from_newick_polars
 $ python3 -m phyloframe.legacy._alifestd_join_roots
+$ python3 -m phyloframe.legacy._alifestd_ladderize_asexual
+$ python3 -m phyloframe.legacy._alifestd_ladderize_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_ratio_sister_asexual
@@ -72,6 +74,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_node_depth_asexual_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_children_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_children_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_descendants_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_num_descendants_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_sibling_asexual
@@ -92,6 +95,8 @@ $ python3 -m phyloframe.legacy._alifestd_prefix_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_asexual
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_polars
 $ python3 -m phyloframe.legacy._alifestd_reroot_at_id_asexual
+$ python3 -m phyloframe.legacy._alifestd_sort_children_asexual
+$ python3 -m phyloframe.legacy._alifestd_sort_children_polars
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual
 $ python3 -m phyloframe.legacy._alifestd_to_working_format
