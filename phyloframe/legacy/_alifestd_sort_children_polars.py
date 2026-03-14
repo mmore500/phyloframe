@@ -31,7 +31,8 @@ def alifestd_sort_children_polars(
     criterion: str,
     reverse: bool = False,
 ) -> pl.DataFrame:
-    """Reorder rows so children are sorted by the given criterion column.
+    """Reorder rows so children are sorted by the given criterion column,
+    gathering children into contiguous rows.
 
     Reorders rows so that among siblings, they appear in order of
     ascending ``criterion`` column values. Set ``reverse=True`` to sort
@@ -133,7 +134,8 @@ def alifestd_sort_children_polars(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Reorder rows so children are sorted by the given ``--criterion`` column.
+Reorder rows so children are sorted by the given ``--criterion`` column,
+gathering children into contiguous rows.
 
 Reorders rows so that among siblings, they appear in order of ascending
 criterion values. Use ``--reverse`` to sort descending.

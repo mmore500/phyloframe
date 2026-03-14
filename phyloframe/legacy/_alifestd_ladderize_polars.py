@@ -24,7 +24,8 @@ def alifestd_ladderize_polars(
     phylogeny_df: pl.DataFrame,
     reverse: bool = False,
 ) -> pl.DataFrame:
-    """Reorder rows so children are sorted by number of descendant leaves.
+    """Reorder rows so children are sorted by number of descendant leaves,
+    gathering children into contiguous rows.
 
     By default, subtrees with fewer leaves come first (ascending). Set
     ``reverse=True`` to sort descending (more leaves first).
@@ -75,7 +76,8 @@ def alifestd_ladderize_polars(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Reorder rows so children are sorted by number of descendant leaves.
+Reorder rows so children are sorted by number of descendant leaves,
+gathering children into contiguous rows.
 
 By default, subtrees with fewer leaves come first (ascending). Use
 ``--reverse`` to sort descending (more leaves first).
