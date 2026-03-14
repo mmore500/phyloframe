@@ -69,6 +69,7 @@ from ._alifestd_coerce_chronological_consistency import (
     alifestd_coerce_chronological_consistency,
 )
 from ._alifestd_collapse_trunk_asexual import alifestd_collapse_trunk_asexual
+from ._alifestd_collapse_trunk_polars import alifestd_collapse_trunk_polars
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from ._alifestd_collapse_unifurcations_polars import (
     alifestd_collapse_unifurcations_polars,
@@ -108,6 +109,9 @@ from ._alifestd_delete_trunk_asexual_polars import (
 )
 from ._alifestd_delete_unifurcating_roots_asexual import (
     alifestd_delete_unifurcating_roots_asexual,
+)
+from ._alifestd_delete_unifurcating_roots_polars import (
+    alifestd_delete_unifurcating_roots_polars,
 )
 from ._alifestd_downsample_tips_asexual import alifestd_downsample_tips_asexual
 from ._alifestd_downsample_tips_canopy_asexual import (
@@ -453,6 +457,9 @@ from ._alifestd_screen_trait_defined_clades_naive_asexual import (
 from ._alifestd_sort_children_asexual import alifestd_sort_children_asexual
 from ._alifestd_sort_children_polars import alifestd_sort_children_polars
 from ._alifestd_splay_polytomies import alifestd_splay_polytomies
+from ._alifestd_splay_polytomies_polars import (
+    alifestd_splay_polytomies_polars,
+)
 from ._alifestd_sum_origin_time_deltas_asexual import (
     alifestd_sum_origin_time_deltas_asexual,
 )
@@ -535,6 +542,7 @@ __all__ = [
     "alifestd_coarsen_taxa_asexual_make_agg",
     "alifestd_coerce_chronological_consistency",
     "alifestd_collapse_trunk_asexual",
+    "alifestd_collapse_trunk_polars",
     "alifestd_collapse_unifurcations",
     "alifestd_collapse_unifurcations_polars",
     "alifestd_convert_root_ancestor_token",
@@ -555,6 +563,7 @@ __all__ = [
     "alifestd_delete_trunk_asexual",
     "alifestd_delete_trunk_asexual_polars",
     "alifestd_delete_unifurcating_roots_asexual",
+    "alifestd_delete_unifurcating_roots_polars",
     "alifestd_downsample_tips_asexual",
     "alifestd_downsample_tips_canopy_asexual",
     "alifestd_downsample_tips_canopy_polars",
@@ -705,6 +714,7 @@ __all__ = [
     "alifestd_sort_children_asexual",
     "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
+    "alifestd_splay_polytomies_polars",
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_sum_origin_time_deltas_polars",
     "alifestd_test_leaves_isomorphic_asexual",
