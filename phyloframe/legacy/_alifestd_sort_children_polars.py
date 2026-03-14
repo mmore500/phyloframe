@@ -106,12 +106,7 @@ def alifestd_sort_children_polars(
         .to_numpy()
     )
     criterion_values = (
-        phylogeny_df.lazy()
-        .select(criterion)
-        .collect()
-        .to_series()
-        .to_numpy()
-        .astype(float)
+        phylogeny_df.lazy().select(criterion).collect().to_series().to_numpy()
     )
 
     logging.info(
