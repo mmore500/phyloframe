@@ -1,4 +1,5 @@
 from ._alifestd_add_global_root import alifestd_add_global_root
+from ._alifestd_add_global_root_polars import alifestd_add_global_root_polars
 from ._alifestd_add_inner_knuckles_asexual import (
     alifestd_add_inner_knuckles_asexual,
 )
@@ -159,6 +160,7 @@ from ._alifestd_find_pair_mrca_id_polars import (
     alifestd_find_pair_mrca_id_polars,
 )
 from ._alifestd_find_root_ids import alifestd_find_root_ids
+from ._alifestd_find_root_ids_polars import alifestd_find_root_ids_polars
 from ._alifestd_from_newick import alifestd_from_newick
 from ._alifestd_from_newick_polars import alifestd_from_newick_polars
 from ._alifestd_has_compact_ids import alifestd_has_compact_ids
@@ -172,6 +174,9 @@ from ._alifestd_has_increasing_ids_polars import (
     alifestd_has_increasing_ids_polars,
 )
 from ._alifestd_has_multiple_roots import alifestd_has_multiple_roots
+from ._alifestd_has_multiple_roots_polars import (
+    alifestd_has_multiple_roots_polars,
+)
 from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_is_asexual_polars import alifestd_is_asexual_polars
 from ._alifestd_is_chronologically_ordered import (
@@ -205,6 +210,7 @@ from ._alifestd_is_working_format_polars import (
     alifestd_is_working_format_polars,
 )
 from ._alifestd_join_roots import alifestd_join_roots
+from ._alifestd_join_roots_polars import alifestd_join_roots_polars
 from ._alifestd_ladderize_asexual import alifestd_ladderize_asexual
 from ._alifestd_ladderize_polars import alifestd_ladderize_polars
 from ._alifestd_make_ancestor_id_col import alifestd_make_ancestor_id_col
@@ -378,6 +384,9 @@ from ._alifestd_mark_num_preceding_leaves_polars import (
     alifestd_mark_num_preceding_leaves_polars,
 )
 from ._alifestd_mark_oldest_root import alifestd_mark_oldest_root
+from ._alifestd_mark_oldest_root_polars import (
+    alifestd_mark_oldest_root_polars,
+)
 from ._alifestd_mark_origin_time_delta_asexual import (
     alifestd_mark_origin_time_delta_asexual,
 )
@@ -398,10 +407,14 @@ from ._alifestd_mark_right_child_polars import (
     alifestd_mark_right_child_polars,
 )
 from ._alifestd_mark_root_id import alifestd_mark_root_id
+from ._alifestd_mark_root_id_polars import alifestd_mark_root_id_polars
 from ._alifestd_mark_roots import alifestd_mark_roots
 from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
 from ._alifestd_mark_sackin_index_asexual import (
     alifestd_mark_sackin_index_asexual,
+)
+from ._alifestd_mark_sackin_index_polars import (
+    alifestd_mark_sackin_index_polars,
 )
 from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 from ._alifestd_mark_sister_polars import alifestd_mark_sister_polars
@@ -443,6 +456,9 @@ from ._alifestd_splay_polytomies import alifestd_splay_polytomies
 from ._alifestd_sum_origin_time_deltas_asexual import (
     alifestd_sum_origin_time_deltas_asexual,
 )
+from ._alifestd_sum_origin_time_deltas_polars import (
+    alifestd_sum_origin_time_deltas_polars,
+)
 from ._alifestd_test_leaves_isomorphic_asexual import (
     alifestd_test_leaves_isomorphic_asexual,
 )
@@ -454,6 +470,9 @@ from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
 )
 from ._alifestd_topological_sort import alifestd_topological_sort
+from ._alifestd_topological_sort_polars import (
+    alifestd_topological_sort_polars,
+)
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -502,6 +521,7 @@ from ._alifestd_warn_topological_sensitivity_polars import (
 
 __all__ = [
     "alifestd_add_global_root",
+    "alifestd_add_global_root_polars",
     "alifestd_add_inner_knuckles_asexual",
     "alifestd_add_inner_leaves",
     "alifestd_add_inner_niblings_asexual",
@@ -574,6 +594,7 @@ __all__ = [
     "alifestd_find_pair_mrca_id_asexual",
     "alifestd_find_pair_mrca_id_polars",
     "alifestd_find_root_ids",
+    "alifestd_find_root_ids_polars",
     "alifestd_from_newick",
     "alifestd_from_newick_polars",
     "alifestd_has_compact_ids",
@@ -583,6 +604,7 @@ __all__ = [
     "alifestd_has_increasing_ids",
     "alifestd_has_increasing_ids_polars",
     "alifestd_has_multiple_roots",
+    "alifestd_has_multiple_roots_polars",
     "alifestd_is_asexual",
     "alifestd_is_asexual_polars",
     "alifestd_is_chronologically_ordered",
@@ -598,6 +620,7 @@ __all__ = [
     "alifestd_is_working_format_asexual",
     "alifestd_is_working_format_polars",
     "alifestd_join_roots",
+    "alifestd_join_roots_polars",
     "alifestd_ladderize_asexual",
     "alifestd_ladderize_polars",
     "alifestd_make_ancestor_id_col",
@@ -667,6 +690,7 @@ __all__ = [
     "alifestd_mark_num_preceding_leaves_asexual",
     "alifestd_mark_num_preceding_leaves_polars",
     "alifestd_mark_oldest_root",
+    "alifestd_mark_oldest_root_polars",
     "alifestd_mark_origin_time_delta_asexual",
     "alifestd_mark_origin_time_delta_polars",
     "alifestd_mark_ot_mrca_asexual",
@@ -675,9 +699,11 @@ __all__ = [
     "alifestd_mark_right_child_asexual",
     "alifestd_mark_right_child_polars",
     "alifestd_mark_root_id",
+    "alifestd_mark_root_id_polars",
     "alifestd_mark_roots",
     "alifestd_mark_roots_polars",
     "alifestd_mark_sackin_index_asexual",
+    "alifestd_mark_sackin_index_polars",
     "alifestd_mark_sister_asexual",
     "alifestd_mark_sister_polars",
     "alifestd_mask_descendants_asexual",
@@ -698,11 +724,13 @@ __all__ = [
     "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
     "alifestd_sum_origin_time_deltas_asexual",
+    "alifestd_sum_origin_time_deltas_polars",
     "alifestd_test_leaves_isomorphic_asexual",
     "alifestd_to_working_format",
     "alifestd_topological_sensitivity_warned",
     "alifestd_topological_sensitivity_warned_polars",
     "alifestd_topological_sort",
+    "alifestd_topological_sort_polars",
     "alifestd_try_add_ancestor_id_col",
     "alifestd_try_add_ancestor_id_col_polars",
     "alifestd_try_add_ancestor_list_col",
