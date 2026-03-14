@@ -40,29 +40,14 @@ def _alifestd_sort_children_asexual_fast_path(
     Returns a permutation array giving the row order after sorting children
     by criterion values.
 
-    Builds a path-key matrix where each node's key is the sequence of
-    criterion values along its root-to-node path, then lexsorts.
+    Lexsorts by (depth, ancestor_id, criterion) to maintain topological
+    order while sorting siblings by criterion.
 
     Assumes contiguous ids and topological sorting.
     """
-    n = len(ancestor_ids)
-    if n == 0:
-        return np.empty(0, dtype=np.int64)
-
-    max_depth = int(node_depths.max()) + 1
-    fill = -np.inf if not reverse else np.inf
-    path_keys = np.full((max_depth, n), fill)
-
-    for i in range(n):
-        d = node_depths[i]
-        if d > 0:
-            path_keys[:d, i] = path_keys[:d, ancestor_ids[i]]
-        path_keys[d, i] = criterion_values[i]
-
     if reverse:
-        path_keys = -path_keys
-
-    return np.lexsort(path_keys[::-1])
+        criterion_values = -criterion_values
+    return np.lexsort((criterion_values, ancestor_ids, node_depths))
 
 
 def _alifestd_sort_children_asexual_slow_path(
@@ -73,22 +58,19 @@ def _alifestd_sort_children_asexual_slow_path(
     """Implementation detail for `alifestd_sort_children_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    # Compute depth and path keys for each node
     depth = {}
-    path_key = {}
     for idx in phylogeny_df.index:
         aid = phylogeny_df.at[idx, "ancestor_id"]
-        if aid == idx:
-            depth[idx] = 0
-            path_key[idx] = (phylogeny_df.at[idx, criterion],)
-        else:
-            depth[idx] = depth[aid] + 1
-            path_key[idx] = path_key[aid] + (phylogeny_df.at[idx, criterion],)
+        depth[idx] = 0 if aid == idx else depth[aid] + 1
 
+    sign = -1 if reverse else 1
     order = sorted(
         phylogeny_df.index,
-        key=lambda idx: path_key[idx],
-        reverse=reverse,
+        key=lambda idx: (
+            depth[idx],
+            phylogeny_df.at[idx, "ancestor_id"],
+            sign * phylogeny_df.at[idx, criterion],
+        ),
     )
 
     return phylogeny_df.loc[order].reset_index(drop=True)
