@@ -14,6 +14,9 @@ from .._auxlib._preserve_id_dtypes_polars import (
     preserve_id_dtypes_polars,
 )
 from ._alifestd_assign_contiguous_ids import _reassign_ids_asexual
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 @preserve_id_dtypes_polars
@@ -25,21 +28,32 @@ def alifestd_assign_contiguous_ids_polars(
     Organisms retain the same row location; only id numbers change."""
     phylogeny_df = phylogeny_df.lazy().collect()  # lazy not yet implemented
 
-    if "ancestor_list" in phylogeny_df.columns:
-        raise NotImplementedError
+    if "ancestor_id" not in phylogeny_df.columns:
+        phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+
+    has_ancestor_list = "ancestor_list" in phylogeny_df.columns
+    if has_ancestor_list:
+        phylogeny_df = phylogeny_df.drop("ancestor_list")
 
     new_ancestor_ids = _reassign_ids_asexual(
         phylogeny_df["id"].to_numpy(),
         phylogeny_df["ancestor_id"].to_numpy(),
     )
 
-    return (
+    result = (
         phylogeny_df.drop("id")
         .with_row_index("id")
         .with_columns(
             ancestor_id=pl.Series(new_ancestor_ids),
         )
     )
+
+    if has_ancestor_list:
+        result = result.with_columns(
+            ancestor_list=pl.col("ancestor_id").cast(pl.Utf8),
+        )
+
+    return result
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

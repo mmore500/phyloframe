@@ -59,10 +59,11 @@ def alifestd_add_inner_knuckles_polars(
         raise ValueError("asexual phylogeny required")
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("contiguous ids required")
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError("topological sort required")
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     if "is_leaf" not in phylogeny_df.lazy().collect_schema().names():
         phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)

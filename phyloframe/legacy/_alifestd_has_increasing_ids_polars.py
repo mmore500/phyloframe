@@ -6,8 +6,7 @@ def alifestd_has_increasing_ids_polars(phylogeny_df: pl.DataFrame) -> bool:
 
     Requires ancestor_id column.
     """
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     return (
         phylogeny_df.lazy()
