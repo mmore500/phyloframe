@@ -27,6 +27,9 @@ from ._alifestd_mark_first_child_id_asexual import (
 from ._alifestd_mark_next_sibling_id_asexual import (
     _alifestd_mark_next_sibling_id_asexual_fast_path,
 )
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import (
     alifestd_try_add_ancestor_id_col,
@@ -39,12 +42,13 @@ def _alifestd_sort_children_asexual_fast_path(
     criterion_values: np.ndarray,
     first_child_ids: np.ndarray,
     next_sibling_ids: np.ndarray,
+    num_children: np.ndarray,
     reverse: bool = False,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_sort_children_asexual`.
 
     Returns a permutation array giving the row order after sorting children
-    by criterion values and performing a preorder DFS.
+    by criterion values via preorder traversal.
 
     Uses first_child_id / next_sibling_id linked-list representation from
     PR #36 to traverse children of each node.
@@ -52,90 +56,69 @@ def _alifestd_sort_children_asexual_fast_path(
     Assumes contiguous ids and topological sorting.
     """
     n = len(ancestor_ids)
+    if n == 0:
+        return np.empty(0, dtype=np.int64)
 
-    # Step 1: collect children per parent via linked list, then sort
-    # We need to build a sorted children structure.
-    # First, count children per parent for allocation.
-    num_children = np.zeros(n, dtype=np.int64)
-    for i in range(n):
+    # Mutable copies of linked list for rewriting sorted order
+    first_child = first_child_ids.copy()
+    next_sib = next_sibling_ids.copy()
+
+    # Step 1: sort children of each parent by rewriting linked list
+    for parent in range(n):
+        nc = num_children[parent]
+        if nc <= 1:
+            continue
+
+        # Collect children via linked list
+        buf = np.empty(nc, dtype=np.int64)
+        child = first_child[parent]
+        for j in range(nc):
+            buf[j] = child
+            child = next_sib[child]
+
+        # Sort using np.argsort
+        vals = np.empty(nc, dtype=criterion_values.dtype)
+        for j in range(nc):
+            vals[j] = criterion_values[buf[j]]
+        order = np.argsort(vals)
+        if reverse:
+            order = order[::-1].copy()
+
+        # Rewrite linked list to reflect sorted order
+        first_child[parent] = buf[order[0]]
+        for j in range(nc - 1):
+            next_sib[buf[order[j]]] = buf[order[j + 1]]
+        next_sib[buf[order[nc - 1]]] = buf[order[nc - 1]]
+
+    # Step 2: compute subtree sizes (bottom-up)
+    subtree_size = np.ones(n, dtype=np.int64)
+    for i in range(n - 1, -1, -1):
         if ancestor_ids[i] != i:
-            num_children[ancestor_ids[i]] += 1
+            subtree_size[ancestor_ids[i]] += subtree_size[i]
 
-    # Build CSR offsets
-    offsets = np.zeros(n + 1, dtype=np.int64)
-    for i in range(n):
-        offsets[i + 1] = offsets[i] + num_children[i]
+    # Step 3: compute preorder positions (top-down via sorted linked list)
+    position = np.zeros(n, dtype=np.int64)
 
-    # Fill children by traversing linked list (first_child -> next_sibling)
-    children = np.empty(offsets[n], dtype=np.int64)
-    for i in range(n):
-        pos = offsets[i]
-        child = first_child_ids[i]
-        if child == i:
-            continue  # leaf node, no children
-        while True:
-            children[pos] = child
-            pos += 1
-            nxt = next_sibling_ids[child]
-            if nxt == child:
-                break
-            child = nxt
-
-    # Step 2: sort children of each parent by criterion using np.argsort
-    for i in range(n):
-        start = offsets[i]
-        end = offsets[i + 1]
-        count = end - start
-        if count > 1:
-            vals = np.empty(count, dtype=criterion_values.dtype)
-            for j in range(count):
-                vals[j] = criterion_values[children[start + j]]
-            order = np.argsort(vals)
-            if reverse:
-                order = order[::-1].copy()
-            sorted_children = np.empty(count, dtype=np.int64)
-            for j in range(count):
-                sorted_children[j] = children[start + order[j]]
-            for j in range(count):
-                children[start + j] = sorted_children[j]
-
-    # Step 3: preorder DFS
-    result = np.empty(n, dtype=np.int64)
-    stack = np.empty(n, dtype=np.int64)
-
-    # find roots and push in reverse order
-    num_roots = 0
+    # Assign root positions
+    offset = 0
     for i in range(n):
         if ancestor_ids[i] == i:
-            num_roots += 1
+            position[i] = offset
+            offset += subtree_size[i]
 
-    root_ids = np.empty(num_roots, dtype=np.int64)
-    ri = 0
-    for i in range(n):
-        if ancestor_ids[i] == i:
-            root_ids[ri] = i
-            ri += 1
+    # Assign child positions using sorted linked list
+    for parent in range(n):
+        child = first_child[parent]
+        if child == parent:
+            continue  # leaf
+        offset = position[parent] + 1
+        while child != parent:
+            position[child] = offset
+            offset += subtree_size[child]
+            nxt = next_sib[child]
+            child = nxt if nxt != child else parent
 
-    stack_top = 0
-    for i in range(num_roots - 1, -1, -1):
-        stack[stack_top] = root_ids[i]
-        stack_top += 1
-
-    result_idx = 0
-    while stack_top > 0:
-        stack_top -= 1
-        node = stack[stack_top]
-        result[result_idx] = node
-        result_idx += 1
-
-        # push children in reverse sorted order so first pops first
-        start = offsets[node]
-        end = offsets[node + 1]
-        for j in range(end - 1, start - 1, -1):
-            stack[stack_top] = children[j]
-            stack_top += 1
-
-    return result
+    return np.argsort(position)
 
 
 def _alifestd_sort_children_asexual_slow_path(
@@ -252,11 +235,15 @@ def alifestd_sort_children_asexual(
         next_sibling_ids = _alifestd_mark_next_sibling_id_asexual_fast_path(
             ancestor_ids,
         )
+        num_children = _alifestd_mark_num_children_asexual_fast_path(
+            ancestor_ids,
+        )
         order = _alifestd_sort_children_asexual_fast_path(
             ancestor_ids,
             criterion_values,
             first_child_ids,
             next_sibling_ids,
+            num_children,
             reverse=reverse,
         )
         return phylogeny_df.iloc[order].reset_index(drop=True)

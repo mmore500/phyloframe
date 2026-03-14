@@ -24,6 +24,9 @@ from ._alifestd_mark_first_child_id_asexual import (
 from ._alifestd_mark_next_sibling_id_asexual import (
     _alifestd_mark_next_sibling_id_asexual_fast_path,
 )
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_sort_children_asexual import (
     _alifestd_sort_children_asexual_fast_path,
 )
@@ -125,6 +128,9 @@ def alifestd_sort_children_polars(
     next_sibling_ids = _alifestd_mark_next_sibling_id_asexual_fast_path(
         ancestor_ids,
     )
+    num_children = _alifestd_mark_num_children_asexual_fast_path(
+        ancestor_ids,
+    )
 
     logging.info(
         "- alifestd_sort_children_polars: computing sorted order...",
@@ -134,6 +140,7 @@ def alifestd_sort_children_polars(
         criterion_values,
         first_child_ids,
         next_sibling_ids,
+        num_children,
         reverse=reverse,
     )
 

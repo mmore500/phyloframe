@@ -47,17 +47,20 @@ def alifestd_ladderize_asexual(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    phylogeny_df = alifestd_mark_num_leaves_asexual(
-        phylogeny_df,
-        mutate=True,
-    )
+    had_num_leaves = "num_leaves" in phylogeny_df.columns
+    if not had_num_leaves:
+        phylogeny_df = alifestd_mark_num_leaves_asexual(
+            phylogeny_df,
+            mutate=True,
+        )
     phylogeny_df = alifestd_sort_children_asexual(
         phylogeny_df,
         criterion="num_leaves",
         reverse=reverse,
         mutate=True,
     )
-    phylogeny_df.drop(columns=["num_leaves"], inplace=True)
+    if not had_num_leaves:
+        phylogeny_df.drop(columns=["num_leaves"], inplace=True)
     return phylogeny_df
 
 

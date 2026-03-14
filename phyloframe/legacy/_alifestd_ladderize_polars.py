@@ -60,13 +60,17 @@ def alifestd_ladderize_polars(
         Pandas-based implementation.
     """
 
-    phylogeny_df = alifestd_mark_num_leaves_polars(phylogeny_df)
+    had_num_leaves = "num_leaves" in phylogeny_df.collect_schema().names()
+    if not had_num_leaves:
+        phylogeny_df = alifestd_mark_num_leaves_polars(phylogeny_df)
     result = alifestd_sort_children_polars(
         phylogeny_df,
         criterion="num_leaves",
         reverse=reverse,
     )
-    return result.drop("num_leaves")
+    if not had_num_leaves:
+        result = result.drop("num_leaves")
+    return result
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
