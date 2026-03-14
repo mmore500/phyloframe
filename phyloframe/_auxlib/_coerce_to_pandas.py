@@ -17,11 +17,12 @@ def coerce_to_pandas(obj: typing.Any, *, recurse: bool = False) -> typing.Any:
 
     if hasattr(obj, "__dataframe__"):
         return pd.api.interchange.from_dataframe(obj, allow_copy=True)
-    elif isinstance(obj, pl.Series):
-        result = obj.to_pandas()
-        if obj.dtype == pl.Utf8 and result.dtype == object:
-            result = result.astype(_pd_str_dtype)
-        return result
+    elif (
+        isinstance(obj, pl.Series)
+        and obj.dtype == pl.Utf8
+        and obj.is_empty()
+    ):
+        return pd.Series(name=obj.name, dtype=_pd_str_dtype)
     elif hasattr(obj, "to_pandas"):
         return obj.to_pandas()  # pyarrow is required for this operation
     elif recurse and isinstance(obj, _supported_iterables):
