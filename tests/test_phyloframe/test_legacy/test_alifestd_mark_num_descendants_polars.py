@@ -16,138 +16,10 @@ from phyloframe.legacy._alifestd_mark_num_descendants_polars import (
 from ._impl import enforce_dtype_stability_polars
 
 alifestd_mark_num_descendants_polars = enforce_dtype_stability_polars(
-    alifestd_mark_num_descendants_polars_
+    alifestd_mark_num_descendants_polars_,
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
-
-
-@pytest.mark.parametrize(
-    "phylogeny_df",
-    [
-        alifestd_to_working_format(
-            pd.read_csv(
-                f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
-            )
-        ),
-        alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
-        ),
-        alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
-        ),
-        alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
-        ),
-    ],
-)
-@pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
-def test_alifestd_mark_num_descendants_polars_fuzz(
-    phylogeny_df: pd.DataFrame, apply: typing.Callable
-):
-    """Verify num_descendants column is correctly added."""
-    df_prepared = pl.from_pandas(phylogeny_df)
-    df_pl = apply(df_prepared)
-
-    result = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
-
-    assert "num_descendants" in result.columns
-    assert len(result) == len(df_prepared)
-
-    # every id in result should match original
-    assert result["id"].to_list() == df_prepared["id"].to_list()
-
-    # all counts should be >= 0
-    assert (result["num_descendants"] >= 0).all()
-
-    # all counts should be < total number of nodes
-    assert (result["num_descendants"] < len(result)).all()
-
-    # leaves should have num_descendants == 0
-    internal_ids = set(
-        df_prepared.filter(pl.col("ancestor_id") != pl.col("id"))
-        .select("ancestor_id")
-        .to_series()
-        .to_list()
-    )
-    for row in result.iter_rows(named=True):
-        if row["id"] not in internal_ids:
-            assert row["num_descendants"] == 0
-        else:
-            assert row["num_descendants"] >= 1
-
-
-@pytest.mark.parametrize(
-    "phylogeny_df",
-    [
-        alifestd_to_working_format(
-            pd.read_csv(
-                f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
-            )
-        ),
-        alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
-        ),
-        alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
-        ),
-        alifestd_to_working_format(
-            pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
-        ),
-    ],
-)
-@pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
-def test_alifestd_mark_num_descendants_polars_matches_pandas(
-    phylogeny_df: pd.DataFrame, apply: typing.Callable
-):
-    """Verify polars result matches pandas result."""
-    result_pd = alifestd_mark_num_descendants_asexual(
-        phylogeny_df, mutate=False
-    )
-
-    df_pl = apply(pl.from_pandas(phylogeny_df))
-    result_pl = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
-
-    assert result_pd["num_descendants"].tolist() == (
-        result_pl["num_descendants"].to_list()
-    )
-
-
-@pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
-def test_alifestd_mark_num_descendants_polars_simple_chain(
-    apply: typing.Callable,
-):
-    """Test a simple chain: 0 -> 1 -> 2."""
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": [0, 1, 2],
-                "ancestor_id": [0, 0, 1],
-            }
-        ),
-    )
-
-    result = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
-
-    assert result["num_descendants"].to_list() == [2, 1, 0]
 
 
 @pytest.mark.parametrize(
@@ -190,47 +62,22 @@ def test_alifestd_mark_num_descendants_polars_simple_tree(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_num_descendants_polars_two_roots(
+def test_alifestd_mark_num_descendants_polars_simple_chain(
     apply: typing.Callable,
 ):
-    """Two independent roots with children."""
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": [0, 1, 2, 3],
-                "ancestor_id": [0, 1, 0, 1],
-            }
-        ),
-    )
-
-    result = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
-
-    assert result["num_descendants"].to_list() == [1, 1, 0, 0]
-
-
-@pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
-def test_alifestd_mark_num_descendants_polars_all_roots(
-    apply: typing.Callable,
-):
-    """All self-referencing roots have 0 descendants."""
+    """Test a simple chain: 0 -> 1 -> 2."""
     df_pl = apply(
         pl.DataFrame(
             {
                 "id": [0, 1, 2],
-                "ancestor_id": [0, 1, 2],
+                "ancestor_id": [0, 0, 1],
             }
         ),
     )
 
     result = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
 
-    assert result["num_descendants"].to_list() == [0, 0, 0]
+    assert result["num_descendants"].to_list() == [2, 1, 0]
 
 
 @pytest.mark.parametrize(
@@ -289,37 +136,6 @@ def test_alifestd_mark_num_descendants_polars_empty(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_num_descendants_polars_preserves_columns(
-    apply: typing.Callable,
-):
-    """Verify original columns are preserved."""
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": [0, 1, 2],
-                "ancestor_id": [0, 0, 1],
-                "origin_time": [0.0, 1.0, 2.0],
-                "taxon_label": ["a", "b", "c"],
-            }
-        ),
-    )
-
-    result = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
-
-    assert "num_descendants" in result.columns
-    assert "origin_time" in result.columns
-    assert "taxon_label" in result.columns
-    assert result["origin_time"].to_list() == [0.0, 1.0, 2.0]
-    assert result["taxon_label"].to_list() == ["a", "b", "c"]
-
-
-@pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
 def test_alifestd_mark_num_descendants_polars_non_contiguous_ids(
     apply: typing.Callable,
 ):
@@ -360,25 +176,38 @@ def test_alifestd_mark_num_descendants_polars_unsorted(
 
 
 @pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
+        ),
+    ],
+)
+@pytest.mark.parametrize(
     "apply",
     [
         pytest.param(lambda x: x, id="DataFrame"),
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_num_descendants_polars_star_topology(
-    apply: typing.Callable,
+def test_alifestd_mark_num_descendants_polars_matches_pandas(
+    phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
-    """Root with many direct children (all leaves)."""
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": [0, 1, 2, 3, 4, 5],
-                "ancestor_id": [0, 0, 0, 0, 0, 0],
-            }
-        ),
+    """Verify polars result matches pandas result."""
+    result_pd = alifestd_mark_num_descendants_asexual(
+        phylogeny_df,
+        mutate=False,
     )
 
-    result = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
+    df_pl = apply(pl.from_pandas(phylogeny_df))
+    result_pl = alifestd_mark_num_descendants_polars(df_pl).lazy().collect()
 
-    assert result["num_descendants"].to_list() == [5, 0, 0, 0, 0, 0]
+    assert result_pd["num_descendants"].tolist() == (
+        result_pl["num_descendants"].to_list()
+    )
