@@ -274,8 +274,7 @@ def test_alifestd_delete_trunk_asexual_unifurcation():
                 phylo.astype(
                     {
                         c: "string"
-                        for c in phylo.columns
-                        if phylo[c].dtype.name == "str"
+                        for c in phylo.select_dtypes("string")
                     },
                 ),
                 nan_to_null=False,
