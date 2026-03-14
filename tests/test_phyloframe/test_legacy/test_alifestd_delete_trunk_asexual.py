@@ -267,24 +267,21 @@ def test_alifestd_delete_trunk_asexual_unifurcation():
         taxon_label="dstream_data_id",
     )
 
+    phylo_ct = phylo.convert_dtypes()
     pdt.assert_frame_equal(
-        alifestd_delete_trunk_asexual(phylo),
+        alifestd_delete_trunk_asexual(phylo).convert_dtypes(),
         alifestd_delete_trunk_asexual_polars(
             pl.from_pandas(
                 phylo.astype(
-                    {
-                        c: "string"
-                        for c in phylo.select_dtypes(
-                            include=["object", "string"],
-                        )
-                        if pd.api.types.infer_dtype(phylo[c], skipna=True)
-                        == "string"
-                    },
+                    {c: "string" for c in phylo_ct.select_dtypes("string")}
+                    | {c: "boolean" for c in phylo_ct.select_dtypes("boolean")}
                 ),
                 nan_to_null=False,
             ),
-        ).to_pandas(),
-        check_dtype=False,
+        )
+        .to_pandas()
+        .convert_dtypes(),
+        check_dtype=True,
     )
 
     def clean(df: pd.DataFrame, allow_id_reassign: bool) -> pd.DataFrame:
