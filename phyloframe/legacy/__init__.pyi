@@ -175,6 +175,8 @@ from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
 from ._alifestd_join_roots import alifestd_join_roots
+from ._alifestd_ladderize_asexual import alifestd_ladderize_asexual
+from ._alifestd_ladderize_polars import alifestd_ladderize_polars
 from ._alifestd_make_ancestor_id_col import alifestd_make_ancestor_id_col
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 from ._alifestd_make_ancestor_list_col_polars import (
@@ -461,6 +463,8 @@ __all__ = [
     "alifestd_is_topologically_sorted_polars",
     "alifestd_is_working_format_asexual",
     "alifestd_join_roots",
+    "alifestd_ladderize_asexual",
+    "alifestd_ladderize_polars",
     "alifestd_make_ancestor_id_col",
     "alifestd_make_ancestor_list_col",
     "alifestd_make_ancestor_list_col_polars",

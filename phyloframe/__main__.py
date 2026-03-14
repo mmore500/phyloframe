@@ -40,6 +40,8 @@ $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity_polars
 $ python3 -m phyloframe.legacy._alifestd_from_newick
 $ python3 -m phyloframe.legacy._alifestd_from_newick_polars
 $ python3 -m phyloframe.legacy._alifestd_join_roots
+$ python3 -m phyloframe.legacy._alifestd_ladderize_asexual
+$ python3 -m phyloframe.legacy._alifestd_ladderize_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_ratio_sister_asexual
