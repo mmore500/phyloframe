@@ -27,7 +27,25 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_mark_num_descendants_polars(
     phylogeny_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Add column `num_descendants`, excluding self."""
+    """Add column `num_descendants`, excluding self.
+
+    Parameters
+    ----------
+    phylogeny_df : polars.DataFrame
+        The phylogeny as a dataframe in alife standard format.
+
+        Must represent an asexual phylogeny.
+
+    Returns
+    -------
+    polars.DataFrame
+        The phylogeny with an added `num_descendants` column.
+
+    See Also
+    --------
+    alifestd_mark_num_descendants_asexual :
+        Pandas-based implementation.
+    """
 
     logging.info(
         "- alifestd_mark_num_descendants_polars: adding ancestor_id col...",
@@ -43,9 +61,7 @@ def alifestd_mark_num_descendants_polars(
         "- alifestd_mark_num_descendants_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        raise NotImplementedError("non-contiguous ids not yet supported")
 
     logging.info(
         "- alifestd_mark_num_descendants_polars: checking topological sort...",
@@ -69,18 +85,16 @@ def alifestd_mark_num_descendants_polars(
     logging.info(
         "- alifestd_mark_num_descendants_polars: tabulating descendant counts...",
     )
-    num_descendants = _alifestd_mark_num_descendants_asexual_fast_path(
+    descendant_counts = _alifestd_mark_num_descendants_asexual_fast_path(
         ancestor_ids,
     )
 
     return phylogeny_df.with_columns(
-        num_descendants=num_descendants,
+        num_descendants=descendant_counts,
     )
 
 
-_raw_description = f"""\
-{os.path.basename(__file__)} | \
-(phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
+_raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Add column `num_descendants`, excluding self.
 
@@ -88,6 +102,9 @@ Data is assumed to be in alife standard format.
 
 Additional Notes
 ================
+- Requires 'ancestor_id' column to be present in input DataFrame.
+Otherwise, no action is taken.
+
 - Use `--eager-read` if modifying data file inplace.
 
 - This CLI entrypoint is experimental and may be subject to change.
@@ -129,7 +146,7 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=(alifestd_mark_num_descendants_polars),
+                output_dataframe_op=alifestd_mark_num_descendants_polars,
             )
     except NotImplementedError as e:
         logging.error(

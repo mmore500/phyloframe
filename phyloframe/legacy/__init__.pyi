@@ -175,6 +175,8 @@ from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
 from ._alifestd_join_roots import alifestd_join_roots
+from ._alifestd_ladderize_asexual import alifestd_ladderize_asexual
+from ._alifestd_ladderize_polars import alifestd_ladderize_polars
 from ._alifestd_make_ancestor_id_col import alifestd_make_ancestor_id_col
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 from ._alifestd_make_ancestor_list_col_polars import (
@@ -271,6 +273,9 @@ from ._alifestd_mark_num_children_polars import (
 from ._alifestd_mark_num_descendants_asexual import (
     alifestd_mark_num_descendants_asexual,
 )
+from ._alifestd_mark_num_descendants_polars import (
+    alifestd_mark_num_descendants_polars,
+)
 from ._alifestd_mark_num_leaves_asexual import alifestd_mark_num_leaves_asexual
 from ._alifestd_mark_num_leaves_polars import alifestd_mark_num_leaves_polars
 from ._alifestd_mark_num_leaves_sibling_asexual import (
@@ -332,6 +337,8 @@ from ._alifestd_screen_trait_defined_clades_fitch_asexual import (
 from ._alifestd_screen_trait_defined_clades_naive_asexual import (
     alifestd_screen_trait_defined_clades_naive_asexual,
 )
+from ._alifestd_sort_children_asexual import alifestd_sort_children_asexual
+from ._alifestd_sort_children_polars import alifestd_sort_children_polars
 from ._alifestd_splay_polytomies import alifestd_splay_polytomies
 from ._alifestd_sum_origin_time_deltas_asexual import (
     alifestd_sum_origin_time_deltas_asexual,
@@ -461,6 +468,8 @@ __all__ = [
     "alifestd_is_topologically_sorted_polars",
     "alifestd_is_working_format_asexual",
     "alifestd_join_roots",
+    "alifestd_ladderize_asexual",
+    "alifestd_ladderize_polars",
     "alifestd_make_ancestor_id_col",
     "alifestd_make_ancestor_list_col",
     "alifestd_make_ancestor_list_col_polars",
@@ -499,6 +508,7 @@ __all__ = [
     "alifestd_mark_num_children_asexual",
     "alifestd_mark_num_children_polars",
     "alifestd_mark_num_descendants_asexual",
+    "alifestd_mark_num_descendants_polars",
     "alifestd_mark_num_leaves_asexual",
     "alifestd_mark_num_leaves_polars",
     "alifestd_mark_num_leaves_sibling_asexual",
@@ -528,6 +538,8 @@ __all__ = [
     "alifestd_screen_trait_defined_clades_fisher_asexual",
     "alifestd_screen_trait_defined_clades_fitch_asexual",
     "alifestd_screen_trait_defined_clades_naive_asexual",
+    "alifestd_sort_children_asexual",
+    "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_test_leaves_isomorphic_asexual",
