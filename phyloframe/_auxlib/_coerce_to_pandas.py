@@ -5,7 +5,7 @@ import polars as pl
 
 _supported_iterables = tuple, set, list, frozenset
 _supported_mappings = dict
-_pd_str_dtype = pd.Series(["_"]).dtype
+_pd_str_dtype = pd.Series(["_"]).dtype  # pandas 2/3 compat
 
 
 def coerce_to_pandas(obj: typing.Any, *, recurse: bool = False) -> typing.Any:
