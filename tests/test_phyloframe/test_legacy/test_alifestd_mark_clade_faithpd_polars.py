@@ -6,17 +6,17 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_mark_origin_time_delta_asexual,
+    alifestd_mark_clade_faithpd_asexual,
     alifestd_to_working_format,
 )
-from phyloframe.legacy._alifestd_mark_origin_time_delta_polars import (
-    alifestd_mark_origin_time_delta_polars as alifestd_mark_origin_time_delta_polars_,
+from phyloframe.legacy._alifestd_mark_clade_faithpd_polars import (
+    alifestd_mark_clade_faithpd_polars as alifestd_mark_clade_faithpd_polars_,
 )
 
 from ._impl import enforce_dtype_stability_polars
 
-alifestd_mark_origin_time_delta_polars = enforce_dtype_stability_polars(
-    alifestd_mark_origin_time_delta_polars_
+alifestd_mark_clade_faithpd_polars = enforce_dtype_stability_polars(
+    alifestd_mark_clade_faithpd_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
@@ -43,24 +43,22 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_fuzz(
+def test_alifestd_mark_clade_faithpd_polars_fuzz(
     phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
-    """Verify origin_time_delta and ancestor_origin_time columns are correctly
-    added."""
+    """Verify clade_faithpd column is correctly added."""
     df_prepared = pl.from_pandas(phylogeny_df)
     df_pl = apply(df_prepared)
 
-    result = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+    result = alifestd_mark_clade_faithpd_polars(df_pl).lazy().collect()
 
-    assert "origin_time_delta" in result.columns
-    assert "ancestor_origin_time" in result.columns
+    assert "clade_faithpd" in result.columns
     assert len(result) == len(df_prepared)
 
     assert result["id"].to_list() == df_prepared["id"].to_list()
 
-    # all origin_time_delta values should be >= 0
-    assert (result["origin_time_delta"] >= 0.0).all()
+    # all clade_faithpd values should be >= 0
+    assert (result["clade_faithpd"] >= 0.0).all()
 
 
 @pytest.mark.parametrize(
@@ -84,22 +82,17 @@ def test_alifestd_mark_origin_time_delta_polars_fuzz(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_matches_pandas(
+def test_alifestd_mark_clade_faithpd_polars_matches_pandas(
     phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
     """Verify polars result matches pandas result."""
-    result_pd = alifestd_mark_origin_time_delta_asexual(
-        phylogeny_df, mutate=False
-    )
+    result_pd = alifestd_mark_clade_faithpd_asexual(phylogeny_df, mutate=False)
 
     df_pl = apply(pl.from_pandas(phylogeny_df))
-    result_pl = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+    result_pl = alifestd_mark_clade_faithpd_polars(df_pl).lazy().collect()
 
-    assert result_pd["origin_time_delta"].tolist() == pytest.approx(
-        result_pl["origin_time_delta"].to_list()
-    )
-    assert result_pd["ancestor_origin_time"].tolist() == pytest.approx(
-        result_pl["ancestor_origin_time"].to_list()
+    assert result_pd["clade_faithpd"].tolist() == pytest.approx(
+        result_pl["clade_faithpd"].to_list()
     )
 
 
@@ -110,7 +103,7 @@ def test_alifestd_mark_origin_time_delta_polars_matches_pandas(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_simple_tree(
+def test_alifestd_mark_clade_faithpd_polars_simple_tree(
     apply: typing.Callable,
 ):
     """Test a simple tree with origin_time.
@@ -130,14 +123,9 @@ def test_alifestd_mark_origin_time_delta_polars_simple_tree(
         ),
     )
 
-    result = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+    result = alifestd_mark_clade_faithpd_polars(df_pl).lazy().collect()
 
-    assert result["origin_time_delta"].to_list() == pytest.approx(
-        [0.0, 1.0, 2.0]
-    )
-    assert result["ancestor_origin_time"].to_list() == pytest.approx(
-        [0.0, 0.0, 1.0]
-    )
+    assert result["clade_faithpd"].to_list() == pytest.approx([3.0, 2.0, 0.0])
 
 
 @pytest.mark.parametrize(
@@ -147,10 +135,10 @@ def test_alifestd_mark_origin_time_delta_polars_simple_tree(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_single_node(
+def test_alifestd_mark_clade_faithpd_polars_single_node(
     apply: typing.Callable,
 ):
-    """A single root node has origin_time_delta of 0."""
+    """A single root node has clade_faithpd of 0."""
     df_pl = apply(
         pl.DataFrame(
             {
@@ -161,10 +149,9 @@ def test_alifestd_mark_origin_time_delta_polars_single_node(
         ),
     )
 
-    result = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+    result = alifestd_mark_clade_faithpd_polars(df_pl).lazy().collect()
 
-    assert result["origin_time_delta"].to_list() == pytest.approx([0.0])
-    assert result["ancestor_origin_time"].to_list() == pytest.approx([0.0])
+    assert result["clade_faithpd"].to_list() == pytest.approx([0.0])
 
 
 @pytest.mark.parametrize(
@@ -174,10 +161,8 @@ def test_alifestd_mark_origin_time_delta_polars_single_node(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_empty(
-    apply: typing.Callable,
-):
-    """Empty dataframe gets origin_time_delta column."""
+def test_alifestd_mark_clade_faithpd_polars_empty(apply: typing.Callable):
+    """Empty dataframe gets clade_faithpd column."""
     df_pl = apply(
         pl.DataFrame(
             {"id": [], "ancestor_id": [], "origin_time": []},
@@ -189,10 +174,9 @@ def test_alifestd_mark_origin_time_delta_polars_empty(
         ),
     )
 
-    result = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+    result = alifestd_mark_clade_faithpd_polars(df_pl).lazy().collect()
 
-    assert "origin_time_delta" in result.columns
-    assert "ancestor_origin_time" in result.columns
+    assert "clade_faithpd" in result.columns
     assert result.is_empty()
 
 
@@ -203,7 +187,7 @@ def test_alifestd_mark_origin_time_delta_polars_empty(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_non_contiguous_ids(
+def test_alifestd_mark_clade_faithpd_polars_non_contiguous_ids(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for non-contiguous ids."""
@@ -217,7 +201,7 @@ def test_alifestd_mark_origin_time_delta_polars_non_contiguous_ids(
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_faithpd_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -227,7 +211,7 @@ def test_alifestd_mark_origin_time_delta_polars_non_contiguous_ids(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_unsorted(
+def test_alifestd_mark_clade_faithpd_polars_unsorted(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for topologically unsorted data."""
@@ -241,4 +225,4 @@ def test_alifestd_mark_origin_time_delta_polars_unsorted(
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_faithpd_polars(df_pl).lazy().collect()

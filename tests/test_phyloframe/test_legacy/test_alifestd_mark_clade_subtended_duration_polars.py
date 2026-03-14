@@ -6,19 +6,17 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_mark_max_descendant_origin_time_asexual,
+    alifestd_mark_clade_subtended_duration_asexual,
     alifestd_to_working_format,
 )
-from phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars import (
-    alifestd_mark_max_descendant_origin_time_polars as alifestd_mark_max_descendant_origin_time_polars_,
+from phyloframe.legacy._alifestd_mark_clade_subtended_duration_polars import (
+    alifestd_mark_clade_subtended_duration_polars as alifestd_mark_clade_subtended_duration_polars_,
 )
 
 from ._impl import enforce_dtype_stability_polars
 
-alifestd_mark_max_descendant_origin_time_polars = (
-    enforce_dtype_stability_polars(
-        alifestd_mark_max_descendant_origin_time_polars_,
-    )
+alifestd_mark_clade_subtended_duration_polars = enforce_dtype_stability_polars(
+    alifestd_mark_clade_subtended_duration_polars_,
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
@@ -31,7 +29,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_simple_tree(
+def test_alifestd_mark_clade_subtended_duration_polars_simple_tree(
     apply: typing.Callable,
 ):
     """Test a simple tree.
@@ -42,6 +40,17 @@ def test_alifestd_mark_max_descendant_origin_time_polars_simple_tree(
         |   +-- 3 (ot=3)
         |   +-- 4 (ot=4)
         +-- 2 (ot=2)
+
+    max_desc_ot: [4, 4, 2, 3, 4]
+    ancestor_ot for non-roots: [-, 0, 0, 1, 1]
+    For roots, ancestor_ot = 0
+
+    clade_subtended_duration = max_desc_ot - effective_ancestor_ot
+    node 0: 4 - 0 = 4 (root, ancestor_ot = 0)
+    node 1: 4 - 0 = 4
+    node 2: 2 - 0 = 2
+    node 3: 3 - 1 = 2
+    node 4: 4 - 1 = 3
     """
     df_pl = apply(
         pl.DataFrame(
@@ -54,15 +63,15 @@ def test_alifestd_mark_max_descendant_origin_time_polars_simple_tree(
     )
 
     result = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
     )
 
-    assert result["max_descendant_origin_time"].to_list() == [
+    assert result["clade_subtended_duration"].to_list() == [
         4.0,
         4.0,
         2.0,
+        2.0,
         3.0,
-        4.0,
     ]
 
 
@@ -73,10 +82,10 @@ def test_alifestd_mark_max_descendant_origin_time_polars_simple_tree(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_single_node(
+def test_alifestd_mark_clade_subtended_duration_polars_single_node(
     apply: typing.Callable,
 ):
-    """A single root node's max_descendant_origin_time is its own."""
+    """A single root node."""
     df_pl = apply(
         pl.DataFrame(
             {
@@ -88,10 +97,11 @@ def test_alifestd_mark_max_descendant_origin_time_polars_single_node(
     )
 
     result = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
     )
 
-    assert result["max_descendant_origin_time"].to_list() == [5.0]
+    # root: max_desc_ot = 5.0, ancestor_ot = 0 (root rule)
+    assert result["clade_subtended_duration"].to_list() == [5.0]
 
 
 @pytest.mark.parametrize(
@@ -101,10 +111,10 @@ def test_alifestd_mark_max_descendant_origin_time_polars_single_node(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_empty(
+def test_alifestd_mark_clade_subtended_duration_polars_empty(
     apply: typing.Callable,
 ):
-    """Empty dataframe gets max_descendant_origin_time column."""
+    """Empty dataframe gets clade_subtended_duration column."""
     df_pl = apply(
         pl.DataFrame(
             {"id": [], "ancestor_id": [], "origin_time": []},
@@ -117,10 +127,10 @@ def test_alifestd_mark_max_descendant_origin_time_polars_empty(
     )
 
     result = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
     )
 
-    assert "max_descendant_origin_time" in result.columns
+    assert "clade_subtended_duration" in result.columns
     assert result.is_empty()
 
 
@@ -131,7 +141,7 @@ def test_alifestd_mark_max_descendant_origin_time_polars_empty(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_non_contiguous_ids(
+def test_alifestd_mark_clade_subtended_duration_polars_non_contiguous_ids(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for non-contiguous ids."""
@@ -145,7 +155,7 @@ def test_alifestd_mark_max_descendant_origin_time_polars_non_contiguous_ids(
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -155,7 +165,7 @@ def test_alifestd_mark_max_descendant_origin_time_polars_non_contiguous_ids(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_unsorted(
+def test_alifestd_mark_clade_subtended_duration_polars_unsorted(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for topologically unsorted data."""
@@ -169,7 +179,7 @@ def test_alifestd_mark_max_descendant_origin_time_polars_unsorted(
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -193,20 +203,22 @@ def test_alifestd_mark_max_descendant_origin_time_polars_unsorted(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_matches_pandas(
+def test_alifestd_mark_clade_subtended_duration_polars_matches_pandas(
     phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
     """Verify polars result matches pandas result."""
-    result_pd = alifestd_mark_max_descendant_origin_time_asexual(
+    result_pd = alifestd_mark_clade_subtended_duration_asexual(
         phylogeny_df,
         mutate=False,
     )
 
     df_pl = apply(pl.from_pandas(phylogeny_df))
     result_pl = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
     )
 
-    assert result_pd["max_descendant_origin_time"].tolist() == (
-        result_pl["max_descendant_origin_time"].to_list()
-    )
+    pd_vals = result_pd["clade_subtended_duration"].tolist()
+    pl_vals = result_pl["clade_subtended_duration"].to_list()
+
+    for pd_val, pl_val in zip(pd_vals, pl_vals):
+        assert abs(pd_val - pl_val) < 1e-10, f"{pd_val} != {pl_val}"

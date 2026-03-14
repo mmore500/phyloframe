@@ -6,19 +6,17 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_mark_max_descendant_origin_time_asexual,
+    alifestd_mark_num_leaves_sibling_asexual,
     alifestd_to_working_format,
 )
-from phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars import (
-    alifestd_mark_max_descendant_origin_time_polars as alifestd_mark_max_descendant_origin_time_polars_,
+from phyloframe.legacy._alifestd_mark_num_leaves_sibling_polars import (
+    alifestd_mark_num_leaves_sibling_polars as alifestd_mark_num_leaves_sibling_polars_,
 )
 
 from ._impl import enforce_dtype_stability_polars
 
-alifestd_mark_max_descendant_origin_time_polars = (
-    enforce_dtype_stability_polars(
-        alifestd_mark_max_descendant_origin_time_polars_,
-    )
+alifestd_mark_num_leaves_sibling_polars = enforce_dtype_stability_polars(
+    alifestd_mark_num_leaves_sibling_polars_,
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
@@ -31,39 +29,39 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_simple_tree(
+def test_alifestd_mark_num_leaves_sibling_polars_simple_tree(
     apply: typing.Callable,
 ):
     """Test a simple tree.
 
     Tree structure:
-        0 (root, ot=0)
-        +-- 1 (ot=1)
-        |   +-- 3 (ot=3)
-        |   +-- 4 (ot=4)
-        +-- 2 (ot=2)
+        0 (root)
+        +-- 1
+        |   +-- 3
+        |   +-- 4
+        +-- 2
+
+    num_leaves: [3, 2, 1, 1, 1]
+
+    num_leaves_sibling:
+      0: root => 0
+      1: num_leaves[ancestor=0] - num_leaves[1] = 3 - 2 = 1
+      2: num_leaves[ancestor=0] - num_leaves[2] = 3 - 1 = 2
+      3: num_leaves[ancestor=1] - num_leaves[3] = 2 - 1 = 1
+      4: num_leaves[ancestor=1] - num_leaves[4] = 2 - 1 = 1
     """
     df_pl = apply(
         pl.DataFrame(
             {
                 "id": [0, 1, 2, 3, 4],
                 "ancestor_id": [0, 0, 0, 1, 1],
-                "origin_time": [0.0, 1.0, 2.0, 3.0, 4.0],
             }
         ),
     )
 
-    result = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
-    )
+    result = alifestd_mark_num_leaves_sibling_polars(df_pl).lazy().collect()
 
-    assert result["max_descendant_origin_time"].to_list() == [
-        4.0,
-        4.0,
-        2.0,
-        3.0,
-        4.0,
-    ]
+    assert result["num_leaves_sibling"].to_list() == [0, 1, 2, 1, 1]
 
 
 @pytest.mark.parametrize(
@@ -73,25 +71,22 @@ def test_alifestd_mark_max_descendant_origin_time_polars_simple_tree(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_single_node(
+def test_alifestd_mark_num_leaves_sibling_polars_single_node(
     apply: typing.Callable,
 ):
-    """A single root node's max_descendant_origin_time is its own."""
+    """A single root node has 0 sibling leaves."""
     df_pl = apply(
         pl.DataFrame(
             {
                 "id": [0],
                 "ancestor_id": [0],
-                "origin_time": [5.0],
             }
         ),
     )
 
-    result = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
-    )
+    result = alifestd_mark_num_leaves_sibling_polars(df_pl).lazy().collect()
 
-    assert result["max_descendant_origin_time"].to_list() == [5.0]
+    assert result["num_leaves_sibling"].to_list() == [0]
 
 
 @pytest.mark.parametrize(
@@ -101,26 +96,20 @@ def test_alifestd_mark_max_descendant_origin_time_polars_single_node(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_empty(
+def test_alifestd_mark_num_leaves_sibling_polars_empty(
     apply: typing.Callable,
 ):
-    """Empty dataframe gets max_descendant_origin_time column."""
+    """Empty dataframe gets num_leaves_sibling column."""
     df_pl = apply(
         pl.DataFrame(
-            {"id": [], "ancestor_id": [], "origin_time": []},
-            schema={
-                "id": pl.Int64,
-                "ancestor_id": pl.Int64,
-                "origin_time": pl.Float64,
-            },
+            {"id": [], "ancestor_id": []},
+            schema={"id": pl.Int64, "ancestor_id": pl.Int64},
         ),
     )
 
-    result = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
-    )
+    result = alifestd_mark_num_leaves_sibling_polars(df_pl).lazy().collect()
 
-    assert "max_descendant_origin_time" in result.columns
+    assert "num_leaves_sibling" in result.columns
     assert result.is_empty()
 
 
@@ -131,7 +120,7 @@ def test_alifestd_mark_max_descendant_origin_time_polars_empty(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_non_contiguous_ids(
+def test_alifestd_mark_num_leaves_sibling_polars_non_contiguous_ids(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for non-contiguous ids."""
@@ -140,12 +129,11 @@ def test_alifestd_mark_max_descendant_origin_time_polars_non_contiguous_ids(
             {
                 "id": [0, 2, 5],
                 "ancestor_id": [0, 0, 2],
-                "origin_time": [0.0, 1.0, 2.0],
             }
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_num_leaves_sibling_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -155,7 +143,7 @@ def test_alifestd_mark_max_descendant_origin_time_polars_non_contiguous_ids(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_unsorted(
+def test_alifestd_mark_num_leaves_sibling_polars_unsorted(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for topologically unsorted data."""
@@ -164,12 +152,11 @@ def test_alifestd_mark_max_descendant_origin_time_polars_unsorted(
             {
                 "id": [0, 1, 2],
                 "ancestor_id": [0, 2, 0],
-                "origin_time": [0.0, 1.0, 2.0],
             }
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
+        alifestd_mark_num_leaves_sibling_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -193,20 +180,18 @@ def test_alifestd_mark_max_descendant_origin_time_polars_unsorted(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_max_descendant_origin_time_polars_matches_pandas(
+def test_alifestd_mark_num_leaves_sibling_polars_matches_pandas(
     phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
     """Verify polars result matches pandas result."""
-    result_pd = alifestd_mark_max_descendant_origin_time_asexual(
+    result_pd = alifestd_mark_num_leaves_sibling_asexual(
         phylogeny_df,
         mutate=False,
     )
 
     df_pl = apply(pl.from_pandas(phylogeny_df))
-    result_pl = (
-        alifestd_mark_max_descendant_origin_time_polars(df_pl).lazy().collect()
-    )
+    result_pl = alifestd_mark_num_leaves_sibling_polars(df_pl).lazy().collect()
 
-    assert result_pd["max_descendant_origin_time"].tolist() == (
-        result_pl["max_descendant_origin_time"].to_list()
+    assert result_pd["num_leaves_sibling"].tolist() == (
+        result_pl["num_leaves_sibling"].to_list()
     )
