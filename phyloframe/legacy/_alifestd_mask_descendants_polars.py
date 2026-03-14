@@ -54,18 +54,14 @@ def alifestd_mask_descendants_polars(
         The input DataFrame with an additional boolean column
         ``alifestd_mask_descendants_polars``.
     """
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mask_descendants_polars: propagating mask...",

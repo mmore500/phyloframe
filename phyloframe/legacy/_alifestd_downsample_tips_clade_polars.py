@@ -204,8 +204,7 @@ def alifestd_downsample_tips_clade_polars(
     alifestd_downsample_tips_clade_asexual :
         Pandas-based implementation.
     """
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df
@@ -215,18 +214,15 @@ def alifestd_downsample_tips_clade_polars(
         "checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_downsample_tips_clade_polars: "
         "checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
         return _alifestd_downsample_tips_clade_polars_impl(

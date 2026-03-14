@@ -91,7 +91,7 @@ def alifestd_prune_extinct_lineages_polars(
         "checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
     gc.collect()
     log_memory_usage(logging.info)
 
@@ -100,9 +100,8 @@ def alifestd_prune_extinct_lineages_polars(
         "checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "polars topological sort not yet implemented",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
     gc.collect()
     log_memory_usage(logging.info)
 
