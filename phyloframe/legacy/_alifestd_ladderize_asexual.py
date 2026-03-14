@@ -21,6 +21,9 @@ from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import (
     alifestd_is_topologically_sorted,
 )
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_mark_num_leaves_asexual import (
     _alifestd_mark_num_leaves_asexual_fast_path,
     alifestd_mark_num_leaves_asexual,
@@ -35,6 +38,7 @@ from ._alifestd_try_add_ancestor_id_col import (
 def _alifestd_ladderize_asexual_fast_path(
     ancestor_ids: np.ndarray,
     num_leaves: np.ndarray,
+    num_children: np.ndarray,
     reverse: bool = False,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_ladderize_asexual`.
@@ -44,14 +48,7 @@ def _alifestd_ladderize_asexual_fast_path(
     """
     n = len(ancestor_ids)
 
-    # Step 1: count children per node
-    num_children = np.zeros(n, dtype=np.int64)
-    for i in range(n):
-        aid = ancestor_ids[i]
-        if aid != i:
-            num_children[aid] += 1
-
-    # Step 2: build CSR-style children array
+    # Step 1: build CSR-style children array
     offsets = np.zeros(n + 1, dtype=np.int64)
     for i in range(n):
         offsets[i + 1] = offsets[i] + num_children[i]
@@ -64,7 +61,7 @@ def _alifestd_ladderize_asexual_fast_path(
             children[fill[aid]] = i
             fill[aid] += 1
 
-    # Step 3: sort children of each parent by num_leaves (insertion sort)
+    # Step 2: sort children of each parent by num_leaves (insertion sort)
     for i in range(n):
         start = offsets[i]
         end = offsets[i + 1]
@@ -82,7 +79,7 @@ def _alifestd_ladderize_asexual_fast_path(
                     k -= 1
             children[k + 1] = key_child
 
-    # Step 4: preorder DFS
+    # Step 3: preorder DFS
     result = np.empty(n, dtype=np.int64)
     stack = np.empty(n, dtype=np.int64)
 
@@ -192,9 +189,13 @@ def alifestd_ladderize_asexual(
         num_leaves = _alifestd_mark_num_leaves_asexual_fast_path(
             ancestor_ids,
         )
+        num_children = _alifestd_mark_num_children_asexual_fast_path(
+            ancestor_ids,
+        )
         order = _alifestd_ladderize_asexual_fast_path(
             ancestor_ids,
             num_leaves,
+            num_children,
             reverse=reverse,
         )
         return phylogeny_df.iloc[order].reset_index(drop=True)

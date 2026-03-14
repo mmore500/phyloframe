@@ -21,6 +21,9 @@ from ._alifestd_is_topologically_sorted_polars import (
 from ._alifestd_ladderize_asexual import (
     _alifestd_ladderize_asexual_fast_path,
 )
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_mark_num_leaves_asexual import (
     _alifestd_mark_num_leaves_asexual_fast_path,
 )
@@ -96,10 +99,17 @@ def alifestd_ladderize_polars(
     num_leaves = _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)
 
     logging.info(
+        "- alifestd_ladderize_polars: computing child counts...",
+    )
+    num_children = _alifestd_mark_num_children_asexual_fast_path(
+        ancestor_ids,
+    )
+
+    logging.info(
         "- alifestd_ladderize_polars: computing ladderized order...",
     )
     order = _alifestd_ladderize_asexual_fast_path(
-        ancestor_ids, num_leaves, reverse=reverse
+        ancestor_ids, num_leaves, num_children, reverse=reverse
     )
 
     return phylogeny_df.lazy().collect()[order.tolist()]
