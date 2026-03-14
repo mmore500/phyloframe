@@ -21,7 +21,6 @@ from ._alifestd_is_topologically_sorted import (
     alifestd_is_topologically_sorted,
 )
 from ._alifestd_mark_node_depth_asexual import (
-    _alifestd_calc_node_depth_asexual_contiguous,
     alifestd_mark_node_depth_asexual,
 )
 from ._alifestd_topological_sort import alifestd_topological_sort
@@ -59,12 +58,6 @@ def _alifestd_sort_children_asexual_slow_path(
     reverse: bool = False,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_sort_children_asexual`."""
-    if "node_depth" not in phylogeny_df.columns:
-        phylogeny_df = alifestd_mark_node_depth_asexual(
-            phylogeny_df,
-            mutate=True,
-        )
-
     return phylogeny_df.sort_values(
         by=["node_depth", "ancestor_id", criterion],
         ascending=[True, True, not reverse],
@@ -132,12 +125,16 @@ def alifestd_sort_children_asexual(
     if not alifestd_is_topologically_sorted(phylogeny_df):
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
+    if "node_depth" not in phylogeny_df.columns:
+        phylogeny_df = alifestd_mark_node_depth_asexual(
+            phylogeny_df,
+            mutate=True,
+        )
+
     if alifestd_has_contiguous_ids(phylogeny_df):
         ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
         criterion_values = phylogeny_df[criterion].to_numpy()
-        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
-            ancestor_ids,
-        )
+        node_depths = phylogeny_df["node_depth"].to_numpy()
         order = _alifestd_sort_children_asexual_fast_path(
             ancestor_ids,
             criterion_values,
