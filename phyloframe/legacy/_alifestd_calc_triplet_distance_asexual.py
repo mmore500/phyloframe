@@ -1,5 +1,3 @@
-from packaging.version import parse
-
 import pandas as pd
 import tqdist
 
@@ -22,8 +20,8 @@ def alifestd_calc_triplet_distance_asexual(
     ref = alifestd_mark_leaves(alifestd_collapse_unifurcations(ref))
     cmp = alifestd_mark_leaves(alifestd_collapse_unifurcations(cmp))
 
-    ref[taxon_label_key] = ref[taxon_label_key].astype(str)
-    cmp[taxon_label_key] = cmp[taxon_label_key].astype(str)
+    ref = ref.astype({taxon_label_key: str})
+    cmp = cmp.astype({taxon_label_key: str})
     ref.loc[~ref["is_leaf"], taxon_label_key] = ""
     cmp.loc[~cmp["is_leaf"], taxon_label_key] = ""
 
