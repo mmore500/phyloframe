@@ -4,7 +4,6 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -42,42 +41,14 @@ def alifestd_mark_clade_subtended_duration_polars(
     logging.info(
         "- alifestd_mark_clade_subtended_duration_polars: computing...",
     )
-    max_desc_ot = (
-        phylogeny_df.lazy()
-        .select("max_descendant_origin_time")
-        .collect()
-        .to_series()
-        .cast(pl.Float64)
-        .to_numpy()
-    )
-    ancestor_ot = (
-        phylogeny_df.lazy()
-        .select("ancestor_origin_time")
-        .collect()
-        .to_series()
-        .cast(pl.Float64)
-        .to_numpy()
-    )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
-
     # For roots (ancestor_id == id), use 0 as ancestor origin time
-    effective_ancestor_ot = np.where(
-        ancestor_ids != ids,
-        ancestor_ot,
-        0.0,
-    )
-
-    result = max_desc_ot - effective_ancestor_ot
-
     return phylogeny_df.with_columns(
-        clade_subtended_duration=result,
+        clade_subtended_duration=(
+            pl.col("max_descendant_origin_time").cast(pl.Float64)
+            - pl.when(pl.col("ancestor_id") != pl.col("id"))
+            .then(pl.col("ancestor_origin_time").cast(pl.Float64))
+            .otherwise(0.0)
+        ),
     )
 
 

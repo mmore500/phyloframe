@@ -19,36 +19,33 @@ def alifestd_find_chronological_inconsistency_polars(
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
-    df = phylogeny_df.lazy().collect()
-
-    if df.is_empty():
-        return None
-
-    schema_names = df.columns
+    schema_names = phylogeny_df.lazy().collect_schema().names()
     if "ancestor_id" not in schema_names or "origin_time" not in schema_names:
         return None
 
-    if alifestd_has_contiguous_ids_polars(phylogeny_df):
-        ancestor_ids = df["ancestor_id"].to_numpy()
-        origin_times = df["origin_time"].to_numpy()
-
-        for id_, ancestor_id in enumerate(ancestor_ids):
-            if origin_times[ancestor_id] > origin_times[id_]:
-                return int(df["id"][id_])
+    if phylogeny_df.lazy().limit(1).collect().is_empty():
         return None
-    else:
-        ids = df["id"].to_numpy()
-        ancestor_ids = df["ancestor_id"].to_numpy()
-        origin_times = df["origin_time"].to_numpy()
 
-        origin_time_lookup = {}
-        for id_, origin_time in zip(ids, origin_times):
-            origin_time_lookup[int(id_)] = origin_time
+    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+        raise NotImplementedError(
+            "alifestd_find_chronological_inconsistency_polars requires "
+            "contiguous ids",
+        )
 
-        for id_, ancestor_id in zip(ids, ancestor_ids):
-            if (
-                origin_time_lookup[int(ancestor_id)]
-                > origin_time_lookup[int(id_)]
-            ):
-                return int(id_)
+    # Use polars gather to look up ancestor origin times
+    result = (
+        phylogeny_df.lazy()
+        .with_columns(
+            ancestor_origin_time=pl.col("origin_time").gather(
+                pl.col("ancestor_id"),
+            ),
+        )
+        .filter(pl.col("ancestor_origin_time") > pl.col("origin_time"))
+        .select("id")
+        .limit(1)
+        .collect()
+    )
+
+    if result.is_empty():
         return None
+    return int(result.item())

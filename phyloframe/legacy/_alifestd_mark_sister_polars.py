@@ -55,17 +55,14 @@ def alifestd_mark_sister_polars(
         "- alifestd_mark_sister_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_sister_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "left_child_id" not in schema_names:
@@ -81,51 +78,12 @@ def alifestd_mark_sister_polars(
     logging.info(
         "- alifestd_mark_sister_polars: computing sister ids...",
     )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    left_child_ids = (
-        phylogeny_df.lazy()
-        .select("left_child_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    right_child_ids = (
-        phylogeny_df.lazy()
-        .select("right_child_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    is_left_child = (
-        phylogeny_df.lazy()
-        .select("is_left_child")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    is_right_child = (
-        phylogeny_df.lazy()
-        .select("is_right_child")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
-
-    sister_ids = (
-        right_child_ids[ancestor_ids] * is_left_child
-        + left_child_ids[ancestor_ids] * is_right_child
-        + ids * (ancestor_ids == ids)
-    )
-
     return phylogeny_df.with_columns(
-        sister_id=sister_ids,
+        sister_id=pl.when(pl.col("ancestor_id") == pl.col("id"))
+        .then(pl.col("id"))
+        .when(pl.col("is_left_child"))
+        .then(pl.col("right_child_id").gather(pl.col("ancestor_id")))
+        .otherwise(pl.col("left_child_id").gather(pl.col("ancestor_id"))),
     )
 
 

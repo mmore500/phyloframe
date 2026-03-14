@@ -50,17 +50,14 @@ def alifestd_mark_clade_nodecount_ratio_sister_polars(
         "- alifestd_mark_clade_nodecount_ratio_sister_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_clade_nodecount_ratio_sister_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "sister_id" not in schema_names:
@@ -71,26 +68,16 @@ def alifestd_mark_clade_nodecount_ratio_sister_polars(
     logging.info(
         "- alifestd_mark_clade_nodecount_ratio_sister_polars: computing...",
     )
-    num_descendants = (
-        phylogeny_df.lazy()
-        .select("num_descendants")
-        .collect()
-        .to_series()
-        .cast(pl.Float64)
-        .to_numpy()
-    )
-    sister_ids = (
-        phylogeny_df.lazy()
-        .select("sister_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-
-    result = (num_descendants + 1) / (num_descendants[sister_ids] + 1)
-
     return phylogeny_df.with_columns(
-        clade_nodecount_ratio_sister=result,
+        clade_nodecount_ratio_sister=(
+            (pl.col("num_descendants").cast(pl.Float64) + 1)
+            / (
+                pl.col("num_descendants")
+                .cast(pl.Float64)
+                .gather(pl.col("sister_id"))
+                + 1
+            )
+        ),
     )
 
 

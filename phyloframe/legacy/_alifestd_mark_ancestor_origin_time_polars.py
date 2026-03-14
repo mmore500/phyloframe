@@ -16,9 +16,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_ancestor_origin_time_asexual import (
-    _alifestd_get_ancestor_origin_time_asexual_contiguous,
-)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -46,48 +43,22 @@ def alifestd_mark_ancestor_origin_time_polars(
         "- alifestd_mark_ancestor_origin_time_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_ancestor_origin_time_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
-
-    logging.info(
-        "- alifestd_mark_ancestor_origin_time_polars: extracting columns...",
-    )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    origin_times = (
-        phylogeny_df.lazy()
-        .select("origin_time")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_ancestor_origin_time_polars: calculating ancestor origin times...",
     )
-    ancestor_origin_times = (
-        _alifestd_get_ancestor_origin_time_asexual_contiguous(
-            ancestor_ids,
-            origin_times,
-        )
-    )
-
     return phylogeny_df.with_columns(
-        ancestor_origin_time=pl.Series(ancestor_origin_times),
+        ancestor_origin_time=pl.col("origin_time").gather(
+            pl.col("ancestor_id"),
+        ),
     )
 
 

@@ -47,17 +47,14 @@ def alifestd_mark_right_child_polars(
         "- alifestd_mark_right_child_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_right_child_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_right_child_polars: extracting ancestor ids...",
@@ -73,10 +70,10 @@ def alifestd_mark_right_child_polars(
     logging.info(
         "- alifestd_mark_right_child_polars: computing right child ids...",
     )
-    result = _alifestd_mark_right_child_asexual_fast_path(ancestor_ids)
-
     return phylogeny_df.with_columns(
-        right_child_id=result,
+        right_child_id=_alifestd_mark_right_child_asexual_fast_path(
+            ancestor_ids,
+        ),
     )
 
 
