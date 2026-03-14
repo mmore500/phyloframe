@@ -43,7 +43,7 @@ def test_alifestd_mark_clade_leafcount_ratio_sister_polars_cli_csv():
             output_file,
         ],
         check=True,
-        input=f"{assets}/trunktestphylo.csv".encode(),
+        input=f"{assets}/bifurcating_test.csv".encode(),
     )
     assert os.path.exists(output_file)
     result_df = pd.read_csv(output_file)
@@ -63,7 +63,7 @@ def test_alifestd_mark_clade_leafcount_ratio_sister_polars_cli_parquet():
             output_file,
         ],
         check=True,
-        input=f"{assets}/trunktestphylo.csv".encode(),
+        input=f"{assets}/bifurcating_test.csv".encode(),
     )
     assert os.path.exists(output_file)
     result_df = pd.read_parquet(output_file)
