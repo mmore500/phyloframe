@@ -1,4 +1,4 @@
-cff-version: 0.3.0
+cff-version: 0.4.0
 message: "If you use this software, please cite it as below."
 title: 'phyloframe: Dataframe-based tools for working with phylogenetic trees'
 abstract: "Dataframe-based tools for working with phylogenetic trees."
@@ -11,4 +11,4 @@ doi: 10.5281/zenodo.18842674
 license: MIT
 repository-code: https://github.com/mmore500/phyloframe
 url: "https://github.com/mmore500/phyloframe"
-version: 0.3.0
+version: 0.4.0
