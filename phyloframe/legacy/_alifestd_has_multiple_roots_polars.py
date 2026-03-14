@@ -9,8 +9,11 @@ def alifestd_has_multiple_roots_polars(
         raise NotImplementedError("ancestor_id column required")
 
     return (
-        phylogeny_df.lazy()
-        .select((pl.col("ancestor_id") == pl.col("id")).sum())
-        .collect()
-        .item()
-    ) >= 2
+        len(
+            phylogeny_df.lazy()
+            .filter(pl.col("ancestor_id") == pl.col("id"))
+            .head(2)
+            .collect()
+        )
+        >= 2
+    )
