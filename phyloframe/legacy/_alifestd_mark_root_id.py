@@ -62,24 +62,25 @@ def alifestd_mark_root_id(
     if not alifestd_is_topologically_sorted(phylogeny_df):
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
-    if alifestd_has_contiguous_ids(phylogeny_df):
+    if (
+        alifestd_has_contiguous_ids(phylogeny_df)
+        and "ancestor_id" in phylogeny_df.columns
+    ):
         phylogeny_df.reset_index(drop=True, inplace=True)
-        if "ancestor_id" in phylogeny_df.columns:  # asexual fast path
-            phylogeny_df["root_id"] = _alifestd_mark_root_id_asexual_fast_path(
-                phylogeny_df["ancestor_id"].to_numpy(),
-            )
-            return phylogeny_df
-    else:
+        phylogeny_df["root_id"] = _alifestd_mark_root_id_asexual_fast_path(
+            phylogeny_df["ancestor_id"].to_numpy(),
+        )
+    elif "ancestor_id" in phylogeny_df.columns:  # asexual, non-contiguous
         phylogeny_df.index = phylogeny_df["id"]
-
-    phylogeny_df["root_id"] = phylogeny_df["id"]
-    if "ancestor_id" in phylogeny_df.columns:  # asexual
+        phylogeny_df["root_id"] = phylogeny_df["id"]
         for index in phylogeny_df.index:
             ancestor_id = phylogeny_df.at[index, "ancestor_id"]
             phylogeny_df.at[index, "root_id"] = phylogeny_df.at[
                 ancestor_id, "root_id"
             ]
     else:  # sexual
+        phylogeny_df.index = phylogeny_df["id"]
+        phylogeny_df["root_id"] = phylogeny_df["id"]
         for index in phylogeny_df.index:
             ancestor_list = phylogeny_df.at[index, "ancestor_list"]
             ancestor_ids = alifestd_parse_ancestor_ids(ancestor_list)
