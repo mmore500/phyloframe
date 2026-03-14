@@ -7,6 +7,7 @@ if __name__ == "__main__":
         """
 Available commands (experimental API):
 $ python3 -m phyloframe.legacy._alifestd_add_global_root
+$ python3 -m phyloframe.legacy._alifestd_add_global_root_polars
 $ python3 -m phyloframe.legacy._alifestd_add_inner_knuckles_asexual
 $ python3 -m phyloframe.legacy._alifestd_add_inner_leaves
 $ python3 -m phyloframe.legacy._alifestd_add_inner_niblings_asexual
@@ -41,6 +42,7 @@ $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity_polars
 $ python3 -m phyloframe.legacy._alifestd_from_newick
 $ python3 -m phyloframe.legacy._alifestd_from_newick_polars
 $ python3 -m phyloframe.legacy._alifestd_join_roots
+$ python3 -m phyloframe.legacy._alifestd_join_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_ladderize_asexual
 $ python3 -m phyloframe.legacy._alifestd_ladderize_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_asexual
@@ -128,6 +130,7 @@ $ python3 -m phyloframe.legacy._alifestd_splay_polytomies
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual
 $ python3 -m phyloframe.legacy._alifestd_to_working_format
 $ python3 -m phyloframe.legacy._alifestd_topological_sort
+$ python3 -m phyloframe.legacy._alifestd_topological_sort_polars
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_id_col
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_id_col_polars
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col
