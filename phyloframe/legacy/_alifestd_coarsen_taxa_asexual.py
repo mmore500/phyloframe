@@ -1,6 +1,7 @@
 import typing
 
 import numpy as np
+from packaging.version import parse
 import pandas as pd
 
 from .._auxlib._jit import jit
@@ -154,7 +155,9 @@ def alifestd_coarsen_taxa_asexual(
             phylogeny_df["ancestor_id"],
             phylogeny_df["alifestd_coarsen_taxa_asexual_taxon_founder_id"],
         ) = _alifestd_coarsen_taxa_asexual_fast_path(
-            phylogeny_df["ancestor_id"].values,
+            phylogeny_df["ancestor_id"].to_numpy(
+                copy=parse(pd.__version__) >= parse("3.0.0"),
+            ),
             phylogeny_df[
                 "alifestd_coarsen_taxa_asexual_is_taxon_founder"
             ].values,

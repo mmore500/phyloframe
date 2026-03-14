@@ -14,6 +14,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
+    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }} pandas${{ matrix.pandas-version }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -22,6 +23,17 @@ jobs:
         subdivision:
           - "test_legacy"
           - "test_auxlib"
+        pandas-version: ["==3.*"]
+        exclude:
+          - python-version: "3.10"
+            pandas-version: "==3.*"
+        include:
+          - python-version: "3.12"
+            subdivision: "test_legacy"
+            pandas-version: "==2.3.3"
+          - python-version: "3.12"
+            subdivision: "test_auxlib"
+            pandas-version: "==2.3.3"
 
     steps:
     - uses: actions/checkout@v1
@@ -36,7 +48,7 @@ jobs:
     - name: Test with tox
       run: |
         export PHYLOFRAME_TESTS_SUBDIVISION=${{ matrix.subdivision }}
-        tox
+        tox --force-dep "pandas${{ matrix.pandas-version }}"
 
   test-heavy:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -84,6 +96,7 @@ jobs:
         python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col --help
 
   coverage:
+    name: "coverage ${{ matrix.subdivision }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false

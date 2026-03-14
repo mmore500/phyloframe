@@ -106,7 +106,7 @@ nbsphinx==0.9.3
     # via phyloframe (../../pyproject.toml)
 nest-asyncio==1.6.0
     # via ipykernel
-numpy==2.4.2
+numpy==2.4.3
     # via
     #   phyloframe (../../pyproject.toml)
     #   fishersrc
@@ -121,12 +121,13 @@ ordered-set==4.1.0
     # via phyloframe (../../pyproject.toml)
 packaging==26.0
     # via
+    #   phyloframe (../../pyproject.toml)
     #   ipykernel
     #   lazy-loader
     #   nbconvert
     #   sphinx
     #   statsmodels
-pandas==2.3.3
+pandas==3.0.1
     # via
     #   phyloframe (../../pyproject.toml)
     #   statsmodels
@@ -142,13 +143,13 @@ pickleshare==0.7.5
     # via ipython
 platformdirs==4.9.4
     # via jupyter-core
-polars==1.37.1
+polars==1.39.0
     # via
     #   phyloframe (../../pyproject.toml)
     #   joinem
-polars-runtime-32==1.37.1
+polars-runtime-32==1.39.0
     # via polars
-polars-runtime-64==1.37.1
+polars-runtime-64==1.39.0
     # via polars
 prompt-toolkit==3.0.52
     # via ipython
@@ -171,8 +172,6 @@ python-dateutil==2.9.0.post0
     # via
     #   jupyter-client
     #   pandas
-pytz==2026.1.post1
-    # via pandas
 pyyaml==6.0.1
     # via phyloframe (../../pyproject.toml)
 pyzmq==27.1.0
@@ -233,7 +232,7 @@ threadpoolctl==3.6.0
     # via scikit-learn
 tinycss2==1.4.0
     # via bleach
-tornado==6.5.4
+tornado==6.5.5
     # via
     #   ipykernel
     #   jupyter-client
@@ -259,8 +258,6 @@ typing-extensions==4.15.0
     #   phyloframe (../../pyproject.toml)
     #   beautifulsoup4
     #   referencing
-tzdata==2025.3
-    # via pandas
 urllib3==2.6.3
     # via requests
 wcwidth==0.6.0

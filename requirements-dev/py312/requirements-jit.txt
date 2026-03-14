@@ -16,7 +16,7 @@ more-itertools==10.8.0
     # via phyloframe (../../pyproject.toml)
 numba==0.64.0
     # via phyloframe (../../pyproject.toml)
-numpy==2.4.2
+numpy==2.4.3
     # via
     #   phyloframe (../../pyproject.toml)
     #   fishersrc
@@ -32,29 +32,28 @@ ordered-set==4.1.0
     # via phyloframe (../../pyproject.toml)
 packaging==26.0
     # via
+    #   phyloframe (../../pyproject.toml)
     #   lazy-loader
     #   statsmodels
-pandas==2.3.3
+pandas==3.0.1
     # via
     #   phyloframe (../../pyproject.toml)
     #   statsmodels
 patsy==1.0.2
     # via statsmodels
-polars==1.37.1
+polars==1.39.0
     # via
     #   phyloframe (../../pyproject.toml)
     #   joinem
-polars-runtime-32==1.37.1
+polars-runtime-32==1.39.0
     # via polars
-polars-runtime-64==1.37.1
+polars-runtime-64==1.39.0
     # via polars
 pyarrow==23.0.1
     # via
     #   phyloframe (../../pyproject.toml)
     #   polars
 python-dateutil==2.9.0.post0
-    # via pandas
-pytz==2026.1.post1
     # via pandas
 scikit-learn==1.8.0
     # via phyloframe (../../pyproject.toml)
@@ -80,5 +79,3 @@ tqdm==4.67.3
     #   joinem
 typing-extensions==4.15.0
     # via phyloframe (../../pyproject.toml)
-tzdata==2025.3
-    # via pandas

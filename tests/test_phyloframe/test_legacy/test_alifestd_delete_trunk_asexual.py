@@ -65,7 +65,7 @@ def test_alifestd_delete_trunk_asexual_single_trunk(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
@@ -126,7 +126,7 @@ def test_alifestd_delete_trunk_asexual_no_collapse_needed2(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
@@ -153,7 +153,7 @@ def test_alifestd_delete_trunk_asexual_no_collapse_needed3(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
@@ -224,7 +224,7 @@ def test_alifestd_delete_trunk_asexual_collapse2(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
@@ -277,12 +277,21 @@ def test_alifestd_delete_trunk_asexual_unifurcation():
         taxon_label="dstream_data_id",
     )
 
+    phylo_ct = phylo.convert_dtypes()
     pdt.assert_frame_equal(
-        alifestd_delete_trunk_asexual(phylo),
+        alifestd_delete_trunk_asexual(phylo).convert_dtypes(),
         alifestd_delete_trunk_asexual_polars(
-            pl.from_pandas(phylo)
-        ).to_pandas(),
-        check_dtype=False,
+            pl.from_pandas(
+                phylo.astype(
+                    {c: "string" for c in phylo_ct.select_dtypes("string")}
+                    | {c: "boolean" for c in phylo_ct.select_dtypes("boolean")}
+                ),
+                nan_to_null=False,
+            ),
+        )
+        .to_pandas()
+        .convert_dtypes(),
+        check_dtype=True,
     )
 
     def clean(df: pd.DataFrame, allow_id_reassign: bool) -> pd.DataFrame:
