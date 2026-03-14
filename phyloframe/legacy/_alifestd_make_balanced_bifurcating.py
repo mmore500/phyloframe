@@ -1,9 +1,37 @@
 import itertools as it
 
 import more_itertools as mit
+from numba import jit
+import numpy as np
 import pandas as pd
 
 from ._alifestd_make_empty import alifestd_make_empty
+
+
+@jit(nopython=True)
+def _make_balanced_bifurcating_fast_path(depth):
+    """Build id and ancestor_id arrays for a balanced bifurcating tree."""
+    n = (1 << depth) - 1  # 2^depth - 1 total nodes
+    ids = np.empty(n, dtype=np.int64)
+    ancestor_ids = np.empty(n, dtype=np.int64)
+    ids[0] = 0
+    ancestor_ids[0] = 0
+    next_id = 1
+    level_start = 0
+    level_end = 1
+    for _ in range(depth - 1):
+        new_level_start = next_id
+        for i in range(level_start, level_end):
+            parent = ids[i]
+            ids[next_id] = next_id
+            ancestor_ids[next_id] = parent
+            next_id += 1
+            ids[next_id] = next_id
+            ancestor_ids[next_id] = parent
+            next_id += 1
+        level_start = new_level_start
+        level_end = next_id
+    return ids, ancestor_ids
 
 
 def alifestd_make_balanced_bifurcating(depth: int) -> pd.DataFrame:

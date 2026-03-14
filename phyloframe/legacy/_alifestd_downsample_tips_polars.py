@@ -27,6 +27,9 @@ from ._alifestd_prune_extinct_lineages_polars import (
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
 )
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 def _alifestd_downsample_tips_polars_impl(

@@ -3,6 +3,9 @@ import logging
 import numpy as np
 import polars as pl
 
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )

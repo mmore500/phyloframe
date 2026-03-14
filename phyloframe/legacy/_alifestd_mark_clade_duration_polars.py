@@ -33,27 +33,11 @@ def alifestd_mark_clade_duration_polars(
     logging.info(
         "- alifestd_mark_clade_duration_polars: computing clade duration...",
     )
-    max_desc_ot = (
-        phylogeny_df.lazy()
-        .select("max_descendant_origin_time")
-        .collect()
-        .to_series()
-        .cast(pl.Float64)
-        .to_numpy()
-    )
-    origin_times = (
-        phylogeny_df.lazy()
-        .select("origin_time")
-        .collect()
-        .to_series()
-        .cast(pl.Float64)
-        .to_numpy()
-    )
-
-    result = max_desc_ot - origin_times
-
     return phylogeny_df.with_columns(
-        clade_duration=result,
+        clade_duration=(
+            pl.col("max_descendant_origin_time").cast(pl.Float64)
+            - pl.col("origin_time").cast(pl.Float64)
+        ),
     )
 
 

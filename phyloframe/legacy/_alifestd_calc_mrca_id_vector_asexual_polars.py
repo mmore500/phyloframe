@@ -4,6 +4,9 @@ import typing
 import numpy as np
 import polars as pl
 
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_calc_mrca_id_vector_asexual import (
     _alifestd_calc_mrca_id_vector_asexual_fast_path,
 )
@@ -12,6 +15,9 @@ from ._alifestd_has_contiguous_ids_polars import (
 )
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
+)
+from ._alifestd_topological_sort_polars import (
+    alifestd_topological_sort_polars,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -56,29 +62,25 @@ def alifestd_calc_mrca_id_vector_asexual_polars(
         Pandas-based implementation.
     """
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "adding ancestor_id col...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "checking contiguous ids...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "checking topological sort...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "extracting ancestor ids...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: extracting ancestor ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -94,8 +96,7 @@ def alifestd_calc_mrca_id_vector_asexual_polars(
     assert n
 
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "computing mrca ids...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: computing mrca ids...",
     )
     return _alifestd_calc_mrca_id_vector_asexual_fast_path(
         ancestor_ids, target_id

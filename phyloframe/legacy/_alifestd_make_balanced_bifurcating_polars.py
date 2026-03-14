@@ -1,5 +1,8 @@
 import polars as pl
 
+from ._alifestd_make_balanced_bifurcating import (
+    _make_balanced_bifurcating_fast_path,
+)
 from ._alifestd_make_empty_polars import alifestd_make_empty_polars
 
 
@@ -23,18 +26,5 @@ def alifestd_make_balanced_bifurcating_polars(
     elif depth == 0:
         return alifestd_make_empty_polars(ancestor_id=True)
 
-    ids = [0]
-    ancestor_ids = [0]
-    next_id = 1
-    queue = [0]
-    for _ in range(depth - 1):
-        next_queue = []
-        for parent in queue:
-            for _ in range(2):
-                ids.append(next_id)
-                ancestor_ids.append(parent)
-                next_queue.append(next_id)
-                next_id += 1
-        queue = next_queue
-
+    ids, ancestor_ids = _make_balanced_bifurcating_fast_path(depth)
     return pl.DataFrame({"id": ids, "ancestor_id": ancestor_ids})

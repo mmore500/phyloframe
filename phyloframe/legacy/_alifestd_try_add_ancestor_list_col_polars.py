@@ -40,8 +40,7 @@ def alifestd_try_add_ancestor_list_col_polars(
         logging.info("ancestor_id column present, adding ancestor_list column")
 
         logging.info(
-            "- alifestd_try_add_ancestor_list_col_polars: "
-            "collecting id and ancestor_id...",
+            "- alifestd_try_add_ancestor_list_col_polars: collecting id and ancestor_id...",
         )
         id_col = phylogeny_df.lazy().select("id").collect().to_series()
         ancestor_id_col = (
@@ -49,8 +48,7 @@ def alifestd_try_add_ancestor_list_col_polars(
         )
 
         logging.info(
-            "- alifestd_try_add_ancestor_list_col_polars: "
-            "making ancestor_list column...",
+            "- alifestd_try_add_ancestor_list_col_polars: making ancestor_list column...",
         )
         return phylogeny_df.with_columns(
             alifestd_make_ancestor_list_col_polars(
