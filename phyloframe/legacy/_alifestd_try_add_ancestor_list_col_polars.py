@@ -23,9 +23,6 @@ def alifestd_try_add_ancestor_list_col_polars(
     """Add an ancestor_list column to the input DataFrame if the column does
     not already exist.
 
-    Input dataframe is not mutated by this operation unless `mutate` set True.
-    If mutate set True, operation does not occur in place; still use return
-    value to get transformed phylogeny dataframe.
 
     Notes
     -----

@@ -31,9 +31,6 @@ def alifestd_delete_trunk_asexual_polars(
     be an ancestor of a trunk entry. Children of deleted entries will become
     roots.
 
-    Input dataframe is not mutated by this operation unless `mutate` set True.
-    If mutate set True, operation does not occur in place; still use return
-    value to get transformed phylogeny dataframe.
 
     See Also
     --------

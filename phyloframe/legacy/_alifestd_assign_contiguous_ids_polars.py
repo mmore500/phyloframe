@@ -22,9 +22,7 @@ def alifestd_assign_contiguous_ids_polars(
 ) -> pl.DataFrame:
     """Reassign so each organism's id corresponds to its row number.
 
-    Organisms retain the same row location; only id numbers change. Input
-    dataframe is not mutated by this operation unless `mutate` True.
-    """
+    Organisms retain the same row location; only id numbers change."""
     phylogeny_df = phylogeny_df.lazy().collect()  # lazy not yet implemented
 
     if "ancestor_list" in phylogeny_df.columns:
