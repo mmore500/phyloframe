@@ -37,7 +37,6 @@ def enforce_identical_polars_result(
             pl_result = coerce_to_pandas(
                 pl_result, recurse=recurse_type_checks
             )
-            pl_result = pl_result.astype(pd_result.dtype)
             pd.testing.assert_series_equal(
                 pl_result,
                 pd_result,
