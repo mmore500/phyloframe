@@ -1,5 +1,4 @@
 import argparse
-import functools
 import logging
 import os
 
@@ -7,7 +6,6 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import polars as pl
 
-from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
@@ -18,58 +16,44 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_ladderize_asexual import (
-    _alifestd_ladderize_asexual_fast_path,
-)
-from ._alifestd_mark_num_leaves_asexual import (
-    _alifestd_mark_num_leaves_asexual_fast_path,
+from ._alifestd_mark_num_descendants_asexual import (
+    _alifestd_mark_num_descendants_asexual_fast_path,
 )
 
 
-def alifestd_ladderize_polars(
+def alifestd_mark_num_descendants_polars(
     phylogeny_df: pl.DataFrame,
-    reverse: bool = False,
 ) -> pl.DataFrame:
-    """Reorder rows so children are sorted by number of descendant leaves.
-
-    By default, subtrees with fewer leaves come first (ascending). Set
-    ``reverse=True`` to sort descending (more leaves first).
+    """Add column `num_descendants`, excluding self.
 
     Parameters
     ----------
     phylogeny_df : polars.DataFrame
         The phylogeny as a dataframe in alife standard format.
 
-        Must represent an asexual phylogeny with contiguous ids and
-        topologically sorted rows.
-
-    reverse : bool, default False
-        If True, sort descending (more leaves first).
+        Must represent an asexual phylogeny.
 
     Returns
     -------
     polars.DataFrame
-        The phylogeny with rows reordered in ladderized order.
-
-    Raises
-    ------
-    NotImplementedError
-        If ids are not contiguous or rows are not topologically sorted.
+        The phylogeny with an added `num_descendants` column.
 
     See Also
     --------
-    alifestd_ladderize_asexual :
+    alifestd_mark_num_descendants_asexual :
         Pandas-based implementation.
     """
 
     logging.info(
-        "- alifestd_ladderize_polars: checking contiguous ids...",
+        "- alifestd_mark_num_descendants_polars: "
+        "checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         raise NotImplementedError("non-contiguous ids not yet supported")
 
     logging.info(
-        "- alifestd_ladderize_polars: checking topological sort...",
+        "- alifestd_mark_num_descendants_polars: "
+        "checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
@@ -77,10 +61,13 @@ def alifestd_ladderize_polars(
         )
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df
+        return phylogeny_df.with_columns(
+            num_descendants=pl.lit(0).cast(pl.Int64),
+        )
 
     logging.info(
-        "- alifestd_ladderize_polars: extracting ancestor ids...",
+        "- alifestd_mark_num_descendants_polars: "
+        "extracting ancestor ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -91,26 +78,21 @@ def alifestd_ladderize_polars(
     )
 
     logging.info(
-        "- alifestd_ladderize_polars: computing leaf counts...",
+        "- alifestd_mark_num_descendants_polars: "
+        "tabulating descendant counts...",
     )
-    num_leaves = _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)
-
-    logging.info(
-        "- alifestd_ladderize_polars: computing ladderized order...",
-    )
-    order = _alifestd_ladderize_asexual_fast_path(
-        ancestor_ids, num_leaves, reverse=reverse
+    descendant_counts = _alifestd_mark_num_descendants_asexual_fast_path(
+        ancestor_ids,
     )
 
-    return phylogeny_df.lazy().collect()[order.tolist()]
+    return phylogeny_df.with_columns(
+        num_descendants=descendant_counts,
+    )
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Reorder rows so children are sorted by number of descendant leaves.
-
-By default, subtrees with fewer leaves come first (ascending). Use
-``--reverse`` to sort descending (more leaves first).
+Add column `num_descendants`, excluding self.
 
 Data is assumed to be in alife standard format.
 
@@ -125,7 +107,7 @@ Otherwise, no action is taken.
 
 See Also
 ========
-phyloframe.legacy._alifestd_ladderize_asexual :
+phyloframe.legacy._alifestd_mark_num_descendants_asexual :
     CLI entrypoint for Pandas-based implementation.
 """
 
@@ -139,14 +121,10 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_ladderize_polars",
+        dfcli_module=(
+            "phyloframe.legacy._alifestd_mark_num_descendants_polars"
+        ),
         dfcli_version=get_phyloframe_version(),
-    )
-    add_bool_arg(
-        parser,
-        "reverse",
-        default=False,
-        help="sort descending by leaf count (default: False)",
     )
     return parser
 
@@ -159,15 +137,12 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_ladderize_polars",
+            "phyloframe.legacy._alifestd_mark_num_descendants_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=functools.partial(
-                    alifestd_ladderize_polars,
-                    reverse=args.reverse,
-                ),
+                output_dataframe_op=alifestd_mark_num_descendants_polars,
             )
     except NotImplementedError as e:
         logging.error(

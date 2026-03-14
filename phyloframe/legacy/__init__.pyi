@@ -273,6 +273,9 @@ from ._alifestd_mark_num_children_polars import (
 from ._alifestd_mark_num_descendants_asexual import (
     alifestd_mark_num_descendants_asexual,
 )
+from ._alifestd_mark_num_descendants_polars import (
+    alifestd_mark_num_descendants_polars,
+)
 from ._alifestd_mark_num_leaves_asexual import alifestd_mark_num_leaves_asexual
 from ._alifestd_mark_num_leaves_polars import alifestd_mark_num_leaves_polars
 from ._alifestd_mark_num_leaves_sibling_asexual import (
@@ -503,6 +506,7 @@ __all__ = [
     "alifestd_mark_num_children_asexual",
     "alifestd_mark_num_children_polars",
     "alifestd_mark_num_descendants_asexual",
+    "alifestd_mark_num_descendants_polars",
     "alifestd_mark_num_leaves_asexual",
     "alifestd_mark_num_leaves_polars",
     "alifestd_mark_num_leaves_sibling_asexual",
