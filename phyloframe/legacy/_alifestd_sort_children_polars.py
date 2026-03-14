@@ -18,14 +18,8 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_first_child_id_asexual import (
-    _alifestd_mark_first_child_id_asexual_fast_path,
-)
-from ._alifestd_mark_next_sibling_id_asexual import (
-    _alifestd_mark_next_sibling_id_asexual_fast_path,
-)
-from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
+from ._alifestd_mark_node_depth_asexual import (
+    _alifestd_calc_node_depth_asexual_contiguous,
 )
 from ._alifestd_sort_children_asexual import (
     _alifestd_sort_children_asexual_fast_path,
@@ -39,9 +33,9 @@ def alifestd_sort_children_polars(
 ) -> pl.DataFrame:
     """Reorder rows so children are sorted by the given criterion column.
 
-    Performs a preorder DFS traversal, visiting children of each node in
-    order of ascending ``criterion`` column values. Set ``reverse=True``
-    to sort descending (higher values first).
+    Reorders rows so that among siblings, they appear in order of
+    ascending ``criterion`` column values. Set ``reverse=True`` to sort
+    descending (higher values first).
 
     The ``criterion`` column must already be present in the dataframe.
 
@@ -120,17 +114,9 @@ def alifestd_sort_children_polars(
     )
 
     logging.info(
-        "- alifestd_sort_children_polars: computing child structure...",
+        "- alifestd_sort_children_polars: computing node depths...",
     )
-    first_child_ids = _alifestd_mark_first_child_id_asexual_fast_path(
-        ancestor_ids,
-    )
-    next_sibling_ids = _alifestd_mark_next_sibling_id_asexual_fast_path(
-        ancestor_ids,
-    )
-    num_children = _alifestd_mark_num_children_asexual_fast_path(
-        ancestor_ids,
-    )
+    node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
 
     logging.info(
         "- alifestd_sort_children_polars: computing sorted order...",
@@ -138,9 +124,7 @@ def alifestd_sort_children_polars(
     order = _alifestd_sort_children_asexual_fast_path(
         ancestor_ids,
         criterion_values,
-        first_child_ids,
-        next_sibling_ids,
-        num_children,
+        node_depths,
         reverse=reverse,
     )
 
@@ -151,8 +135,8 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 
 Reorder rows so children are sorted by the given ``--criterion`` column.
 
-Performs a preorder DFS traversal, visiting children of each node in
-order of ascending criterion values. Use ``--reverse`` to sort descending.
+Reorders rows so that among siblings, they appear in order of ascending
+criterion values. Use ``--reverse`` to sort descending.
 
 The criterion column must already be present in the input data.
 

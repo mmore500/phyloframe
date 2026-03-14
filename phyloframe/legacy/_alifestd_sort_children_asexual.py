@@ -15,20 +15,13 @@ from .._auxlib._delegate_polars_implementation import (
 )
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
-from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import (
     alifestd_is_topologically_sorted,
 )
-from ._alifestd_mark_first_child_id_asexual import (
-    _alifestd_mark_first_child_id_asexual_fast_path,
-)
-from ._alifestd_mark_next_sibling_id_asexual import (
-    _alifestd_mark_next_sibling_id_asexual_fast_path,
-)
-from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
+from ._alifestd_mark_node_depth_asexual import (
+    _alifestd_calc_node_depth_asexual_contiguous,
 )
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import (
@@ -36,22 +29,19 @@ from ._alifestd_try_add_ancestor_id_col import (
 )
 
 
-@jit(nopython=True)
 def _alifestd_sort_children_asexual_fast_path(
     ancestor_ids: np.ndarray,
     criterion_values: np.ndarray,
-    first_child_ids: np.ndarray,
-    next_sibling_ids: np.ndarray,
-    num_children: np.ndarray,
+    node_depths: np.ndarray,
     reverse: bool = False,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_sort_children_asexual`.
 
     Returns a permutation array giving the row order after sorting children
-    by criterion values via preorder traversal.
+    by criterion values.
 
-    Uses first_child_id / next_sibling_id linked-list representation from
-    PR #36 to traverse children of each node.
+    Builds a path-key matrix where each node's key is the sequence of
+    criterion values along its root-to-node path, then lexsorts.
 
     Assumes contiguous ids and topological sorting.
     """
@@ -59,66 +49,20 @@ def _alifestd_sort_children_asexual_fast_path(
     if n == 0:
         return np.empty(0, dtype=np.int64)
 
-    # Mutable copies of linked list for rewriting sorted order
-    first_child = first_child_ids.copy()
-    next_sib = next_sibling_ids.copy()
+    max_depth = int(node_depths.max()) + 1
+    fill = -np.inf if not reverse else np.inf
+    path_keys = np.full((max_depth, n), fill)
 
-    # Step 1: sort children of each parent by rewriting linked list
-    for parent in range(n):
-        nc = num_children[parent]
-        if nc <= 1:
-            continue
-
-        # Collect children via linked list
-        buf = np.empty(nc, dtype=np.int64)
-        child = first_child[parent]
-        for j in range(nc):
-            buf[j] = child
-            child = next_sib[child]
-
-        # Sort using np.argsort
-        vals = np.empty(nc, dtype=criterion_values.dtype)
-        for j in range(nc):
-            vals[j] = criterion_values[buf[j]]
-        order = np.argsort(vals)
-        if reverse:
-            order = order[::-1].copy()
-
-        # Rewrite linked list to reflect sorted order
-        first_child[parent] = buf[order[0]]
-        for j in range(nc - 1):
-            next_sib[buf[order[j]]] = buf[order[j + 1]]
-        next_sib[buf[order[nc - 1]]] = buf[order[nc - 1]]
-
-    # Step 2: compute subtree sizes (bottom-up)
-    subtree_size = np.ones(n, dtype=np.int64)
-    for i in range(n - 1, -1, -1):
-        if ancestor_ids[i] != i:
-            subtree_size[ancestor_ids[i]] += subtree_size[i]
-
-    # Step 3: compute preorder positions (top-down via sorted linked list)
-    position = np.zeros(n, dtype=np.int64)
-
-    # Assign root positions
-    offset = 0
     for i in range(n):
-        if ancestor_ids[i] == i:
-            position[i] = offset
-            offset += subtree_size[i]
+        d = node_depths[i]
+        if d > 0:
+            path_keys[:d, i] = path_keys[:d, ancestor_ids[i]]
+        path_keys[d, i] = criterion_values[i]
 
-    # Assign child positions using sorted linked list
-    for parent in range(n):
-        child = first_child[parent]
-        if child == parent:
-            continue  # leaf
-        offset = position[parent] + 1
-        while child != parent:
-            position[child] = offset
-            offset += subtree_size[child]
-            nxt = next_sib[child]
-            child = nxt if nxt != child else parent
+    if reverse:
+        path_keys = -path_keys
 
-    return np.argsort(position)
+    return np.lexsort(path_keys[::-1])
 
 
 def _alifestd_sort_children_asexual_slow_path(
@@ -129,34 +73,23 @@ def _alifestd_sort_children_asexual_slow_path(
     """Implementation detail for `alifestd_sort_children_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    # build children dict
-    children = {}
+    # Compute depth and path keys for each node
+    depth = {}
+    path_key = {}
     for idx in phylogeny_df.index:
         aid = phylogeny_df.at[idx, "ancestor_id"]
-        if aid != idx:
-            children.setdefault(aid, []).append(idx)
+        if aid == idx:
+            depth[idx] = 0
+            path_key[idx] = (phylogeny_df.at[idx, criterion],)
+        else:
+            depth[idx] = depth[aid] + 1
+            path_key[idx] = path_key[aid] + (phylogeny_df.at[idx, criterion],)
 
-    # sort children by criterion column
-    for parent_id in children:
-        children[parent_id].sort(
-            key=lambda c: phylogeny_df.at[c, criterion],
-            reverse=reverse,
-        )
-
-    # preorder DFS
-    roots = [
-        idx
-        for idx in phylogeny_df.index
-        if phylogeny_df.at[idx, "ancestor_id"] == idx
-    ]
-
-    order = []
-    stack = list(reversed(roots))
-    while stack:
-        node = stack.pop()
-        order.append(node)
-        for child in reversed(children.get(node, [])):
-            stack.append(child)
+    order = sorted(
+        phylogeny_df.index,
+        key=lambda idx: path_key[idx],
+        reverse=reverse,
+    )
 
     return phylogeny_df.loc[order].reset_index(drop=True)
 
@@ -169,9 +102,9 @@ def alifestd_sort_children_asexual(
 ) -> pd.DataFrame:
     """Reorder rows so children are sorted by the given criterion column.
 
-    Performs a preorder DFS traversal, visiting children of each node in
-    order of ascending ``criterion`` column values. Set ``reverse=True``
-    to sort descending (higher values first).
+    Reorders rows so that among siblings, they appear in order of
+    ascending ``criterion`` column values. Set ``reverse=True`` to sort
+    descending (higher values first).
 
     The ``criterion`` column must already be present in the dataframe
     (e.g., added via ``alifestd_mark_num_leaves_asexual``).
@@ -229,21 +162,13 @@ def alifestd_sort_children_asexual(
                 np.float64,
             )
         )
-        first_child_ids = _alifestd_mark_first_child_id_asexual_fast_path(
-            ancestor_ids,
-        )
-        next_sibling_ids = _alifestd_mark_next_sibling_id_asexual_fast_path(
-            ancestor_ids,
-        )
-        num_children = _alifestd_mark_num_children_asexual_fast_path(
+        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
             ancestor_ids,
         )
         order = _alifestd_sort_children_asexual_fast_path(
             ancestor_ids,
             criterion_values,
-            first_child_ids,
-            next_sibling_ids,
-            num_children,
+            node_depths,
             reverse=reverse,
         )
         return phylogeny_df.iloc[order].reset_index(drop=True)
@@ -259,8 +184,8 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 
 Reorder rows so children are sorted by the given ``--criterion`` column.
 
-Performs a preorder DFS traversal, visiting children of each node in
-order of ascending criterion values. Use ``--reverse`` to sort descending.
+Reorders rows so that among siblings, they appear in order of ascending
+criterion values. Use ``--reverse`` to sort descending.
 
 The criterion column must already be present in the input data.
 
