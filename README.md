@@ -26,7 +26,7 @@ Dataframe-based tools for working with phylogenetic trees.
 A containerized release of `phyloframe` is available via [ghcr.io](https://ghcr.io/mmore500/phyloframe)
 
 ```bash
-singularity exec docker://ghcr.io/mmore500/phyloframe:v0.2.3 python3 -m phyloframe --help
+singularity exec docker://ghcr.io/mmore500/phyloframe:v0.3.0 python3 -m phyloframe --help
 ```
 
 ## Usage
