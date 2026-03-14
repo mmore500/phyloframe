@@ -50,17 +50,14 @@ def alifestd_mark_clade_subtended_duration_ratio_sister_polars(
         "- alifestd_mark_clade_subtended_duration_ratio_sister_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_clade_subtended_duration_ratio_sister_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "sister_id" not in schema_names:
@@ -73,26 +70,13 @@ def alifestd_mark_clade_subtended_duration_ratio_sister_polars(
     logging.info(
         "- alifestd_mark_clade_subtended_duration_ratio_sister_polars: computing...",
     )
-    clade_subtended_durations = (
-        phylogeny_df.lazy()
-        .select("clade_subtended_duration")
-        .collect()
-        .to_series()
-        .cast(pl.Float64)
-        .to_numpy()
-    )
-    sister_ids = (
-        phylogeny_df.lazy()
-        .select("sister_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-
-    result = clade_subtended_durations / clade_subtended_durations[sister_ids]
-
     return phylogeny_df.with_columns(
-        clade_subtended_duration_ratio_sister=result,
+        clade_subtended_duration_ratio_sister=(
+            pl.col("clade_subtended_duration").cast(pl.Float64)
+            / pl.col("clade_subtended_duration")
+            .cast(pl.Float64)
+            .gather(pl.col("sister_id"))
+        ),
     )
 
 

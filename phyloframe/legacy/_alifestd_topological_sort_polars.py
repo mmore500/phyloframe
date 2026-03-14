@@ -4,57 +4,22 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
-from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
+from ._alifestd_topological_sort import _topological_sort_fast_path
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-
-
-@jit(nopython=True)
-def _topological_sort_fast_path(ancestor_ids: np.ndarray) -> np.ndarray:
-    """Topological sort for contiguous ids using Kahn's algorithm."""
-    n = len(ancestor_ids)
-    # Count children for each node
-    num_children = np.zeros(n, dtype=np.int64)
-    for i in range(n):
-        if ancestor_ids[i] != i:
-            num_children[ancestor_ids[i]] += 1
-
-    # Initialize queue with leaves (nodes with no children)
-    queue = np.empty(n, dtype=np.int64)
-    head = 0
-    tail = 0
-    for i in range(n):
-        if num_children[i] == 0:
-            queue[tail] = i
-            tail += 1
-
-    # Process queue in reverse (leaves first)
-    result = np.empty(n, dtype=np.int64)
-    pos = n - 1
-    while head < tail:
-        node = queue[head]
-        head += 1
-        result[pos] = node
-        pos -= 1
-        ancestor = ancestor_ids[node]
-        if ancestor != node:
-            num_children[ancestor] -= 1
-            if num_children[ancestor] == 0:
-                queue[tail] = ancestor
-                tail += 1
-
-    return result
 
 
 def alifestd_topological_sort_polars(
@@ -77,9 +42,7 @@ def alifestd_topological_sort_polars(
         "- alifestd_topological_sort_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_topological_sort_polars: extracting ancestor ids...",
@@ -97,13 +60,7 @@ def alifestd_topological_sort_polars(
     )
     sort_order = _topological_sort_fast_path(ancestor_ids)
 
-    return (
-        phylogeny_df.lazy()
-        .collect()
-        .select(
-            pl.all().gather(sort_order),
-        )
-    )
+    return phylogeny_df.select(pl.all().gather(sort_order))
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

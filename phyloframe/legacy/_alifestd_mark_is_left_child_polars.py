@@ -48,17 +48,14 @@ def alifestd_mark_is_left_child_polars(
         "- alifestd_mark_is_left_child_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_is_left_child_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     if "left_child_id" not in phylogeny_df.lazy().collect_schema().names():
         phylogeny_df = alifestd_mark_left_child_polars(phylogeny_df)
@@ -69,29 +66,15 @@ def alifestd_mark_is_left_child_polars(
     logging.info(
         "- alifestd_mark_is_left_child_polars: computing is_left_child...",
     )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    left_child_ids = (
-        phylogeny_df.lazy()
-        .select("left_child_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
-    is_root = (
-        phylogeny_df.lazy().select("is_root").collect().to_series().to_numpy()
-    )
-
-    is_left_child = (left_child_ids[ancestor_ids] == ids) & ~is_root
-
     return phylogeny_df.with_columns(
-        is_left_child=is_left_child,
+        is_left_child=(
+            pl.col("left_child_id")
+            .gather(pl.col("ancestor_id"))
+            .eq(
+                pl.col("id"),
+            )
+            & ~pl.col("is_root")
+        ),
     )
 
 

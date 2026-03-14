@@ -47,17 +47,14 @@ def alifestd_splay_polytomies_polars(
         "- alifestd_splay_polytomies_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_splay_polytomies_polars: " "checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_splay_polytomies_polars: extracting arrays...",
@@ -81,21 +78,24 @@ def alifestd_splay_polytomies_polars(
         new_ancestor_ids,
     ) = _alifestd_splay_polytomies_fast_path(ancestor_ids)
 
-    df = phylogeny_df.lazy().collect()
-
     # Update ancestor_ids for existing rows
-    df = df.with_columns(ancestor_id=splayed_ancestor_ids)
+    phylogeny_df = phylogeny_df.with_columns(
+        ancestor_id=splayed_ancestor_ids,
+    )
 
     if len(new_ids) > 0:
         # Build addendum from source rows
-        addendum = df.select(pl.all().gather(new_source_ids))
+        addendum = phylogeny_df.select(pl.all().gather(new_source_ids))
         addendum = addendum.with_columns(
             id=np.array(new_ids, dtype=np.int64),
             ancestor_id=np.array(new_ancestor_ids, dtype=np.int64),
         )
-        df = pl.concat([df, addendum], how="align")
+        phylogeny_df = pl.concat(
+            [phylogeny_df, addendum],
+            how="align",
+        )
 
-    return df
+    return phylogeny_df
 
 
 _raw_description = f"""\

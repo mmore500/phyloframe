@@ -44,18 +44,15 @@ def alifestd_delete_unifurcating_roots_polars(
         "checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_delete_unifurcating_roots_polars: "
         "checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "num_children" not in schema_names:
@@ -67,29 +64,26 @@ def alifestd_delete_unifurcating_roots_polars(
         "- alifestd_delete_unifurcating_roots_polars: "
         "identifying unifurcating roots...",
     )
-    df = phylogeny_df.lazy().collect()
-
     # Mark unifurcating roots
-    df = df.with_columns(
+    phylogeny_df = phylogeny_df.with_columns(
         is_unifurcating_root=(
             (pl.col("num_children") == 1) & pl.col("is_root")
         ),
     )
 
     # For nodes whose ancestor is a unifurcating root, reparent to self
-    ancestor_ids = df["ancestor_id"].to_numpy().copy()
-    is_unifurcating_root = df["is_unifurcating_root"].to_numpy()
-    ids = df["id"].to_numpy()
-
-    for i in range(len(ids)):
-        aid = ancestor_ids[i]
-        if aid != i and is_unifurcating_root[aid]:
-            ancestor_ids[i] = ids[i]
-
-    df = df.with_columns(ancestor_id=ancestor_ids)
+    # Use polars gather to look up ancestor's is_unifurcating_root flag
+    phylogeny_df = phylogeny_df.with_columns(
+        ancestor_id=pl.when(
+            (pl.col("ancestor_id") != pl.col("id"))
+            & pl.col("is_unifurcating_root").gather(pl.col("ancestor_id")),
+        )
+        .then(pl.col("id"))
+        .otherwise(pl.col("ancestor_id")),
+    )
 
     # Filter out unifurcating roots
-    return df.filter(~pl.col("is_unifurcating_root"))
+    return phylogeny_df.filter(~pl.col("is_unifurcating_root"))
 
 
 _raw_description = f"""\

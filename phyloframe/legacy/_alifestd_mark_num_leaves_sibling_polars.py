@@ -4,7 +4,6 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -47,17 +46,14 @@ def alifestd_mark_num_leaves_sibling_polars(
         "- alifestd_mark_num_leaves_sibling_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not yet supported",
-        )
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_mark_num_leaves_sibling_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
-        )
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "num_leaves" not in schema_names:
@@ -66,31 +62,14 @@ def alifestd_mark_num_leaves_sibling_polars(
     logging.info(
         "- alifestd_mark_num_leaves_sibling_polars: computing...",
     )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
-    num_leaves = (
-        phylogeny_df.lazy()
-        .select("num_leaves")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-
     # num_leaves[ancestor_id] - num_leaves[node], but 0 for roots
-    result = np.where(
-        ancestor_ids != ids,
-        num_leaves[ancestor_ids] - num_leaves,
-        0,
-    )
-
     return phylogeny_df.with_columns(
-        num_leaves_sibling=result,
+        num_leaves_sibling=pl.when(pl.col("ancestor_id") != pl.col("id"))
+        .then(
+            pl.col("num_leaves").gather(pl.col("ancestor_id"))
+            - pl.col("num_leaves"),
+        )
+        .otherwise(0),
     )
 
 

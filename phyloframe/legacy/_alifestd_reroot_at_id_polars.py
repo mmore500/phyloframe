@@ -52,15 +52,14 @@ def alifestd_reroot_at_id_polars(
     polars.DataFrame
         The rerooted phylogeny in alife standard format.
     """
-    phylogeny_df = phylogeny_df.lazy().collect()
-
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError("non-topologically-sorted not yet supported")
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_reroot_at_id_polars: unfurling lineage...",
