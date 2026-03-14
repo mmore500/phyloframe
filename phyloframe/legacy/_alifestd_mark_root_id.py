@@ -66,7 +66,6 @@ def alifestd_mark_root_id(
         alifestd_has_contiguous_ids(phylogeny_df)
         and "ancestor_id" in phylogeny_df.columns
     ):
-        phylogeny_df.reset_index(drop=True, inplace=True)
         phylogeny_df["root_id"] = _alifestd_mark_root_id_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
         )

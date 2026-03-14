@@ -37,15 +37,24 @@ def alifestd_mark_oldest_root_polars(
     logging.info(
         "- alifestd_mark_oldest_root_polars: " "finding oldest root...",
     )
-    roots = phylogeny_df.lazy().filter(pl.col("is_root")).collect()
-
-    schema_names = phylogeny_df.lazy().collect_schema().names()
     if "origin_time" in schema_names:
         oldest_root_id = (
-            roots.sort(["origin_time", "id"]).select("id").item(0, 0)
+            phylogeny_df.lazy()
+            .filter(pl.col("is_root"))
+            .sort(["origin_time", "id"])
+            .select("id")
+            .limit(1)
+            .collect()
+            .item()
         )
     else:
-        oldest_root_id = roots.select(pl.col("id").min()).item()
+        oldest_root_id = (
+            phylogeny_df.lazy()
+            .filter(pl.col("is_root"))
+            .select(pl.col("id").min())
+            .collect()
+            .item()
+        )
 
     return phylogeny_df.with_columns(
         is_oldest_root=(pl.col("id") == oldest_root_id),
