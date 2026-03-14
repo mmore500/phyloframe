@@ -32,9 +32,7 @@ def test_alifestd_mark_first_child_id_asexual_cli_version():
 
 
 def test_alifestd_mark_first_child_id_asexual_cli_csv():
-    output_file = (
-        "/tmp/phyloframe_alifestd_mark_first_child_id_asexual.csv"  # nosec B108
-    )
+    output_file = "/tmp/phyloframe_alifestd_mark_first_child_id_asexual.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [
@@ -53,9 +51,7 @@ def test_alifestd_mark_first_child_id_asexual_cli_csv():
 
 
 def test_alifestd_mark_first_child_id_asexual_cli_parquet():
-    output_file = (
-        "/tmp/phyloframe_alifestd_mark_first_child_id_asexual.pqt"  # nosec B108
-    )
+    output_file = "/tmp/phyloframe_alifestd_mark_first_child_id_asexual.pqt"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [
