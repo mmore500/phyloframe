@@ -35,10 +35,7 @@ def test_simple(apply: typing.Callable):
 
     result = alifestd_mark_ot_mrca_polars(df).lazy().collect().sort("id")
 
-    result_map = {
-        row["id"]: row
-        for row in result.iter_rows(named=True)
-    }
+    result_map = {row["id"]: row for row in result.iter_rows(named=True)}
 
     # At time 1 (nodes 1 and 2): active lineages are leaves 1, 2.
     # Their MRCA is node 0.
@@ -131,10 +128,7 @@ def test_linear_chain(apply: typing.Callable):
 
     result = alifestd_mark_ot_mrca_polars(df).lazy().collect().sort("id")
 
-    result_map = {
-        row["id"]: row
-        for row in result.iter_rows(named=True)
-    }
+    result_map = {row["id"]: row for row in result.iter_rows(named=True)}
 
     # At time 2 (node 2, only leaf): MRCA = 2 itself
     assert result_map[2]["ot_mrca_id"] == 2

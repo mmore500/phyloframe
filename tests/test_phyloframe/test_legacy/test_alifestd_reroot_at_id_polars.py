@@ -30,8 +30,7 @@ def test_reroot_simple(apply: typing.Callable):
     result = result.lazy().collect().sort("id")
 
     ancestor_map = {
-        row["id"]: row["ancestor_id"]
-        for row in result.iter_rows(named=True)
+        row["id"]: row["ancestor_id"] for row in result.iter_rows(named=True)
     }
 
     # node 4 should now be root (self-ancestor)
@@ -68,8 +67,7 @@ def test_reroot_at_root(apply: typing.Callable):
     result = result.lazy().collect().sort("id")
 
     ancestor_map = {
-        row["id"]: row["ancestor_id"]
-        for row in result.iter_rows(named=True)
+        row["id"]: row["ancestor_id"] for row in result.iter_rows(named=True)
     }
 
     assert ancestor_map[0] == 0
