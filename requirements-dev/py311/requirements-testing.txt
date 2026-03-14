@@ -84,6 +84,7 @@ ordered-set==4.1.0
     # via phyloframe (../../pyproject.toml)
 packaging==26.0
     # via
+    #   phyloframe (../../pyproject.toml)
     #   lazy-loader
     #   pytest
     #   statsmodels
