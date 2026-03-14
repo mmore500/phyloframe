@@ -267,6 +267,33 @@ jobs:
           # paper.md
           path: joss/paper.pdf
 
+  benchmark:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.12"
+      - name: Install phyloframe
+        run: python3 -m pip install .
+      - name: Install benchmark dependencies
+        run: |
+          python3 -m pip install \
+            biopython==1.86 \
+            dendropy==5.0.8 \
+            treeswift==1.1.45 \
+            ete3==3.1.3 \
+            CompactTree==1.0.0
+      - name: Run benchmark
+        run: python3 joss/benchmark.py > joss/benchmark-results.csv
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: joss/benchmark-results.csv
+
   deploy-test:
     runs-on: ubuntu-24.04
     steps:
