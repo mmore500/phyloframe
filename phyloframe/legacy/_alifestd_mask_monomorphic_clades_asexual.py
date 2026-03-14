@@ -1,4 +1,5 @@
 import numpy as np
+from packaging.version import parse
 import pandas as pd
 
 from .._auxlib._jit import jit
@@ -146,13 +147,14 @@ def alifestd_mask_monomorphic_clades_asexual(
             phylogeny_df[
                 "alifestd_mask_monomorphic_clades_asexual_mask"
             ].to_numpy(
-                dtype=np.bool_, copy=True
-            ),  # pandas 3.x compat
+                dtype=np.bool_,
+                copy=parse(pd.__version__) >= parse("3.0.0"),
+            ),
             phylogeny_df[
                 "alifestd_mask_monomorphic_clades_asexual_trait"
             ].to_numpy(
-                copy=True
-            ),  # pandas 3.x compat
+                copy=parse(pd.__version__) >= parse("3.0.0"),
+            ),
         )
     else:
         phylogeny_df = _alifestd_mask_monomorphic_clades_asexual_slow_path(

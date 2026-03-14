@@ -3,8 +3,6 @@ from packaging.version import parse
 import pandas as pd
 import tqdist
 
-_pd3 = parse(pd.__version__) >= parse("3.0.0")
-
 from . import (
     alifestd_as_newick_asexual,
     alifestd_collapse_unifurcations,
@@ -24,9 +22,8 @@ def alifestd_calc_triplet_distance_asexual(
     ref = alifestd_mark_leaves(alifestd_collapse_unifurcations(ref))
     cmp = alifestd_mark_leaves(alifestd_collapse_unifurcations(cmp))
 
-    _astype_kw = {} if _pd3 else {"copy": False}
-    ref[taxon_label_key] = ref[taxon_label_key].astype(str, **_astype_kw)
-    cmp[taxon_label_key] = cmp[taxon_label_key].astype(str, **_astype_kw)
+    ref[taxon_label_key] = ref[taxon_label_key].astype(str)
+    cmp[taxon_label_key] = cmp[taxon_label_key].astype(str)
     ref.loc[~ref["is_leaf"], taxon_label_key] = ""
     cmp.loc[~cmp["is_leaf"], taxon_label_key] = ""
 

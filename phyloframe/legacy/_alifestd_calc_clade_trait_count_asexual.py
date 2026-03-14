@@ -1,4 +1,5 @@
 import numpy as np
+from packaging.version import parse
 import pandas as pd
 
 from .._auxlib._jit import jit
@@ -83,8 +84,8 @@ def alifestd_calc_clade_trait_count_asexual(
         return _alifestd_calc_clade_trait_count_asexual_fast_path(
             pd.to_numeric(phylogeny_df["ancestor_id"]).to_numpy(),
             phylogeny_df["alifestd_calc_trait_count_asexual"].to_numpy(
-                copy=True
-            ),  # pandas 3.x compat
+                copy=parse(pd.__version__) >= parse("3.0.0"),
+            ),
         )
     else:
         return _alifestd_calc_clade_trait_count_asexual_slow_path(phylogeny_df)
