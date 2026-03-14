@@ -55,7 +55,7 @@ def test_alifestd_delete_trunk_asexual_single_trunk(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
@@ -116,7 +116,7 @@ def test_alifestd_delete_trunk_asexual_no_collapse_needed2(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
@@ -143,7 +143,7 @@ def test_alifestd_delete_trunk_asexual_no_collapse_needed3(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
@@ -214,7 +214,7 @@ def test_alifestd_delete_trunk_asexual_collapse2(mutate: bool):
     pdt.assert_frame_equal(
         result,
         alifestd_delete_trunk_asexual_polars(pl.from_pandas(df)).to_pandas(),
-        check_dtype=False,
+        check_dtype=True,
     )
 
 
