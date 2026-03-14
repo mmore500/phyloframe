@@ -34,8 +34,7 @@ def _alifestd_mark_first_child_id_asexual_fast_path(
     first_child_ids = np.arange(n, dtype=ancestor_ids.dtype)  # default: self
 
     # iterate forward; first encounter sets the first (smallest) child
-    for idx in range(n):
-        parent = ancestor_ids[idx]
+    for idx, parent in enumerate(ancestor_ids):
         if parent != idx:  # skip genesis/root self-ref
             if first_child_ids[parent] == parent:
                 first_child_ids[parent] = idx
