@@ -90,11 +90,6 @@ packaging==26.0
     #   pytest
     #   statsmodels
     #   tox
-pandas==3.0.1
-    # via
-    #   phyloframe (../../pyproject.toml)
-    #   alifedata-phyloinformatics-convert
-    #   statsmodels
 pathspec==1.0.4
     # via black
 patsy==1.0.2
