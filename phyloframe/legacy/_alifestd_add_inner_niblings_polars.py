@@ -13,8 +13,14 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_add_inner_knuckles_polars import (
     alifestd_add_inner_knuckles_polars,
 )
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_mark_node_depth_polars import alifestd_mark_node_depth_polars
+from ._alifestd_topological_sort_polars import (
+    alifestd_topological_sort_polars,
+)
 
 
 def alifestd_add_inner_niblings_polars(
@@ -53,6 +59,24 @@ def alifestd_add_inner_niblings_polars(
         "- alifestd_add_inner_niblings_polars: adding inner knuckles...",
     )
     phylogeny_df = alifestd_add_inner_knuckles_polars(phylogeny_df)
+
+    logging.info(
+        "- alifestd_add_inner_niblings_polars: "
+        "reassigning contiguous ids...",
+    )
+    phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+
+    logging.info(
+        "- alifestd_add_inner_niblings_polars: "
+        "topologically sorting...",
+    )
+    phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+
+    logging.info(
+        "- alifestd_add_inner_niblings_polars: "
+        "reassigning contiguous ids after sort...",
+    )
+    phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
         "- alifestd_add_inner_niblings_polars: marking node depth...",
