@@ -269,12 +269,8 @@ def test_alifestd_delete_trunk_asexual_unifurcation():
 
     result_pd = alifestd_delete_trunk_asexual(phylo)
     result_pl = alifestd_delete_trunk_asexual_polars(
-        pl.from_pandas(phylo)
+        pl.from_pandas(phylo, nan_to_null=False),
     ).to_pandas()
-    for col in result_pd.columns:
-        if result_pd[col].dtype == object:
-            result_pd[col] = result_pd[col].where(result_pd[col].notna(), None)
-            result_pl[col] = result_pl[col].where(result_pl[col].notna(), None)
     pdt.assert_frame_equal(result_pd, result_pl, check_dtype=False)
 
     def clean(df: pd.DataFrame, allow_id_reassign: bool) -> pd.DataFrame:
