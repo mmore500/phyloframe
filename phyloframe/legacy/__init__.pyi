@@ -236,6 +236,12 @@ from ._alifestd_mark_colless_like_index_sd_asexual import (
 from ._alifestd_mark_colless_like_index_var_asexual import (
     alifestd_mark_colless_like_index_var_asexual,
 )
+from ._alifestd_mark_first_child_id_asexual import (
+    alifestd_mark_first_child_id_asexual,
+)
+from ._alifestd_mark_first_child_id_polars import (
+    alifestd_mark_first_child_id_polars,
+)
 from ._alifestd_mark_is_left_child_asexual import (
     alifestd_mark_is_left_child_asexual,
 )
@@ -247,6 +253,12 @@ from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_mark_left_child_asexual import alifestd_mark_left_child_asexual
 from ._alifestd_mark_max_descendant_origin_time_asexual import (
     alifestd_mark_max_descendant_origin_time_asexual,
+)
+from ._alifestd_mark_next_sibling_id_asexual import (
+    alifestd_mark_next_sibling_id_asexual,
+)
+from ._alifestd_mark_next_sibling_id_polars import (
+    alifestd_mark_next_sibling_id_polars,
 )
 from ._alifestd_mark_node_depth_asexual import alifestd_mark_node_depth_asexual
 from ._alifestd_mark_node_depth_polars import alifestd_mark_node_depth_polars
@@ -272,6 +284,12 @@ from ._alifestd_mark_origin_time_delta_asexual import (
     alifestd_mark_origin_time_delta_asexual,
 )
 from ._alifestd_mark_ot_mrca_asexual import alifestd_mark_ot_mrca_asexual
+from ._alifestd_mark_prev_sibling_id_asexual import (
+    alifestd_mark_prev_sibling_id_asexual,
+)
+from ._alifestd_mark_prev_sibling_id_polars import (
+    alifestd_mark_prev_sibling_id_polars,
+)
 from ._alifestd_mark_right_child_asexual import (
     alifestd_mark_right_child_asexual,
 )
@@ -470,6 +488,12 @@ __all__ = [
     "alifestd_mark_is_right_child_asexual",
     "alifestd_mark_leaves",
     "alifestd_mark_leaves_polars",
+    "alifestd_mark_first_child_id_asexual",
+    "alifestd_mark_first_child_id_polars",
+    "alifestd_mark_next_sibling_id_asexual",
+    "alifestd_mark_next_sibling_id_polars",
+    "alifestd_mark_prev_sibling_id_asexual",
+    "alifestd_mark_prev_sibling_id_polars",
     "alifestd_mark_left_child_asexual",
     "alifestd_mark_max_descendant_origin_time_asexual",
     "alifestd_mark_node_depth_asexual",
