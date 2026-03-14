@@ -12,7 +12,7 @@ def alifestd_has_multiple_roots_polars(
         len(
             phylogeny_df.lazy()
             .filter(pl.col("ancestor_id") == pl.col("id"))
-            .head(2)
+            .limit(2)
             .collect()
         )
         >= 2
