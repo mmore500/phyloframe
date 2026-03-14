@@ -24,14 +24,12 @@ def alifestd_mark_origin_time_delta_polars(
     """
 
     logging.info(
-        "- alifestd_mark_origin_time_delta_polars: "
-        "marking ancestor origin times...",
+        "- alifestd_mark_origin_time_delta_polars: marking ancestor origin times...",
     )
     phylogeny_df = alifestd_mark_ancestor_origin_time_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_mark_origin_time_delta_polars: "
-        "calculating time deltas...",
+        "- alifestd_mark_origin_time_delta_polars: calculating time deltas...",
     )
     return phylogeny_df.with_columns(
         origin_time_delta=(

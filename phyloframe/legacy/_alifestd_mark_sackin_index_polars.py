@@ -75,8 +75,7 @@ def alifestd_mark_sackin_index_polars(
     )
 
     logging.info(
-        "- alifestd_mark_sackin_index_polars: "
-        "calculating sackin indices...",
+        "- alifestd_mark_sackin_index_polars: calculating sackin indices...",
     )
     sackin_index = alifestd_mark_sackin_index_asexual_fast_path(
         ancestor_ids,

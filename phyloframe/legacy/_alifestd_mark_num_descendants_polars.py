@@ -30,7 +30,7 @@ def alifestd_mark_num_descendants_polars(
     """Add column `num_descendants`, excluding self."""
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: " "adding ancestor_id col...",
+        "- alifestd_mark_num_descendants_polars: adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
@@ -40,8 +40,7 @@ def alifestd_mark_num_descendants_polars(
         )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: "
-        "checking contiguous ids...",
+        "- alifestd_mark_num_descendants_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         raise NotImplementedError(
@@ -49,8 +48,7 @@ def alifestd_mark_num_descendants_polars(
         )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: "
-        "checking topological sort...",
+        "- alifestd_mark_num_descendants_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
@@ -58,8 +56,7 @@ def alifestd_mark_num_descendants_polars(
         )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: "
-        "extracting ancestor ids...",
+        "- alifestd_mark_num_descendants_polars: extracting ancestor ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -70,8 +67,7 @@ def alifestd_mark_num_descendants_polars(
     )
 
     logging.info(
-        "- alifestd_mark_num_descendants_polars: "
-        "tabulating descendant counts...",
+        "- alifestd_mark_num_descendants_polars: tabulating descendant counts...",
     )
     num_descendants = _alifestd_mark_num_descendants_asexual_fast_path(
         ancestor_ids,

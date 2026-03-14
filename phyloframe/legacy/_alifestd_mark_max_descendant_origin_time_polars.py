@@ -30,8 +30,7 @@ def alifestd_mark_max_descendant_origin_time_polars(
     """Add column `max_descendant_origin_time`, excluding self."""
 
     logging.info(
-        "- alifestd_mark_max_descendant_origin_time_polars: "
-        "adding ancestor_id col...",
+        "- alifestd_mark_max_descendant_origin_time_polars: adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
@@ -41,8 +40,7 @@ def alifestd_mark_max_descendant_origin_time_polars(
         )
 
     logging.info(
-        "- alifestd_mark_max_descendant_origin_time_polars: "
-        "checking contiguous ids...",
+        "- alifestd_mark_max_descendant_origin_time_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         raise NotImplementedError(
@@ -50,8 +48,7 @@ def alifestd_mark_max_descendant_origin_time_polars(
         )
 
     logging.info(
-        "- alifestd_mark_max_descendant_origin_time_polars: "
-        "checking topological sort...",
+        "- alifestd_mark_max_descendant_origin_time_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
@@ -59,8 +56,7 @@ def alifestd_mark_max_descendant_origin_time_polars(
         )
 
     logging.info(
-        "- alifestd_mark_max_descendant_origin_time_polars: "
-        "extracting columns...",
+        "- alifestd_mark_max_descendant_origin_time_polars: extracting columns...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -78,8 +74,7 @@ def alifestd_mark_max_descendant_origin_time_polars(
     )
 
     logging.info(
-        "- alifestd_mark_max_descendant_origin_time_polars: "
-        "calculating max descendant origin times...",
+        "- alifestd_mark_max_descendant_origin_time_polars: calculating max descendant origin times...",
     )
     max_desc_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids,
@@ -121,10 +116,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module=(
-            "phyloframe.legacy"
-            "._alifestd_mark_max_descendant_origin_time_polars"
-        ),
+        dfcli_module="phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars",
         dfcli_version=get_phyloframe_version(),
     )
     return parser
@@ -138,8 +130,7 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy"
-            "._alifestd_mark_max_descendant_origin_time_polars",
+            "phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars",
             logging.info,
         ):
             _run_dataframe_cli(

@@ -28,14 +28,13 @@ def alifestd_mark_oldest_root_polars(
         )
         phylogeny_df = alifestd_mark_roots_polars(phylogeny_df)
 
-    n = phylogeny_df.lazy().select(pl.len()).collect().item()
-    if n <= 1:
+    if len(phylogeny_df.lazy().limit(2).collect()) <= 1:
         return phylogeny_df.with_columns(
             is_oldest_root=pl.lit(True),
         )
 
     logging.info(
-        "- alifestd_mark_oldest_root_polars: " "finding oldest root...",
+        "- alifestd_mark_oldest_root_polars: finding oldest root...",
     )
     if "origin_time" in schema_names:
         oldest_root_id = (
