@@ -61,6 +61,12 @@ $ python3 -m phyloframe.legacy._alifestd_mark_is_left_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_is_right_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_leaves
 $ python3 -m phyloframe.legacy._alifestd_mark_leaves_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_first_child_id_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_first_child_id_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_next_sibling_id_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_next_sibling_id_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_left_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_node_depth_asexual
