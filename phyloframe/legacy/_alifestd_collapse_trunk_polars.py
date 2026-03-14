@@ -4,7 +4,6 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -63,25 +62,30 @@ def alifestd_collapse_trunk_polars(
         phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
-    df = phylogeny_df.lazy().collect()
-
     # Check trunk contiguity: no non-trunk ancestor of trunk entry
-    ancestor_ids = df["ancestor_id"].to_numpy()
-    is_trunk = df["is_trunk"].to_numpy()
-    ancestor_is_trunk = is_trunk[ancestor_ids]
-
-    if np.any(is_trunk & ~ancestor_is_trunk):
+    ancestor_is_trunk = pl.col("is_trunk").gather(pl.col("ancestor_id"))
+    has_non_contiguous = (
+        phylogeny_df.lazy()
+        .select(
+            (pl.col("is_trunk") & ~ancestor_is_trunk).any(),
+        )
+        .collect()
+        .item()
+    )
+    if has_non_contiguous:
         raise ValueError("specified trunk is non-contiguous")
 
-    trunk_count = int(is_trunk.sum())
+    trunk_count = (
+        phylogeny_df.lazy().select(pl.col("is_trunk").sum()).collect().item()
+    )
     if trunk_count <= 1:
-        return df
+        return phylogeny_df
 
     logging.info(
         "- alifestd_collapse_trunk_polars: finding oldest trunk root...",
     )
     # Find oldest root among trunk entries
-    trunk_df = df.filter(pl.col("is_trunk"))
+    trunk_df = phylogeny_df.filter(pl.col("is_trunk"))
     trunk_df = alifestd_mark_oldest_root_polars(trunk_df)
     collapsed_root_id = (
         trunk_df.filter(pl.col("is_oldest_root")).select("id").item()
@@ -91,15 +95,16 @@ def alifestd_collapse_trunk_polars(
         "- alifestd_collapse_trunk_polars: collapsing...",
     )
     # Reparent: nodes whose ancestor is trunk -> point to collapsed root
-    new_ancestor_ids = ancestor_ids.copy()
-    for i in range(len(new_ancestor_ids)):
-        if ancestor_is_trunk[i]:
-            new_ancestor_ids[i] = collapsed_root_id
-
-    df = df.with_columns(ancestor_id=new_ancestor_ids)
+    phylogeny_df = phylogeny_df.with_columns(
+        ancestor_id=pl.when(ancestor_is_trunk)
+        .then(pl.lit(collapsed_root_id))
+        .otherwise(pl.col("ancestor_id")),
+    )
 
     # Keep non-trunk entries plus the collapsed root
-    return df.filter(~pl.col("is_trunk") | (pl.col("id") == collapsed_root_id))
+    return phylogeny_df.filter(
+        ~pl.col("is_trunk") | (pl.col("id") == collapsed_root_id),
+    )
 
 
 _raw_description = f"""\
