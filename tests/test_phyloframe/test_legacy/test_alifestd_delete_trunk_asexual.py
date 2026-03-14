@@ -271,7 +271,13 @@ def test_alifestd_delete_trunk_asexual_unifurcation():
         alifestd_delete_trunk_asexual(phylo),
         alifestd_delete_trunk_asexual_polars(
             pl.from_pandas(
-                phylo.astype({"data_hex": "string"}),
+                phylo.astype(
+                    {
+                        c: "string"
+                        for c in phylo.columns
+                        if phylo[c].dtype.name == "str"
+                    },
+                ),
                 nan_to_null=False,
             ),
         ).to_pandas(),
