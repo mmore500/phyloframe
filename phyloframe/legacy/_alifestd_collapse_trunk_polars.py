@@ -19,9 +19,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_oldest_root_polars import (
-    alifestd_mark_oldest_root_polars,
-)
 from ._alifestd_topological_sort_polars import (
     alifestd_topological_sort_polars,
 )
@@ -84,12 +81,23 @@ def alifestd_collapse_trunk_polars(
     logging.info(
         "- alifestd_collapse_trunk_polars: finding oldest trunk root...",
     )
-    # Find oldest root among trunk entries
-    trunk_df = phylogeny_df.lazy().filter(pl.col("is_trunk")).collect()
-    trunk_df = alifestd_mark_oldest_root_polars(trunk_df)
-    collapsed_root_id = (
-        trunk_df.filter(pl.col("is_oldest_root")).select("id").item()
+    # Find oldest root among trunk entries (root = ancestor_id == id)
+    trunk_roots = phylogeny_df.lazy().filter(
+        pl.col("is_trunk") & (pl.col("ancestor_id") == pl.col("id")),
     )
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "origin_time" in schema_names:
+        collapsed_root_id = (
+            trunk_roots.sort(["origin_time", "id"])
+            .select("id")
+            .limit(1)
+            .collect()
+            .item()
+        )
+    else:
+        collapsed_root_id = (
+            trunk_roots.select(pl.col("id").min()).collect().item()
+        )
 
     logging.info(
         "- alifestd_collapse_trunk_polars: collapsing...",
