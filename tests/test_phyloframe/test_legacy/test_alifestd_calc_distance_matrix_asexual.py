@@ -7,15 +7,13 @@ import pytest
 from tqdm import tqdm
 
 from phyloframe.legacy import (
+    alifestd_calc_distance_matrix_asexual as alifestd_calc_distance_matrix_asexual_,
+)
+from phyloframe.legacy import (
+    alifestd_find_pair_distance_asexual,
     alifestd_is_chronologically_ordered,
     alifestd_mark_root_id,
     alifestd_to_working_format,
-)
-from phyloframe.legacy._alifestd_calc_distance_matrix_asexual import (
-    alifestd_calc_distance_matrix_asexual as alifestd_calc_distance_matrix_asexual_,
-)
-from phyloframe.legacy._alifestd_find_pair_distance_asexual import (
-    alifestd_find_pair_distance_asexual,
 )
 
 from ._impl import enforce_dtype_stability_pandas

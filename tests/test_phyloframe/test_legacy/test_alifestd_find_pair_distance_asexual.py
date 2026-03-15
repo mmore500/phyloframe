@@ -3,9 +3,11 @@ import os
 import pandas as pd
 import pytest
 
-from phyloframe.legacy import alifestd_to_working_format
-from phyloframe.legacy._alifestd_find_pair_distance_asexual import (
+from phyloframe.legacy import (
     alifestd_find_pair_distance_asexual as alifestd_find_pair_distance_asexual_,
+)
+from phyloframe.legacy import (
+    alifestd_to_working_format,
 )
 
 from ._impl import enforce_dtype_stability_pandas

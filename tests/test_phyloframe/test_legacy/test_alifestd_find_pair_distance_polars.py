@@ -5,9 +5,9 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe.legacy import alifestd_to_working_format
-from phyloframe.legacy._alifestd_find_pair_distance_asexual import (
+from phyloframe.legacy import (
     alifestd_find_pair_distance_asexual,
+    alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_find_pair_distance_polars import (
     alifestd_find_pair_distance_polars as alifestd_find_pair_distance_polars_,

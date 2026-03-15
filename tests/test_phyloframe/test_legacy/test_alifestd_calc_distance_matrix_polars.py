@@ -7,12 +7,14 @@ import polars as pl
 import pytest
 from tqdm import tqdm
 
-from phyloframe.legacy import alifestd_to_working_format
-from phyloframe.legacy._alifestd_calc_distance_matrix_asexual import (
+from phyloframe.legacy import (
     alifestd_calc_distance_matrix_asexual,
 )
-from phyloframe.legacy._alifestd_calc_distance_matrix_polars import (
+from phyloframe.legacy import (
     alifestd_calc_distance_matrix_polars as alifestd_calc_distance_matrix_polars_,
+)
+from phyloframe.legacy import (
+    alifestd_to_working_format,
 )
 
 from ._impl import enforce_dtype_stability_polars
