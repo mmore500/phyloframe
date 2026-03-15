@@ -9,6 +9,9 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -84,6 +87,8 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
         "- alifestd_unfurl_traversal_postorder_contiguous_polars:"
         " calculating postorder traversal...",
     )
+    num_children = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
+        num_children,
     )

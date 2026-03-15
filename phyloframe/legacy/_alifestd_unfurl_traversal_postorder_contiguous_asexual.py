@@ -4,12 +4,16 @@ import pandas as pd
 from .._auxlib._jit import jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
 def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     ancestor_ids: np.ndarray,
+    num_children: np.ndarray,
 ) -> np.ndarray:
     """Return DFS postorder traversal indices for contiguous, sorted phylogeny.
 
@@ -21,6 +25,8 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     ancestor_ids : np.ndarray
         Array of ancestor IDs, assumed contiguous (ids == row indices)
         and topologically sorted.
+    num_children : np.ndarray
+        Array of child counts per node.
 
     Returns
     -------
@@ -32,15 +38,7 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         return np.empty(0, dtype=np.int64)
 
     ancestor_ids = ancestor_ids.astype(np.int64)
-
-    # Count children per node
-    child_count = np.zeros(n, dtype=np.int64)
-    root_count = 0
-    for i in range(n):
-        if ancestor_ids[i] != i:
-            child_count[ancestor_ids[i]] += 1
-        else:
-            root_count += 1
+    child_count = num_children.astype(np.int64)
 
     # Build CSR-style children array
     child_start = np.zeros(n + 1, dtype=np.int64)
@@ -55,7 +53,12 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             children_flat[insert_pos[p]] = i
             insert_pos[p] += 1
 
-    # Collect roots and push in reverse order so first root is on top
+    # Collect roots
+    root_count = 0
+    for i in range(n):
+        if ancestor_ids[i] == i:
+            root_count += 1
+
     roots = np.empty(root_count, dtype=np.int64)
     ri = 0
     for i in range(n):
@@ -123,6 +126,9 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
             "topologically unsorted rows not yet supported",
         )
 
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+    num_children = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
-        phylogeny_df["ancestor_id"].to_numpy(),
+        ancestor_ids,
+        num_children,
     )
