@@ -4,8 +4,8 @@ import os
 import pathlib
 
 import numpy as np
-import pyarrow as pa
 import polars as pl
+import pyarrow as pa
 
 from .._auxlib._configure_prod_logging import configure_prod_logging
 from .._auxlib._eval_kwargs import eval_kwargs
@@ -13,7 +13,6 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_from_newick import (
-    _extract_labels,
     _jit_build_label_buffer,
     _jit_parse_branch_lengths,
     _parse_newick_jit,
