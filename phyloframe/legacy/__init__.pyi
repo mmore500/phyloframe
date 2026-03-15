@@ -368,6 +368,12 @@ from ._alifestd_unfurl_lineage_asexual import alifestd_unfurl_lineage_asexual
 from ._alifestd_unfurl_traversal_inorder_asexual import (
     alifestd_unfurl_traversal_inorder_asexual,
 )
+from ._alifestd_unfurl_traversal_levelorder_asexual import (
+    alifestd_unfurl_traversal_levelorder_asexual,
+)
+from ._alifestd_unfurl_traversal_levelorder_polars import (
+    alifestd_unfurl_traversal_levelorder_polars,
+)
 from ._alifestd_unfurl_traversal_postorder_asexual import (
     alifestd_unfurl_traversal_postorder_asexual,
 )
@@ -565,6 +571,8 @@ __all__ = [
     "alifestd_try_add_ancestor_list_col_polars",
     "alifestd_unfurl_lineage_asexual",
     "alifestd_unfurl_traversal_inorder_asexual",
+    "alifestd_unfurl_traversal_levelorder_asexual",
+    "alifestd_unfurl_traversal_levelorder_polars",
     "alifestd_unfurl_traversal_postorder_asexual",
     "alifestd_unfurl_traversal_postorder_contiguous_asexual",
     "alifestd_unfurl_traversal_postorder_contiguous_polars",
