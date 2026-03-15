@@ -60,20 +60,11 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     stack_top = 0
     expanded = np.zeros(n, dtype=np.bool_)
 
-    next_root_candidate = 0
-    while True:
-        # Find next root when stack is exhausted
-        if stack_top == 0:
-            while next_root_candidate < n:
-                if ancestor_ids[next_root_candidate] == next_root_candidate:
-                    stack[stack_top] = next_root_candidate
-                    stack_top += 1
-                    next_root_candidate += 1
-                    break
-                next_root_candidate += 1
-            else:
-                break  # no more roots
+    # Seed with first root (node 0 is always a root for contiguous ids)
+    stack[0] = 0
+    stack_top = 1
 
+    while True:
         node = stack[stack_top - 1]
         c_start = child_start[node]
         c_end = child_start[node + 1]
@@ -88,6 +79,18 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             stack_top -= 1
             result[result_pos] = node
             result_pos += 1
+
+            # When stack is exhausted, scan for next root
+            if stack_top == 0:
+                candidate = node + 1
+                while candidate < n:
+                    if ancestor_ids[candidate] == candidate:
+                        stack[0] = candidate
+                        stack_top = 1
+                        break
+                    candidate += 1
+                else:
+                    break  # no more roots
 
     return result
 
