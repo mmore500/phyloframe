@@ -46,9 +46,11 @@ def _alifestd_sort_children_asexual_fast_path(
     Assumes contiguous ids and topological sorting.
     """
     if reverse:
-        # rank values via double argsort, then negate to reverse criterion
-        # without assuming numerical type
-        criterion_values = -np.argsort(np.argsort(criterion_values))
+        # rank values via stable double argsort, then negate to reverse
+        # criterion without assuming numerical type
+        criterion_values = -np.argsort(
+            np.argsort(criterion_values, kind="stable"), kind="stable"
+        )
     return np.lexsort((criterion_values, ancestor_ids, node_depths))
 
 

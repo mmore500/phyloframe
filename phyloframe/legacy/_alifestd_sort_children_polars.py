@@ -120,11 +120,23 @@ def alifestd_sort_children_polars(
     logging.info(
         "- alifestd_sort_children_polars: sorting...",
     )
-    result = phylogeny_df.sort(
-        by=["node_depth", "ancestor_id", criterion],
-        descending=[False, False, reverse],
-        maintain_order=True,
-    )
+    if reverse:
+        # Use ordinal rank to reverse criterion without assuming
+        # numerical type, matching numpy stable double-argsort behavior.
+        phylogeny_df = phylogeny_df.with_columns(
+            __sort_rank=pl.col(criterion).rank(method="ordinal"),
+        )
+        result = phylogeny_df.sort(
+            by=["node_depth", "ancestor_id", "__sort_rank"],
+            descending=[False, False, True],
+            maintain_order=True,
+        ).drop("__sort_rank")
+    else:
+        result = phylogeny_df.sort(
+            by=["node_depth", "ancestor_id", criterion],
+            descending=[False, False, False],
+            maintain_order=True,
+        )
 
     if not had_node_depth:
         result = result.drop("node_depth")
