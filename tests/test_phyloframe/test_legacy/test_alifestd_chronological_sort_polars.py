@@ -31,13 +31,10 @@ def test_alifestd_chronological_sort_polars_basic(
 
     result = alifestd_chronological_sort_polars(df_pl)
 
-    assert (
-        result.lazy()
-        .select("origin_time")
-        .collect()
-        .to_series()
-        .to_list()
-    ) == [1.0, 2.0, 3.0]
+    origin_times = (
+        result.lazy().select("origin_time").collect().to_series().to_list()
+    )
+    assert origin_times == [1.0, 2.0, 3.0]
 
 
 @pytest.mark.parametrize(
@@ -63,13 +60,10 @@ def test_alifestd_chronological_sort_polars_already_sorted(
 
     result = alifestd_chronological_sort_polars(df_pl)
 
-    assert (
-        result.lazy()
-        .select("origin_time")
-        .collect()
-        .to_series()
-        .to_list()
-    ) == [0.0, 1.0, 2.0]
+    origin_times = (
+        result.lazy().select("origin_time").collect().to_series().to_list()
+    )
+    assert origin_times == [0.0, 1.0, 2.0]
 
 
 @pytest.mark.parametrize(
