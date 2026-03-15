@@ -570,9 +570,20 @@ class CompactTreeBench:
 
         t = self._ensure_tree()
         leaves = list(traverse_leaves(t))
+
+        def _mrca(a, b):
+            ancestors_a = set()
+            while not t.is_root(a):
+                ancestors_a.add(a)
+                a = t.get_parent(a)
+            ancestors_a.add(a)
+            while b not in ancestors_a:
+                b = t.get_parent(b)
+            return b
+
         for i, a in enumerate(leaves):
             for b in leaves[i + 1 :]:
-                t.find_mrca({a, b})
+                _mrca(a, b)
 
     def pairwise_dist(self):
         t = self._ensure_tree()
