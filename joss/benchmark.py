@@ -208,6 +208,7 @@ class PhyloframeBench:
             alifestd_to_working_format,
             alifestd_unfurl_traversal_inorder_asexual,
             alifestd_unfurl_traversal_postorder_asexual,
+            alifestd_unfurl_traversal_levelorder_polars,
             alifestd_unfurl_traversal_preorder_polars,
         )
         from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
@@ -228,6 +229,7 @@ class PhyloframeBench:
             node_depths,
         )
         alifestd_unfurl_traversal_preorder_polars(pldf)
+        alifestd_unfurl_traversal_levelorder_polars(pldf)
         pdf = alifestd_from_newick(tiny)
         alifestd_unfurl_traversal_postorder_asexual(pdf, mutate=True)
         alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
@@ -282,7 +284,12 @@ class PhyloframeBench:
         alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
 
     def levelorder(self):
-        raise NotImplementedError("levelorder not available")
+        from phyloframe.legacy import (
+            alifestd_unfurl_traversal_levelorder_polars,
+        )
+
+        df = self._ensure_df()
+        alifestd_unfurl_traversal_levelorder_polars(df)
 
     def mrca_allpairs(self):
         from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
