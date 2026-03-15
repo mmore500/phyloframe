@@ -462,20 +462,7 @@ def run_benchmarks():
 
         for LibClass in LIBRARIES:
             print(f"  {LibClass.name}:", file=sys.stderr)
-            try:
-                bench = LibClass(newick)
-            except Exception as exc:
-                print(f"    init error: {exc}", file=sys.stderr)
-                for op in OPERATIONS:
-                    results.append(
-                        {
-                            "library": LibClass.name,
-                            "n_leaves": n_leaves,
-                            "operation": op,
-                            "seconds": None,
-                        }
-                    )
-                continue
+            bench = LibClass(newick)
 
             for op in OPERATIONS:
                 fn = getattr(bench, op, None)
