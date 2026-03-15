@@ -376,9 +376,7 @@ class PhyloframeBench:
             import polars as pl
 
             df = df.with_columns(
-                pl.col("origin_time_delta")
-                .cum_sum()
-                .alias("origin_time"),
+                pl.col("origin_time_delta").cum_sum().alias("origin_time"),
             )
         leaf_ids = alifestd_find_leaf_ids_polars(df)
         for i, a in enumerate(leaf_ids):
