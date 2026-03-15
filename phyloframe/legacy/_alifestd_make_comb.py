@@ -1,7 +1,7 @@
-from .._auxlib._jit import jit
 import numpy as np
 import pandas as pd
 
+from .._auxlib._jit import jit
 from ._alifestd_make_empty import alifestd_make_empty
 
 
