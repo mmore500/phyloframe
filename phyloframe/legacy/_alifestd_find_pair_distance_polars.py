@@ -57,15 +57,16 @@ def alifestd_find_pair_distance_polars(
     if mrca_id is None:
         return None
 
-    criterion_col = phylogeny_df.lazy().select(criterion).collect().to_series()
-
-    def get_val(taxon_id: int) -> float:
-        return float(criterion_col.slice(taxon_id, 1).item())
-
-    mrca_criterion = get_val(mrca_id)
-    first_criterion = get_val(first)
-    second_criterion = get_val(second)
+    vals = (
+        phylogeny_df.lazy()
+        .select(
+            pl.col(criterion).slice(first, 1).alias("first"),
+            pl.col(criterion).slice(second, 1).alias("second"),
+            pl.col(criterion).slice(mrca_id, 1).alias("mrca"),
+        )
+        .collect()
+    )
     return float(
-        (first_criterion - mrca_criterion)
-        + (second_criterion - mrca_criterion)
+        (vals["first"].item() - vals["mrca"].item())
+        + (vals["second"].item() - vals["mrca"].item())
     )
