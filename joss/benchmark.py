@@ -132,6 +132,7 @@ def _balanced_newick(n):
 # ── library adapters ────────────────────────────────────────────────
 class PhyloframeBench:
     name = "phyloframe"
+    engine_affinity = None
 
     def __init__(self, newick):
         from phyloframe.legacy import alifestd_from_newick_polars
@@ -141,26 +142,52 @@ class PhyloframeBench:
         self._df = None
         self._pdf = None
 
+    def _set_engine(self):
+        import polars as pl
+
+        pl.Config.set_engine_affinity(self.engine_affinity)
+
+    def _reset_engine(self):
+        import polars as pl
+
+        pl.Config.set_engine_affinity(None)
+
     def load_newick(self):
-        self._df = self._from_newick(self._newick)
+        self._set_engine()
+        try:
+            self._df = self._from_newick(self._newick)
+        finally:
+            self._reset_engine()
 
     def save_newick(self):
         from phyloframe.legacy import alifestd_as_newick_polars
 
         df = self._ensure_df()
-        alifestd_as_newick_polars(df)
+        self._set_engine()
+        try:
+            alifestd_as_newick_polars(df)
+        finally:
+            self._reset_engine()
 
     def preorder(self):
         raise NotImplementedError("preorder not available")
 
     def postorder(self):
+        from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
+            _alifestd_calc_node_depth_asexual_contiguous,
+        )
         from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
             _alifestd_unfurl_traversal_postorder_asexual_fast_path,
         )
 
         df = self._ensure_df()
         ancestor_ids = df.get_column("ancestor_id").to_numpy()
-        _alifestd_unfurl_traversal_postorder_asexual_fast_path(ancestor_ids)
+        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
+            ancestor_ids,
+        )
+        _alifestd_unfurl_traversal_postorder_asexual_fast_path(
+            ancestor_ids, node_depths,
+        )
 
     def inorder(self):
         from phyloframe.legacy import (
@@ -186,11 +213,21 @@ class PhyloframeBench:
         from phyloframe.legacy import alifestd_from_newick_polars
 
         newick = self._newick
-        return _measure_memory(lambda: alifestd_from_newick_polars(newick))
+        self._set_engine()
+        try:
+            return _measure_memory(
+                lambda: alifestd_from_newick_polars(newick),
+            )
+        finally:
+            self._reset_engine()
 
     def _ensure_df(self):
         if self._df is None:
-            self._df = self._from_newick(self._newick)
+            self._set_engine()
+            try:
+                self._df = self._from_newick(self._newick)
+            finally:
+                self._reset_engine()
         return self._df
 
     def _ensure_pdf(self):
@@ -204,6 +241,16 @@ class PhyloframeBench:
         from phyloframe.legacy import alifestd_to_working_format
 
         return alifestd_to_working_format(self._ensure_pdf())
+
+
+class PhyloframeInMemoryBench(PhyloframeBench):
+    name = "phyloframe (in-memory)"
+    engine_affinity = "in-memory"
+
+
+class PhyloframeStreamingBench(PhyloframeBench):
+    name = "phyloframe (streaming)"
+    engine_affinity = "streaming"
 
 
 class TreeswiftBench:
@@ -542,6 +589,8 @@ class CompactTreeBench:
 
 LIBRARIES = [
     PhyloframeBench,
+    PhyloframeInMemoryBench,
+    PhyloframeStreamingBench,
     TreeswiftBench,
     BiopythonBench,
     DendropyBench,
@@ -560,6 +609,9 @@ def _warmup_jit():
         alifestd_unfurl_traversal_inorder_asexual,
         alifestd_unfurl_traversal_postorder_asexual,
     )
+    from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
+        _alifestd_calc_node_depth_asexual_contiguous,
+    )
     from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
         _alifestd_unfurl_traversal_postorder_asexual_fast_path,
     )
@@ -567,8 +619,10 @@ def _warmup_jit():
     tiny = _balanced_newick(8)
     # polars path
     pldf = alifestd_from_newick_polars(tiny)
+    ancestor_ids = pldf.get_column("ancestor_id").to_numpy()
+    node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
     _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-        pldf.get_column("ancestor_id").to_numpy(),
+        ancestor_ids, node_depths,
     )
     # pandas path
     pdf = alifestd_from_newick(tiny)
