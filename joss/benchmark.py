@@ -14,6 +14,10 @@ import multiprocessing
 import sys
 import time
 
+# Use forkserver to avoid deadlocks caused by forking after polars/numba
+# have initialized background threads during JIT warmup.
+multiprocessing.set_start_method("forkserver", force=True)
+
 TIMEOUT = 10  # seconds per operation
 SIZES = [100, 1_000, 10_000, 100_000, 1_000_000]
 OPERATIONS = [
@@ -112,20 +116,21 @@ def timed_call(fn, timeout=TIMEOUT):
 
 
 def _measure_memory(load_fn):
-    """Measure memory allocated by load_fn() using tracemalloc.
+    """Measure memory held by the data structure returned by load_fn().
 
-    Returns the peak memory (bytes) allocated during the call.
-    The loaded object is kept alive until after measurement.
+    Returns the current traced memory (bytes) after loading, which
+    reflects the in-memory size of the loaded data structure (excluding
+    temporary allocations that have been freed).
     """
     import tracemalloc
 
     gc.collect()
     tracemalloc.start()
     result = load_fn()  # keep reference alive during measurement
-    _, peak = tracemalloc.get_traced_memory()
+    current, _ = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     del result
-    return peak
+    return current
 
 
 # ── tree generation ──────────────────────────────────────────────────
