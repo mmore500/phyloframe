@@ -107,7 +107,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy" "._alifestd_delete_unifurcating_roots_polars"
+            "phyloframe.legacy._alifestd_delete_unifurcating_roots_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy" "._alifestd_delete_unifurcating_roots_polars",
+            "phyloframe.legacy._alifestd_delete_unifurcating_roots_polars",
             logging.info,
         ):
             _run_dataframe_cli(

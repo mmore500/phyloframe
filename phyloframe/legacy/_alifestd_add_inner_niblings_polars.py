@@ -67,7 +67,7 @@ def alifestd_add_inner_niblings_polars(
     phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_add_inner_niblings_polars: " "topologically sorting...",
+        "- alifestd_add_inner_niblings_polars: topologically sorting...",
     )
     phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
 

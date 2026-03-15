@@ -93,7 +93,7 @@ def alifestd_mark_colless_index_polars(
     )
 
     logging.info(
-        "- alifestd_mark_colless_index_polars: " "computing colless_index...",
+        "- alifestd_mark_colless_index_polars: computing colless_index...",
     )
     return phylogeny_df.with_columns(
         colless_index=alifestd_mark_colless_index_asexual_fast_path(

@@ -67,8 +67,7 @@ def alifestd_mark_num_preceding_leaves_polars(
         phylogeny_df = alifestd_mark_is_right_child_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_mark_num_preceding_leaves_polars: "
-        "extracting arrays...",
+        "- alifestd_mark_num_preceding_leaves_polars: extracting arrays...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -129,8 +128,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy"
-            "._alifestd_mark_num_preceding_leaves_polars"
+            "phyloframe.legacy._alifestd_mark_num_preceding_leaves_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -145,8 +143,7 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy"
-            "._alifestd_mark_num_preceding_leaves_polars",
+            "phyloframe.legacy._alifestd_mark_num_preceding_leaves_polars",
             logging.info,
         ):
             _run_dataframe_cli(

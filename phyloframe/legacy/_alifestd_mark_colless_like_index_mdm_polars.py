@@ -99,7 +99,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy" "._alifestd_mark_colless_like_index_mdm_polars"
+            "phyloframe.legacy._alifestd_mark_colless_like_index_mdm_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
