@@ -50,3 +50,12 @@ def test_alifestd_add_global_root_polars_cli_csv():
     assert os.path.exists(output_file)
     result_df = pd.read_csv(output_file)
     assert len(result_df) > 0
+
+
+def test_alifestd_add_global_root_polars_create_parser():
+    from phyloframe.legacy._alifestd_add_global_root_polars import (
+        _create_parser,
+    )
+
+    parser = _create_parser()
+    assert parser is not None

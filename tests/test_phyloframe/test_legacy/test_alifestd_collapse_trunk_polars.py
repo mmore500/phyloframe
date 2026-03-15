@@ -143,3 +143,37 @@ def test_alifestd_collapse_trunk_polars_non_contiguous_ids(
     )
     with pytest.raises(NotImplementedError):
         alifestd_collapse_trunk_polars(df_pl).lazy().collect()
+
+
+def test_alifestd_collapse_trunk_polars_with_origin_time():
+    """When origin_time is present, oldest root is selected by time."""
+    df_pl = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 1, 1, 2],
+            "is_trunk": [True, True, False, False, False],
+            "origin_time": [0.0, 1.0, 2.0, 2.0, 3.0],
+        }
+    )
+
+    result = alifestd_collapse_trunk_polars(df_pl).lazy().collect()
+    result_sorted = result.sort("id")
+
+    # Node 0 (origin_time=0.0) is oldest trunk root, kept
+    # Node 1 (trunk) collapsed
+    assert 0 in result_sorted["id"].to_list()
+    assert 1 not in result_sorted["id"].to_list()
+
+
+def test_alifestd_collapse_trunk_polars_single_trunk():
+    """Single trunk node should return unchanged."""
+    df_pl = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "is_trunk": [True, False, False],
+        }
+    )
+
+    result = alifestd_collapse_trunk_polars(df_pl).lazy().collect()
+    assert len(result) == 3

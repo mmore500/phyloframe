@@ -97,3 +97,28 @@ def test_non_contiguous_ids(apply: typing.Callable):
 
     with pytest.raises(NotImplementedError):
         alifestd_reroot_at_id_polars(df, new_root_id=5)
+
+
+def test_reroot_with_ancestor_list():
+    """ancestor_list should be recomputed after rerooting."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 1, 1, 2],
+            "ancestor_list": [
+                "[None]",
+                "[0]",
+                "[1]",
+                "[1]",
+                "[2]",
+            ],
+        }
+    )
+
+    result = alifestd_reroot_at_id_polars(df, new_root_id=4)
+    result = result.lazy().collect().sort("id")
+
+    assert "ancestor_list" in result.columns
+    # Node 4 should now be root
+    row4 = result.filter(pl.col("id") == 4)
+    assert row4["ancestor_list"].item() == "[none]"

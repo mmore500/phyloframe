@@ -48,3 +48,12 @@ def test_alifestd_delete_unifurcating_roots_polars_cli_csv():
     assert os.path.exists(output_file)
     result_df = pd.read_csv(output_file)
     assert len(result_df) > 0
+
+
+def test_alifestd_delete_unifurcating_roots_polars_create_parser():
+    from phyloframe.legacy._alifestd_delete_unifurcating_roots_polars import (
+        _create_parser,
+    )
+
+    parser = _create_parser()
+    assert parser is not None

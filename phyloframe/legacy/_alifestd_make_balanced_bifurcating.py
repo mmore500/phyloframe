@@ -1,4 +1,4 @@
-from numba import jit
+from .._auxlib._jit import jit
 import numpy as np
 import pandas as pd
 

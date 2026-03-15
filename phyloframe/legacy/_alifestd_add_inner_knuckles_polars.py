@@ -105,7 +105,9 @@ def alifestd_add_inner_knuckles_polars(
 
     if "origin_time_delta" in schema_names:
         knuckle_df = knuckle_df.with_columns(
-            origin_time_delta=pl.lit(0),
+            origin_time_delta=pl.lit(0).cast(
+                phylogeny_df.schema["origin_time_delta"],
+            ),
         )
 
     # Verify no overflow / id collision

@@ -76,3 +76,23 @@ def test_comb_shape(n_leaves: int):
         row["id"] for _, row in df.iterrows() if row["id"] not in leaf_ids
     ]
     assert internal_ids == list(range(0, 2 * (n_leaves - 1), 2))
+
+
+def test_zero_leaves():
+    """n_leaves=0 should produce an empty tree."""
+    df = alifestd_make_comb(0)
+    assert len(df) == 0
+    assert isinstance(df, pd.DataFrame)
+
+
+def test_negative_leaves():
+    """Negative n_leaves should raise ValueError."""
+    with pytest.raises(ValueError):
+        alifestd_make_comb(-1)
+
+
+def test_single_leaf():
+    """n_leaves=1 should produce a single root node."""
+    df = alifestd_make_comb(1)
+    assert len(df) == 1
+    assert df.iloc[0]["ancestor_list"] == "[None]"

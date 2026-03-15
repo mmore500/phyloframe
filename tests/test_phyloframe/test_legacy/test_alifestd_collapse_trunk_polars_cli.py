@@ -23,3 +23,12 @@ def test_alifestd_collapse_trunk_polars_cli_version():
         ],
         check=True,
     )
+
+
+def test_alifestd_collapse_trunk_polars_create_parser():
+    from phyloframe.legacy._alifestd_collapse_trunk_polars import (
+        _create_parser,
+    )
+
+    parser = _create_parser()
+    assert parser is not None

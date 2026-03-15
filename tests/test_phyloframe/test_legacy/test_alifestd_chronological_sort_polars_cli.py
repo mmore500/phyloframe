@@ -52,3 +52,12 @@ def test_alifestd_chronological_sort_polars_cli_csv():
     assert os.path.exists(output_file)
     result_df = pd.read_csv(output_file)
     assert len(result_df) > 0
+
+
+def test_alifestd_chronological_sort_polars_create_parser():
+    from phyloframe.legacy._alifestd_chronological_sort_polars import (
+        _create_parser,
+    )
+
+    parser = _create_parser()
+    assert parser is not None

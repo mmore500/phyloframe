@@ -51,3 +51,12 @@ def test_csv():
     result_df = pd.read_csv(output_file)
     assert len(result_df) > 0
     assert "sackin_index" in result_df.columns
+
+
+def test_alifestd_mark_sackin_index_polars_create_parser():
+    from phyloframe.legacy._alifestd_mark_sackin_index_polars import (
+        _create_parser,
+    )
+
+    parser = _create_parser()
+    assert parser is not None

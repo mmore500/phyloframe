@@ -73,3 +73,12 @@ def test_alifestd_mark_is_left_child_polars_cli_parquet():
     result_df = pd.read_parquet(output_file)
     assert len(result_df) > 0
     assert "is_left_child" in result_df.columns
+
+
+def test_alifestd_mark_is_left_child_polars_create_parser():
+    from phyloframe.legacy._alifestd_mark_is_left_child_polars import (
+        _create_parser,
+    )
+
+    parser = _create_parser()
+    assert parser is not None

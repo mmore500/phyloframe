@@ -115,3 +115,56 @@ def test_non_contiguous_ids(apply: typing.Callable):
 
     with pytest.raises(NotImplementedError):
         alifestd_add_inner_knuckles_polars(df).lazy().collect()
+
+
+def test_with_is_root_column():
+    """Knuckles should have is_root=False when is_root column present."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 0, 1, 1],
+            "is_root": [True, False, False, False, False],
+        }
+    )
+
+    result = alifestd_add_inner_knuckles_polars(df).lazy().collect()
+    knuckles = result.filter(pl.col("id") >= 5)
+    assert knuckles["is_root"].to_list() == [False, False]
+
+
+def test_with_origin_time_delta_column():
+    """Knuckles should have origin_time_delta=0 when column present."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 0, 1, 1],
+            "origin_time_delta": [0, 1, 1, 2, 2],
+        }
+    )
+
+    result = alifestd_add_inner_knuckles_polars(df).lazy().collect()
+    knuckles = result.filter(pl.col("id") >= 5)
+    assert knuckles["origin_time_delta"].to_list() == [0.0, 0.0]
+
+
+def test_with_ancestor_list_column():
+    """ancestor_list should be recomputed after knuckle addition."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 0, 1, 1],
+            "ancestor_list": [
+                "[None]",
+                "[0]",
+                "[0]",
+                "[1]",
+                "[1]",
+            ],
+        }
+    )
+
+    result = alifestd_add_inner_knuckles_polars(df).lazy().collect()
+    assert "ancestor_list" in result.columns
+    # Knuckle of root (id=5) should be self-rooted
+    knuckle0 = result.filter(pl.col("id") == 5)
+    assert knuckle0["ancestor_list"].item() == "[none]"
