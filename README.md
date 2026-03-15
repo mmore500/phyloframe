@@ -22,7 +22,7 @@ Dataframe-based tools for working with phylogenetic trees.
 ## Install
 
 ```bash
-python3 -m pip install phyloframe[jit]
+python3 -m pip install phyloframe[jit]==0.4.0
 ```
 
 A containerized release of `phyloframe` is available via [ghcr.io](https://ghcr.io/mmore500/phyloframe)
