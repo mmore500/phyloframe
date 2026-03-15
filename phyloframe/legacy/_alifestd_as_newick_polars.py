@@ -115,7 +115,7 @@ def alifestd_as_newick_polars(
         )
     else:
         logging.info("... marking null")
-        origin_time_deltas = pl.lit(None).cast(pl.Float64)
+        origin_time_deltas = pl.lit(None).cast(pl.Int64)
 
     phylogeny_df = phylogeny_df.with_columns(
         origin_time_deltas=origin_time_deltas,
@@ -213,15 +213,11 @@ def alifestd_as_newick_polars(
     origin_time_deltas_dtype = phylogeny_df.collect_schema()[
         "origin_time_deltas"
     ]
+    formatted_deltas = pl.col("origin_time_deltas").cast(pl.String)
     if origin_time_deltas_dtype.is_float():
-        formatted_deltas = (
-            pl.col("origin_time_deltas")
-            .cast(pl.String)
-            .str.strip_chars_end("0")
-            .str.strip_chars_end(".")
-        )
-    else:
-        formatted_deltas = pl.col("origin_time_deltas").cast(pl.String)
+        formatted_deltas = formatted_deltas.str.strip_chars_end(
+            "0"
+        ).str.strip_chars_end(".")
 
     branch_len_str = (
         pl.when(pl.col("origin_time_deltas").is_not_null())
