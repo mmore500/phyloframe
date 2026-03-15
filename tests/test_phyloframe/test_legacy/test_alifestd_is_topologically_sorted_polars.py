@@ -341,12 +341,7 @@ def test_alifestd_is_topologically_sorted_polars_env_var_bypass():
 
 def test_alifestd_is_topologically_sorted_polars_env_var_unset():
     """Without env var, normal check applies."""
-    with patch.dict(os.environ, {}, clear=False):
-        os.environ.pop(
-            "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_IS_TOPOLOGICALLY_SORTED_POLARS",
-            None,
-        )
-        df = pl.DataFrame(
-            {"id": [0, 1, 2], "ancestor_id": [0, 2, 0]},
-        )
-        assert not alifestd_is_topologically_sorted_polars_(df)
+    df = pl.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 2, 0]},
+    )
+    assert not alifestd_is_topologically_sorted_polars_(df)
