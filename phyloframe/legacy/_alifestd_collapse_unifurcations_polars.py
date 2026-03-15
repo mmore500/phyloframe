@@ -37,7 +37,6 @@ def alifestd_collapse_unifurcations_polars(
 ) -> pl.DataFrame:
     """Pare record to bypass organisms with one ancestor and one descendant.
 
-
     See Also
     --------
     alifestd_collapse_unifurcations :

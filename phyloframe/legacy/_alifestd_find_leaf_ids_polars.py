@@ -3,9 +3,6 @@ import logging
 import numpy as np
 import polars as pl
 
-from ._alifestd_assign_contiguous_ids_polars import (
-    alifestd_assign_contiguous_ids_polars,
-)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -36,11 +33,11 @@ def alifestd_find_leaf_ids_polars(
     alifestd_find_leaf_ids :
         Pandas-based implementation.
     """
-    logging.info(
-        "- alifestd_find_leaf_ids_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
 
     logging.info(
         "- alifestd_find_leaf_ids_polars: extracting ancestor ids...",

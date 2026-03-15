@@ -67,4 +67,5 @@ def test_non_contiguous_ids(apply: typing.Callable):
             }
         )
     )
-    alifestd_sum_origin_time_deltas_polars(df)
+    with pytest.raises(NotImplementedError):
+        alifestd_sum_origin_time_deltas_polars(df)

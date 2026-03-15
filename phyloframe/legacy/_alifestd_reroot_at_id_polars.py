@@ -14,9 +14,6 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
-from ._alifestd_assign_contiguous_ids_polars import (
-    alifestd_assign_contiguous_ids_polars,
-)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -25,9 +22,6 @@ from ._alifestd_is_topologically_sorted_polars import (
 )
 from ._alifestd_make_ancestor_list_col_polars import (
     alifestd_make_ancestor_list_col_polars,
-)
-from ._alifestd_topological_sort_polars import (
-    alifestd_topological_sort_polars,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -66,11 +60,16 @@ def alifestd_reroot_at_id_polars(
     )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
+        )
 
     # Look up new_root_id after any id reassignment
     new_root_id = int(

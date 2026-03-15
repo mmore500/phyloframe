@@ -137,4 +137,5 @@ def test_alifestd_splay_polytomies_polars_non_contiguous_ids(
             }
         ),
     )
-    alifestd_splay_polytomies_polars(df_pl).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_splay_polytomies_polars(df_pl).lazy().collect()

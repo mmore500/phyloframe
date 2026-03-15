@@ -309,7 +309,8 @@ def test_alifestd_prune_extinct_lineages_polars_no_ancestor_id(
             }
         )
     )
-    alifestd_prune_extinct_lineages_polars(df).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_prune_extinct_lineages_polars(df).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -331,7 +332,8 @@ def test_alifestd_prune_extinct_lineages_polars_noncontiguous(
             }
         )
     )
-    alifestd_prune_extinct_lineages_polars(df).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_prune_extinct_lineages_polars(df).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -353,7 +355,8 @@ def test_alifestd_prune_extinct_lineages_polars_not_sorted(
             }
         )
     )
-    alifestd_prune_extinct_lineages_polars(df).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_prune_extinct_lineages_polars(df).lazy().collect()
 
 
 @pytest.mark.parametrize(

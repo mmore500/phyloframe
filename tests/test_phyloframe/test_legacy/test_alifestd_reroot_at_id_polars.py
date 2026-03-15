@@ -95,4 +95,5 @@ def test_non_contiguous_ids(apply: typing.Callable):
         ),
     )
 
-    alifestd_reroot_at_id_polars(df, new_root_id=5)
+    with pytest.raises(NotImplementedError):
+        alifestd_reroot_at_id_polars(df, new_root_id=5)

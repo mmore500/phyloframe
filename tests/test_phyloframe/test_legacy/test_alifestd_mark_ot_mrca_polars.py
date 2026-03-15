@@ -103,7 +103,8 @@ def test_non_contiguous_ids(apply: typing.Callable):
         ),
     )
 
-    alifestd_mark_ot_mrca_polars(df)
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_ot_mrca_polars(df)
 
 
 @pytest.mark.parametrize(
