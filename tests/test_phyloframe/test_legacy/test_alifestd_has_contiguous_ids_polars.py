@@ -1,5 +1,6 @@
 import os
 import typing
+from unittest.mock import patch
 
 import pandas as pd
 import polars as pl
@@ -188,3 +189,22 @@ def test_alifestd_has_contiguous_ids_polars_empty(apply: typing.Callable):
     """Empty dataframe."""
     df = apply(pl.DataFrame({"id": []}, schema={"id": pl.Int64}))
     assert alifestd_has_contiguous_ids_polars(df)
+
+
+def test_alifestd_has_contiguous_ids_polars_env_var_bypass():
+    """Setting the env var bypasses check and returns True."""
+    with patch.dict(
+        os.environ,
+        {
+            "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_HAS_CONTIGUOUS_IDS_POLARS": "1"
+        },
+    ):
+        df = pl.DataFrame({"id": [0, 2, 4]})
+        # Would normally be False, but env var forces True
+        assert alifestd_has_contiguous_ids_polars_(df)
+
+
+def test_alifestd_has_contiguous_ids_polars_env_var_unset():
+    """Without env var, normal check applies."""
+    df = pl.DataFrame({"id": [0, 2, 4]})
+    assert not alifestd_has_contiguous_ids_polars_(df)
