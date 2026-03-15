@@ -92,7 +92,7 @@ def test_empty(apply: typing.Callable):
     ],
 )
 def test_non_contiguous_ids(apply: typing.Callable):
-    """Non-contiguous ids should raise NotImplementedError."""
+    """Non-contiguous ids should be handled automatically."""
     df = apply(
         pl.DataFrame(
             {
@@ -103,8 +103,7 @@ def test_non_contiguous_ids(apply: typing.Callable):
         ),
     )
 
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_ot_mrca_polars(df)
+    alifestd_mark_ot_mrca_polars(df)
 
 
 @pytest.mark.parametrize(

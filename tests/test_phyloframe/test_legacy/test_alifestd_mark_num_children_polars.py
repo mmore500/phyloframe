@@ -346,8 +346,7 @@ def test_alifestd_mark_num_children_polars_non_contiguous_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_num_children_polars(df_pl).lazy().collect()
+    alifestd_mark_num_children_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -367,8 +366,7 @@ def test_alifestd_mark_num_children_polars_unsorted(apply: typing.Callable):
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_num_children_polars(df_pl).lazy().collect()
+    alifestd_mark_num_children_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(

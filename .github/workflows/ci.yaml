@@ -32,6 +32,8 @@ jobs:
             pandas-version: "==3.*"
           - subdivision: "test_auxlib"
             scope: "polars"
+          - subdivision: "test_auxlib"
+            scope: "non-polars"
         include:
           - python-version: "3.12"
             subdivision: "test_legacy"
@@ -41,9 +43,12 @@ jobs:
             subdivision: "test_legacy"
             scope: "non-polars"
             pandas-version: "==2.3.3"
+          - subdivision: "test_auxlib"
+            scope: ""
+            pandas-version: "==3.*"
           - python-version: "3.12"
             subdivision: "test_auxlib"
-            scope: "non-polars"
+            scope: ""
             pandas-version: "==2.3.3"
 
     steps:
@@ -127,6 +132,11 @@ jobs:
         exclude:
           - subdivision: "test_auxlib"
             scope: "polars"
+          - subdivision: "test_auxlib"
+            scope: "non-polars"
+        include:
+          - subdivision: "test_auxlib"
+            scope: ""
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python 3.12

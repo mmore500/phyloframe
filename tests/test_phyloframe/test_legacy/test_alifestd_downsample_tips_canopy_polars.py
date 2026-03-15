@@ -191,8 +191,7 @@ def test_alifestd_downsample_tips_canopy_polars_no_ancestor_id():
             "ancestor_list": ["[none]", "[0]", "[1]"],
         }
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_downsample_tips_canopy_polars(df, 1, criterion="id")
+    alifestd_downsample_tips_canopy_polars(df, 1, criterion="id")
 
 
 def test_alifestd_downsample_tips_canopy_polars_simple():

@@ -304,8 +304,7 @@ def test_alifestd_ladderize_polars_non_contiguous_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_ladderize_polars(df_pl).lazy().collect()
+    alifestd_ladderize_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -325,8 +324,7 @@ def test_alifestd_ladderize_polars_unsorted(apply: typing.Callable):
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_ladderize_polars(df_pl).lazy().collect()
+    alifestd_ladderize_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(

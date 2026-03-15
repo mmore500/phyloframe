@@ -60,6 +60,11 @@ def alifestd_reroot_at_id_polars(
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
+    # Mark the target node before any id reassignment
+    phylogeny_df = phylogeny_df.with_columns(
+        __is_new_root__=(pl.col("id") == new_root_id),
+    )
+
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
@@ -67,10 +72,27 @@ def alifestd_reroot_at_id_polars(
         phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
+    # Look up new_root_id after any id reassignment
+    new_root_id = int(
+        phylogeny_df.lazy()
+        .filter(pl.col("__is_new_root__"))
+        .select("id")
+        .collect()
+        .item()
+    )
+    phylogeny_df = phylogeny_df.drop("__is_new_root__")
+
     logging.info(
         "- alifestd_reroot_at_id_polars: unfurling lineage...",
     )
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().copy()
+    ancestor_ids = (
+        phylogeny_df.lazy()
+        .select("ancestor_id")
+        .collect()
+        .to_series()
+        .to_numpy()
+        .copy()
+    )
     lineage = unfurl_lineage_with_contiguous_ids(ancestor_ids, new_root_id)
 
     logging.info(
@@ -80,7 +102,7 @@ def alifestd_reroot_at_id_polars(
     # For each parent in the lineage, set its ancestor_id to its child
     copy_to_slice = lineage[1:]  # parents, grandparents, ..., old_root
     copy_from_slice = lineage[:-1]  # children
-    ids = phylogeny_df["id"].to_numpy()
+    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
     ancestor_ids[copy_to_slice] = ids[copy_from_slice]
     ancestor_ids[new_root_id] = ids[new_root_id]
 

@@ -113,5 +113,4 @@ def test_non_contiguous_ids(apply: typing.Callable):
         ),
     )
 
-    with pytest.raises(NotImplementedError):
-        alifestd_add_inner_knuckles_polars(df).lazy().collect()
+    alifestd_add_inner_knuckles_polars(df).lazy().collect()

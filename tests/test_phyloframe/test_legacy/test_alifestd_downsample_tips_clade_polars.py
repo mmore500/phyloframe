@@ -188,8 +188,7 @@ def test_alifestd_downsample_tips_clade_polars_no_ancestor_id():
             "ancestor_list": ["[none]", "[0]", "[1]"],
         }
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_downsample_tips_clade_polars(df, 1)
+    alifestd_downsample_tips_clade_polars(df, 1)
 
 
 def test_alifestd_downsample_tips_clade_polars_simple():

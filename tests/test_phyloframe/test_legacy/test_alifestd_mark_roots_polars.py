@@ -279,8 +279,7 @@ def test_alifestd_mark_roots_polars_no_ancestor_id(apply: typing.Callable):
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_roots_polars(df).lazy().collect()
+    alifestd_mark_roots_polars(df).lazy().collect()
 
 
 @pytest.mark.parametrize(

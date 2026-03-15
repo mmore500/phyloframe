@@ -154,8 +154,7 @@ def test_alifestd_mark_clade_subtended_duration_polars_non_contiguous_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
+    alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -178,8 +177,7 @@ def test_alifestd_mark_clade_subtended_duration_polars_unsorted(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
+    alifestd_mark_clade_subtended_duration_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(

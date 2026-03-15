@@ -120,11 +120,10 @@ def test_simple2_non_contiguous(apply: typing.Callable):
             },
         )
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_as_newick_polars(
-            phylogeny_df,
-            taxon_label=None,
-        )
+    alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label=None,
+    )
 
 
 @pytest.mark.parametrize(
@@ -144,11 +143,10 @@ def test_simple3_non_contiguous(apply: typing.Callable):
             },
         )
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_as_newick_polars(
-            phylogeny_df,
-            taxon_label="label",
-        )
+    alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label="label",
+    )
 
 
 @pytest.mark.parametrize(
@@ -257,7 +255,7 @@ def test_with_ancestor_id_col(apply: typing.Callable):
     ],
 )
 def test_non_contiguous_ids(apply: typing.Callable):
-    """Test that non-contiguous IDs raise NotImplementedError."""
+    """Test that non-contiguous IDs are handled automatically."""
     phylogeny_df = apply(
         pl.DataFrame(
             {
@@ -267,11 +265,10 @@ def test_non_contiguous_ids(apply: typing.Callable):
             },
         )
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_as_newick_polars(
-            phylogeny_df,
-            taxon_label=None,
-        )
+    alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label=None,
+    )
 
 
 @pytest.mark.parametrize(
@@ -292,8 +289,7 @@ def test_non_topologically_sorted(apply: typing.Callable):
             },
         )
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_as_newick_polars(
-            phylogeny_df,
-            taxon_label=None,
-        )
+    alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label=None,
+    )
