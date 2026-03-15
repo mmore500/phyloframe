@@ -402,23 +402,23 @@ class CompactTreeBench:
         self._tree = None
 
     def load_newick(self):
-        from compact_tree import CompactTree
+        from CompactTree import compact_tree
 
-        self._tree = CompactTree(self._newick)
+        self._tree = compact_tree(self._newick)
 
     def save_newick(self):
         t = self._ensure_tree()
         t.newick()
 
     def preorder(self):
-        from compact_tree import traverse_preorder
+        from CompactTree import traverse_preorder
 
         t = self._ensure_tree()
         for _ in traverse_preorder(t):
             pass
 
     def postorder(self):
-        from compact_tree import traverse_postorder
+        from CompactTree import traverse_postorder
 
         t = self._ensure_tree()
         for _ in traverse_postorder(t):
@@ -428,7 +428,7 @@ class CompactTreeBench:
         raise NotImplementedError("inorder not available in CompactTree")
 
     def levelorder(self):
-        from compact_tree import traverse_levelorder
+        from CompactTree import traverse_levelorder
 
         t = self._ensure_tree()
         for _ in traverse_levelorder(t):
@@ -444,9 +444,9 @@ class CompactTreeBench:
 
     def _ensure_tree(self):
         if self._tree is None:
-            from compact_tree import CompactTree
+            from CompactTree import compact_tree
 
-            self._tree = CompactTree(self._newick)
+            self._tree = compact_tree(self._newick)
         return self._tree
 
 
