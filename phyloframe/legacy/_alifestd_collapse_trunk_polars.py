@@ -108,9 +108,7 @@ def alifestd_collapse_trunk_polars(
     )
 
 
-_raw_description = f"""\
-{os.path.basename(__file__)} | \
-(phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
+_raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Collapse entries masked by `is_trunk` column, keeping only the oldest root.
 

@@ -9,10 +9,7 @@ def alifestd_is_chronologically_sorted_polars(
 
     Defaults to `origin_time`.
     """
-    if how not in phylogeny_df.lazy().collect_schema().names():
-        return False
-
-    return (
+    return how in phylogeny_df.lazy().collect_schema().names() and (
         phylogeny_df.lazy()
         .select(
             pl.col(how).diff().drop_nulls().ge(0).all(),

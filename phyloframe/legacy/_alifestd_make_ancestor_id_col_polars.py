@@ -12,7 +12,7 @@ def alifestd_make_ancestor_id_col_polars(
     no-ancestor organisms.
     """
     df = pl.LazyFrame({"ids": ids, "ancestor_lists": ancestor_lists})
-    result = (
+    return (
         df.select(
             pl.col("ancestor_lists")
             .cast(pl.Utf8)
@@ -31,5 +31,5 @@ def alifestd_make_ancestor_id_col_polars(
             .alias("ancestor_id"),
         )
         .collect()
+        .to_series()
     )
-    return result["ancestor_id"]

@@ -47,13 +47,11 @@ def alifestd_mark_clade_nodecount_ratio_sister_polars(
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-
         raise NotImplementedError(
             "non-contiguous ids not supported",
         )
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-
         raise NotImplementedError(
             "non-topologically-sorted data not supported",
         )

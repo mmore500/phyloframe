@@ -3,7 +3,7 @@ import polars as pl
 
 def alifestd_has_compact_ids_polars(phylogeny_df: pl.DataFrame) -> bool:
     """Are id values between 0 and `len(phylogeny_df)`, in any order?"""
-    if phylogeny_df.lazy().select(pl.len()).collect().item() == 0:
+    if phylogeny_df.lazy().limit(1).collect().is_empty():
         return True
 
     return (

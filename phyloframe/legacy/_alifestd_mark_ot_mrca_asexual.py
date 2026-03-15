@@ -21,6 +21,7 @@ from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_has_multiple_roots import alifestd_has_multiple_roots
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_mark_leaves import alifestd_mark_leaves
+from ._alifestd_mark_ot_mrca import _calc_ot_mrca_contiguous
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
@@ -74,9 +75,29 @@ def alifestd_mark_ot_mrca_asexual(
     contig = alifestd_has_contiguous_ids(phylogeny_df)
     if contig:
         phylogeny_df.reset_index(drop=True, inplace=True)
-    else:
-        warnings.warn("mark_ot_mrca_asexual may be slow with uncontiguous ids")
-        phylogeny_df.index = phylogeny_df["id"]
+
+        ids = phylogeny_df["id"].to_numpy()
+        ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+        origin_times = phylogeny_df["origin_time"].to_numpy()
+        is_leaf = phylogeny_df["is_leaf"].to_numpy()
+
+        (
+            ot_mrca_id,
+            ot_mrca_time_of,
+            ot_mrca_time_since,
+        ) = _calc_ot_mrca_contiguous(
+            ids,
+            ancestor_ids,
+            origin_times,
+            is_leaf,
+        )
+        phylogeny_df["ot_mrca_id"] = ot_mrca_id
+        phylogeny_df["ot_mrca_time_of"] = ot_mrca_time_of
+        phylogeny_df["ot_mrca_time_since"] = ot_mrca_time_since
+        return phylogeny_df
+
+    warnings.warn("mark_ot_mrca_asexual may be slow with uncontiguous ids")
+    phylogeny_df.index = phylogeny_df["id"]
 
     phylogeny_df["ot_mrca_id"] = phylogeny_df["id"].max() + 1
     phylogeny_df["ot_mrca_time_of"] = phylogeny_df["origin_time"].max()
@@ -97,11 +118,9 @@ def alifestd_mark_ot_mrca_asexual(
     ot_mrca_times_of = []
     ot_mrca_times_since = []
     indices = []
-    key = df.index.get_loc if not contig else None
+    key = df.index.get_loc
     for bwd_origin_time, group in progress_wrap(df.groupby("bwd_origin_time")):
-        earliest_id = (
-            group["id"].min() if contig else min(group["id"], key=key)
-        )
+        earliest_id = min(group["id"], key=key)
 
         leaf_mask = group["is_leaf"]
         lineages = sc.SortedSet(

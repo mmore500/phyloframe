@@ -69,9 +69,7 @@ def alifestd_mark_is_left_child_polars(
         is_left_child=(
             pl.col("left_child_id")
             .gather(pl.col("ancestor_id"))
-            .eq(
-                pl.col("id"),
-            )
+            .eq(pl.col("id"))
             & ~pl.col("is_root")
         ),
     )

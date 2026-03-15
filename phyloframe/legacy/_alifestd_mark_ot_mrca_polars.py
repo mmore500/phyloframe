@@ -4,9 +4,7 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
-import sortedcontainers as sc
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
@@ -22,6 +20,7 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
+from ._alifestd_mark_ot_mrca import _calc_ot_mrca_contiguous
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -99,66 +98,9 @@ def alifestd_mark_ot_mrca_polars(
     origin_times = phylogeny_df["origin_time"].to_numpy()
     is_leaf = phylogeny_df["is_leaf"].to_numpy()
 
-    n = len(ids)
-
-    # result arrays
-    ot_mrca_id = np.empty(n, dtype=np.int64)
-    ot_mrca_time_of = np.empty(n, dtype=np.float64)
-    ot_mrca_time_since = np.empty(n, dtype=np.float64)
-
-    # group by negated origin_time (process most recent first)
-    bwd_origin_time = -origin_times
-    sort_order = np.argsort(bwd_origin_time, kind="stable")
-    sorted_bwd = bwd_origin_time[sort_order]
-
-    # find group boundaries
-    group_breaks = np.concatenate(
-        ([0], np.where(np.diff(sorted_bwd) != 0)[0] + 1, [n]),
+    ot_mrca_id, ot_mrca_time_of, ot_mrca_time_since = _calc_ot_mrca_contiguous(
+        ids, ancestor_ids, origin_times, is_leaf
     )
-
-    # initialize running_mrca_id: leaf with latest origin_time,
-    # break ties by largest index
-    if is_leaf.any():
-        leaf_indices = np.where(is_leaf)[0]
-        leaf_times = origin_times[leaf_indices]
-        max_time = leaf_times.max()
-        candidates = leaf_indices[leaf_times == max_time]
-        running_mrca_id = int(ids[candidates[-1]])
-    else:
-        running_mrca_id = int(ids[-1])
-
-    # process each origin_time group
-    for g in range(len(group_breaks) - 1):
-        grp_start = group_breaks[g]
-        grp_end = group_breaks[g + 1]
-        grp_indices = sort_order[grp_start:grp_end]
-
-        # collect active lineages
-        grp_ids_leaf = ids[grp_indices[is_leaf[grp_indices]]]
-
-        # earliest non-leaf in group (smallest index in contiguous case)
-        grp_ids_all = ids[grp_indices]
-        earliest_id = int(grp_ids_all.min())
-
-        lineages = sc.SortedSet(
-            [*grp_ids_leaf, earliest_id, running_mrca_id],
-        )
-
-        while len(lineages) > 1:
-            oldest = lineages.pop(-1)
-            replacement = int(ancestor_ids[oldest])
-            assert replacement != oldest
-            lineages.add(replacement)
-
-        (mrca_id,) = lineages
-        running_mrca_id = mrca_id
-
-        mrca_time = float(origin_times[mrca_id])
-        cur_origin_time = -sorted_bwd[grp_start]
-
-        ot_mrca_id[grp_indices] = mrca_id
-        ot_mrca_time_of[grp_indices] = mrca_time
-        ot_mrca_time_since[grp_indices] = cur_origin_time - mrca_time
 
     return phylogeny_df.with_columns(
         pl.Series("ot_mrca_id", ot_mrca_id),
