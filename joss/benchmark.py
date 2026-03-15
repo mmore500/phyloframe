@@ -186,7 +186,8 @@ class PhyloframeBench:
             ancestor_ids,
         )
         _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-            ancestor_ids, node_depths,
+            ancestor_ids,
+            node_depths,
         )
 
     def inorder(self):
@@ -622,7 +623,8 @@ def _warmup_jit():
     ancestor_ids = pldf.get_column("ancestor_id").to_numpy()
     node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
     _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-        ancestor_ids, node_depths,
+        ancestor_ids,
+        node_depths,
     )
     # pandas path
     pdf = alifestd_from_newick(tiny)
