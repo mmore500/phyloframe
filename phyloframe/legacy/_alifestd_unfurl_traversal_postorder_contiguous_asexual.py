@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from .._auxlib._build_children_csr import build_children_csr
 from .._auxlib._jit import jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
@@ -38,19 +39,10 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         return np.empty(0, dtype=np.int64)
 
     ancestor_ids = ancestor_ids.astype(np.int64)
-    child_count = num_children.astype(np.int64)
-
-    # Build CSR-style children array
-    child_start = np.zeros(n + 1, dtype=np.int64)
-    for i, cc in enumerate(child_count):
-        child_start[i + 1] = child_start[i] + cc
-
-    children_flat = np.empty(n, dtype=np.int64)
-    insert_pos = child_start[:-1].copy()
-    for i, p in enumerate(ancestor_ids):
-        if p != i:
-            children_flat[insert_pos[p]] = i
-            insert_pos[p] += 1
+    child_start, children_flat = build_children_csr(
+        ancestor_ids,
+        num_children.astype(np.int64),
+    )
 
     # Iterative DFS postorder traversal
     result = np.empty(n, dtype=np.int64)
