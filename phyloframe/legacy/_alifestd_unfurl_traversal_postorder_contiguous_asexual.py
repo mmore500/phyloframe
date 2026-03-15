@@ -42,27 +42,26 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
 
     # Build CSR-style children array
     child_start = np.zeros(n + 1, dtype=np.int64)
-    for i in range(n):
-        child_start[i + 1] = child_start[i] + child_count[i]
+    for i, cc in enumerate(child_count):
+        child_start[i + 1] = child_start[i] + cc
 
     children_flat = np.empty(n, dtype=np.int64)
     insert_pos = child_start[:-1].copy()
-    for i in range(n):
-        p = ancestor_ids[i]
+    for i, p in enumerate(ancestor_ids):
         if p != i:
             children_flat[insert_pos[p]] = i
             insert_pos[p] += 1
 
     # Collect roots
     root_count = 0
-    for i in range(n):
-        if ancestor_ids[i] == i:
+    for i, p in enumerate(ancestor_ids):
+        if p == i:
             root_count += 1
 
     roots = np.empty(root_count, dtype=np.int64)
     ri = 0
-    for i in range(n):
-        if ancestor_ids[i] == i:
+    for i, p in enumerate(ancestor_ids):
+        if p == i:
             roots[ri] = i
             ri += 1
 
