@@ -79,6 +79,8 @@ def alifestd_calc_mrca_id_matrix_asexual_polars(
             "topologically unsorted rows not yet supported",
         )
 
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+
     logging.info(
         "- alifestd_calc_mrca_id_matrix_asexual_polars: "
         "extracting ancestor ids...",
@@ -91,11 +93,26 @@ def alifestd_calc_mrca_id_matrix_asexual_polars(
         .to_numpy()
     )
 
-    logging.info(
-        "- alifestd_calc_mrca_id_matrix_asexual_polars: "
-        "computing node depths...",
-    )
-    node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
+    if "node_depth" not in schema_names:
+        logging.info(
+            "- alifestd_calc_mrca_id_matrix_asexual_polars: "
+            "computing node depths...",
+        )
+        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
+            ancestor_ids,
+        )
+    else:
+        logging.info(
+            "- alifestd_calc_mrca_id_matrix_asexual_polars: "
+            "selecting node depths...",
+        )
+        node_depths = (
+            phylogeny_df.lazy()
+            .select(pl.col("node_depth").cast(pl.Int64))
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
 
     logging.info(
         "- alifestd_calc_mrca_id_matrix_asexual_polars: "
