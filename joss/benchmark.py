@@ -56,6 +56,23 @@ def _run_in_child(conn, bench_cls, newick, op, return_value):
         conn.close()
 
 
+def _run_memory_child(conn, bench_cls, newick):
+    """Measure memory in a subprocess with full warmup.
+
+    Full warmup triggers lazy runtime init (thread pools, JIT, etc.).
+    _measure_memory() handles gc + malloc_trim before taking baseline RSS.
+    """
+    try:
+        bench = bench_cls(newick)
+        bench.warmup()
+        result = bench.memory_bytes()
+        conn.send(("ok", result))
+    except Exception as exc:
+        conn.send(("error", str(exc)))
+    finally:
+        conn.close()
+
+
 def timed(bench_cls, newick, op, timeout=TIMEOUT):
     """Run an operation in a subprocess and return self-timed seconds."""
     parent_conn, child_conn = multiprocessing.Pipe()
@@ -120,6 +137,38 @@ def timed_call(bench_cls, newick, op, timeout=TIMEOUT):
     return None
 
 
+def measure_memory(bench_cls, newick, timeout=TIMEOUT):
+    """Measure memory in a clean subprocess (no warmup) for accurate RSS."""
+    parent_conn, child_conn = multiprocessing.Pipe()
+    proc = multiprocessing.Process(
+        target=_run_memory_child,
+        args=(child_conn, bench_cls, newick),
+    )
+    proc.start()
+    proc.join(timeout=timeout)
+    if proc.is_alive():
+        proc.kill()
+        proc.join()
+        parent_conn.close()
+        return None
+    if proc.exitcode != 0:
+        print(
+            f"    error: child process exited with code {proc.exitcode}",
+            file=sys.stderr,
+        )
+        parent_conn.close()
+        return None
+    if parent_conn.poll():
+        result = parent_conn.recv()
+        parent_conn.close()
+        if result[0] == "error":
+            print(f"    error: {result[1]}", file=sys.stderr)
+            return None
+        return result[1]
+    parent_conn.close()
+    return None
+
+
 def _get_rss_bytes():
     """Return current RSS in bytes via /proc/self/statm."""
     import os
@@ -137,8 +186,16 @@ def _measure_memory(load_fn):
     Uses RSS (resident set size) delta, which captures both Python-level
     and native/C++ allocations.  This is important for libraries like
     CompactTree that allocate primarily through the system allocator.
+    Calls malloc_trim to compact the heap before measuring so that
+    freed pages from prior allocations don't mask the delta.
     """
+    import ctypes
+
     gc.collect()
+    try:
+        ctypes.CDLL(None).malloc_trim(0)
+    except (OSError, AttributeError):
+        pass
     before = _get_rss_bytes()
     result = load_fn()  # keep reference alive during measurement
     gc.collect()
@@ -312,8 +369,10 @@ class PhyloframeBench:
     def memory_bytes(self):
         from phyloframe.legacy import alifestd_from_newick_polars
 
-        df = alifestd_from_newick_polars(self._newick)
-        return df.estimated_size()
+        newick = self._newick
+        return _measure_memory(
+            lambda: alifestd_from_newick_polars(newick),
+        )
 
     def _ensure_df(self):
         if self._df is None:
@@ -748,7 +807,7 @@ def run_benchmarks():
                 if fn is None:
                     value = None
                 elif op == "memory_bytes":
-                    value = timed_call(LibClass, newick, op)
+                    value = measure_memory(LibClass, newick)
                 else:
                     value = timed(LibClass, newick, op)
                 if op == "memory_bytes":
