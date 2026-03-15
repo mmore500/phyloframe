@@ -325,14 +325,13 @@ class TreeswiftBench:
     name = "treeswift"
 
     def __init__(self, newick):
-        import treeswift
-
         self._newick = newick
-        self._treeswift = treeswift
         self._tree = None
 
     def load_newick(self):
-        self._tree = self._treeswift.read_tree_newick(self._newick)
+        import treeswift
+
+        self._tree = treeswift.read_tree_newick(self._newick)
 
     def save_newick(self):
         t = self._ensure_tree()
@@ -370,13 +369,20 @@ class TreeswiftBench:
         t.distance_matrix(leaf_labels=True)
 
     def memory_bytes(self):
-        ts = self._treeswift
         newick = self._newick
-        return _measure_memory(lambda: ts.read_tree_newick(newick))
+
+        def _load():
+            import treeswift
+
+            return treeswift.read_tree_newick(newick)
+
+        return _measure_memory(_load)
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._treeswift.read_tree_newick(self._newick)
+            import treeswift
+
+            self._tree = treeswift.read_tree_newick(self._newick)
         return self._tree
 
 
@@ -592,17 +598,18 @@ class CompactTreeBench:
     def __init__(self, newick):
         import tempfile
 
-        self._tmpfile = tempfile.NamedTemporaryFile(
+        tmpfile = tempfile.NamedTemporaryFile(
             mode="w", suffix=".nwk", delete=False
         )
-        self._tmpfile.write(newick)
-        self._tmpfile.close()
+        tmpfile.write(newick)
+        tmpfile.close()
+        self._tmppath = tmpfile.name
         self._tree = None
 
     def load_newick(self):
         from CompactTree import compact_tree
 
-        self._tree = compact_tree(self._tmpfile.name)
+        self._tree = compact_tree(self._tmppath)
 
     def save_newick(self):
         t = self._ensure_tree()
@@ -657,7 +664,7 @@ class CompactTreeBench:
         t.calc_distance_matrix()
 
     def memory_bytes(self):
-        tmpname = self._tmpfile.name
+        tmpname = self._tmppath
 
         def _load():
             from CompactTree import compact_tree
@@ -670,7 +677,7 @@ class CompactTreeBench:
         if self._tree is None:
             from CompactTree import compact_tree
 
-            self._tree = compact_tree(self._tmpfile.name)
+            self._tree = compact_tree(self._tmppath)
         return self._tree
 
 
