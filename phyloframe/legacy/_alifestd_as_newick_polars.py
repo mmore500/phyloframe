@@ -25,8 +25,8 @@ from ._alifestd_mark_node_depth_asexual import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._alifestd_unfurl_traversal_postorder_contiguous_polars import (
-    _alifestd_unfurl_traversal_postorder_contiguous_polars_jit,
+from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
+    _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit,
 )
 
 
@@ -120,7 +120,7 @@ def alifestd_as_newick_polars(
 
     logging.info("calculating postorder traversal order...")
     postorder_index = (
-        _alifestd_unfurl_traversal_postorder_contiguous_polars_jit(
+        _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             ancestor_ids,
         )
     )

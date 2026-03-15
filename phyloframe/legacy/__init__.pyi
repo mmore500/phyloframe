@@ -371,11 +371,8 @@ from ._alifestd_unfurl_traversal_inorder_asexual import (
 from ._alifestd_unfurl_traversal_postorder_asexual import (
     alifestd_unfurl_traversal_postorder_asexual,
 )
-from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
-    _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit,
-)
 from ._alifestd_unfurl_traversal_postorder_contiguous_polars import (
-    _alifestd_unfurl_traversal_postorder_contiguous_polars_jit,
+    alifestd_unfurl_traversal_postorder_contiguous_polars,
 )
 from ._alifestd_unfurl_traversal_semiorder_asexual import (
     alifestd_unfurl_traversal_semiorder_asexual,
@@ -560,6 +557,7 @@ __all__ = [
     "alifestd_unfurl_lineage_asexual",
     "alifestd_unfurl_traversal_inorder_asexual",
     "alifestd_unfurl_traversal_postorder_asexual",
+    "alifestd_unfurl_traversal_postorder_contiguous_polars",
     "alifestd_unfurl_traversal_semiorder_asexual",
     "alifestd_validate",
     "alifestd_warn_topological_sensitivity",
