@@ -10,6 +10,57 @@ from ._alifestd_mark_node_depth_asexual import alifestd_mark_node_depth_asexual
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
+def _alifestd_calc_mrca_id_matrix_asexual_fast_path(
+    ancestor_ids: np.ndarray,
+    node_depths: np.ndarray,
+    progress_wrap: typing.Callable = lambda x: x,
+) -> np.ndarray:
+    """Shared implementation detail for
+    `alifestd_calc_mrca_id_matrix_asexual` and
+    `alifestd_calc_mrca_id_matrix_asexual_polars`.
+
+    Parameters
+    ----------
+    ancestor_ids : np.ndarray
+        1-D int64 array of ancestor ids, indexed by organism id.
+        Roots are self-referential (ancestor_ids[i] == i).
+    node_depths : np.ndarray
+        1-D int64 array of node depths, indexed by organism id.
+    progress_wrap : callable, optional
+        Wrapper for progress display (e.g., tqdm).
+
+    Returns
+    -------
+    np.ndarray
+        n x n int64 matrix of MRCA ids.  Entry [i, j] is -1 when
+        organisms i and j share no common ancestor.
+    """
+    n = len(ancestor_ids)
+    result = -np.ones((n, n), dtype=np.int64)
+    if n == 0:
+        return result
+
+    max_depth = int(node_depths.max())
+    cur_positions = np.arange(n, dtype=np.int64)
+
+    for depth in progress_wrap(reversed(range(max_depth + 1))):
+        depth_mask = node_depths[cur_positions] == depth
+
+        ansatz = -np.ones_like(result)
+
+        ansatz[:, depth_mask] = cur_positions[depth_mask]
+        ansatz[depth_mask, :] = cur_positions[depth_mask, None]
+        ansatz[~depth_mask, :] = -1
+        ansatz[:, ~depth_mask] = -1
+
+        ansatz[ansatz != ansatz.T] = -1
+
+        result = np.maximum(result, ansatz)
+        cur_positions[depth_mask] = ancestor_ids[cur_positions[depth_mask]]
+
+    return result
+
+
 def alifestd_calc_mrca_id_matrix_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
@@ -38,31 +89,12 @@ def alifestd_calc_mrca_id_matrix_asexual(
 
     phylogeny_df = alifestd_mark_node_depth_asexual(phylogeny_df, mutate=True)
 
-    n = len(phylogeny_df)
-    result = -np.ones((n, n), dtype=np.int64)
-    if n == 0:
-        return result
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
+    node_depths = phylogeny_df["node_depth"].to_numpy().astype(np.int64)
+    assert np.all(
+        phylogeny_df["id"].to_numpy() == np.arange(len(phylogeny_df))
+    )
 
-    max_depth = int(phylogeny_df["node_depth"].max())
-
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-    node_depths = phylogeny_df["node_depth"].to_numpy()
-    cur_positions = phylogeny_df["id"].to_numpy().copy()
-    assert np.all(cur_positions == np.arange(len(phylogeny_df)))
-
-    for depth in progress_wrap(reversed(range(max_depth + 1))):
-        depth_mask = node_depths[cur_positions] == depth
-
-        ansatz = -np.ones_like(result)
-
-        ansatz[:, depth_mask] = cur_positions[depth_mask]
-        ansatz[depth_mask, :] = cur_positions[depth_mask, None]
-        ansatz[~depth_mask, :] = -1
-        ansatz[:, ~depth_mask] = -1
-
-        ansatz[ansatz != ansatz.T] = -1
-
-        result = np.maximum(result, ansatz)
-        cur_positions[depth_mask] = ancestor_ids[cur_positions[depth_mask]]
-
-    return result
+    return _alifestd_calc_mrca_id_matrix_asexual_fast_path(
+        ancestor_ids, node_depths, progress_wrap
+    )
