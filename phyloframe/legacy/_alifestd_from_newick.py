@@ -356,9 +356,9 @@ def _jit_parse_branch_lengths(
     return branch_lengths
 
 
-# Performance (as of 2026-03-15, 50k-node caterpillar tree, JIT-warmed):
-#   with branch lengths: phyloframe ~0.10s vs treeswift ~0.34s (~0.3x)
-#   without branch lengths: phyloframe ~0.07s vs treeswift ~0.21s (~0.3x)
+# Performance (as of 2026-03-15, 200k-node caterpillar tree, JIT-warmed):
+#   with branch lengths: phyloframe ~0.4s vs treeswift ~1.4s (~0.3x)
+#   without branch lengths: phyloframe ~0.3s vs treeswift ~0.8s (~0.4x)
 def alifestd_from_newick(
     newick: str,
     *,
