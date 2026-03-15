@@ -256,7 +256,6 @@ class PhyloframeBench:
     def __init__(self, newick):
         self._newick = newick
         self._df = None
-        self._pdf = None
 
     def warmup(self):
         import os
@@ -269,10 +268,8 @@ class PhyloframeBench:
         pl.Config.set_engine_affinity(self.engine_affinity)
 
         from phyloframe.legacy import (
-            alifestd_calc_mrca_id_matrix_asexual,
-            alifestd_from_newick,
             alifestd_from_newick_polars,
-            alifestd_to_working_format,
+            alifestd_mark_ot_mrca_polars,
             alifestd_unfurl_traversal_inorder_polars,
             alifestd_unfurl_traversal_levelorder_polars,
             alifestd_unfurl_traversal_preorder_polars,
@@ -297,10 +294,7 @@ class PhyloframeBench:
         alifestd_unfurl_traversal_preorder_polars(pldf)
         alifestd_unfurl_traversal_levelorder_polars(pldf)
         alifestd_unfurl_traversal_inorder_polars(pldf)
-        # pandas path still needed for MRCA (no polars equivalent yet)
-        pdf = alifestd_from_newick(tiny)
-        wdf = alifestd_to_working_format(pdf)
-        alifestd_calc_mrca_id_matrix_asexual(wdf, mutate=True)
+        alifestd_mark_ot_mrca_polars(pldf)
 
     def load_newick(self):
         from phyloframe.legacy import alifestd_from_newick_polars
@@ -356,10 +350,10 @@ class PhyloframeBench:
         alifestd_unfurl_traversal_levelorder_polars(df)
 
     def mrca_allpairs(self):
-        from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
+        from phyloframe.legacy import alifestd_mark_ot_mrca_polars
 
-        pdf = self._ensure_working_pdf()
-        alifestd_calc_mrca_id_matrix_asexual(pdf, mutate=True)
+        df = self._ensure_df()
+        alifestd_mark_ot_mrca_polars(df)
 
     def pairwise_dist(self):
         raise NotImplementedError("pairwise distances not available")
@@ -378,18 +372,6 @@ class PhyloframeBench:
 
             self._df = alifestd_from_newick_polars(self._newick)
         return self._df
-
-    def _ensure_pdf(self):
-        if self._pdf is None:
-            from phyloframe.legacy import alifestd_from_newick
-
-            self._pdf = alifestd_from_newick(self._newick)
-        return self._pdf
-
-    def _ensure_working_pdf(self):
-        from phyloframe.legacy import alifestd_to_working_format
-
-        return alifestd_to_working_format(self._ensure_pdf())
 
 
 class PhyloframeInMemoryBench(PhyloframeBench):
