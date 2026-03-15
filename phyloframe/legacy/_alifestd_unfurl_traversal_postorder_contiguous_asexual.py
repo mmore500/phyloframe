@@ -1,6 +1,10 @@
 import numpy as np
+import pandas as pd
 
 from .._auxlib._jit import jit
+from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
+from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
@@ -88,3 +92,37 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             result_pos += 1
 
     return result
+
+
+def alifestd_unfurl_traversal_postorder_contiguous_asexual(
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+) -> np.ndarray:
+    """List node indices in DFS postorder traversal order, with subtree
+    contiguity.
+
+    The provided dataframe must be asexual with contiguous ids and
+    topologically sorted rows.
+
+    Input dataframe is not mutated by this operation unless `mutate` set True.
+    If mutate set True, operation does not occur in place; still use return
+    value to get transformed phylogeny dataframe.
+    """
+    if not mutate:
+        phylogeny_df = phylogeny_df.copy()
+
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+
+    if not alifestd_has_contiguous_ids(phylogeny_df):
+        raise NotImplementedError(
+            "non-contiguous ids not yet supported",
+        )
+
+    if not alifestd_is_topologically_sorted(phylogeny_df):
+        raise NotImplementedError(
+            "topologically unsorted rows not yet supported",
+        )
+
+    return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
+        phylogeny_df["ancestor_id"].to_numpy(),
+    )
