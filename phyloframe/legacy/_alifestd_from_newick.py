@@ -285,6 +285,148 @@ def _extract_labels(
     return labels
 
 
+@jit(nopython=True)
+def _jit_build_label_buffer(
+    chars: np.ndarray,
+    label_starts: np.ndarray,
+    label_stops: np.ndarray,
+    num_nodes: int,
+) -> typing.Tuple[np.ndarray, np.ndarray]:
+    """Build a flat byte buffer and offset array for label strings.
+
+    Copies label bytes from `chars` into a contiguous buffer, suitable
+    for zero-copy construction of an Arrow/Polars string array.
+
+    Implementation detail for `alifestd_from_newick_polars`.
+
+    Returns
+    -------
+    tuple of np.ndarray
+        (data, offsets) where data is uint8 label bytes and offsets is
+        int64 with shape (num_nodes + 1,) giving byte positions.
+    """
+    # first pass: compute total size
+    total = np.int64(0)
+    for i in range(num_nodes):
+        total += label_stops[i] - label_starts[i]
+
+    data = np.empty(total, dtype=np.uint8)
+    offsets = np.empty(num_nodes + 1, dtype=np.int64)
+    offsets[0] = 0
+    pos = np.int64(0)
+    for i in range(num_nodes):
+        s = label_starts[i]
+        e = label_stops[i]
+        length = e - s
+        for j in range(length):
+            data[pos + j] = chars[s + j]
+        pos += length
+        offsets[i + 1] = pos
+
+    return data, offsets
+
+
+@jit(nopython=True)
+def _jit_parse_branch_lengths(
+    chars: np.ndarray,
+    bl_starts: np.ndarray,
+    bl_stops: np.ndarray,
+    bl_node_ids: np.ndarray,
+    num_nodes: int,
+    num_bls: int,
+) -> np.ndarray:
+    """Parse branch length floats directly from character data.
+
+    Avoids Python-level string extraction and numpy string-to-float
+    conversion by parsing floats in JIT-compiled code.
+
+    Implementation detail for `_parse_newick`.
+
+    Returns
+    -------
+    np.ndarray
+        Float64 array of length num_nodes, with NaN for missing values.
+    """
+    branch_lengths = np.full(num_nodes, np.nan, dtype=np.float64)
+
+    ZERO = np.uint8(ord("0"))
+    NINE = np.uint8(ord("9"))
+    MINUS = np.uint8(ord("-"))
+    PLUS = np.uint8(ord("+"))
+    DOT = np.uint8(ord("."))
+    E_LOWER = np.uint8(ord("e"))
+    E_UPPER = np.uint8(ord("E"))
+
+    for k in range(num_bls):
+        start = bl_starts[k]
+        stop = bl_stops[k]
+        node_id = bl_node_ids[k]
+
+        # skip leading whitespace
+        i = start
+        while i < stop and chars[i] == np.uint8(32):
+            i += 1
+
+        if i >= stop:
+            continue
+
+        # sign
+        negative = False
+        if chars[i] == MINUS:
+            negative = True
+            i += 1
+        elif chars[i] == PLUS:
+            i += 1
+
+        # integer part
+        result = 0.0
+        while i < stop and ZERO <= chars[i] <= NINE:
+            result = result * 10.0 + np.float64(chars[i] - ZERO)
+            i += 1
+
+        # fractional part
+        if i < stop and chars[i] == DOT:
+            i += 1
+            frac = 0.0
+            frac_digits = 0
+            while i < stop and ZERO <= chars[i] <= NINE:
+                frac = frac * 10.0 + np.float64(chars[i] - ZERO)
+                frac_digits += 1
+                i += 1
+            if frac_digits > 0:
+                divisor = 1.0
+                for _d in range(frac_digits):
+                    divisor *= 10.0
+                result += frac / divisor
+
+        # exponent
+        if i < stop and (chars[i] == E_LOWER or chars[i] == E_UPPER):
+            i += 1
+            exp_neg = False
+            if i < stop and chars[i] == MINUS:
+                exp_neg = True
+                i += 1
+            elif i < stop and chars[i] == PLUS:
+                i += 1
+            exp = 0
+            while i < stop and ZERO <= chars[i] <= NINE:
+                exp = exp * 10 + (chars[i] - ZERO)
+                i += 1
+            if exp_neg:
+                for _e in range(exp):
+                    result /= 10.0
+            else:
+                for _e in range(exp):
+                    result *= 10.0
+
+        if negative:
+            result = -result
+
+        branch_lengths[node_id] = result
+
+    return branch_lengths
+
+
 # Performance (as of 2026-03-01, 200k-node caterpillar tree, JIT-warmed):
 #   with branch lengths: phyloframe ~0.9s vs treeswift ~1.1s (~0.8x)
 #   without branch lengths: phyloframe ~0.6s vs treeswift ~1.0s (~0.7x)

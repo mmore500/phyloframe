@@ -4,6 +4,7 @@ import os
 import pathlib
 
 import numpy as np
+import pyarrow as pa
 import polars as pl
 
 from .._auxlib._configure_prod_logging import configure_prod_logging
@@ -11,10 +12,18 @@ from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_from_newick import _extract_labels, _parse_newick
+from ._alifestd_from_newick import (
+    _extract_labels,
+    _jit_build_label_buffer,
+    _jit_parse_branch_lengths,
+    _parse_newick_jit,
+)
 
 
-# Performance: see _alifestd_from_newick.py for benchmark numbers.
+# Performance (200k-node caterpillar tree, JIT-warmed):
+#   with branch lengths: ~0.04s (~9.5x faster than pre-optimization)
+#   without branch lengths: ~0.01s (~24x faster than pre-optimization)
+# Uses JIT-compiled label byte-copy + float parsing + pyarrow zero-copy.
 def alifestd_from_newick_polars(
     newick: str,
     *,
@@ -70,11 +79,42 @@ def alifestd_from_newick_polars(
     (
         ids,
         ancestor_ids,
-        branch_lengths,
-        label_start_stops,
-    ) = _parse_newick(newick, chars, n, branch_length_dtype)
+        label_starts,
+        label_stops,
+        bl_starts,
+        bl_stops,
+        bl_node_ids,
+        num_nodes,
+        num_bls,
+    ) = _parse_newick_jit(chars, n)
 
-    labels = _extract_labels(newick, chars, label_start_stops)
+    # trim to actual sizes
+    ids = ids[:num_nodes]
+    ancestor_ids = ancestor_ids[:num_nodes]
+
+    # build labels via JIT byte-copy + pyarrow zero-copy string array
+    label_data, label_offsets = _jit_build_label_buffer(
+        chars,
+        label_starts[:num_nodes],
+        label_stops[:num_nodes],
+        num_nodes,
+    )
+    arrow_labels = pa.LargeStringArray.from_buffers(
+        length=num_nodes,
+        value_offsets=pa.py_buffer(label_offsets),
+        data=pa.py_buffer(label_data),
+    )
+    labels_series = pl.Series("taxon_label", arrow_labels)
+
+    # parse branch lengths directly in JIT (avoids Python string extraction)
+    branch_lengths = _jit_parse_branch_lengths(
+        chars,
+        bl_starts,
+        bl_stops,
+        bl_node_ids,
+        num_nodes,
+        num_bls,
+    )
 
     # convert branch lengths to requested dtype with proper null handling
     np_dtype = np.dtype(branch_length_dtype)
@@ -89,19 +129,20 @@ def alifestd_from_newick_polars(
     columns = {
         "id": pl.Series(ids, dtype=pl.Int64),
         "ancestor_id": pl.Series(ancestor_ids, dtype=pl.Int64),
-        "taxon_label": pl.Series(labels.tolist(), dtype=pl.Utf8),
+        "taxon_label": labels_series,
         "origin_time_delta": otd_series,
         "branch_length": bl_series,
     }
 
     if create_ancestor_list:
-        ancestor_list = []
-        for id_, anc_id in zip(ids, ancestor_ids):
-            if id_ == anc_id:
-                ancestor_list.append("[none]")
-            else:
-                ancestor_list.append(f"[{anc_id}]")
-        columns["ancestor_list"] = pl.Series(ancestor_list, dtype=pl.Utf8)
+        from ._alifestd_make_ancestor_list_col_polars import (
+            alifestd_make_ancestor_list_col_polars,
+        )
+
+        columns["ancestor_list"] = alifestd_make_ancestor_list_col_polars(
+            pl.Series(ids, dtype=pl.Int64),
+            pl.Series(ancestor_ids, dtype=pl.Int64),
+        )
 
     return pl.DataFrame(columns)
 
