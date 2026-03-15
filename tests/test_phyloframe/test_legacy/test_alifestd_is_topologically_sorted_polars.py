@@ -320,8 +320,7 @@ def test_alifestd_is_topologically_sorted_polars_unsorted_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_is_topologically_sorted_polars(df)
+    assert not alifestd_is_topologically_sorted_polars(df)
 
 
 def test_alifestd_is_topologically_sorted_polars_env_var_bypass():

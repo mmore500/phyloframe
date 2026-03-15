@@ -85,7 +85,7 @@ def alifestd_collapse_trunk_polars(
         "- alifestd_collapse_trunk_polars: finding oldest trunk root...",
     )
     # Find oldest root among trunk entries
-    trunk_df = phylogeny_df.filter(pl.col("is_trunk"))
+    trunk_df = phylogeny_df.lazy().filter(pl.col("is_trunk")).collect()
     trunk_df = alifestd_mark_oldest_root_polars(trunk_df)
     collapsed_root_id = (
         trunk_df.filter(pl.col("is_oldest_root")).select("id").item()

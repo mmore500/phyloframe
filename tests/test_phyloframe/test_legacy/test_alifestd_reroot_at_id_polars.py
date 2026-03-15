@@ -85,7 +85,7 @@ def test_reroot_at_root(apply: typing.Callable):
     ],
 )
 def test_non_contiguous_ids(apply: typing.Callable):
-    """Non-contiguous ids should raise NotImplementedError."""
+    """Non-contiguous ids should be handled automatically."""
     df = apply(
         pl.DataFrame(
             {
@@ -95,5 +95,4 @@ def test_non_contiguous_ids(apply: typing.Callable):
         ),
     )
 
-    with pytest.raises(NotImplementedError):
-        alifestd_reroot_at_id_polars(df, new_root_id=5)
+    alifestd_reroot_at_id_polars(df, new_root_id=5)

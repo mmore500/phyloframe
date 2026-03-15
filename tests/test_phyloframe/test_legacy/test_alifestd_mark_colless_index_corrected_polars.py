@@ -128,5 +128,4 @@ def test_alifestd_mark_colless_index_corrected_polars_non_contiguous_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_colless_index_corrected_polars(df_pl).lazy().collect()
+    alifestd_mark_colless_index_corrected_polars(df_pl).lazy().collect()

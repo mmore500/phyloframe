@@ -106,5 +106,4 @@ def test_alifestd_mark_colless_like_index_var_polars_non_contiguous_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mark_colless_like_index_var_polars(df_pl).lazy().collect()
+    alifestd_mark_colless_like_index_var_polars(df_pl).lazy().collect()

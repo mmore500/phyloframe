@@ -141,5 +141,4 @@ def test_alifestd_collapse_trunk_polars_non_contiguous_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_collapse_trunk_polars(df_pl).lazy().collect()
+    alifestd_collapse_trunk_polars(df_pl).lazy().collect()

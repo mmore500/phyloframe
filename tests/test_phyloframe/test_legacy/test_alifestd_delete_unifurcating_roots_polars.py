@@ -132,5 +132,4 @@ def test_alifestd_delete_unifurcating_roots_polars_non_contiguous_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_delete_unifurcating_roots_polars(df_pl).lazy().collect()
+    alifestd_delete_unifurcating_roots_polars(df_pl).lazy().collect()
