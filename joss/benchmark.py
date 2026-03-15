@@ -24,6 +24,7 @@ OPERATIONS = [
     "levelorder",
     "mrca_allpairs",
     "pairwise_dist",
+    "memory_bytes",
 ]
 
 
@@ -52,6 +53,47 @@ def timed(fn, timeout=TIMEOUT):
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old)
     return elapsed
+
+
+def timed_call(fn, timeout=TIMEOUT):
+    """Run fn() and return its result, or None on timeout/error."""
+    old = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(timeout)
+    try:
+        result = fn()
+    except TimeoutError:
+        result = None
+    except Exception as exc:
+        print(f"    error: {exc}", file=sys.stderr)
+        result = None
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+    return result
+
+
+def _deep_getsizeof(obj, seen=None):
+    """Recursively measure memory of an object tree."""
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    seen.add(obj_id)
+    if isinstance(obj, dict):
+        size += sum(
+            _deep_getsizeof(k, seen) + _deep_getsizeof(v, seen)
+            for k, v in obj.items()
+        )
+    elif hasattr(obj, "__dict__"):
+        size += _deep_getsizeof(obj.__dict__, seen)
+    elif hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes)):
+        try:
+            size += sum(_deep_getsizeof(i, seen) for i in obj)
+        except TypeError:
+            pass
+    return size
 
 
 # ── tree generation ──────────────────────────────────────────────────
@@ -146,6 +188,10 @@ class PhyloframeBench:
     def pairwise_dist(self):
         raise NotImplementedError("pairwise distances not available")
 
+    def memory_bytes(self):
+        df = self._ensure_df()
+        return df.estimated_size()
+
     def _ensure_df(self):
         if self._df is None:
             self._df = self._from_newick(self._newick)
@@ -212,6 +258,10 @@ class TreeswiftBench:
         t = self._ensure_tree()
         t.distance_matrix(leaf_labels=True)
 
+    def memory_bytes(self):
+        t = self._ensure_tree()
+        return _deep_getsizeof(t)
+
     def _ensure_tree(self):
         if self._tree is None:
             self._tree = self._treeswift.read_tree_newick(self._newick)
@@ -268,6 +318,10 @@ class BiopythonBench:
         for i, a in enumerate(terminals):
             for b in terminals[i + 1 :]:
                 t.distance(a, b)
+
+    def memory_bytes(self):
+        t = self._ensure_tree()
+        return _deep_getsizeof(t)
 
     def _ensure_tree(self):
         if self._tree is None:
@@ -330,6 +384,10 @@ class DendropyBench:
             for b in leaf_list[i + 1 :]:
                 pdm(a.taxon, b.taxon)
 
+    def memory_bytes(self):
+        t = self._ensure_tree()
+        return _deep_getsizeof(t)
+
     def _ensure_tree(self):
         if self._tree is None:
             import dendropy
@@ -386,6 +444,10 @@ class EteBench:
             for b in leaves[i + 1 :]:
                 a.get_distance(b)
 
+    def memory_bytes(self):
+        t = self._ensure_tree()
+        return _deep_getsizeof(t)
+
     def _ensure_tree(self):
         if self._tree is None:
             from ete3 import Tree
@@ -398,13 +460,19 @@ class CompactTreeBench:
     name = "compacttree"
 
     def __init__(self, newick):
-        self._newick = newick
+        import tempfile
+
+        self._tmpfile = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".nwk", delete=False
+        )
+        self._tmpfile.write(newick)
+        self._tmpfile.close()
         self._tree = None
 
     def load_newick(self):
         from CompactTree import compact_tree
 
-        self._tree = compact_tree(self._newick)
+        self._tree = compact_tree(self._tmpfile.name)
 
     def save_newick(self):
         t = self._ensure_tree()
@@ -442,11 +510,15 @@ class CompactTreeBench:
             "pairwise distances not available in CompactTree"
         )
 
+    def memory_bytes(self):
+        t = self._ensure_tree()
+        return _deep_getsizeof(t)
+
     def _ensure_tree(self):
         if self._tree is None:
             from CompactTree import compact_tree
 
-            self._tree = compact_tree(self._newick)
+            self._tree = compact_tree(self._tmpfile.name)
         return self._tree
 
 
@@ -507,17 +579,22 @@ def run_benchmarks():
             for op in OPERATIONS:
                 fn = getattr(bench, op, None)
                 if fn is None:
-                    elapsed = None
+                    value = None
+                elif op == "memory_bytes":
+                    value = timed_call(fn)
                 else:
-                    elapsed = timed(fn)
-                status = f"{elapsed:.4f}s" if elapsed is not None else "SKIP"
+                    value = timed(fn)
+                if op == "memory_bytes":
+                    status = f"{value:,} B" if value is not None else "SKIP"
+                else:
+                    status = f"{value:.4f}s" if value is not None else "SKIP"
                 print(f"    {op}: {status}", file=sys.stderr)
                 results.append(
                     {
                         "library": LibClass.name,
                         "n_leaves": n_leaves,
                         "operation": op,
-                        "seconds": elapsed,
+                        "seconds": value,
                     }
                 )
 
