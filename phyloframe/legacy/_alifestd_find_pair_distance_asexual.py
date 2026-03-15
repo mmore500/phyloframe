@@ -1,5 +1,3 @@
-import typing
-
 import pandas as pd
 
 from ._alifestd_find_pair_mrca_id_asexual import (
@@ -7,16 +5,14 @@ from ._alifestd_find_pair_mrca_id_asexual import (
 )
 
 
-def alifestd_find_distance_pair_asexual(
+def alifestd_find_pair_distance_asexual(
     phylogeny_df: pd.DataFrame,
     first: int,
     second: int,
     *,
     criterion: str = "origin_time",
     mutate: bool = False,
-    is_topologically_sorted: typing.Optional[bool] = None,
-    has_contiguous_ids: typing.Optional[bool] = None,
-) -> typing.Optional[float]:
+) -> float | None:
     """Find the pairwise distance between two taxa via their MRCA.
 
     The distance is computed as the sum of criterion differences between each
@@ -37,12 +33,6 @@ def alifestd_find_distance_pair_asexual(
         Column name used to measure distance between taxa and their MRCA.
     mutate : bool, default False
         If True, allows in-place modification of `phylogeny_df`.
-    is_topologically_sorted : bool, optional
-        If provided, skips the topological sort check. If None
-        (default), the check is performed automatically.
-    has_contiguous_ids : bool, optional
-        If provided, skips the contiguous ids check. If None (default),
-        the check is performed automatically.
 
     Returns
     -------
@@ -54,7 +44,7 @@ def alifestd_find_distance_pair_asexual(
     --------
     alifestd_find_pair_mrca_id_asexual :
         Finds the MRCA id used internally by this function.
-    alifestd_find_distance_pair_polars :
+    alifestd_find_pair_distance_polars :
         Polars-based implementation.
     """
     mrca_id = alifestd_find_pair_mrca_id_asexual(
@@ -62,8 +52,6 @@ def alifestd_find_distance_pair_asexual(
         first,
         second,
         mutate=mutate,
-        is_topologically_sorted=is_topologically_sorted,
-        has_contiguous_ids=has_contiguous_ids,
     )
     if mrca_id is None:
         return None
