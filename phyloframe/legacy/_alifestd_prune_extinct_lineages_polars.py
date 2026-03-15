@@ -103,7 +103,8 @@ def alifestd_prune_extinct_lineages_polars(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_prune_extinct_lineages_polars: determining extant mask...",
+        "- alifestd_prune_extinct_lineages_polars: "
+        "determining extant mask...",
     )
     if "extant" in schema_names:
         extant_mask = phylogeny_df.lazy().select("extant")
@@ -117,14 +118,16 @@ def alifestd_prune_extinct_lineages_polars(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_prune_extinct_lineages_polars: collecting extant mask...",
+        "- alifestd_prune_extinct_lineages_polars: "
+        "collecting extant mask...",
     )
     extant_mask = extant_mask.cast(pl.Boolean).collect().to_series().to_numpy()
     gc.collect()
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_prune_extinct_lineages_polars: collecting ancestor_ids...",
+        "- alifestd_prune_extinct_lineages_polars: "
+        "collecting ancestor_ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -138,7 +141,8 @@ def alifestd_prune_extinct_lineages_polars(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_prune_extinct_lineages_polars: calculating has_extant_descendant...",
+        "- alifestd_prune_extinct_lineages_polars: "
+        "calculating has_extant_descendant...",
     )
     has_extant_descendant = _create_has_extant_descendant_contiguous_sorted(
         ancestor_ids.copy(),  # must copy to remove read-only flag...

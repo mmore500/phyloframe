@@ -28,7 +28,8 @@ def alifestd_find_chronological_inconsistency_polars(
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         raise NotImplementedError(
-            "alifestd_find_chronological_inconsistency_polars requires contiguous ids",
+            "alifestd_find_chronological_inconsistency_polars requires "
+            "contiguous ids",
         )
 
     # Use polars gather to look up ancestor origin times

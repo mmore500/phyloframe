@@ -127,7 +127,8 @@ def alifestd_coarsen_dilate_polars(
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
-            "alifestd_coarsen_dilate_polars requires topologically sorted input",
+            "alifestd_coarsen_dilate_polars requires topologically "
+            "sorted input",
         )
 
     logging.info(
@@ -246,7 +247,9 @@ def _create_parser() -> argparse.ArgumentParser:
         "--dilation",
         default=1,
         type=int,
-        help="Width of the dilation window (default: 1). Note: with floating-point criterion values, dilation=1 floors inner-node values to integers.",
+        help="Width of the dilation window (default: 1). Note: with "
+        "floating-point criterion values, dilation=1 floors inner-node "
+        "values to integers.",
     )
     add_bool_arg(
         parser,

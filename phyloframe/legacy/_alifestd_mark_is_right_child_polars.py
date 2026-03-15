@@ -63,7 +63,8 @@ def alifestd_mark_is_right_child_polars(
         phylogeny_df = alifestd_mark_roots_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_mark_is_right_child_polars: computing is_right_child...",
+        "- alifestd_mark_is_right_child_polars: "
+        "computing is_right_child...",
     )
     return phylogeny_df.with_columns(
         is_right_child=(

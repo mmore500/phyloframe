@@ -53,7 +53,8 @@ def alifestd_mark_first_child_id_polars(
     )
 
     logging.info(
-        "- alifestd_mark_first_child_id_polars: tabulating first child ids...",
+        "- alifestd_mark_first_child_id_polars: "
+        "tabulating first child ids...",
     )
     first_child_ids = _alifestd_mark_first_child_id_asexual_fast_path(
         ancestor_ids,

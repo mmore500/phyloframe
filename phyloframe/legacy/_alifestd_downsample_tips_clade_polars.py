@@ -65,7 +65,8 @@ def _alifestd_downsample_tips_clade_polars_impl(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: collecting ancestor_id values...",
+        "- alifestd_downsample_tips_clade_polars: "
+        "collecting ancestor_id values...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -96,7 +97,8 @@ def _alifestd_downsample_tips_clade_polars_impl(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: sampling weighted candidate...",
+        "- alifestd_downsample_tips_clade_polars: "
+        "sampling weighted candidate...",
     )
     ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
     candidate_ids = ids[is_candidate]
@@ -116,7 +118,8 @@ def _alifestd_downsample_tips_clade_polars_impl(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_clade_polars: marking descendants of sampled clade...",
+        "- alifestd_downsample_tips_clade_polars: "
+        "marking descendants of sampled clade...",
     )
     n_rows = phylogeny_df.lazy().select(pl.len()).collect().item()
     ancestor_mask = np.zeros(n_rows, dtype=bool)

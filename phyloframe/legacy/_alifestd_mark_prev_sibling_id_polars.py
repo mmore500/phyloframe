@@ -54,7 +54,8 @@ def alifestd_mark_prev_sibling_id_polars(
     )
 
     logging.info(
-        "- alifestd_mark_prev_sibling_id_polars: tabulating prev sibling ids...",
+        "- alifestd_mark_prev_sibling_id_polars: "
+        "tabulating prev sibling ids...",
     )
     prev_sibling_ids = _alifestd_mark_prev_sibling_id_asexual_fast_path(
         ancestor_ids,

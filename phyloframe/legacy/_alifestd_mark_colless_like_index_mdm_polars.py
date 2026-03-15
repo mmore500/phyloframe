@@ -32,7 +32,8 @@ def alifestd_mark_colless_like_index_mdm_polars(
     """
 
     logging.info(
-        "- alifestd_mark_colless_like_index_mdm_polars: adding ancestor_id col...",
+        "- alifestd_mark_colless_like_index_mdm_polars: "
+        "adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
@@ -54,7 +55,8 @@ def alifestd_mark_colless_like_index_mdm_polars(
         )
 
     logging.info(
-        "- alifestd_mark_colless_like_index_mdm_polars: extracting ancestor ids...",
+        "- alifestd_mark_colless_like_index_mdm_polars: "
+        "extracting ancestor ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -65,7 +67,8 @@ def alifestd_mark_colless_like_index_mdm_polars(
     )
 
     logging.info(
-        "- alifestd_mark_colless_like_index_mdm_polars: computing colless_like_index_mdm...",
+        "- alifestd_mark_colless_like_index_mdm_polars: "
+        "computing colless_like_index_mdm...",
     )
     return phylogeny_df.with_columns(
         colless_like_index_mdm=_colless_like_fast_path(ancestor_ids, 0),
@@ -96,7 +99,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_mark_colless_like_index_mdm_polars"
+            "phyloframe.legacy" "._alifestd_mark_colless_like_index_mdm_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -111,7 +114,8 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_colless_like_index_mdm_polars",
+            "phyloframe.legacy"
+            "._alifestd_mark_colless_like_index_mdm_polars",
             logging.info,
         ):
             _run_dataframe_cli(
