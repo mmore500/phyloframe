@@ -321,3 +321,26 @@ def test_alifestd_is_topologically_sorted_polars_unsorted_ids(
     )
     with pytest.raises(NotImplementedError):
         alifestd_is_topologically_sorted_polars(df)
+
+
+def test_alifestd_is_topologically_sorted_polars_env_var_bypass(
+    monkeypatch,
+):
+    """Setting the env var bypasses check and returns True."""
+    monkeypatch.setenv(
+        "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_IS_TOPOLOGICALLY_SORTED_POLARS",
+        "1",
+    )
+    df = pl.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 2, 0]},
+    )
+    # Would normally be False, but env var forces True
+    assert alifestd_is_topologically_sorted_polars_(df)
+
+
+def test_alifestd_is_topologically_sorted_polars_env_var_unset():
+    """Without env var, normal check applies."""
+    df = pl.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 2, 0]},
+    )
+    assert not alifestd_is_topologically_sorted_polars_(df)
