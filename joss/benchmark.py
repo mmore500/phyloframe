@@ -800,14 +800,17 @@ def run_benchmarks():
         for LibClass in LIBRARIES:
             print(f"  {LibClass.name}:", file=sys.stderr)
 
+            skip_remaining = False
             for op in OPERATIONS:
                 fn = getattr(LibClass, op, None)
-                if fn is None:
+                if fn is None or skip_remaining:
                     value = None
                 elif op == "memory_bytes":
                     value = measure_memory(LibClass, newick)
                 else:
                     value = timed(LibClass, newick, op)
+                    if op == "load_newick" and value is None:
+                        skip_remaining = True
                 if op == "memory_bytes":
                     status = f"{value:,} B" if value is not None else "SKIP"
                 else:
