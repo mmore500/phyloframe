@@ -475,7 +475,7 @@ class BiopythonBench:
         def _load():
             from Bio import Phylo
 
-            Phylo.read(io.StringIO(newick), "newick")
+            return Phylo.read(io.StringIO(newick), "newick")
 
         return _measure_memory(_load)
 
@@ -549,7 +549,7 @@ class DendropyBench:
         def _load():
             import dendropy
 
-            dendropy.Tree.get(data=newick, schema="newick")
+            return dendropy.Tree.get(data=newick, schema="newick")
 
         return _measure_memory(_load)
 
@@ -618,7 +618,7 @@ class EteBench:
         def _load():
             from ete3 import Tree
 
-            Tree(newick)
+            return Tree(newick)
 
         return _measure_memory(_load)
 
@@ -710,7 +710,7 @@ class CompactTreeBench:
         def _load():
             from CompactTree import compact_tree
 
-            compact_tree(tmpname)
+            return compact_tree(tmpname)
 
         return _measure_memory(_load)
 
