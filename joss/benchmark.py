@@ -98,54 +98,50 @@ class PhyloframeBench:
     name = "phyloframe"
 
     def __init__(self, newick):
-        from phyloframe.legacy import (
-            alifestd_from_newick,
-            alifestd_to_working_format,
-        )
+        from phyloframe.legacy import alifestd_from_newick_polars
 
         self._newick = newick
-        self._from_newick = alifestd_from_newick
-        self._to_working = alifestd_to_working_format
+        self._from_newick = alifestd_from_newick_polars
         self._df = None
 
     def load_newick(self):
         self._df = self._from_newick(self._newick)
 
     def save_newick(self):
-        from phyloframe.legacy import alifestd_as_newick_asexual
+        from phyloframe.legacy import alifestd_as_newick_polars
 
         df = self._ensure_df()
-        alifestd_as_newick_asexual(df, mutate=True)
+        alifestd_as_newick_polars(df)
 
     def preorder(self):
-        # phyloframe has no dedicated preorder; postorder reversed is
-        # not equivalent, so report as unsupported
         raise NotImplementedError("preorder not available")
 
     def postorder(self):
-        from phyloframe.legacy import (
-            alifestd_unfurl_traversal_postorder_asexual,
+        from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
+            _alifestd_unfurl_traversal_postorder_asexual_fast_path,
         )
 
         df = self._ensure_df()
-        alifestd_unfurl_traversal_postorder_asexual(df, mutate=True)
+        ancestor_ids = df.get_column("ancestor_id").to_numpy()
+        _alifestd_unfurl_traversal_postorder_asexual_fast_path(ancestor_ids)
 
     def inorder(self):
-        from phyloframe.legacy import (
-            alifestd_unfurl_traversal_inorder_asexual,
-        )
-
-        df = self._ensure_df()
-        alifestd_unfurl_traversal_inorder_asexual(df, mutate=True)
+        raise NotImplementedError("inorder not available for polars")
 
     def levelorder(self):
         raise NotImplementedError("levelorder not available")
 
     def mrca_allpairs(self):
-        from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
+        from phyloframe.legacy._alifestd_calc_mrca_id_matrix_asexual import (
+            alifestd_calc_mrca_id_matrix_asexual,
+        )
 
-        df = self._ensure_working()
-        alifestd_calc_mrca_id_matrix_asexual(df, mutate=True)
+        df = self._ensure_df()
+        pdf = df.to_pandas()
+        from phyloframe.legacy import alifestd_to_working_format
+
+        pdf = alifestd_to_working_format(pdf)
+        alifestd_calc_mrca_id_matrix_asexual(pdf, mutate=True)
 
     def pairwise_dist(self):
         raise NotImplementedError("pairwise distances not available")
@@ -154,10 +150,6 @@ class PhyloframeBench:
         if self._df is None:
             self._df = self._from_newick(self._newick)
         return self._df
-
-    def _ensure_working(self):
-        df = self._ensure_df()
-        return self._to_working(df)
 
 
 class TreeswiftBench:
