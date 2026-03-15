@@ -5,6 +5,10 @@ Reproduces the TreeSwift paper benchmark: preorder, postorder, inorder,
 levelorder traversals, all-pairs MRCA, and all-pairs pairwise distances
 on binary trees with 100 to 1,000,000 leaves.  Also benchmarks newick
 load/save.  Any single operation exceeding TIMEOUT seconds is skipped.
+
+Each operation runs in a forkserver subprocess that does its own setup
+(imports, JIT warmup) and reports self-timed results back via a pipe,
+so import/warmup overhead never pollutes the measured time.
 """
 
 import csv
@@ -14,8 +18,8 @@ import multiprocessing
 import sys
 import time
 
-# Use forkserver to avoid deadlocks caused by forking after polars/numba
-# have initialized background threads during JIT warmup.
+# Use forkserver so each subprocess starts clean — avoids deadlocks from
+# forking a process with polars/numba background threads.
 multiprocessing.set_start_method("forkserver", force=True)
 
 TIMEOUT = 10  # seconds per operation
@@ -33,9 +37,12 @@ OPERATIONS = [
 ]
 
 
-def _run_in_child(conn, fn, return_value):
-    """Target for subprocess: run fn and send result over pipe."""
+def _run_in_child(conn, bench_cls, newick, op, return_value):
+    """Target for subprocess: construct bench, warmup, run op, send timing."""
     try:
+        bench = bench_cls(newick)
+        bench.warmup()
+        fn = getattr(bench, op)
         t0 = time.perf_counter()
         result = fn()
         elapsed = time.perf_counter() - t0
@@ -49,15 +56,12 @@ def _run_in_child(conn, fn, return_value):
         conn.close()
 
 
-def timed(fn, timeout=TIMEOUT):
-    """Run fn() in a subprocess and return elapsed seconds.
-
-    Using a subprocess protects against C++ crashes (e.g. std::bad_alloc)
-    that would otherwise abort the entire benchmark process.
-    """
+def timed(bench_cls, newick, op, timeout=TIMEOUT):
+    """Run an operation in a subprocess and return self-timed seconds."""
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
-        target=_run_in_child, args=(child_conn, fn, False)
+        target=_run_in_child,
+        args=(child_conn, bench_cls, newick, op, False),
     )
     proc.start()
     proc.join(timeout=timeout)
@@ -84,11 +88,12 @@ def timed(fn, timeout=TIMEOUT):
     return None
 
 
-def timed_call(fn, timeout=TIMEOUT):
-    """Run fn() in a subprocess and return its result, or None."""
+def timed_call(bench_cls, newick, op, timeout=TIMEOUT):
+    """Run an operation in a subprocess and return its result, or None."""
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
-        target=_run_in_child, args=(child_conn, fn, True)
+        target=_run_in_child,
+        args=(child_conn, bench_cls, newick, op, True),
     )
     proc.start()
     proc.join(timeout=timeout)
@@ -177,59 +182,70 @@ class PhyloframeBench:
     name = "phyloframe"
     engine_affinity = None
 
-    def __init__(self, newick):
-        from phyloframe.legacy import alifestd_from_newick_polars
-
-        self._newick = newick
-        self._from_newick = alifestd_from_newick_polars
-        self._df = None
-        self._pdf = None
-
     _env_overrides = {
         "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_HAS_CONTIGUOUS_IDS_POLARS": "1",
         "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_IS_TOPOLOGICALLY_SORTED_POLARS": "1",
     }
 
-    def _set_engine(self):
+    def __init__(self, newick):
+        self._newick = newick
+        self._df = None
+        self._pdf = None
+
+    def warmup(self):
         import os
+
+        for key, val in self._env_overrides.items():
+            os.environ[key] = val
 
         import polars as pl
 
         pl.Config.set_engine_affinity(self.engine_affinity)
-        self._saved_env = {}
-        for key, val in self._env_overrides.items():
-            self._saved_env[key] = os.environ.get(key)
-            os.environ[key] = val
 
-    def _reset_engine(self):
-        import os
+        from phyloframe.legacy import (
+            alifestd_from_newick,
+            alifestd_from_newick_polars,
+            alifestd_to_working_format,
+            alifestd_unfurl_traversal_inorder_asexual,
+            alifestd_unfurl_traversal_postorder_asexual,
+            alifestd_unfurl_traversal_preorder_polars,
+        )
+        from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
+            _alifestd_calc_node_depth_asexual_contiguous,
+        )
+        from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
+            _alifestd_unfurl_traversal_postorder_asexual_fast_path,
+        )
 
-        import polars as pl
+        tiny = _balanced_newick(8)
+        pldf = alifestd_from_newick_polars(tiny)
+        ancestor_ids = pldf.get_column("ancestor_id").to_numpy()
+        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
+            ancestor_ids,
+        )
+        _alifestd_unfurl_traversal_postorder_asexual_fast_path(
+            ancestor_ids,
+            node_depths,
+        )
+        alifestd_unfurl_traversal_preorder_polars(pldf)
+        pdf = alifestd_from_newick(tiny)
+        alifestd_unfurl_traversal_postorder_asexual(pdf, mutate=True)
+        alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
+        from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
 
-        for key in self._env_overrides:
-            prev = self._saved_env.get(key)
-            if prev is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = prev
-        pl.Config.set_engine_affinity(None)
+        wdf = alifestd_to_working_format(pdf)
+        alifestd_calc_mrca_id_matrix_asexual(wdf, mutate=True)
 
     def load_newick(self):
-        self._set_engine()
-        try:
-            self._df = self._from_newick(self._newick)
-        finally:
-            self._reset_engine()
+        from phyloframe.legacy import alifestd_from_newick_polars
+
+        self._df = alifestd_from_newick_polars(self._newick)
 
     def save_newick(self):
         from phyloframe.legacy import alifestd_as_newick_polars
 
         df = self._ensure_df()
-        self._set_engine()
-        try:
-            alifestd_as_newick_polars(df)
-        finally:
-            self._reset_engine()
+        alifestd_as_newick_polars(df)
 
     def preorder(self):
         from phyloframe.legacy import (
@@ -281,21 +297,15 @@ class PhyloframeBench:
         from phyloframe.legacy import alifestd_from_newick_polars
 
         newick = self._newick
-        self._set_engine()
-        try:
-            return _measure_memory(
-                lambda: alifestd_from_newick_polars(newick),
-            )
-        finally:
-            self._reset_engine()
+        return _measure_memory(
+            lambda: alifestd_from_newick_polars(newick),
+        )
 
     def _ensure_df(self):
         if self._df is None:
-            self._set_engine()
-            try:
-                self._df = self._from_newick(self._newick)
-            finally:
-                self._reset_engine()
+            from phyloframe.legacy import alifestd_from_newick_polars
+
+            self._df = alifestd_from_newick_polars(self._newick)
         return self._df
 
     def _ensure_pdf(self):
@@ -327,6 +337,9 @@ class TreeswiftBench:
     def __init__(self, newick):
         self._newick = newick
         self._tree = None
+
+    def warmup(self):
+        pass
 
     def load_newick(self):
         import treeswift
@@ -392,6 +405,9 @@ class BiopythonBench:
     def __init__(self, newick):
         self._newick = newick
         self._tree = None
+
+    def warmup(self):
+        pass
 
     def load_newick(self):
         from Bio import Phylo
@@ -461,6 +477,9 @@ class DendropyBench:
     def __init__(self, newick):
         self._newick = newick
         self._tree = None
+
+    def warmup(self):
+        pass
 
     def load_newick(self):
         import dendropy
@@ -532,6 +551,9 @@ class EteBench:
     def __init__(self, newick):
         self._newick = newick
         self._tree = None
+
+    def warmup(self):
+        pass
 
     def load_newick(self):
         from ete3 import Tree
@@ -605,6 +627,9 @@ class CompactTreeBench:
         tmpfile.close()
         self._tmppath = tmpfile.name
         self._tree = None
+
+    def warmup(self):
+        pass
 
     def load_newick(self):
         from CompactTree import compact_tree
@@ -693,47 +718,7 @@ LIBRARIES = [
 ]
 
 
-def _warmup_jit():
-    """Run phyloframe operations on a tiny tree to trigger JIT compilation."""
-    print("Warming up JIT...", file=sys.stderr)
-    from phyloframe.legacy import (
-        alifestd_from_newick,
-        alifestd_from_newick_polars,
-        alifestd_to_working_format,
-        alifestd_unfurl_traversal_inorder_asexual,
-        alifestd_unfurl_traversal_postorder_asexual,
-        alifestd_unfurl_traversal_preorder_polars,
-    )
-    from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
-        _alifestd_calc_node_depth_asexual_contiguous,
-    )
-    from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
-        _alifestd_unfurl_traversal_postorder_asexual_fast_path,
-    )
-
-    tiny = _balanced_newick(8)
-    # polars path
-    pldf = alifestd_from_newick_polars(tiny)
-    ancestor_ids = pldf.get_column("ancestor_id").to_numpy()
-    node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
-    _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-        ancestor_ids,
-        node_depths,
-    )
-    alifestd_unfurl_traversal_preorder_polars(pldf)
-    # pandas path
-    pdf = alifestd_from_newick(tiny)
-    alifestd_unfurl_traversal_postorder_asexual(pdf, mutate=True)
-    alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
-    from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
-
-    wdf = alifestd_to_working_format(pdf)
-    alifestd_calc_mrca_id_matrix_asexual(wdf, mutate=True)
-    print("JIT warmup complete.", file=sys.stderr)
-
-
 def run_benchmarks():
-    _warmup_jit()
     results = []
     for n_leaves in SIZES:
         print(f"\n{'='*60}", file=sys.stderr)
@@ -743,16 +728,15 @@ def run_benchmarks():
 
         for LibClass in LIBRARIES:
             print(f"  {LibClass.name}:", file=sys.stderr)
-            bench = LibClass(newick)
 
             for op in OPERATIONS:
-                fn = getattr(bench, op, None)
+                fn = getattr(LibClass, op, None)
                 if fn is None:
                     value = None
                 elif op == "memory_bytes":
-                    value = timed_call(fn)
+                    value = timed_call(LibClass, newick, op)
                 else:
-                    value = timed(fn)
+                    value = timed(LibClass, newick, op)
                 if op == "memory_bytes":
                     status = f"{value:,} B" if value is not None else "SKIP"
                 else:
