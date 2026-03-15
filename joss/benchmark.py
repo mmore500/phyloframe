@@ -491,39 +491,36 @@ class CompactTreeBench:
 
     def save_newick(self):
         t = self._ensure_tree()
-        t.newick()
+        t.get_newick()
 
     def preorder(self):
-        from CompactTree import traverse_preorder
-
         t = self._ensure_tree()
-        for _ in traverse_preorder(t):
+        for _ in t.traverse_preorder():
             pass
 
     def postorder(self):
-        from CompactTree import traverse_postorder
-
         t = self._ensure_tree()
-        for _ in traverse_postorder(t):
+        for _ in t.traverse_postorder():
             pass
 
     def inorder(self):
         raise NotImplementedError("inorder not available in CompactTree")
 
     def levelorder(self):
-        from CompactTree import traverse_levelorder
-
         t = self._ensure_tree()
-        for _ in traverse_levelorder(t):
+        for _ in t.traverse_levelorder():
             pass
 
     def mrca_allpairs(self):
-        raise NotImplementedError("MRCA not available in CompactTree")
+        t = self._ensure_tree()
+        leaves = list(t.traverse_leaves())
+        for i, a in enumerate(leaves):
+            for b in leaves[i + 1 :]:
+                t.find_mrca({a, b})
 
     def pairwise_dist(self):
-        raise NotImplementedError(
-            "pairwise distances not available in CompactTree"
-        )
+        t = self._ensure_tree()
+        t.calc_distance_matrix()
 
     def memory_bytes(self):
         tmpname = self._tmpfile.name
