@@ -94,10 +94,20 @@ def alifestd_unfurl_traversal_inorder_asexual(
         phylogeny_df
     ) and alifestd_is_topologically_sorted(phylogeny_df):
         ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+        num_leaves = (
+            phylogeny_df["num_leaves"].to_numpy()
+            if "num_leaves" in phylogeny_df.columns
+            else _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)
+        )
+        right_children = (
+            phylogeny_df["right_child_id"].to_numpy()
+            if "right_child_id" in phylogeny_df.columns
+            else _alifestd_mark_right_child_asexual_fast_path(ancestor_ids)
+        )
         return _alifestd_unfurl_traversal_inorder_asexual_fast_path(
             ancestor_ids,
-            _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids),
-            _alifestd_mark_right_child_asexual_fast_path(ancestor_ids),
+            num_leaves,
+            right_children,
         )
 
     if "num_preceding_leaves" not in phylogeny_df.columns:
