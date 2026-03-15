@@ -300,7 +300,7 @@ class PhyloframeBench:
         )
         alifestd_mark_ot_mrca_polars(pldf_with_ot)
         alifestd_calc_mrca_id_matrix_asexual_polars(pldf)
-        from phyloframe.legacy._alifestd_calc_distance_matrix_polars import (
+        from phyloframe.legacy import (
             alifestd_calc_distance_matrix_polars,
         )
 
@@ -368,7 +368,7 @@ class PhyloframeBench:
         alifestd_calc_mrca_id_matrix_asexual_polars(df)
 
     def pairwise_dist(self):
-        from phyloframe.legacy._alifestd_calc_distance_matrix_polars import (
+        from phyloframe.legacy import (
             alifestd_calc_distance_matrix_polars,
         )
 
