@@ -52,19 +52,6 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             children_flat[insert_pos[p]] = i
             insert_pos[p] += 1
 
-    # Collect roots
-    root_count = 0
-    for i, p in enumerate(ancestor_ids):
-        if p == i:
-            root_count += 1
-
-    roots = np.empty(root_count, dtype=np.int64)
-    ri = 0
-    for i, p in enumerate(ancestor_ids):
-        if p == i:
-            roots[ri] = i
-            ri += 1
-
     # Iterative DFS postorder traversal
     result = np.empty(n, dtype=np.int64)
     result_pos = 0
@@ -73,11 +60,20 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     stack_top = 0
     expanded = np.zeros(n, dtype=np.bool_)
 
-    for ri in range(root_count - 1, -1, -1):
-        stack[stack_top] = roots[ri]
-        stack_top += 1
+    next_root_candidate = 0
+    while True:
+        # Find next root when stack is exhausted
+        if stack_top == 0:
+            while next_root_candidate < n:
+                if ancestor_ids[next_root_candidate] == next_root_candidate:
+                    stack[stack_top] = next_root_candidate
+                    stack_top += 1
+                    next_root_candidate += 1
+                    break
+                next_root_candidate += 1
+            else:
+                break  # no more roots
 
-    while stack_top > 0:
         node = stack[stack_top - 1]
         c_start = child_start[node]
         c_end = child_start[node + 1]
