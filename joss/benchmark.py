@@ -312,10 +312,8 @@ class PhyloframeBench:
     def memory_bytes(self):
         from phyloframe.legacy import alifestd_from_newick_polars
 
-        newick = self._newick
-        return _measure_memory(
-            lambda: alifestd_from_newick_polars(newick),
-        )
+        df = alifestd_from_newick_polars(self._newick)
+        return df.estimated_size()
 
     def _ensure_df(self):
         if self._df is None:
