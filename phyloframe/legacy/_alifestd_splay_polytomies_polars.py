@@ -35,6 +35,11 @@ def alifestd_splay_polytomies_polars(
     to perform the splaying-out will have zero-length subtending branches.
     """
 
+    if "ancestor_list" in phylogeny_df.lazy().collect_schema().names():
+        raise NotImplementedError(
+            "ancestor_list column not supported, drop it first",
+        )
+
     logging.info(
         "- alifestd_splay_polytomies_polars: adding ancestor_id col...",
     )
@@ -97,9 +102,7 @@ def alifestd_splay_polytomies_polars(
     return phylogeny_df
 
 
-_raw_description = f"""\
-{os.path.basename(__file__)} | \
-(phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
+_raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Use a simple splay strategy to resolve polytomies into bifurcations.
 

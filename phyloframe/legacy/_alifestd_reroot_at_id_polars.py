@@ -20,9 +20,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_make_ancestor_list_col_polars import (
-    alifestd_make_ancestor_list_col_polars,
-)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -52,6 +49,11 @@ def alifestd_reroot_at_id_polars(
     polars.DataFrame
         The rerooted phylogeny in alife standard format.
     """
+    if "ancestor_list" in phylogeny_df.lazy().collect_schema().names():
+        raise NotImplementedError(
+            "ancestor_list column not supported, drop it first",
+        )
+
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     # Mark the target node before any id reassignment
@@ -111,17 +113,6 @@ def alifestd_reroot_at_id_polars(
     phylogeny_df = phylogeny_df.with_columns(
         ancestor_id=pl.Series("ancestor_id", ancestor_ids),
     )
-
-    if "ancestor_list" in phylogeny_df.lazy().collect_schema().names():
-        logging.info(
-            "- alifestd_reroot_at_id_polars: recomputing ancestor_list...",
-        )
-        phylogeny_df = phylogeny_df.with_columns(
-            ancestor_list=alifestd_make_ancestor_list_col_polars(
-                phylogeny_df["id"],
-                phylogeny_df["ancestor_id"],
-            ),
-        )
 
     return phylogeny_df
 

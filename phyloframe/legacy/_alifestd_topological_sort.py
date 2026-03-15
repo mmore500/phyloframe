@@ -16,7 +16,9 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
+from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 from ._alifestd_try_add_ancestor_list_col import (
     alifestd_try_add_ancestor_list_col,
 )
@@ -28,16 +30,16 @@ def _topological_sort_fast_path(ancestor_ids: np.ndarray) -> np.ndarray:
     n = len(ancestor_ids)
     # Count children for each node
     num_children = np.zeros(n, dtype=np.int64)
-    for i in range(n):
-        if ancestor_ids[i] != i:
-            num_children[ancestor_ids[i]] += 1
+    for i, ancestor_id in enumerate(ancestor_ids):
+        if ancestor_id != i:
+            num_children[ancestor_id] += 1
 
     # Initialize queue with leaves (nodes with no children)
     queue = np.empty(n, dtype=np.int64)
     head = 0
     tail = 0
-    for i in range(n):
-        if num_children[i] == 0:
+    for i, nc in enumerate(num_children):
+        if nc == 0:
             queue[tail] = i
             tail += 1
 
@@ -72,6 +74,18 @@ def alifestd_topological_sort(
 
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
+
+    # Fast path for contiguous ids with ancestor_id
+    phylogeny_df = alifestd_try_add_ancestor_id_col(
+        phylogeny_df,
+        mutate=True,
+    )
+    if "ancestor_id" in phylogeny_df and alifestd_has_contiguous_ids(
+        phylogeny_df
+    ):
+        ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+        order = _topological_sort_fast_path(ancestor_ids)
+        return phylogeny_df.iloc[order].reset_index(drop=True)
 
     has_ancestor_list = "ancestor_list" in phylogeny_df
     if not has_ancestor_list:
