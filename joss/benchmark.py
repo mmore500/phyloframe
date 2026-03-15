@@ -271,10 +271,10 @@ class PhyloframeBench:
         from phyloframe.legacy import (
             alifestd_from_newick,
             alifestd_from_newick_polars,
+            alifestd_calc_mrca_id_matrix_asexual,
             alifestd_to_working_format,
-            alifestd_unfurl_traversal_inorder_asexual,
+            alifestd_unfurl_traversal_inorder_polars,
             alifestd_unfurl_traversal_levelorder_polars,
-            alifestd_unfurl_traversal_postorder_asexual,
             alifestd_unfurl_traversal_preorder_polars,
         )
         from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
@@ -296,11 +296,9 @@ class PhyloframeBench:
         )
         alifestd_unfurl_traversal_preorder_polars(pldf)
         alifestd_unfurl_traversal_levelorder_polars(pldf)
+        alifestd_unfurl_traversal_inorder_polars(pldf)
+        # pandas path still needed for MRCA (no polars equivalent yet)
         pdf = alifestd_from_newick(tiny)
-        alifestd_unfurl_traversal_postorder_asexual(pdf, mutate=True)
-        alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
-        from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
-
         wdf = alifestd_to_working_format(pdf)
         alifestd_calc_mrca_id_matrix_asexual(wdf, mutate=True)
 
@@ -343,11 +341,11 @@ class PhyloframeBench:
 
     def inorder(self):
         from phyloframe.legacy import (
-            alifestd_unfurl_traversal_inorder_asexual,
+            alifestd_unfurl_traversal_inorder_polars,
         )
 
-        pdf = self._ensure_pdf()
-        alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
+        df = self._ensure_df()
+        alifestd_unfurl_traversal_inorder_polars(df)
 
     def levelorder(self):
         from phyloframe.legacy import (
