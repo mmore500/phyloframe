@@ -30,19 +30,16 @@ def alifestd_mark_next_sibling_id_polars(
     If no such sibling exists, marks own id.
     """
 
-    logging.info(
-        "- alifestd_mark_next_sibling_id_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
 
-    logging.info(
-        "- alifestd_mark_next_sibling_id_polars: "
-        "checking topological sort...",
-    )
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-contiguous ids not supported",
+        )
+
+    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
         )
 
     logging.info(

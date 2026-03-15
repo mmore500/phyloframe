@@ -39,6 +39,9 @@ from ._alifestd_prune_extinct_lineages_polars import (
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
 )
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 def _alifestd_downsample_tips_clade_polars_impl(
@@ -204,28 +207,21 @@ def alifestd_downsample_tips_clade_polars(
     alifestd_downsample_tips_clade_asexual :
         Pandas-based implementation.
     """
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df
 
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "non-contiguous ids not yet supported",
+            "non-contiguous ids not supported",
         )
 
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "checking topological sort...",
-    )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-topologically-sorted data not supported",
         )
 
     with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):

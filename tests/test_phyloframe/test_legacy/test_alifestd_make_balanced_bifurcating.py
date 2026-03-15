@@ -72,3 +72,16 @@ def test_returns_dataframe(depth: int):
     assert isinstance(result, pd.DataFrame)
     assert "id" in result.columns
     assert "ancestor_list" in result.columns
+
+
+def test_depth_zero():
+    """depth=0 should produce an empty tree."""
+    df = alifestd_make_balanced_bifurcating(0)
+    assert len(df) == 0
+    assert isinstance(df, pd.DataFrame)
+
+
+def test_negative_depth():
+    """Negative depth should raise ValueError."""
+    with pytest.raises(ValueError):
+        alifestd_make_balanced_bifurcating(-1)

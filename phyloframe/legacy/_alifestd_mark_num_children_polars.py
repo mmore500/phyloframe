@@ -29,18 +29,16 @@ def alifestd_mark_num_children_polars(
     is parent to.
     """
 
-    logging.info(
-        "- alifestd_mark_num_children_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
 
-    logging.info(
-        "- alifestd_mark_num_children_polars: checking topological sort...",
-    )
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-contiguous ids not supported",
+        )
+
+    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
         )
 
     if "is_root" not in phylogeny_df.lazy().collect_schema().names():

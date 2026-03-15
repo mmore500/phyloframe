@@ -43,6 +43,47 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
+def test_alifestd_mark_origin_time_delta_polars_fuzz(
+    phylogeny_df: pd.DataFrame, apply: typing.Callable
+):
+    """Verify origin_time_delta and ancestor_origin_time columns are correctly
+    added."""
+    df_prepared = pl.from_pandas(phylogeny_df)
+    df_pl = apply(df_prepared)
+
+    result = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+
+    assert "origin_time_delta" in result.columns
+    assert "ancestor_origin_time" in result.columns
+    assert len(result) == len(df_prepared)
+
+    assert result["id"].to_list() == df_prepared["id"].to_list()
+
+    # all origin_time_delta values should be >= 0
+    assert (result["origin_time_delta"] >= 0.0).all()
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv")
+        ),
+        alifestd_to_working_format(
+            pd.read_csv(f"{assets_path}/nk_tournamentselection.csv")
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
 def test_alifestd_mark_origin_time_delta_polars_matches_pandas(
     phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
@@ -54,9 +95,12 @@ def test_alifestd_mark_origin_time_delta_polars_matches_pandas(
     df_pl = apply(pl.from_pandas(phylogeny_df))
     result_pl = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
 
-    pd_vals = result_pd["origin_time_delta"].tolist()
-    pl_vals = result_pl["origin_time_delta"].to_list()
-    assert pd_vals == pytest.approx(pl_vals)
+    assert result_pd["origin_time_delta"].tolist() == pytest.approx(
+        result_pl["origin_time_delta"].to_list()
+    )
+    assert result_pd["ancestor_origin_time"].tolist() == pytest.approx(
+        result_pl["ancestor_origin_time"].to_list()
+    )
 
 
 @pytest.mark.parametrize(
@@ -66,10 +110,16 @@ def test_alifestd_mark_origin_time_delta_polars_matches_pandas(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_origin_time_delta_polars_simple(
+def test_alifestd_mark_origin_time_delta_polars_simple_tree(
     apply: typing.Callable,
 ):
-    """Test simple tree with origin times."""
+    """Test a simple tree with origin_time.
+
+    Tree structure:
+        0 (root, origin_time=0.0)
+        +-- 1 (origin_time=1.0)
+        |   +-- 2 (origin_time=3.0)
+    """
     df_pl = apply(
         pl.DataFrame(
             {
@@ -82,14 +132,39 @@ def test_alifestd_mark_origin_time_delta_polars_simple(
 
     result = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
 
-    assert "origin_time_delta" in result.columns
-    assert "ancestor_origin_time" in result.columns
-    # root: origin_time 0 - ancestor_origin_time 0 = 0
-    assert result["origin_time_delta"][0] == 0.0
-    # node 1: origin_time 1 - ancestor_origin_time 0 = 1
-    assert result["origin_time_delta"][1] == 1.0
-    # node 2: origin_time 3 - ancestor_origin_time 1 = 2
-    assert result["origin_time_delta"][2] == 2.0
+    assert result["origin_time_delta"].to_list() == pytest.approx(
+        [0.0, 1.0, 2.0]
+    )
+    assert result["ancestor_origin_time"].to_list() == pytest.approx(
+        [0.0, 0.0, 1.0]
+    )
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_origin_time_delta_polars_single_node(
+    apply: typing.Callable,
+):
+    """A single root node has origin_time_delta of 0."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0],
+                "ancestor_id": [0],
+                "origin_time": [0.0],
+            }
+        ),
+    )
+
+    result = alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+
+    assert result["origin_time_delta"].to_list() == pytest.approx([0.0])
+    assert result["ancestor_origin_time"].to_list() == pytest.approx([0.0])
 
 
 @pytest.mark.parametrize(
@@ -137,6 +212,30 @@ def test_alifestd_mark_origin_time_delta_polars_non_contiguous_ids(
             {
                 "id": [0, 2, 5],
                 "ancestor_id": [0, 0, 2],
+                "origin_time": [0.0, 1.0, 2.0],
+            }
+        ),
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_mark_origin_time_delta_polars_unsorted(
+    apply: typing.Callable,
+):
+    """Verify NotImplementedError for topologically unsorted data."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 2, 0],
                 "origin_time": [0.0, 1.0, 2.0],
             }
         ),

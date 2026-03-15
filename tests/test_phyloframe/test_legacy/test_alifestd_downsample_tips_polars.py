@@ -304,8 +304,7 @@ def test_alifestd_downsample_tips_polars_no_ancestor_id(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_downsample_tips_polars(df, 1)
+    alifestd_downsample_tips_polars(df, 1)
 
 
 @pytest.mark.parametrize(

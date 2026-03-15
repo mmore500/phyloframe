@@ -209,7 +209,6 @@ def _create_parser() -> argparse.ArgumentParser:
 
 _dtype_lookup = {"float": float, "int": int}
 
-
 if __name__ == "__main__":
     configure_prod_logging()
 

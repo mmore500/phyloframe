@@ -71,11 +71,15 @@ def alifestd_as_newick_polars(
         raise ValueError("only asexual phylogenies supported")
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
+
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "polars topological sort not yet implemented",
+            "non-topologically-sorted data not supported",
         )
 
     ancestor_ids = (

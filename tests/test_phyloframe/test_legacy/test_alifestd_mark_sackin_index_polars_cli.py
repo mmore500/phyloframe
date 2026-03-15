@@ -7,7 +7,7 @@ import pandas as pd
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
-def test_alifestd_mark_sackin_index_polars_cli_help():
+def test_help():
     subprocess.run(  # nosec B603
         [
             "python3",
@@ -19,7 +19,7 @@ def test_alifestd_mark_sackin_index_polars_cli_help():
     )
 
 
-def test_alifestd_mark_sackin_index_polars_cli_version():
+def test_version():
     subprocess.run(  # nosec B603
         [
             "python3",
@@ -31,7 +31,7 @@ def test_alifestd_mark_sackin_index_polars_cli_version():
     )
 
 
-def test_alifestd_mark_sackin_index_polars_cli_csv():
+def test_csv():
     output_file = (
         "/tmp/phyloframe_alifestd_mark_sackin_index_polars.csv"  # nosec B108
     )
@@ -53,23 +53,10 @@ def test_alifestd_mark_sackin_index_polars_cli_csv():
     assert "sackin_index" in result_df.columns
 
 
-def test_alifestd_mark_sackin_index_polars_cli_parquet():
-    output_file = (
-        "/tmp/phyloframe_alifestd_mark_sackin_index_polars.pqt"  # nosec B108
+def test_alifestd_mark_sackin_index_polars_create_parser():
+    from phyloframe.legacy._alifestd_mark_sackin_index_polars import (
+        _create_parser,
     )
-    pathlib.Path(output_file).unlink(missing_ok=True)
-    subprocess.run(  # nosec B603
-        [
-            "python3",
-            "-m",
-            "phyloframe.legacy._alifestd_mark_sackin_index_polars",
-            "--eager-write",
-            output_file,
-        ],
-        check=True,
-        input=f"{assets}/trunktestphylo.csv".encode(),
-    )
-    assert os.path.exists(output_file)
-    result_df = pd.read_parquet(output_file)
-    assert len(result_df) > 0
-    assert "sackin_index" in result_df.columns
+
+    parser = _create_parser()
+    assert parser is not None

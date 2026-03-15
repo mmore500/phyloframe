@@ -39,20 +39,16 @@ def alifestd_mark_max_descendant_origin_time_polars(
             max_descendant_origin_time=pl.lit(0.0).cast(pl.Float64),
         )
 
-    logging.info(
-        "- alifestd_mark_max_descendant_origin_time_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "non-contiguous ids not yet supported",
+            "non-contiguous ids not supported",
         )
 
-    logging.info(
-        "- alifestd_mark_max_descendant_origin_time_polars: checking topological sort...",
-    )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-topologically-sorted data not supported",
         )
 
     logging.info(

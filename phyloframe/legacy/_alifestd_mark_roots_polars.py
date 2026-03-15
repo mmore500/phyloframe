@@ -10,13 +10,15 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 def alifestd_mark_roots_polars(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
     """Create column `is_root` to mark rows with no ancestor."""
 
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     return phylogeny_df.with_columns(
         is_root=(pl.col("id") == pl.col("ancestor_id")),

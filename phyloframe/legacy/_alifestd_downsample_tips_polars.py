@@ -27,6 +27,9 @@ from ._alifestd_prune_extinct_lineages_polars import (
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
 )
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 def _alifestd_downsample_tips_polars_impl(
@@ -116,8 +119,7 @@ def alifestd_downsample_tips_polars(
     alifestd_downsample_tips_asexual :
         Pandas-based implementation.
     """
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df

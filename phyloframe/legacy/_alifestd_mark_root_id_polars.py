@@ -41,20 +41,16 @@ def alifestd_mark_root_id_polars(
             root_id=pl.lit(0).cast(pl.Int64),
         )
 
-    logging.info(
-        "- alifestd_mark_root_id_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "non-contiguous ids not yet supported",
+            "non-contiguous ids not supported",
         )
 
-    logging.info(
-        "- alifestd_mark_root_id_polars: checking topological sort...",
-    )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-topologically-sorted data not supported",
         )
 
     logging.info(

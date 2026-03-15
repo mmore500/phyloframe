@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }} pandas${{ matrix.pandas-version }}"
+    name: "test py${{ matrix.python-version }} ${{ matrix.subdivision }}${{ matrix.scope && format(' {0}', matrix.scope) || '' }} pandas${{ matrix.pandas-version }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -23,16 +23,32 @@ jobs:
         subdivision:
           - "test_legacy"
           - "test_auxlib"
+        scope:
+          - "polars"
+          - "non-polars"
         pandas-version: ["==3.*"]
         exclude:
           - python-version: "3.10"
             pandas-version: "==3.*"
+          - subdivision: "test_auxlib"
+            scope: "polars"
+          - subdivision: "test_auxlib"
+            scope: "non-polars"
         include:
           - python-version: "3.12"
             subdivision: "test_legacy"
+            scope: "polars"
             pandas-version: "==2.3.3"
           - python-version: "3.12"
+            subdivision: "test_legacy"
+            scope: "non-polars"
+            pandas-version: "==2.3.3"
+          - subdivision: "test_auxlib"
+            scope: ""
+            pandas-version: "==3.*"
+          - python-version: "3.12"
             subdivision: "test_auxlib"
+            scope: ""
             pandas-version: "==2.3.3"
 
     steps:
@@ -48,7 +64,13 @@ jobs:
     - name: Test with tox
       run: |
         export PHYLOFRAME_TESTS_SUBDIVISION=${{ matrix.subdivision }}
-        tox --force-dep "pandas${{ matrix.pandas-version }}"
+        if [ "${{ matrix.subdivision }}" = "test_legacy" ] && [ "${{ matrix.scope }}" = "polars" ]; then
+          tox --force-dep "pandas${{ matrix.pandas-version }}" -- -k polars
+        elif [ "${{ matrix.subdivision }}" = "test_legacy" ] && [ "${{ matrix.scope }}" = "non-polars" ]; then
+          tox --force-dep "pandas${{ matrix.pandas-version }}" -- -k "not polars"
+        else
+          tox --force-dep "pandas${{ matrix.pandas-version }}"
+        fi
 
   test-heavy:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -96,7 +118,7 @@ jobs:
         python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col --help
 
   coverage:
-    name: "coverage ${{ matrix.subdivision }}"
+    name: "coverage ${{ matrix.subdivision }}${{ matrix.scope && format(' {0}', matrix.scope) || '' }}"
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -104,6 +126,17 @@ jobs:
         subdivision:
           - "test_legacy"
           - "test_auxlib"
+        scope:
+          - "polars"
+          - "non-polars"
+        exclude:
+          - subdivision: "test_auxlib"
+            scope: "polars"
+          - subdivision: "test_auxlib"
+            scope: "non-polars"
+        include:
+          - subdivision: "test_auxlib"
+            scope: ""
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python 3.12
@@ -117,7 +150,14 @@ jobs:
     - name: Log coverage configuration
       run: coverage debug sys
     - name: Run tests with coverage report
-      run: coverage run -m pytest tests/test_phyloframe/${{ matrix.subdivision }}
+      run: |
+        if [ "${{ matrix.subdivision }}" = "test_legacy" ] && [ "${{ matrix.scope }}" = "polars" ]; then
+          coverage run -m pytest tests/test_phyloframe/${{ matrix.subdivision }} -k polars
+        elif [ "${{ matrix.subdivision }}" = "test_legacy" ] && [ "${{ matrix.scope }}" = "non-polars" ]; then
+          coverage run -m pytest tests/test_phyloframe/${{ matrix.subdivision }} -k "not polars"
+        else
+          coverage run -m pytest tests/test_phyloframe/${{ matrix.subdivision }}
+        fi
     - uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

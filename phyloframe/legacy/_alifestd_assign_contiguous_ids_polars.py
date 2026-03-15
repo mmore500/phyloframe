@@ -14,6 +14,9 @@ from .._auxlib._preserve_id_dtypes_polars import (
     preserve_id_dtypes_polars,
 )
 from ._alifestd_assign_contiguous_ids import _reassign_ids_asexual
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 @preserve_id_dtypes_polars
@@ -23,15 +26,25 @@ def alifestd_assign_contiguous_ids_polars(
     """Reassign so each organism's id corresponds to its row number.
 
     Organisms retain the same row location; only id numbers change."""
-    phylogeny_df = phylogeny_df.lazy().collect()  # lazy not yet implemented
+    schema_names = phylogeny_df.lazy().collect_schema().names()
 
-    if "ancestor_list" in phylogeny_df.columns:
-        raise NotImplementedError
+    if "ancestor_list" in schema_names:
+        raise NotImplementedError(
+            "ancestor_list column not supported, drop it first",
+        )
 
-    new_ancestor_ids = _reassign_ids_asexual(
-        phylogeny_df["id"].to_numpy(),
-        phylogeny_df["ancestor_id"].to_numpy(),
+    if "ancestor_id" not in schema_names:
+        phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+
+    id_arr = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
+    ancestor_id_arr = (
+        phylogeny_df.lazy()
+        .select("ancestor_id")
+        .collect()
+        .to_series()
+        .to_numpy()
     )
+    new_ancestor_ids = _reassign_ids_asexual(id_arr, ancestor_id_arr)
 
     return (
         phylogeny_df.drop("id")
