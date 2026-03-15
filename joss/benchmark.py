@@ -269,7 +269,6 @@ class PhyloframeBench:
 
         from phyloframe.legacy import (
             alifestd_calc_mrca_id_matrix_asexual_polars,
-            alifestd_find_leaf_ids_polars,
             alifestd_find_pair_distance_polars,
             alifestd_from_newick_polars,
             alifestd_mark_ot_mrca_polars,
