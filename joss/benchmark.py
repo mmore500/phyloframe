@@ -542,26 +542,34 @@ class CompactTreeBench:
         t.get_newick()
 
     def preorder(self):
+        from CompactTree import traverse_preorder
+
         t = self._ensure_tree()
-        for _ in t.traverse_preorder():
+        for _ in traverse_preorder(t):
             pass
 
     def postorder(self):
+        from CompactTree import traverse_postorder
+
         t = self._ensure_tree()
-        for _ in t.traverse_postorder():
+        for _ in traverse_postorder(t):
             pass
 
     def inorder(self):
         raise NotImplementedError("inorder not available in CompactTree")
 
     def levelorder(self):
+        from CompactTree import traverse_levelorder
+
         t = self._ensure_tree()
-        for _ in t.traverse_levelorder():
+        for _ in traverse_levelorder(t):
             pass
 
     def mrca_allpairs(self):
+        from CompactTree import traverse_leaves
+
         t = self._ensure_tree()
-        leaves = list(t.traverse_leaves())
+        leaves = list(traverse_leaves(t))
         for i, a in enumerate(leaves):
             for b in leaves[i + 1 :]:
                 t.find_mrca({a, b})
