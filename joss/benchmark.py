@@ -103,6 +103,7 @@ class PhyloframeBench:
         self._newick = newick
         self._from_newick = alifestd_from_newick_polars
         self._df = None
+        self._pdf = None
 
     def load_newick(self):
         self._df = self._from_newick(self._newick)
@@ -126,21 +127,20 @@ class PhyloframeBench:
         _alifestd_unfurl_traversal_postorder_asexual_fast_path(ancestor_ids)
 
     def inorder(self):
-        raise NotImplementedError("inorder not available for polars")
+        from phyloframe.legacy import (
+            alifestd_unfurl_traversal_inorder_asexual,
+        )
+
+        pdf = self._ensure_pdf()
+        alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
 
     def levelorder(self):
         raise NotImplementedError("levelorder not available")
 
     def mrca_allpairs(self):
-        from phyloframe.legacy._alifestd_calc_mrca_id_matrix_asexual import (
-            alifestd_calc_mrca_id_matrix_asexual,
-        )
+        from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
 
-        df = self._ensure_df()
-        pdf = df.to_pandas()
-        from phyloframe.legacy import alifestd_to_working_format
-
-        pdf = alifestd_to_working_format(pdf)
+        pdf = self._ensure_working_pdf()
         alifestd_calc_mrca_id_matrix_asexual(pdf, mutate=True)
 
     def pairwise_dist(self):
@@ -150,6 +150,18 @@ class PhyloframeBench:
         if self._df is None:
             self._df = self._from_newick(self._newick)
         return self._df
+
+    def _ensure_pdf(self):
+        if self._pdf is None:
+            from phyloframe.legacy import alifestd_from_newick
+
+            self._pdf = alifestd_from_newick(self._newick)
+        return self._pdf
+
+    def _ensure_working_pdf(self):
+        from phyloframe.legacy import alifestd_to_working_format
+
+        return alifestd_to_working_format(self._ensure_pdf())
 
 
 class TreeswiftBench:
@@ -444,7 +456,39 @@ LIBRARIES = [
 ]
 
 
+def _warmup_jit():
+    """Run phyloframe operations on a tiny tree to trigger JIT compilation."""
+    print("Warming up JIT...", file=sys.stderr)
+    from phyloframe.legacy import (
+        alifestd_from_newick,
+        alifestd_from_newick_polars,
+        alifestd_to_working_format,
+        alifestd_unfurl_traversal_inorder_asexual,
+        alifestd_unfurl_traversal_postorder_asexual,
+    )
+    from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
+        _alifestd_unfurl_traversal_postorder_asexual_fast_path,
+    )
+
+    tiny = _balanced_newick(8)
+    # polars path
+    pldf = alifestd_from_newick_polars(tiny)
+    _alifestd_unfurl_traversal_postorder_asexual_fast_path(
+        pldf.get_column("ancestor_id").to_numpy(),
+    )
+    # pandas path
+    pdf = alifestd_from_newick(tiny)
+    alifestd_unfurl_traversal_postorder_asexual(pdf, mutate=True)
+    alifestd_unfurl_traversal_inorder_asexual(pdf, mutate=True)
+    from phyloframe.legacy import alifestd_calc_mrca_id_matrix_asexual
+
+    wdf = alifestd_to_working_format(pdf)
+    alifestd_calc_mrca_id_matrix_asexual(wdf, mutate=True)
+    print("JIT warmup complete.", file=sys.stderr)
+
+
 def run_benchmarks():
+    _warmup_jit()
     results = []
     for n_leaves in SIZES:
         print(f"\n{'='*60}", file=sys.stderr)
