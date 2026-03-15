@@ -23,7 +23,7 @@ import time
 multiprocessing.set_start_method("forkserver", force=True)
 
 TIMEOUT = 10  # seconds per operation
-SIZES = [100, 1_000, 10_000, 100_000, 1_000_000]
+SIZES = [100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000]
 OPERATIONS = [
     "load_newick",
     "save_newick",
