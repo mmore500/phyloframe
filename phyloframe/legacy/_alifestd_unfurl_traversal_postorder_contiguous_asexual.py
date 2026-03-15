@@ -63,8 +63,19 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     # Seed with first root (node 0 is always a root for contiguous ids)
     stack[0] = 0
     stack_top = 1
+    candidate = 1
 
-    while True:
+    while stack_top > 0 or candidate < n:
+        # Find next root when stack is exhausted
+        if stack_top == 0:
+            while candidate < n and ancestor_ids[candidate] != candidate:
+                candidate += 1
+            if candidate >= n:
+                break
+            stack[0] = candidate
+            stack_top = 1
+            candidate += 1
+
         node = stack[stack_top - 1]
         c_start = child_start[node]
         c_end = child_start[node + 1]
@@ -79,18 +90,6 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             stack_top -= 1
             result[result_pos] = node
             result_pos += 1
-
-            # When stack is exhausted, scan for next root
-            if stack_top == 0:
-                candidate = node + 1
-                while candidate < n:
-                    if ancestor_ids[candidate] == candidate:
-                        stack[0] = candidate
-                        stack_top = 1
-                        break
-                    candidate += 1
-                else:
-                    break  # no more roots
 
     return result
 
@@ -125,7 +124,12 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
         )
 
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-    num_children = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
+    if "num_children" not in phylogeny_df.columns:
+        num_children = _alifestd_mark_num_children_asexual_fast_path(
+            ancestor_ids,
+        )
+    else:
+        num_children = phylogeny_df["num_children"].to_numpy()
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
         num_children,

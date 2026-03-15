@@ -87,7 +87,19 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
         "- alifestd_unfurl_traversal_postorder_contiguous_polars:"
         " calculating postorder traversal...",
     )
-    num_children = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "num_children" not in schema_names:
+        num_children = _alifestd_mark_num_children_asexual_fast_path(
+            ancestor_ids,
+        )
+    else:
+        num_children = (
+            phylogeny_df.lazy()
+            .select("num_children")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
         num_children,
