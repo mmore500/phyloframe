@@ -269,7 +269,6 @@ class PhyloframeBench:
 
         from phyloframe.legacy import (
             alifestd_calc_mrca_id_matrix_asexual_polars,
-            alifestd_find_pair_distance_polars,
             alifestd_from_newick_polars,
             alifestd_mark_ot_mrca_polars,
             alifestd_unfurl_traversal_inorder_polars,
@@ -301,7 +300,11 @@ class PhyloframeBench:
         )
         alifestd_mark_ot_mrca_polars(pldf_with_ot)
         alifestd_calc_mrca_id_matrix_asexual_polars(pldf)
-        alifestd_find_pair_distance_polars(pldf_with_ot, 0, 1)
+        from phyloframe.legacy._alifestd_calc_distance_matrix_polars import (
+            alifestd_calc_distance_matrix_polars,
+        )
+
+        alifestd_calc_distance_matrix_polars(pldf_with_ot)
 
     def load_newick(self):
         from phyloframe.legacy import alifestd_from_newick_polars
@@ -365,9 +368,8 @@ class PhyloframeBench:
         alifestd_calc_mrca_id_matrix_asexual_polars(df)
 
     def pairwise_dist(self):
-        from phyloframe.legacy import (
-            alifestd_find_leaf_ids_polars,
-            alifestd_find_pair_distance_polars,
+        from phyloframe.legacy._alifestd_calc_distance_matrix_polars import (
+            alifestd_calc_distance_matrix_polars,
         )
 
         df = self._ensure_df()
@@ -377,10 +379,7 @@ class PhyloframeBench:
             df = df.with_columns(
                 pl.col("origin_time_delta").cum_sum().alias("origin_time"),
             )
-        leaf_ids = alifestd_find_leaf_ids_polars(df)
-        for i, a in enumerate(leaf_ids):
-            for b in leaf_ids[i + 1 :]:
-                alifestd_find_pair_distance_polars(df, a, b)
+        alifestd_calc_distance_matrix_polars(df)
 
     def memory_bytes(self):
         from phyloframe.legacy import alifestd_from_newick_polars
