@@ -15,9 +15,6 @@ from ._alifestd_mark_node_depth_asexual import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._alifestd_unfurl_traversal_levelorder_asexual import (
-    _alifestd_unfurl_traversal_levelorder_asexual_fast_path,
-)
 
 
 def alifestd_unfurl_traversal_levelorder_polars(
@@ -90,23 +87,18 @@ def alifestd_unfurl_traversal_levelorder_polars(
         node_depths = _alifestd_calc_node_depth_asexual_contiguous(
             ancestor_ids,
         )
+        node_depth_series = pl.Series("node_depth", node_depths)
     else:
         logging.info(
             "- alifestd_unfurl_traversal_levelorder_polars:"
-            " extracting node depths...",
+            " selecting node depths...",
         )
-        node_depths = (
-            phylogeny_df.lazy()
-            .select("node_depth")
-            .collect()
-            .to_series()
-            .to_numpy()
+        node_depth_series = (
+            phylogeny_df.lazy().select("node_depth").collect().to_series()
         )
 
     logging.info(
         "- alifestd_unfurl_traversal_levelorder_polars:"
         " calculating levelorder traversal...",
     )
-    return _alifestd_unfurl_traversal_levelorder_asexual_fast_path(
-        node_depths,
-    )
+    return node_depth_series.arg_sort(descending=False).to_numpy()

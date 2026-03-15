@@ -1,3 +1,4 @@
+import logging
 import os
 
 import polars as pl
@@ -8,6 +9,10 @@ def alifestd_has_contiguous_ids_polars(phylogeny_df: pl.DataFrame) -> bool:
     if os.environ.get(
         "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_HAS_CONTIGUOUS_IDS_POLARS",
     ):
+        logging.info(
+            "- alifestd_has_contiguous_ids_polars: bypassing check, "
+            "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_HAS_CONTIGUOUS_IDS_POLARS is set",
+        )
         return True
 
     return (

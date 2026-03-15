@@ -1,3 +1,4 @@
+import logging
 import os
 
 import polars as pl
@@ -11,6 +12,10 @@ def alifestd_is_topologically_sorted_polars(
     if os.environ.get(
         "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_IS_TOPOLOGICALLY_SORTED_POLARS",
     ):
+        logging.info(
+            "- alifestd_is_topologically_sorted_polars: bypassing check, "
+            "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_IS_TOPOLOGICALLY_SORTED_POLARS is set",
+        )
         return True
 
     if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
