@@ -310,13 +310,9 @@ class DendropyBench:
             pass
 
     def mrca_allpairs(self):
-        import dendropy
 
         t = self._ensure_tree()
         pdm = t.phylogenetic_distance_matrix()
-        leaves = t.leaf_node_iter()
-        # computing the matrix itself does all-pairs MRCA internally
-        # but to match the benchmark, iterate pairs
         leaf_list = list(t.leaf_node_iter())
         for i, a in enumerate(leaf_list):
             for b in leaf_list[i + 1 :]:
@@ -334,9 +330,7 @@ class DendropyBench:
         if self._tree is None:
             import dendropy
 
-            self._tree = dendropy.Tree.get(
-                data=self._newick, schema="newick"
-            )
+            self._tree = dendropy.Tree.get(data=self._newick, schema="newick")
         return self._tree
 
 
@@ -464,9 +458,7 @@ def run_benchmarks():
         print(f"\n{'='*60}", file=sys.stderr)
         print(f"Generating tree with {n_leaves:,} leaves...", file=sys.stderr)
         newick = _balanced_newick(n_leaves)
-        print(
-            f"  newick length: {len(newick):,} chars", file=sys.stderr
-        )
+        print(f"  newick length: {len(newick):,} chars", file=sys.stderr)
 
         for LibClass in LIBRARIES:
             print(f"  {LibClass.name}:", file=sys.stderr)
@@ -491,9 +483,7 @@ def run_benchmarks():
                     elapsed = None
                 else:
                     elapsed = timed(fn)
-                status = (
-                    f"{elapsed:.4f}s" if elapsed is not None else "SKIP"
-                )
+                status = f"{elapsed:.4f}s" if elapsed is not None else "SKIP"
                 print(f"    {op}: {status}", file=sys.stderr)
                 results.append(
                     {
@@ -507,6 +497,31 @@ def run_benchmarks():
     return results
 
 
+def print_summary_table(results):
+    """Print a pivoted summary table to stderr."""
+    import pandas as pd
+
+    df = pd.DataFrame(results)
+    df["seconds"] = pd.to_numeric(df["seconds"])
+    for n_leaves, grp in df.groupby("n_leaves"):
+        pivot = grp.pivot(
+            index="operation", columns="library", values="seconds"
+        )
+        # reorder columns to match LIBRARIES order
+        lib_order = [L.name for L in LIBRARIES]
+        pivot = pivot[[c for c in lib_order if c in pivot.columns]]
+        print(f"\n--- {n_leaves:,} leaves ---", file=sys.stderr)
+        with pd.option_context(
+            "display.float_format",
+            "{:.6f}".format,
+            "display.max_columns",
+            20,
+            "display.width",
+            200,
+        ):
+            print(pivot.to_string(na_rep="--"), file=sys.stderr)
+
+
 def main():
     results = run_benchmarks()
     writer = csv.DictWriter(
@@ -515,6 +530,7 @@ def main():
     )
     writer.writeheader()
     writer.writerows(results)
+    print_summary_table(results)
 
 
 if __name__ == "__main__":
