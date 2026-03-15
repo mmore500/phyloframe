@@ -297,3 +297,129 @@ def test_non_topologically_sorted(apply: typing.Callable):
             phylogeny_df,
             taxon_label=None,
         )
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_with_node_depth_col(apply: typing.Callable):
+    """Test with pre-existing node_depth column."""
+    phylogeny_df = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4],
+                "ancestor_id": [0, 0, 0, 1, 0],
+                "origin_time": [0, 1, 2, 5, 90],
+                "node_depth": [0, 1, 1, 2, 1],
+            },
+        )
+    )
+    result = alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label="id",
+    )
+    assert result == "(4:90,2:2,(3:4)1:1)0:0;"
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_with_num_children_col(apply: typing.Callable):
+    """Test with pre-existing num_children column."""
+    phylogeny_df = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4],
+                "ancestor_id": [0, 0, 0, 1, 0],
+                "origin_time": [0, 1, 2, 5, 90],
+                "num_children": [3, 1, 0, 0, 0],
+            },
+        )
+    )
+    result = alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label="id",
+    )
+    assert result == "(4:90,2:2,(3:4)1:1)0:0;"
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_no_branch_lengths(apply: typing.Callable):
+    """Test with no origin_time or origin_time_delta columns."""
+    phylogeny_df = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_list": ["[None]", "[0]", "[0]"],
+            },
+        )
+    )
+    result = alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label=None,
+    )
+    assert result == "(,);"
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_with_special_char_label(apply: typing.Callable):
+    """Test taxon labels with special Newick characters are quoted."""
+    phylogeny_df = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1],
+                "ancestor_id": [0, 0],
+                "label": ["root", "a:b"],
+            },
+        )
+    )
+    result = alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label="label",
+    )
+    assert "'a:b'" in result
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_with_integer_label(apply: typing.Callable):
+    """Test with integer taxon label column (non-string type)."""
+    phylogeny_df = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 1],
+                "origin_time_delta": [3.1, 4.0, 1.0],
+            },
+        )
+    )
+    result = alifestd_as_newick_polars(
+        phylogeny_df,
+        taxon_label="id",
+    )
+    assert result == "((2:1)1:4)0:3.1;"

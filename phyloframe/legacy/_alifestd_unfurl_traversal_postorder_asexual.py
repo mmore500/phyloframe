@@ -12,6 +12,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 def _alifestd_unfurl_traversal_postorder_asexual_fast_path(
     ancestor_ids: np.ndarray,
+    node_depths: np.ndarray,
 ) -> np.ndarray:
     """Return postorder traversal indices for contiguous, sorted phylogeny.
 
@@ -26,7 +27,6 @@ def _alifestd_unfurl_traversal_postorder_asexual_fast_path(
     np.ndarray
         Index array giving postorder traversal order.
     """
-    node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
     return np.lexsort((ancestor_ids, node_depths))[::-1]
 
 
@@ -61,8 +61,16 @@ def alifestd_unfurl_traversal_postorder_asexual(
     if alifestd_has_contiguous_ids(
         phylogeny_df,
     ) and alifestd_is_topologically_sorted(phylogeny_df):
+        ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+        if "node_depth" not in phylogeny_df.columns:
+            node_depths = _alifestd_calc_node_depth_asexual_contiguous(
+                ancestor_ids,
+            )
+        else:
+            node_depths = phylogeny_df["node_depth"].to_numpy()
         return _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-            phylogeny_df["ancestor_id"].to_numpy(),
+            ancestor_ids,
+            node_depths,
         )
     else:
         return _alifestd_unfurl_traversal_postorder_asexual_slow_path(
