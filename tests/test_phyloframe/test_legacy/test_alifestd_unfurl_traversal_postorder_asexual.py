@@ -142,3 +142,16 @@ def test_simple4(mutate: bool):
 
     if not mutate:
         assert original_df.equals(phylogeny_df)
+
+
+def test_with_node_depth_col():
+    """Test that pre-existing node_depth column is reused on fast path."""
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "node_depth": [0, 1, 1, 2],
+        },
+    )
+    result = alifestd_unfurl_traversal_postorder_asexual(phylogeny_df)
+    assert result.tolist() == [3, 2, 1, 0]

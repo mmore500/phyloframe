@@ -205,3 +205,62 @@ def test_fuzz(phylogeny_csv: str):
         assert positions == list(
             range(positions[0], positions[0] + len(positions))
         ), f"subtree of node {node} is not contiguous"
+
+
+def test_non_contiguous_ids():
+    """Test that non-contiguous IDs raise NotImplementedError."""
+    df = pl.DataFrame(
+        {
+            "id": [10, 20, 30],
+            "ancestor_id": [10, 10, 20],
+        },
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+
+
+def test_non_topologically_sorted():
+    """Test that non-topologically-sorted data raises NotImplementedError."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [1, 1, 0],
+        },
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+
+
+def test_with_num_children_col():
+    """Test that pre-existing num_children column is reused."""
+    ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
+    df = _make_contiguous_df(ancestor_ids)
+    df = df.with_columns(num_children=pl.Series([2, 1, 0, 0]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    assert result.tolist() == [2, 3, 1, 0]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_lazyframe(apply):
+    """Test that LazyFrame input works."""
+    df = apply(_make_contiguous_df(np.array([0, 0, 1])))
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    assert result.tolist() == [2, 1, 0]
+
+
+def test_with_ancestor_list_col():
+    """Test with ancestor_list instead of ancestor_id."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[None]", "[0]", "[1]"],
+        },
+    )
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    assert result.tolist() == [2, 1, 0]
