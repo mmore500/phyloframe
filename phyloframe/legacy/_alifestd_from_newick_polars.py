@@ -19,9 +19,9 @@ from ._alifestd_from_newick import (
 )
 
 
-# Performance (200k-node caterpillar tree, JIT-warmed):
-#   with branch lengths: ~0.04s (~9.5x faster than pre-optimization)
-#   without branch lengths: ~0.01s (~24x faster than pre-optimization)
+# Performance (as of 2026-03-15, 50k-node caterpillar tree, JIT-warmed):
+#   with branch lengths: phyloframe ~0.007s vs treeswift ~0.34s (~0.02x)
+#   without branch lengths: phyloframe ~0.003s vs treeswift ~0.21s (~0.01x)
 # Uses JIT-compiled label byte-copy + float parsing + pyarrow zero-copy.
 def alifestd_from_newick_polars(
     newick: str,
