@@ -163,6 +163,12 @@ from ._alifestd_find_chronological_inconsistency_polars import (
 from ._alifestd_find_leaf_ids import alifestd_find_leaf_ids
 from ._alifestd_find_leaf_ids_polars import alifestd_find_leaf_ids_polars
 from ._alifestd_find_mrca_id_asexual import alifestd_find_mrca_id_asexual
+from ._alifestd_find_pair_distance_asexual import (
+    alifestd_find_pair_distance_asexual,
+)
+from ._alifestd_find_pair_distance_polars import (
+    alifestd_find_pair_distance_polars,
+)
 from ._alifestd_find_pair_mrca_id_asexual import (
     alifestd_find_pair_mrca_id_asexual,
 )
@@ -613,6 +619,8 @@ __all__ = [
     "alifestd_find_leaf_ids",
     "alifestd_find_leaf_ids_polars",
     "alifestd_find_mrca_id_asexual",
+    "alifestd_find_pair_distance_asexual",
+    "alifestd_find_pair_distance_polars",
     "alifestd_find_pair_mrca_id_asexual",
     "alifestd_find_pair_mrca_id_polars",
     "alifestd_find_root_ids",
