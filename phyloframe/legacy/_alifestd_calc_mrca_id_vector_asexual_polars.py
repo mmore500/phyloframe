@@ -56,32 +56,24 @@ def alifestd_calc_mrca_id_vector_asexual_polars(
         Pandas-based implementation.
     """
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "adding ancestor_id col...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
-    logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "non-contiguous ids not yet supported",
+            "non-contiguous ids not supported",
         )
 
-    logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "checking topological sort...",
-    )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-topologically-sorted data not supported",
         )
 
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "extracting ancestor ids...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: extracting ancestor ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -97,8 +89,7 @@ def alifestd_calc_mrca_id_vector_asexual_polars(
     assert n
 
     logging.info(
-        "- alifestd_calc_mrca_id_vector_asexual_polars: "
-        "computing mrca ids...",
+        "- alifestd_calc_mrca_id_vector_asexual_polars: computing mrca ids...",
     )
     return _alifestd_calc_mrca_id_vector_asexual_fast_path(
         ancestor_ids, target_id

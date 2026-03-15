@@ -37,7 +37,6 @@ def alifestd_collapse_unifurcations_polars(
 ) -> pl.DataFrame:
     """Pare record to bypass organisms with one ancestor and one descendant.
 
-
     See Also
     --------
     alifestd_collapse_unifurcations :
@@ -49,16 +48,14 @@ def alifestd_collapse_unifurcations_polars(
         raise NotImplementedError
 
     logging.info(
-        "- alifestd_collapse_unifurcations_polars: "
-        "collecting original ids...",
+        "- alifestd_collapse_unifurcations_polars: collecting original ids...",
     )
     original_ids = (
         phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
     )
 
     logging.info(
-        "- alifestd_collapse_unifurcations_polars: "
-        "checking contiguous ids...",
+        "- alifestd_collapse_unifurcations_polars: checking contiguous ids...",
     )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         logging.info(
@@ -67,8 +64,7 @@ def alifestd_collapse_unifurcations_polars(
         phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_collapse_unifurcations_polars: "
-        "checking topological sort...",
+        "- alifestd_collapse_unifurcations_polars: checking topological sort...",
     )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
@@ -76,8 +72,7 @@ def alifestd_collapse_unifurcations_polars(
         )
 
     logging.info(
-        "- alifestd_collapse_unifurcations_polars: "
-        "collecting ancestor_ids...",
+        "- alifestd_collapse_unifurcations_polars: collecting ancestor_ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()

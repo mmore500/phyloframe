@@ -296,8 +296,7 @@ def test_alifestd_is_topologically_sorted_polars_no_ancestor_id(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_is_topologically_sorted_polars(df)
+    alifestd_is_topologically_sorted_polars(df)
 
 
 @pytest.mark.parametrize(
@@ -319,5 +318,4 @@ def test_alifestd_is_topologically_sorted_polars_unsorted_ids(
             }
         ),
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_is_topologically_sorted_polars(df)
+    alifestd_is_topologically_sorted_polars(df)

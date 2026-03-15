@@ -132,33 +132,25 @@ def alifestd_downsample_tips_lineage_polars(
         return phylogeny_df
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "adding ancestor_id col...",
+        "- alifestd_downsample_tips_lineage_polars: adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
-            "alifestd_downsample_tips_lineage_polars only supports "
-            "asexual phylogenies.",
+            "alifestd_downsample_tips_lineage_polars only supports asexual phylogenies.",
         )
 
-    logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "non-contiguous ids not yet supported",
+            "non-contiguous ids not supported",
         )
 
-    logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "checking topological sort...",
-    )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-topologically-sorted data not supported",
         )
 
     logging.info(
@@ -167,16 +159,14 @@ def alifestd_downsample_tips_lineage_polars(
     phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "collecting is_leaf values...",
+        "- alifestd_downsample_tips_lineage_polars: collecting is_leaf values...",
     )
     is_leaf = (
         phylogeny_df.lazy().select("is_leaf").collect().to_series().to_numpy()
     )
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "collecting criterion_target values...",
+        "- alifestd_downsample_tips_lineage_polars: collecting criterion_target values...",
     )
     target_values = (
         phylogeny_df.lazy()
@@ -187,8 +177,7 @@ def alifestd_downsample_tips_lineage_polars(
     )
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "selecting target leaf...",
+        "- alifestd_downsample_tips_lineage_polars: selecting target leaf...",
     )
     with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
         target_id = _alifestd_downsample_tips_lineage_select_target_id(
@@ -200,8 +189,7 @@ def alifestd_downsample_tips_lineage_polars(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "collecting criterion_delta values...",
+        "- alifestd_downsample_tips_lineage_polars: collecting criterion_delta values...",
     )
     criterion_values = (
         phylogeny_df.lazy()
@@ -224,8 +212,7 @@ def alifestd_downsample_tips_lineage_polars(
     log_memory_usage(logging.info)
 
     logging.info(
-        "- alifestd_downsample_tips_lineage_polars: "
-        "dispatching _alifestd_downsample_tips_lineage_impl...",
+        "- alifestd_downsample_tips_lineage_polars: dispatching _alifestd_downsample_tips_lineage_impl...",
     )
     is_extant = _alifestd_downsample_tips_lineage_impl(
         is_leaf=is_leaf,

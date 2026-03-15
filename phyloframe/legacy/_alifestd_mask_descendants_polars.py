@@ -14,6 +14,9 @@ from ._alifestd_is_topologically_sorted_polars import (
 from ._alifestd_mask_descendants_asexual import (
     _alifestd_mask_descendants_asexual_fast_path,
 )
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 def alifestd_mask_descendants_polars(
@@ -54,17 +57,18 @@ def alifestd_mask_descendants_polars(
         The input DataFrame with an additional boolean column
         ``alifestd_mask_descendants_polars``.
     """
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "non-contiguous ids not yet supported",
+            "non-contiguous ids not supported",
         )
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-topologically-sorted data not supported",
         )
 
     logging.info(

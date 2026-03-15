@@ -31,7 +31,6 @@ def alifestd_delete_trunk_asexual_polars(
     be an ancestor of a trunk entry. Children of deleted entries will become
     roots.
 
-
     See Also
     --------
     alifestd_collapse_trunk_asexual

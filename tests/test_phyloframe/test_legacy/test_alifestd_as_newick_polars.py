@@ -257,7 +257,7 @@ def test_with_ancestor_id_col(apply: typing.Callable):
     ],
 )
 def test_non_contiguous_ids(apply: typing.Callable):
-    """Test that non-contiguous IDs raise NotImplementedError."""
+    """Test that non-contiguous IDs are handled automatically."""
     phylogeny_df = apply(
         pl.DataFrame(
             {

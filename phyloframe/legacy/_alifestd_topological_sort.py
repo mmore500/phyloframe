@@ -5,6 +5,7 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import pandas as pd
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -13,11 +14,49 @@ from .._auxlib._delegate_polars_implementation import (
 )
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_try_add_ancestor_list_col import (
     alifestd_try_add_ancestor_list_col,
 )
+
+
+@jit(nopython=True)
+def _topological_sort_fast_path(ancestor_ids: np.ndarray) -> np.ndarray:
+    """Topological sort for contiguous ids using Kahn's algorithm."""
+    n = len(ancestor_ids)
+    # Count children for each node
+    num_children = np.zeros(n, dtype=np.int64)
+    for i in range(n):
+        if ancestor_ids[i] != i:
+            num_children[ancestor_ids[i]] += 1
+
+    # Initialize queue with leaves (nodes with no children)
+    queue = np.empty(n, dtype=np.int64)
+    head = 0
+    tail = 0
+    for i in range(n):
+        if num_children[i] == 0:
+            queue[tail] = i
+            tail += 1
+
+    # Process queue in reverse (leaves first)
+    result = np.empty(n, dtype=np.int64)
+    pos = n - 1
+    while head < tail:
+        node = queue[head]
+        head += 1
+        result[pos] = node
+        pos -= 1
+        ancestor = ancestor_ids[node]
+        if ancestor != node:
+            num_children[ancestor] -= 1
+            if num_children[ancestor] == 0:
+                queue[tail] = ancestor
+                tail += 1
+
+    return result
 
 
 def alifestd_topological_sort(

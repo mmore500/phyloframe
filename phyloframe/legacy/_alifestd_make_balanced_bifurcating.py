@@ -1,9 +1,34 @@
-import itertools as it
-
-import more_itertools as mit
+from numba import jit
+import numpy as np
 import pandas as pd
 
 from ._alifestd_make_empty import alifestd_make_empty
+
+
+@jit(nopython=True)
+def _make_balanced_bifurcating_fast_path(depth: int):
+    """Build id and ancestor_id arrays for a balanced bifurcating tree."""
+    n = (1 << depth) - 1  # 2^depth - 1 total nodes
+    ids = np.empty(n, dtype=np.int64)
+    ancestor_ids = np.empty(n, dtype=np.int64)
+    ids[0] = 0
+    ancestor_ids[0] = 0
+    next_id = 1
+    level_start = 0
+    level_end = 1
+    for _ in range(depth - 1):
+        new_level_start = next_id
+        for i in range(level_start, level_end):
+            parent = ids[i]
+            ids[next_id] = next_id
+            ancestor_ids[next_id] = parent
+            next_id += 1
+            ids[next_id] = next_id
+            ancestor_ids[next_id] = parent
+            next_id += 1
+        level_start = new_level_start
+        level_end = next_id
+    return ids, ancestor_ids
 
 
 def alifestd_make_balanced_bifurcating(depth: int) -> pd.DataFrame:
@@ -36,16 +61,8 @@ def alifestd_make_balanced_bifurcating(depth: int) -> pd.DataFrame:
     elif depth == 0:
         return alifestd_make_empty()
 
-    ids = [0]
-    ancestors = ["[None]"]
-    next_id = it.count(1)
-    queue = [0]
-    for _ in range(depth - 1):
-        next_queue = []
-        for parent in mit.repeat_each(queue, 2):
-            child = next(next_id)
-            ids.append(child)
-            ancestors.append(f"[{parent}]")
-            next_queue.append(child)
-        queue = next_queue
-    return pd.DataFrame({"id": ids, "ancestor_list": ancestors})
+    ids, ancestor_ids = _make_balanced_bifurcating_fast_path(depth)
+    ancestor_lists = [
+        "[None]" if i == a else f"[{a}]" for i, a in zip(ids, ancestor_ids)
+    ]
+    return pd.DataFrame({"id": ids, "ancestor_list": ancestor_lists})

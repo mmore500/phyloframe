@@ -29,18 +29,16 @@ def alifestd_mark_first_child_id_polars(
     If a node has no children (is a leaf), marks own id.
     """
 
-    logging.info(
-        "- alifestd_mark_first_child_id_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
 
-    logging.info(
-        "- alifestd_mark_first_child_id_polars: checking topological sort...",
-    )
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
-            "topologically unsorted rows not yet supported",
+            "non-contiguous ids not supported",
+        )
+
+    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
         )
 
     logging.info(
@@ -55,8 +53,7 @@ def alifestd_mark_first_child_id_polars(
     )
 
     logging.info(
-        "- alifestd_mark_first_child_id_polars: "
-        "tabulating first child ids...",
+        "- alifestd_mark_first_child_id_polars: tabulating first child ids...",
     )
     first_child_ids = _alifestd_mark_first_child_id_asexual_fast_path(
         ancestor_ids,

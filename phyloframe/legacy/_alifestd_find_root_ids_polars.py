@@ -1,13 +1,16 @@
 import numpy as np
 import polars as pl
 
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
+
 
 def alifestd_find_root_ids_polars(
     phylogeny_df: pl.DataFrame,
 ) -> np.ndarray:
     """What ids have an empty `ancestor_list`?"""
-    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     return (
         phylogeny_df.lazy()

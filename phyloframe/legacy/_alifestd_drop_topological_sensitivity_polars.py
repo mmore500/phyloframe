@@ -82,8 +82,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy"
-            "._alifestd_drop_topological_sensitivity_polars"
+            "phyloframe.legacy._alifestd_drop_topological_sensitivity_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -104,8 +103,7 @@ def _create_parser() -> argparse.ArgumentParser:
         "update",
         default=True,
         help=(
-            "drop columns sensitive to ancestor relationship updates"
-            " (default: True)"
+            "drop columns sensitive to ancestor relationship updates (default: True)"
         ),
     )
     return parser
@@ -119,8 +117,7 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy"
-            "._alifestd_drop_topological_sensitivity_polars",
+            "phyloframe.legacy._alifestd_drop_topological_sensitivity_polars",
             logging.info,
         ):
             _run_dataframe_cli(

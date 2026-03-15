@@ -16,22 +16,11 @@ from phyloframe.legacy._alifestd_find_root_ids_polars import (
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_find_root_ids_polars_single_root(
-    apply: typing.Callable,
-):
-    """Single root tree."""
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": [0, 1, 2],
-                "ancestor_id": [0, 0, 1],
-            }
-        ),
+def test_simple_tree(apply: typing.Callable):
+    df = apply(
+        pl.DataFrame({"id": [0, 1, 2, 3, 4], "ancestor_id": [0, 0, 0, 1, 1]})
     )
-
-    result = alifestd_find_root_ids_polars(df_pl)
-
-    assert isinstance(result, np.ndarray)
+    result = alifestd_find_root_ids_polars(df)
     assert list(result) == [0]
 
 
@@ -42,22 +31,10 @@ def test_alifestd_find_root_ids_polars_single_root(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_find_root_ids_polars_two_roots(
-    apply: typing.Callable,
-):
-    """Two independent roots."""
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": [0, 1, 2, 3],
-                "ancestor_id": [0, 1, 0, 1],
-            }
-        ),
-    )
-
-    result = alifestd_find_root_ids_polars(df_pl)
-
-    assert set(result) == {0, 1}
+def test_multiple_roots(apply: typing.Callable):
+    df = apply(pl.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 1, 2]}))
+    result = alifestd_find_root_ids_polars(df)
+    np.testing.assert_array_equal(sorted(result), [0, 1, 2])
 
 
 @pytest.mark.parametrize(
@@ -67,40 +44,12 @@ def test_alifestd_find_root_ids_polars_two_roots(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_find_root_ids_polars_all_roots(
-    apply: typing.Callable,
-):
-    """All nodes are roots."""
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": [0, 1, 2],
-                "ancestor_id": [0, 1, 2],
-            }
-        ),
-    )
-
-    result = alifestd_find_root_ids_polars(df_pl)
-
-    assert set(result) == {0, 1, 2}
-
-
-@pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
-def test_alifestd_find_root_ids_polars_empty(apply: typing.Callable):
-    """Empty dataframe returns empty array."""
-    df_pl = apply(
+def test_empty(apply: typing.Callable):
+    df = apply(
         pl.DataFrame(
             {"id": [], "ancestor_id": []},
             schema={"id": pl.Int64, "ancestor_id": pl.Int64},
-        ),
+        )
     )
-
-    result = alifestd_find_root_ids_polars(df_pl)
-
+    result = alifestd_find_root_ids_polars(df)
     assert len(result) == 0

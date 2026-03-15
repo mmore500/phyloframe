@@ -33,11 +33,11 @@ def alifestd_find_leaf_ids_polars(
     alifestd_find_leaf_ids :
         Pandas-based implementation.
     """
-    logging.info(
-        "- alifestd_find_leaf_ids_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
+
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
 
     logging.info(
         "- alifestd_find_leaf_ids_polars: extracting ancestor ids...",
