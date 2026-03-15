@@ -122,7 +122,17 @@ def alifestd_as_newick_polars(
     )
 
     logging.info("calculating postorder traversal order...")
-    num_children = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
+    if "num_children" not in schema_names:
+        num_children = _alifestd_mark_num_children_asexual_fast_path(
+            ancestor_ids,
+        )
+    else:
+        num_children = (
+            phylogeny_df.select("num_children")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
     postorder_index = (
         _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             ancestor_ids,
