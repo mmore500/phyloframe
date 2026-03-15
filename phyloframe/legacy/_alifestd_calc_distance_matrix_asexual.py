@@ -118,7 +118,7 @@ def _build_sparse_table(tour_depth: np.ndarray) -> np.ndarray:
     if m == 0:
         return np.empty((0, 0), dtype=np.int64)
 
-    K = int(np.floor(np.log2(m))) + 1
+    K = m.bit_length()
     sparse = np.empty((K, m), dtype=np.int64)
     sparse[0] = np.arange(m, dtype=np.int64)
 
@@ -134,6 +134,17 @@ def _build_sparse_table(tour_depth: np.ndarray) -> np.ndarray:
         )
 
     return sparse
+
+
+def _ilog2(x: np.ndarray) -> np.ndarray:
+    """Vectorized floor(log2(x)) for a positive integer array."""
+    result = np.zeros(len(x), dtype=np.intp)
+    remaining = x.copy()
+    for shift in (32, 16, 8, 4, 2, 1):
+        mask = remaining >= (np.int64(1) << np.intp(shift))
+        result[mask] += shift
+        remaining[mask] >>= shift
+    return result
 
 
 def _alifestd_calc_distance_matrix_asexual_fast_path(
@@ -192,7 +203,7 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     left = np.minimum(first_occ[valid_rows], first_occ[valid_cols])
     right = np.maximum(first_occ[valid_rows], first_occ[valid_cols])
     length = right - left + 1
-    k = np.floor(np.log2(length)).astype(np.intp)
+    k = _ilog2(length)
     half = np.int64(1) << k
 
     left_min = sparse[k, left]
