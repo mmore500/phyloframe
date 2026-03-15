@@ -1,3 +1,5 @@
+import typing
+
 import pandas as pd
 
 from ._alifestd_find_pair_mrca_id_asexual import (
@@ -12,7 +14,7 @@ def alifestd_find_pair_distance_asexual(
     *,
     criterion: str = "origin_time",
     mutate: bool = False,
-) -> float | None:
+) -> typing.Optional[float]:
     """Find the pairwise distance between two taxa via their MRCA.
 
     The distance is computed as the sum of criterion differences between each

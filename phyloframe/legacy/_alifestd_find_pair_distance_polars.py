@@ -1,3 +1,5 @@
+import typing
+
 import polars as pl
 
 from ._alifestd_find_pair_mrca_id_polars import (
@@ -11,7 +13,7 @@ def alifestd_find_pair_distance_polars(
     second: int,
     *,
     criterion: str = "origin_time",
-) -> float | None:
+) -> typing.Optional[float]:
     """Find the pairwise distance between two taxa via their MRCA.
 
     The distance is computed as the sum of criterion differences between each
