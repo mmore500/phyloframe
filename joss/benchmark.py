@@ -120,22 +120,31 @@ def timed_call(bench_cls, newick, op, timeout=TIMEOUT):
     return None
 
 
+def _get_rss_bytes():
+    """Return current RSS in bytes via /proc/self/statm."""
+    import os
+
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    with open("/proc/self/statm") as f:
+        # statm fields: size resident shared text lib data dt
+        resident_pages = int(f.read().split()[1])
+    return resident_pages * page_size
+
+
 def _measure_memory(load_fn):
-    """Measure memory held by the data structure returned by load_fn().
+    """Measure memory consumed by the data structure returned by load_fn().
 
-    Returns the current traced memory (bytes) after loading, which
-    reflects the in-memory size of the loaded data structure (excluding
-    temporary allocations that have been freed).
+    Uses RSS (resident set size) delta, which captures both Python-level
+    and native/C++ allocations.  This is important for libraries like
+    CompactTree that allocate primarily through the system allocator.
     """
-    import tracemalloc
-
     gc.collect()
-    tracemalloc.start()
+    before = _get_rss_bytes()
     result = load_fn()  # keep reference alive during measurement
-    current, _ = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-    del result
-    return current
+    gc.collect()
+    after = _get_rss_bytes()
+    _keep_alive = result  # prevent optimizing away  # noqa: F841
+    return max(0, after - before)
 
 
 # ── tree generation ──────────────────────────────────────────────────
