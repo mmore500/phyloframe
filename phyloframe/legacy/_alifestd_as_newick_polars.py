@@ -5,6 +5,7 @@ import pathlib
 import typing
 
 import numpy as np
+import opytional as opyt
 import polars as pl
 from tqdm import tqdm
 
@@ -20,6 +21,9 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_node_depth_asexual import (
+    _alifestd_calc_node_depth_asexual_contiguous,
+)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -28,8 +32,6 @@ from ._alifestd_unfurl_traversal_postorder_asexual import (
 )
 
 
-# Performance (as of 2026-03-01, 200k-node caterpillar tree):
-#   phyloframe ~10s vs treeswift ~5s
 def alifestd_as_newick_polars(
     phylogeny_df: pl.DataFrame,
     *,
@@ -52,17 +54,17 @@ def alifestd_as_newick_polars(
     alifestd_as_newick_asexual :
         Pandas-based implementation.
     """
-    logging.info(
-        "creating newick string for alifestd polars df",
-    )
+    logging.info("creating newick string for alifestd polars df")
 
-    if phylogeny_df.lazy().limit(1).collect().is_empty():
+    phylogeny_df = phylogeny_df.lazy()
+
+    if phylogeny_df.limit(1).collect().is_empty():
         return ";"
 
-    logging.info("adding ancestor id column, if not present")
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
-    schema_names = phylogeny_df.lazy().collect_schema().names()
+    schema = phylogeny_df.collect_schema()
+    schema_names = schema.names()
 
     if "ancestor_id" not in schema_names:
         raise ValueError("only asexual phylogenies supported")
@@ -76,65 +78,151 @@ def alifestd_as_newick_polars(
         )
 
     ancestor_ids = (
-        phylogeny_df.lazy()
-        .select(pl.col("ancestor_id").cast(pl.Int64))
+        phylogeny_df.select(pl.col("ancestor_id"))
         .collect()
         .to_series()
         .to_numpy()
     )
     n = len(ancestor_ids)
-    ids = np.arange(n)
+
+    if "node_depth" not in schema_names:
+        node_depth = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
+        phylogeny_df = phylogeny_df.with_columns(
+            node_depth=pl.Series(node_depth),
+        )
+    else:
+        node_depth = (
+            phylogeny_df.select(pl.col("node_depth"))
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
 
     logging.info("setting up `origin_time_delta`...")
     if "origin_time_delta" in schema_names:
         logging.info("... already present!")
-        origin_time_deltas = (
-            phylogeny_df.lazy()
-            .select("origin_time_delta")
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
+        origin_time_deltas = pl.col("origin_time_delta")
     elif "origin_time" in schema_names:
         logging.info("... calculating from `origin_time`...")
-        origin_times = (
-            phylogeny_df.lazy()
-            .select("origin_time")
-            .collect()
-            .to_series()
-            .to_numpy()
+        phylogeny_df = phylogeny_df.with_columns(
+            ancestor_origin_time=(
+                pl.col("origin_time").gather(pl.col("ancestor_id"))
+            ),
         )
-        origin_time_deltas = (
-            origin_times - origin_times[ancestor_ids.astype(int)]
+        origin_time_deltas = pl.col("origin_time") - pl.col(
+            "ancestor_origin_time"
         )
     else:
         logging.info("... marking null")
-        origin_time_deltas = np.full(len(ids), np.nan)
+        origin_time_deltas = pl.lit(None).cast(pl.Float64)
+
+    phylogeny_df = phylogeny_df.with_columns(
+        origin_time_deltas=origin_time_deltas,
+    )
 
     logging.info("calculating postorder traversal order...")
     postorder_index = _alifestd_unfurl_traversal_postorder_asexual_fast_path(
         ancestor_ids,
+        node_depth,
+    )
+
+    logging.info("gathering postorder...")
+    select_cols = ["id", "ancestor_id", "node_depth", "origin_time_deltas"]
+    phylogeny_df = (
+        phylogeny_df.select(
+            *select_cols,
+            *opyt.apply_if_or_value(
+                taxon_label,
+                lambda x: [x] if x not in select_cols else [],
+                [],
+            ),
+        )
+        .collect()[postorder_index]
+        .lazy()
     )
 
     logging.info("preparing labels...")
+    _target_label = taxon_label if taxon_label is not None else "_taxon_label"
     if taxon_label is not None:
-        labels = (
-            phylogeny_df.lazy()
-            .select(pl.col(taxon_label).cast(pl.Utf8))
-            .collect()
-            .to_series()
-            .to_numpy()
+        phylogeny_df = phylogeny_df.with_columns(
+            **{taxon_label: pl.col(taxon_label).cast(pl.String)}
         )
+        dtype = schema.get(taxon_label)
+        if dtype in (pl.String, pl.Utf8, pl.Object):
+            phylogeny_df = phylogeny_df.with_columns(
+                **{
+                    taxon_label: pl.when(
+                        pl.col(taxon_label).str.contains(r"[:();,]")
+                    )
+                    .then(pl.lit("'") + pl.col(taxon_label) + pl.lit("'"))
+                    .otherwise(pl.col(taxon_label))
+                }
+            )
+        taxon_label_expr = pl.col(taxon_label)
     else:
-        labels = np.full(len(ids), "", dtype=object)
+        taxon_label_expr = pl.lit("")
+
+    logging.info("marking roots...")
+    if "is_root" not in schema_names:
+        phylogeny_df = phylogeny_df.with_columns(
+            is_root=(
+                pl.col("ancestor_id").cast(pl.Int64)
+                == pl.col("id").cast(pl.Int64)
+            ),
+        )
+
+    logging.info("marking node depth diffs...")
+    phylogeny_df = phylogeny_df.with_columns(
+        raw_diff=pl.col("node_depth").diff()
+    ).with_columns(
+        node_depth_diffs=pl.coalesce(pl.col("raw_diff"), pl.col("node_depth")),
+        needs_comma=(pl.col("raw_diff") >= 0).fill_null(False),
+    )
+
+    logging.info("creating tokens...")
+    abs_diff = pl.col("node_depth_diffs").abs().cast(pl.UInt64)
+    parens_str = (
+        pl.when(pl.col("node_depth_diffs") > 0)
+        .then(pl.lit("").str.pad_end(abs_diff, "("))
+        .when(pl.col("node_depth_diffs") < 0)
+        .then(pl.lit(")"))
+        .otherwise(pl.lit(""))
+    )
+    comma_str = (
+        pl.when(pl.col("needs_comma")).then(pl.lit(",")).otherwise(pl.lit(""))
+    )
+    root_str = (
+        pl.when(pl.col("is_root")).then(pl.lit(";\n")).otherwise(pl.lit(""))
+    )
+
+    # Format branch lengths: strip trailing zeros after decimal point
+    branch_len_str = (
+        pl.when(pl.col("origin_time_deltas").is_not_null())
+        .then(
+            pl.lit(":")
+            + pl.col("origin_time_deltas")
+            .cast(pl.String)
+            .str.replace(r"(\.\d*?)0+$", "$1")
+            .str.replace(r"\.$", "")
+        )
+        .otherwise(pl.lit(""))
+    )
+
+    phylogeny_df = phylogeny_df.with_columns(
+        _newick_token=(
+            comma_str
+            + parens_str
+            + taxon_label_expr
+            + branch_len_str
+            + root_str
+        ),
+    )
 
     logging.info("creating newick string...")
-    result = _build_newick_string(
-        ids[postorder_index],
-        labels[postorder_index],
-        origin_time_deltas[postorder_index],
-        ancestor_ids[postorder_index],
-        progress_wrap=progress_wrap,
+    result = (
+        phylogeny_df.select(pl.col("_newick_token").str.join("").str.head(-1))
+        .collect()
+        .item()
     )
 
     logging.info(f"{len(result)=} {result[:20]=}")
