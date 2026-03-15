@@ -29,7 +29,7 @@ def test_alifestd_chronological_sort_polars_basic(
         ),
     )
 
-    result = alifestd_chronological_sort_polars(df_pl)
+    result = alifestd_chronological_sort_polars(df_pl).lazy().collect()
 
     assert result["origin_time"].to_list() == [1.0, 2.0, 3.0]
 
@@ -55,7 +55,7 @@ def test_alifestd_chronological_sort_polars_already_sorted(
         ),
     )
 
-    result = alifestd_chronological_sort_polars(df_pl)
+    result = alifestd_chronological_sort_polars(df_pl).lazy().collect()
 
     assert result["origin_time"].to_list() == [0.0, 1.0, 2.0]
 
@@ -82,6 +82,6 @@ def test_alifestd_chronological_sort_polars_empty(
         ),
     )
 
-    result = alifestd_chronological_sort_polars(df_pl)
+    result = alifestd_chronological_sort_polars(df_pl).lazy().collect()
 
     assert result.is_empty()

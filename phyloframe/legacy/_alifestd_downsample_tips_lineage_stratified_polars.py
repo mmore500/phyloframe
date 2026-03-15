@@ -19,9 +19,6 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
-from ._alifestd_assign_contiguous_ids_polars import (
-    alifestd_assign_contiguous_ids_polars,
-)
 from ._alifestd_calc_mrca_id_vector_asexual_polars import (
     alifestd_calc_mrca_id_vector_asexual_polars,
 )
@@ -44,9 +41,6 @@ from ._alifestd_prune_extinct_lineages_polars import (
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
-)
-from ._alifestd_topological_sort_polars import (
-    alifestd_topological_sort_polars,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -184,20 +178,19 @@ def alifestd_downsample_tips_lineage_stratified_polars(
     gc.collect()
     log_memory_usage(logging.info)
 
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
     gc.collect()
     log_memory_usage(logging.info)
 
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: checking topological sort...",
-    )
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
+        )
     gc.collect()
     log_memory_usage(logging.info)
 

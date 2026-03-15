@@ -27,7 +27,7 @@ def alifestd_count_children_of_polars(
             (
                 (pl.col("ancestor_id") == parent)
                 & (pl.col("id") != pl.col("ancestor_id"))
-            ).sum()
+            ).sum(),
         )
         .collect()
         .item()

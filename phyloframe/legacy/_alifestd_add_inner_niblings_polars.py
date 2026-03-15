@@ -91,7 +91,7 @@ def alifestd_add_inner_niblings_polars(
     nibling_mask = (pl.col("node_depth") % 2 == 1) & ~pl.col("is_leaf")
     nibling_df = phylogeny_df.filter(nibling_mask)
 
-    if nibling_df.is_empty():
+    if nibling_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df
 
     id_delta = phylogeny_df.select(pl.col("id").max()).item() + 1

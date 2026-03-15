@@ -24,7 +24,7 @@ def alifestd_chronological_sort_polars(
         "- alifestd_chronological_sort_polars: sorting by %s...",
         how,
     )
-    return phylogeny_df.lazy().sort(how).collect()
+    return phylogeny_df.sort(how)
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

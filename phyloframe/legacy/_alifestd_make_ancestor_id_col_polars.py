@@ -11,21 +11,25 @@ def alifestd_make_ancestor_id_col_polars(
     In the returned series, ancestor id will be assigned to own id for
     no-ancestor organisms.
     """
-    df = pl.DataFrame({"ids": ids, "ancestor_lists": ancestor_lists})
-    result = df.select(
-        pl.col("ancestor_lists")
-        .cast(pl.Utf8)
-        .str.to_lowercase()
-        .str.replace_all(r"\[none\]", "[-1]")
-        .str.replace_all(r"\[\]", "[-1]")
-        .str.strip_chars("[]")
-        .cast(pl.Int64)
-        .alias("ancestor_id"),
-        pl.col("ids"),
-    ).select(
-        pl.when(pl.col("ancestor_id") == -1)
-        .then(pl.col("ids"))
-        .otherwise(pl.col("ancestor_id"))
-        .alias("ancestor_id"),
+    df = pl.LazyFrame({"ids": ids, "ancestor_lists": ancestor_lists})
+    result = (
+        df.select(
+            pl.col("ancestor_lists")
+            .cast(pl.Utf8)
+            .str.to_lowercase()
+            .str.replace_all(r"\[none\]", "[-1]")
+            .str.replace_all(r"\[\]", "[-1]")
+            .str.strip_chars("[]")
+            .cast(pl.Int64)
+            .alias("ancestor_id"),
+            pl.col("ids"),
+        )
+        .select(
+            pl.when(pl.col("ancestor_id") == -1)
+            .then(pl.col("ids"))
+            .otherwise(pl.col("ancestor_id"))
+            .alias("ancestor_id"),
+        )
+        .collect()
     )
     return result["ancestor_id"]

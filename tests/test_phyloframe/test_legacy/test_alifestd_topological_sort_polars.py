@@ -139,4 +139,5 @@ def test_alifestd_topological_sort_polars_non_contiguous_ids(
             }
         ),
     )
-    alifestd_topological_sort_polars(df_pl).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_topological_sort_polars(df_pl).lazy().collect()

@@ -10,9 +10,6 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_assign_contiguous_ids_polars import (
-    alifestd_assign_contiguous_ids_polars,
-)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -23,9 +20,6 @@ from ._alifestd_mark_left_child_polars import (
     alifestd_mark_left_child_polars,
 )
 from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
-from ._alifestd_topological_sort_polars import (
-    alifestd_topological_sort_polars,
-)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -50,18 +44,17 @@ def alifestd_mark_is_left_child_polars(
             is_left_child=pl.lit(False),
         )
 
-    logging.info(
-        "- alifestd_mark_is_left_child_polars: checking contiguous ids...",
-    )
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
 
-    logging.info(
-        "- alifestd_mark_is_left_child_polars: checking topological sort...",
-    )
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
+
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
+        )
 
     if "left_child_id" not in phylogeny_df.lazy().collect_schema().names():
         phylogeny_df = alifestd_mark_left_child_polars(phylogeny_df)

@@ -26,34 +26,33 @@ def alifestd_assign_contiguous_ids_polars(
     """Reassign so each organism's id corresponds to its row number.
 
     Organisms retain the same row location; only id numbers change."""
-    phylogeny_df = phylogeny_df.lazy().collect()  # lazy not yet implemented
+    schema_names = phylogeny_df.lazy().collect_schema().names()
 
-    if "ancestor_id" not in phylogeny_df.columns:
+    if "ancestor_list" in schema_names:
+        raise NotImplementedError(
+            "ancestor_list column not supported, drop it first",
+        )
+
+    if "ancestor_id" not in schema_names:
         phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
-    has_ancestor_list = "ancestor_list" in phylogeny_df.columns
-    if has_ancestor_list:
-        phylogeny_df = phylogeny_df.drop("ancestor_list")
-
-    new_ancestor_ids = _reassign_ids_asexual(
-        phylogeny_df["id"].to_numpy(),
-        phylogeny_df["ancestor_id"].to_numpy(),
+    id_arr = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
+    ancestor_id_arr = (
+        phylogeny_df.lazy()
+        .select("ancestor_id")
+        .collect()
+        .to_series()
+        .to_numpy()
     )
+    new_ancestor_ids = _reassign_ids_asexual(id_arr, ancestor_id_arr)
 
-    result = (
+    return (
         phylogeny_df.drop("id")
         .with_row_index("id")
         .with_columns(
             ancestor_id=pl.Series(new_ancestor_ids),
         )
     )
-
-    if has_ancestor_list:
-        result = result.with_columns(
-            ancestor_list=pl.col("ancestor_id").cast(pl.Utf8),
-        )
-
-    return result
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

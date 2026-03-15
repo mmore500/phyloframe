@@ -217,9 +217,10 @@ def test_alifestd_mark_clade_leafcount_ratio_sister_polars_non_contiguous_ids(
             }
         ),
     )
-    alifestd_mark_clade_leafcount_ratio_sister_polars(
-        df_pl,
-    ).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_clade_leafcount_ratio_sister_polars(
+            df_pl,
+        ).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -241,6 +242,7 @@ def test_alifestd_mark_clade_leafcount_ratio_sister_polars_unsorted(
             }
         ),
     )
-    alifestd_mark_clade_leafcount_ratio_sister_polars(
-        df_pl,
-    ).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_clade_leafcount_ratio_sister_polars(
+            df_pl,
+        ).lazy().collect()

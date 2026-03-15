@@ -82,4 +82,5 @@ def test_equal_ids(apply: typing.Callable):
 
 def test_missing_ancestor_id_raises():
     df = pl.DataFrame({"id": [0, 1]})
-    alifestd_has_increasing_ids_polars(df)
+    with pytest.raises(Exception):
+        alifestd_has_increasing_ids_polars(df)

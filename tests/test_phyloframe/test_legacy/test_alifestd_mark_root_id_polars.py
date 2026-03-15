@@ -84,4 +84,5 @@ def test_empty(apply: typing.Callable):
 )
 def test_non_contiguous_ids(apply: typing.Callable):
     df = apply(pl.DataFrame({"id": [0, 2, 5], "ancestor_id": [0, 0, 2]}))
-    alifestd_mark_root_id_polars(df).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_root_id_polars(df).lazy().collect()

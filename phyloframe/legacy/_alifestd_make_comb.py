@@ -1,5 +1,3 @@
-import itertools as it
-
 from numba import jit
 import numpy as np
 import pandas as pd
@@ -8,7 +6,7 @@ from ._alifestd_make_empty import alifestd_make_empty
 
 
 @jit(nopython=True)
-def _make_comb_fast_path(n_leaves):
+def _make_comb_fast_path(n_leaves: int):
     """Build id and ancestor_id arrays for a comb tree."""
     n_nodes = 2 * n_leaves - 1
     ids = np.empty(n_nodes, dtype=np.int64)
@@ -66,10 +64,8 @@ def alifestd_make_comb(n_leaves: int) -> pd.DataFrame:
     elif n_leaves == 0:
         return alifestd_make_empty()
 
-    ids = [0]
-    ancestors = ["[None]"]
-    for parent, child_internal in it.pairwise(range(0, 2 * n_leaves, 2)):
-        child_leaf = child_internal - 1
-        ids.extend([child_leaf, child_internal])
-        ancestors.extend([f"[{parent}]", f"[{parent}]"])
-    return pd.DataFrame({"id": ids, "ancestor_list": ancestors})
+    ids, ancestor_ids = _make_comb_fast_path(n_leaves)
+    ancestor_lists = [
+        "[None]" if i == a else f"[{a}]" for i, a in zip(ids, ancestor_ids)
+    ]
+    return pd.DataFrame({"id": ids, "ancestor_list": ancestor_lists})

@@ -216,7 +216,8 @@ def test_alifestd_mark_origin_time_delta_polars_non_contiguous_ids(
             }
         ),
     )
-    alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -239,4 +240,5 @@ def test_alifestd_mark_origin_time_delta_polars_unsorted(
             }
         ),
     )
-    alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_origin_time_delta_polars(df_pl).lazy().collect()

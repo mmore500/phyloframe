@@ -283,10 +283,11 @@ def test_alifestd_sort_children_polars_non_contiguous_ids(
             }
         ),
     )
-    alifestd_sort_children_polars(
-        df_pl,
-        criterion="num_leaves",
-    ).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_sort_children_polars(
+            df_pl,
+            criterion="num_leaves",
+        ).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -307,10 +308,11 @@ def test_alifestd_sort_children_polars_unsorted(apply: typing.Callable):
             }
         ),
     )
-    alifestd_sort_children_polars(
-        df_pl,
-        criterion="num_leaves",
-    ).lazy().collect()
+    with pytest.raises(NotImplementedError):
+        alifestd_sort_children_polars(
+            df_pl,
+            criterion="num_leaves",
+        ).lazy().collect()
 
 
 @pytest.mark.parametrize(

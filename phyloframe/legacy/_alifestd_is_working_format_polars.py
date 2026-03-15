@@ -21,11 +21,6 @@ def alifestd_is_working_format_polars(
     if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
         return False
 
-    try:
-        is_topo_sorted = alifestd_is_topologically_sorted_polars(
-            phylogeny_df,
-        )
-    except NotImplementedError:
-        return False
-
-    return is_topo_sorted and alifestd_has_contiguous_ids_polars(phylogeny_df)
+    return alifestd_is_topologically_sorted_polars(
+        phylogeny_df,
+    ) and alifestd_has_contiguous_ids_polars(phylogeny_df)
