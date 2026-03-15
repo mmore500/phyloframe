@@ -371,6 +371,12 @@ from ._alifestd_unfurl_traversal_inorder_asexual import (
 from ._alifestd_unfurl_traversal_postorder_asexual import (
     alifestd_unfurl_traversal_postorder_asexual,
 )
+from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
+    _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit,
+)
+from ._alifestd_unfurl_traversal_postorder_contiguous_polars import (
+    _alifestd_unfurl_traversal_postorder_contiguous_polars_jit,
+)
 from ._alifestd_unfurl_traversal_semiorder_asexual import (
     alifestd_unfurl_traversal_semiorder_asexual,
 )

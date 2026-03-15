@@ -4,7 +4,6 @@ import os
 import pathlib
 import typing
 
-import numpy as np
 import opytional as opyt
 import polars as pl
 from tqdm import tqdm
@@ -14,7 +13,6 @@ from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_as_newick_asexual import _build_newick_string
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -27,8 +25,8 @@ from ._alifestd_mark_node_depth_asexual import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._alifestd_unfurl_traversal_postorder_asexual import (
-    _alifestd_unfurl_traversal_postorder_asexual_fast_path,
+from ._alifestd_unfurl_traversal_postorder_contiguous_polars import (
+    _alifestd_unfurl_traversal_postorder_contiguous_polars_jit,
 )
 
 
@@ -83,7 +81,7 @@ def alifestd_as_newick_polars(
         .to_series()
         .to_numpy()
     )
-    n = len(ancestor_ids)
+    len(ancestor_ids)
 
     if "node_depth" not in schema_names:
         node_depth = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
@@ -121,9 +119,10 @@ def alifestd_as_newick_polars(
     )
 
     logging.info("calculating postorder traversal order...")
-    postorder_index = _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-        ancestor_ids,
-        node_depth,
+    postorder_index = (
+        _alifestd_unfurl_traversal_postorder_contiguous_polars_jit(
+            ancestor_ids,
+        )
     )
 
     logging.info("gathering postorder...")
