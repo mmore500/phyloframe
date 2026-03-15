@@ -21,13 +21,14 @@ def preserve_id_dtypes_polars(func: typing.Callable) -> typing.Callable:
 
         result = func(phylogeny_df, *args, **kwargs)
 
+        result_names = result.collect_schema().names()
         cast_map = {
             col: dtype
             for col, dtype in [
                 ("id", id_dtype),
                 ("ancestor_id", ancestor_id_dtype),
             ]
-            if col in result.columns
+            if col in result_names
         }
         return result.cast(cast_map)
 
