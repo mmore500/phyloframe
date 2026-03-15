@@ -70,12 +70,12 @@ def alifestd_unfurl_traversal_levelorder_polars(
             "topologically unsorted rows not yet supported",
         )
 
-    logging.info(
-        "- alifestd_unfurl_traversal_levelorder_polars:"
-        " calculating levelorder traversal...",
-    )
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "node_depth" not in schema_names:
+        logging.info(
+            "- alifestd_unfurl_traversal_levelorder_polars:"
+            " extracting ancestor ids...",
+        )
         ancestor_ids = (
             phylogeny_df.lazy()
             .select("ancestor_id")
@@ -83,10 +83,18 @@ def alifestd_unfurl_traversal_levelorder_polars(
             .to_series()
             .to_numpy()
         )
+        logging.info(
+            "- alifestd_unfurl_traversal_levelorder_polars:"
+            " calculating node depths...",
+        )
         node_depths = _alifestd_calc_node_depth_asexual_contiguous(
             ancestor_ids,
         )
     else:
+        logging.info(
+            "- alifestd_unfurl_traversal_levelorder_polars:"
+            " extracting node depths...",
+        )
         node_depths = (
             phylogeny_df.lazy()
             .select("node_depth")
@@ -94,6 +102,11 @@ def alifestd_unfurl_traversal_levelorder_polars(
             .to_series()
             .to_numpy()
         )
+
+    logging.info(
+        "- alifestd_unfurl_traversal_levelorder_polars:"
+        " calculating levelorder traversal...",
+    )
     return _alifestd_unfurl_traversal_levelorder_asexual_fast_path(
         node_depths,
     )
