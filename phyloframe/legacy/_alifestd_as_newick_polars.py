@@ -210,7 +210,9 @@ def alifestd_as_newick_polars(
     )
 
     # Format branch lengths: strip trailing zeros after decimal point
-    origin_time_deltas_dtype = phylogeny_df.collect_schema()["origin_time_deltas"]
+    origin_time_deltas_dtype = phylogeny_df.collect_schema()[
+        "origin_time_deltas"
+    ]
     if origin_time_deltas_dtype.is_float():
         formatted_deltas = (
             pl.col("origin_time_deltas")
