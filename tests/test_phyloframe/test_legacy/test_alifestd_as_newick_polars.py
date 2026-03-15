@@ -24,7 +24,14 @@ alifestd_as_newick_polars = enforce_dtype_stability_polars(
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
+_engine_affinities = [
+    pytest.param(None, id="engine=default"),
+    pytest.param("in-memory", id="engine=in-memory"),
+    pytest.param("streaming", id="engine=streaming"),
+]
 
+
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -32,7 +39,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_fuzz(apply: typing.Callable):
+def test_fuzz(apply: typing.Callable, engine_affinity):
     phylogeny_df = pd.read_csv(
         f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
     )
@@ -60,6 +67,7 @@ def test_fuzz(apply: typing.Callable):
     ), (phylogeny_df, result, rosetta_tree.as_newick)
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -67,7 +75,7 @@ def test_fuzz(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_empty(apply: typing.Callable):
+def test_empty(apply: typing.Callable, engine_affinity):
     phylogeny_pl = apply(
         pl.DataFrame(
             {
@@ -80,6 +88,7 @@ def test_empty(apply: typing.Callable):
     assert res == ";"
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -87,7 +96,7 @@ def test_empty(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_simple1(apply: typing.Callable):
+def test_simple1(apply: typing.Callable, engine_affinity):
     phylogeny_df = apply(
         pl.DataFrame(
             {
@@ -104,6 +113,7 @@ def test_simple1(apply: typing.Callable):
     assert result == "((:1):4):3.1;"
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -111,7 +121,7 @@ def test_simple1(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_simple2_non_contiguous(apply: typing.Callable):
+def test_simple2_non_contiguous(apply: typing.Callable, engine_affinity):
     phylogeny_df = apply(
         pl.DataFrame(
             {
@@ -127,6 +137,7 @@ def test_simple2_non_contiguous(apply: typing.Callable):
         )
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -134,7 +145,7 @@ def test_simple2_non_contiguous(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_simple3_non_contiguous(apply: typing.Callable):
+def test_simple3_non_contiguous(apply: typing.Callable, engine_affinity):
     phylogeny_df = apply(
         pl.DataFrame(
             {
@@ -151,6 +162,7 @@ def test_simple3_non_contiguous(apply: typing.Callable):
         )
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -158,7 +170,7 @@ def test_simple3_non_contiguous(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_simple4(apply: typing.Callable):
+def test_simple4(apply: typing.Callable, engine_affinity):
     phylogeny_df = apply(
         pl.DataFrame(
             {
@@ -176,6 +188,7 @@ def test_simple4(apply: typing.Callable):
     assert result == "(4:90,2:2,(3:4)1:1)0:0;"
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -183,7 +196,7 @@ def test_simple4(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_matches_pandas_contiguous(apply: typing.Callable):
+def test_matches_pandas_contiguous(apply: typing.Callable, engine_affinity):
     """Verify the polars wrapper produces the same output as the pandas
     implementation for datasets with contiguous IDs."""
     phylogeny_pd = pd.read_csv(
@@ -198,6 +211,7 @@ def test_matches_pandas_contiguous(apply: typing.Callable):
     assert result_pd == result_pl
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -205,7 +219,7 @@ def test_matches_pandas_contiguous(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_input_not_mutated(apply: typing.Callable):
+def test_input_not_mutated(apply: typing.Callable, engine_affinity):
     """Verify the input DataFrame is not modified."""
     phylogeny_df = pl.DataFrame(
         {
@@ -224,6 +238,7 @@ def test_input_not_mutated(apply: typing.Callable):
     assert phylogeny_df.equals(original)
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -231,7 +246,7 @@ def test_input_not_mutated(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_with_ancestor_id_col(apply: typing.Callable):
+def test_with_ancestor_id_col(apply: typing.Callable, engine_affinity):
     """Test with pre-existing ancestor_id column (no ancestor_list)."""
     phylogeny_df = apply(
         pl.DataFrame(
@@ -249,6 +264,7 @@ def test_with_ancestor_id_col(apply: typing.Callable):
     assert result == "(4:90,2:2,(3:4)1:1)0:0;"
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -256,8 +272,8 @@ def test_with_ancestor_id_col(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_non_contiguous_ids(apply: typing.Callable):
-    """Test that non-contiguous IDs are handled automatically."""
+def test_non_contiguous_ids(apply: typing.Callable, engine_affinity):
+    """Test that non-contiguous IDs raise NotImplementedError."""
     phylogeny_df = apply(
         pl.DataFrame(
             {
@@ -274,6 +290,7 @@ def test_non_contiguous_ids(apply: typing.Callable):
         )
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -281,7 +298,7 @@ def test_non_contiguous_ids(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_non_topologically_sorted(apply: typing.Callable):
+def test_non_topologically_sorted(apply: typing.Callable, engine_affinity):
     """Test that non-topologically-sorted data raises NotImplementedError."""
     phylogeny_df = apply(
         pl.DataFrame(
@@ -299,6 +316,7 @@ def test_non_topologically_sorted(apply: typing.Callable):
         )
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -306,7 +324,7 @@ def test_non_topologically_sorted(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_with_node_depth_col(apply: typing.Callable):
+def test_with_node_depth_col(apply: typing.Callable, engine_affinity):
     """Test with pre-existing node_depth column."""
     phylogeny_df = apply(
         pl.DataFrame(
@@ -325,6 +343,7 @@ def test_with_node_depth_col(apply: typing.Callable):
     assert result == "(4:90,2:2,(3:4)1:1)0:0;"
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -332,7 +351,7 @@ def test_with_node_depth_col(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_with_num_children_col(apply: typing.Callable):
+def test_with_num_children_col(apply: typing.Callable, engine_affinity):
     """Test with pre-existing num_children column."""
     phylogeny_df = apply(
         pl.DataFrame(
@@ -351,6 +370,7 @@ def test_with_num_children_col(apply: typing.Callable):
     assert result == "(4:90,2:2,(3:4)1:1)0:0;"
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -358,7 +378,7 @@ def test_with_num_children_col(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_no_branch_lengths(apply: typing.Callable):
+def test_no_branch_lengths(apply: typing.Callable, engine_affinity):
     """Test with no origin_time or origin_time_delta columns."""
     phylogeny_df = apply(
         pl.DataFrame(
@@ -375,6 +395,7 @@ def test_no_branch_lengths(apply: typing.Callable):
     assert result == "(,);"
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -382,7 +403,7 @@ def test_no_branch_lengths(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_with_special_char_label(apply: typing.Callable):
+def test_with_special_char_label(apply: typing.Callable, engine_affinity):
     """Test taxon labels with special Newick characters are quoted."""
     phylogeny_df = apply(
         pl.DataFrame(
@@ -400,6 +421,7 @@ def test_with_special_char_label(apply: typing.Callable):
     assert "'a:b'" in result
 
 
+@pytest.mark.parametrize("engine_affinity", _engine_affinities, indirect=True)
 @pytest.mark.parametrize(
     "apply",
     [
@@ -407,7 +429,7 @@ def test_with_special_char_label(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_with_integer_label(apply: typing.Callable):
+def test_with_integer_label(apply: typing.Callable, engine_affinity):
     """Test with integer taxon label column (non-string type)."""
     phylogeny_df = apply(
         pl.DataFrame(
