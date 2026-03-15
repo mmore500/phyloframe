@@ -10,7 +10,7 @@ load/save.  Any single operation exceeding TIMEOUT seconds is skipped.
 import csv
 import gc
 import io
-import signal
+import multiprocessing
 import sys
 import time
 
@@ -29,48 +29,86 @@ OPERATIONS = [
 ]
 
 
-class TimeoutError(Exception):
-    pass
-
-
-def _timeout_handler(signum, frame):
-    raise TimeoutError("Timed out")
+def _run_in_child(conn, fn, return_value):
+    """Target for subprocess: run fn and send result over pipe."""
+    try:
+        t0 = time.perf_counter()
+        result = fn()
+        elapsed = time.perf_counter() - t0
+        if return_value:
+            conn.send((elapsed, result))
+        else:
+            conn.send((elapsed, None))
+    except Exception as exc:
+        conn.send(("error", str(exc)))
+    finally:
+        conn.close()
 
 
 def timed(fn, timeout=TIMEOUT):
-    """Run fn() and return elapsed seconds, or None if it times out."""
-    old = signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(timeout)
-    try:
-        t0 = time.perf_counter()
-        fn()
-        elapsed = time.perf_counter() - t0
-    except TimeoutError:
-        elapsed = None
-    except Exception as exc:
-        print(f"    error: {exc}", file=sys.stderr)
-        elapsed = None
-    finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old)
-    return elapsed
+    """Run fn() in a subprocess and return elapsed seconds.
+
+    Using a subprocess protects against C++ crashes (e.g. std::bad_alloc)
+    that would otherwise abort the entire benchmark process.
+    """
+    parent_conn, child_conn = multiprocessing.Pipe()
+    proc = multiprocessing.Process(
+        target=_run_in_child, args=(child_conn, fn, False)
+    )
+    proc.start()
+    proc.join(timeout=timeout)
+    if proc.is_alive():
+        proc.kill()
+        proc.join()
+        parent_conn.close()
+        return None
+    if proc.exitcode != 0:
+        print(
+            f"    error: child process exited with code {proc.exitcode}",
+            file=sys.stderr,
+        )
+        parent_conn.close()
+        return None
+    if parent_conn.poll():
+        result = parent_conn.recv()
+        parent_conn.close()
+        if result[0] == "error":
+            print(f"    error: {result[1]}", file=sys.stderr)
+            return None
+        return result[0]
+    parent_conn.close()
+    return None
 
 
 def timed_call(fn, timeout=TIMEOUT):
-    """Run fn() and return its result, or None on timeout/error."""
-    old = signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(timeout)
-    try:
-        result = fn()
-    except TimeoutError:
-        result = None
-    except Exception as exc:
-        print(f"    error: {exc}", file=sys.stderr)
-        result = None
-    finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old)
-    return result
+    """Run fn() in a subprocess and return its result, or None."""
+    parent_conn, child_conn = multiprocessing.Pipe()
+    proc = multiprocessing.Process(
+        target=_run_in_child, args=(child_conn, fn, True)
+    )
+    proc.start()
+    proc.join(timeout=timeout)
+    if proc.is_alive():
+        proc.kill()
+        proc.join()
+        parent_conn.close()
+        return None
+    if proc.exitcode != 0:
+        print(
+            f"    error: child process exited with code {proc.exitcode}",
+            file=sys.stderr,
+        )
+        parent_conn.close()
+        return None
+    if parent_conn.poll():
+        result = parent_conn.recv()
+        parent_conn.close()
+        if result[0] == "error":
+            print(f"    error: {result[1]}", file=sys.stderr)
+            return None
+        return result[1]
+    parent_conn.close()
+    return None
 
 
 def _measure_memory(load_fn):
