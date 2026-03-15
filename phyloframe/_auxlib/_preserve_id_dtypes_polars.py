@@ -27,7 +27,7 @@ def preserve_id_dtypes_polars(func: typing.Callable) -> typing.Callable:
                 ("id", id_dtype),
                 ("ancestor_id", ancestor_id_dtype),
             ]
-            if col in result.columns
+            if col in result.collect_schema().names()
         }
         return result.cast(cast_map)
 
