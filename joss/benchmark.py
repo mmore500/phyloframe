@@ -180,14 +180,33 @@ class PhyloframeBench:
         self._df = None
         self._pdf = None
 
+    _env_overrides = {
+        "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_HAS_CONTIGUOUS_IDS_POLARS": "1",
+        "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_IS_TOPOLOGICALLY_SORTED_POLARS": "1",
+    }
+
     def _set_engine(self):
+        import os
+
         import polars as pl
 
         pl.Config.set_engine_affinity(self.engine_affinity)
+        self._saved_env = {}
+        for key, val in self._env_overrides.items():
+            self._saved_env[key] = os.environ.get(key)
+            os.environ[key] = val
 
     def _reset_engine(self):
+        import os
+
         import polars as pl
 
+        for key in self._env_overrides:
+            prev = self._saved_env.get(key)
+            if prev is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = prev
         pl.Config.set_engine_affinity(None)
 
     def load_newick(self):
@@ -208,7 +227,12 @@ class PhyloframeBench:
             self._reset_engine()
 
     def preorder(self):
-        raise NotImplementedError("preorder not available")
+        from phyloframe.legacy import (
+            alifestd_unfurl_traversal_preorder_polars,
+        )
+
+        df = self._ensure_df()
+        alifestd_unfurl_traversal_preorder_polars(df)
 
     def postorder(self):
         from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
@@ -666,6 +690,7 @@ def _warmup_jit():
         alifestd_to_working_format,
         alifestd_unfurl_traversal_inorder_asexual,
         alifestd_unfurl_traversal_postorder_asexual,
+        alifestd_unfurl_traversal_preorder_polars,
     )
     from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
         _alifestd_calc_node_depth_asexual_contiguous,
@@ -683,6 +708,7 @@ def _warmup_jit():
         ancestor_ids,
         node_depths,
     )
+    alifestd_unfurl_traversal_preorder_polars(pldf)
     # pandas path
     pdf = alifestd_from_newick(tiny)
     alifestd_unfurl_traversal_postorder_asexual(pdf, mutate=True)
