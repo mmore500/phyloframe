@@ -35,7 +35,8 @@ def alifestd_mark_colless_index_corrected_polars(
     """
 
     logging.info(
-        "- alifestd_mark_colless_index_corrected_polars: adding ancestor_id col...",
+        "- alifestd_mark_colless_index_corrected_polars: "
+        "adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
@@ -63,7 +64,8 @@ def alifestd_mark_colless_index_corrected_polars(
         phylogeny_df = alifestd_mark_num_leaves_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_mark_colless_index_corrected_polars: computing corrected index...",
+        "- alifestd_mark_colless_index_corrected_polars: "
+        "computing corrected index...",
     )
     n = pl.col("num_leaves").cast(pl.Float64)
     c = pl.col("colless_index").cast(pl.Float64)
@@ -98,7 +100,8 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_mark_colless_index_corrected_polars"
+            "phyloframe.legacy"
+            "._alifestd_mark_colless_index_corrected_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -113,7 +116,8 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_colless_index_corrected_polars",
+            "phyloframe.legacy"
+            "._alifestd_mark_colless_index_corrected_polars",
             logging.info,
         ):
             _run_dataframe_cli(
