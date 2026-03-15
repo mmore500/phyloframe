@@ -269,9 +269,9 @@ class PhyloframeBench:
         pl.Config.set_engine_affinity(self.engine_affinity)
 
         from phyloframe.legacy import (
+            alifestd_calc_mrca_id_matrix_asexual,
             alifestd_from_newick,
             alifestd_from_newick_polars,
-            alifestd_calc_mrca_id_matrix_asexual,
             alifestd_to_working_format,
             alifestd_unfurl_traversal_inorder_polars,
             alifestd_unfurl_traversal_levelorder_polars,
