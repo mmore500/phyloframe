@@ -25,9 +25,47 @@ def _alifestd_unfurl_traversal_postorder_asexual_fast_path(
     -------
     np.ndarray
         Index array giving postorder traversal order.
+
+    Notes
+    -----
+    Uses iterative DFS with children visited in reverse id order (highest
+    id first) to match the output of the previous depth+lexsort approach.
+    This is O(n) instead of O(n log n).
     """
-    node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
-    return np.lexsort((ancestor_ids, node_depths))[::-1]
+    n = len(ancestor_ids)
+    # Build children lists (children appended in ascending id order).
+    children = [None] * n
+    roots = []
+    for i in range(n):
+        anc = ancestor_ids[i]
+        if anc == i:
+            roots.append(i)
+        else:
+            kids = children[anc]
+            if kids is None:
+                children[anc] = [i]
+            else:
+                kids.append(i)
+
+    # Iterative DFS, visiting children in reverse order (highest id
+    # first) so that postorder output matches the original lexsort.
+    result = np.empty(n, dtype=np.intp)
+    pos = 0
+    for root in roots:
+        stack = [root]
+        while stack:
+            node = stack[-1]
+            kids = children[node]
+            if kids is not None:
+                children[node] = None  # mark as expanded
+                for child in kids:  # ascending order → pushed last = popped first
+                    stack.append(child)
+            else:
+                stack.pop()
+                result[pos] = node
+                pos += 1
+
+    return result
 
 
 def _alifestd_unfurl_traversal_postorder_asexual_slow_path(
