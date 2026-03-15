@@ -13,6 +13,7 @@ from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
+from .._auxlib._jit_parse_float import jit_parse_float
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 
@@ -285,9 +286,79 @@ def _extract_labels(
     return labels
 
 
-# Performance (as of 2026-03-01, 200k-node caterpillar tree, JIT-warmed):
-#   with branch lengths: phyloframe ~0.9s vs treeswift ~1.1s (~0.8x)
-#   without branch lengths: phyloframe ~0.6s vs treeswift ~1.0s (~0.7x)
+@jit(nopython=True)
+def _jit_build_label_buffer(
+    chars: np.ndarray,
+    label_starts: np.ndarray,
+    label_stops: np.ndarray,
+    num_nodes: int,
+) -> typing.Tuple[np.ndarray, np.ndarray]:
+    """Build a flat byte buffer and offset array for label strings.
+
+    Copies label bytes from `chars` into a contiguous buffer, suitable
+    for zero-copy construction of an Arrow/Polars string array.
+
+    Implementation detail for `alifestd_from_newick_polars`.
+
+    Returns
+    -------
+    tuple of np.ndarray
+        (data, offsets) where data is uint8 label bytes and offsets is
+        int64 with shape (num_nodes + 1,) giving byte positions.
+    """
+    # first pass: compute total size
+    total = np.int64(0)
+    for i in range(num_nodes):
+        total += label_stops[i] - label_starts[i]
+
+    data = np.empty(total, dtype=np.uint8)
+    offsets = np.empty(num_nodes + 1, dtype=np.int64)
+    offsets[0] = 0
+    pos = np.int64(0)
+    for i in range(num_nodes):
+        s = label_starts[i]
+        e = label_stops[i]
+        length = e - s
+        for j in range(length):
+            data[pos + j] = chars[s + j]
+        pos += length
+        offsets[i + 1] = pos
+
+    return data, offsets
+
+
+@jit(nopython=True)
+def _jit_parse_branch_lengths(
+    chars: np.ndarray,
+    bl_starts: np.ndarray,
+    bl_stops: np.ndarray,
+    bl_node_ids: np.ndarray,
+    num_nodes: int,
+    num_bls: int,
+) -> np.ndarray:
+    """Parse branch length floats directly from character data.
+
+    Avoids Python-level string extraction and numpy string-to-float
+    conversion by delegating to ``jit_parse_float`` for each value.
+
+    Implementation detail for `_parse_newick`.
+
+    Returns
+    -------
+    np.ndarray
+        Float64 array of length num_nodes, with NaN for missing values.
+    """
+    branch_lengths = np.full(num_nodes, np.nan, dtype=np.float64)
+    for k in range(num_bls):
+        branch_lengths[bl_node_ids[k]] = jit_parse_float(
+            chars, bl_starts[k], bl_stops[k]
+        )
+    return branch_lengths
+
+
+# Performance (as of 2026-03-15, 200k-node caterpillar tree, JIT-warmed):
+#   with branch lengths: phyloframe ~0.4s vs treeswift ~1.4s (~0.3x)
+#   without branch lengths: phyloframe ~0.3s vs treeswift ~0.8s (~0.4x)
 def alifestd_from_newick(
     newick: str,
     *,
