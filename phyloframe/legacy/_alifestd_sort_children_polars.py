@@ -21,9 +21,6 @@ from ._alifestd_is_topologically_sorted_polars import (
 from ._alifestd_mark_node_depth_asexual import (
     _alifestd_calc_node_depth_asexual_contiguous,
 )
-from ._alifestd_sort_children_asexual import (
-    _alifestd_sort_children_asexual_fast_path,
-)
 
 
 def alifestd_sort_children_polars(
@@ -95,36 +92,44 @@ def alifestd_sort_children_polars(
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df
 
-    logging.info(
-        "- alifestd_sort_children_polars: extracting data...",
-    )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    criterion_values = (
-        phylogeny_df.lazy().select(criterion).collect().to_series().to_numpy()
-    )
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    had_node_depth = "node_depth" in schema_names
+
+    if not had_node_depth:
+        logging.info(
+            "- alifestd_sort_children_polars: extracting ancestor ids...",
+        )
+        ancestor_ids = (
+            phylogeny_df.lazy()
+            .select("ancestor_id")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+
+        logging.info(
+            "- alifestd_sort_children_polars: computing node depths...",
+        )
+        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
+            ancestor_ids,
+        )
+        phylogeny_df = phylogeny_df.with_columns(
+            node_depth=pl.Series(node_depths),
+        )
 
     logging.info(
-        "- alifestd_sort_children_polars: computing node depths...",
+        "- alifestd_sort_children_polars: sorting...",
     )
-    node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
-
-    logging.info(
-        "- alifestd_sort_children_polars: computing sorted order...",
-    )
-    order = _alifestd_sort_children_asexual_fast_path(
-        ancestor_ids,
-        criterion_values,
-        node_depths,
-        reverse=reverse,
+    result = phylogeny_df.sort(
+        by=["node_depth", "ancestor_id", criterion],
+        descending=[False, False, reverse],
+        maintain_order=True,
     )
 
-    return phylogeny_df.lazy().collect()[order.tolist()]
+    if not had_node_depth:
+        result = result.drop("node_depth")
+
+    return result
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
