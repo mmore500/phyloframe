@@ -35,6 +35,8 @@ from ._alifestd_unfurl_traversal_semiorder_asexual import (
 
 def _alifestd_unfurl_traversal_inorder_asexual_fast_path(
     ancestor_ids: np.ndarray,
+    num_leaves: np.ndarray,
+    right_children: np.ndarray,
 ) -> np.ndarray:
     """Streamlined inorder traversal for contiguous, topologically sorted,
     strictly bifurcating trees.
@@ -42,10 +44,6 @@ def _alifestd_unfurl_traversal_inorder_asexual_fast_path(
     Calls JIT fast paths directly, avoiding redundant validation checks
     in intermediate functions.
     """
-    # compute all needed arrays directly from ancestor_ids
-    num_leaves = _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)
-    right_children = _alifestd_mark_right_child_asexual_fast_path(ancestor_ids)
-
     # is_right_child: True when this node is the right child of its parent
     is_right_child = (
         right_children[ancestor_ids] == np.arange(len(ancestor_ids))
@@ -95,8 +93,11 @@ def alifestd_unfurl_traversal_inorder_asexual(
     if alifestd_has_contiguous_ids(
         phylogeny_df
     ) and alifestd_is_topologically_sorted(phylogeny_df):
+        ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
         return _alifestd_unfurl_traversal_inorder_asexual_fast_path(
-            phylogeny_df["ancestor_id"].to_numpy(),
+            ancestor_ids,
+            _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids),
+            _alifestd_mark_right_child_asexual_fast_path(ancestor_ids),
         )
 
     if "num_preceding_leaves" not in phylogeny_df.columns:
