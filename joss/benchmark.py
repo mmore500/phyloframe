@@ -8,6 +8,7 @@ load/save.  Any single operation exceeding TIMEOUT seconds is skipped.
 """
 
 import csv
+import gc
 import io
 import signal
 import sys
@@ -72,28 +73,21 @@ def timed_call(fn, timeout=TIMEOUT):
     return result
 
 
-def _deep_getsizeof(obj, seen=None):
-    """Recursively measure memory of an object tree."""
-    size = sys.getsizeof(obj)
-    if seen is None:
-        seen = set()
-    obj_id = id(obj)
-    if obj_id in seen:
-        return 0
-    seen.add(obj_id)
-    if isinstance(obj, dict):
-        size += sum(
-            _deep_getsizeof(k, seen) + _deep_getsizeof(v, seen)
-            for k, v in obj.items()
-        )
-    elif hasattr(obj, "__dict__"):
-        size += _deep_getsizeof(obj.__dict__, seen)
-    elif hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes)):
-        try:
-            size += sum(_deep_getsizeof(i, seen) for i in obj)
-        except TypeError:
-            pass
-    return size
+def _measure_memory(load_fn):
+    """Measure memory allocated by load_fn() using tracemalloc.
+
+    Returns the peak memory (bytes) allocated during the call.
+    The loaded object is kept alive until after measurement.
+    """
+    import tracemalloc
+
+    gc.collect()
+    tracemalloc.start()
+    result = load_fn()  # keep reference alive during measurement
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    del result
+    return peak
 
 
 # ── tree generation ──────────────────────────────────────────────────
@@ -189,8 +183,10 @@ class PhyloframeBench:
         raise NotImplementedError("pairwise distances not available")
 
     def memory_bytes(self):
-        df = self._ensure_df()
-        return df.estimated_size()
+        from phyloframe.legacy import alifestd_from_newick_polars
+
+        newick = self._newick
+        return _measure_memory(lambda: alifestd_from_newick_polars(newick))
 
     def _ensure_df(self):
         if self._df is None:
@@ -259,8 +255,9 @@ class TreeswiftBench:
         t.distance_matrix(leaf_labels=True)
 
     def memory_bytes(self):
-        t = self._ensure_tree()
-        return _deep_getsizeof(t)
+        ts = self._treeswift
+        newick = self._newick
+        return _measure_memory(lambda: ts.read_tree_newick(newick))
 
     def _ensure_tree(self):
         if self._tree is None:
@@ -320,8 +317,14 @@ class BiopythonBench:
                 t.distance(a, b)
 
     def memory_bytes(self):
-        t = self._ensure_tree()
-        return _deep_getsizeof(t)
+        newick = self._newick
+
+        def _load():
+            from Bio import Phylo
+
+            Phylo.read(io.StringIO(newick), "newick")
+
+        return _measure_memory(_load)
 
     def _ensure_tree(self):
         if self._tree is None:
@@ -385,8 +388,14 @@ class DendropyBench:
                 pdm(a.taxon, b.taxon)
 
     def memory_bytes(self):
-        t = self._ensure_tree()
-        return _deep_getsizeof(t)
+        newick = self._newick
+
+        def _load():
+            import dendropy
+
+            dendropy.Tree.get(data=newick, schema="newick")
+
+        return _measure_memory(_load)
 
     def _ensure_tree(self):
         if self._tree is None:
@@ -445,8 +454,14 @@ class EteBench:
                 a.get_distance(b)
 
     def memory_bytes(self):
-        t = self._ensure_tree()
-        return _deep_getsizeof(t)
+        newick = self._newick
+
+        def _load():
+            from ete3 import Tree
+
+            Tree(newick)
+
+        return _measure_memory(_load)
 
     def _ensure_tree(self):
         if self._tree is None:
@@ -511,8 +526,14 @@ class CompactTreeBench:
         )
 
     def memory_bytes(self):
-        t = self._ensure_tree()
-        return _deep_getsizeof(t)
+        tmpname = self._tmpfile.name
+
+        def _load():
+            from CompactTree import compact_tree
+
+            compact_tree(tmpname)
+
+        return _measure_memory(_load)
 
     def _ensure_tree(self):
         if self._tree is None:
