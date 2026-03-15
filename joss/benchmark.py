@@ -294,7 +294,10 @@ class PhyloframeBench:
         alifestd_unfurl_traversal_preorder_polars(pldf)
         alifestd_unfurl_traversal_levelorder_polars(pldf)
         alifestd_unfurl_traversal_inorder_polars(pldf)
-        alifestd_mark_ot_mrca_polars(pldf)
+        pldf_with_ot = pldf.with_columns(
+            pl.col("origin_time_delta").cum_sum().alias("origin_time"),
+        )
+        alifestd_mark_ot_mrca_polars(pldf_with_ot)
 
     def load_newick(self):
         from phyloframe.legacy import alifestd_from_newick_polars
@@ -353,6 +356,14 @@ class PhyloframeBench:
         from phyloframe.legacy import alifestd_mark_ot_mrca_polars
 
         df = self._ensure_df()
+        if "origin_time" not in df.columns:
+            import polars as pl
+
+            df = df.with_columns(
+                pl.col("origin_time_delta")
+                .cum_sum()
+                .alias("origin_time"),
+            )
         alifestd_mark_ot_mrca_polars(df)
 
     def pairwise_dist(self):
