@@ -72,22 +72,17 @@ def alifestd_unfurl_traversal_levelorder_polars(
 
     logging.info(
         "- alifestd_unfurl_traversal_levelorder_polars:"
-        " extracting ancestor ids...",
-    )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-
-    logging.info(
-        "- alifestd_unfurl_traversal_levelorder_polars:"
         " calculating levelorder traversal...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "node_depth" not in schema_names:
+        ancestor_ids = (
+            phylogeny_df.lazy()
+            .select("ancestor_id")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
         node_depths = _alifestd_calc_node_depth_asexual_contiguous(
             ancestor_ids,
         )
