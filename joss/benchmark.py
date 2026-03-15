@@ -207,8 +207,8 @@ class PhyloframeBench:
             alifestd_from_newick_polars,
             alifestd_to_working_format,
             alifestd_unfurl_traversal_inorder_asexual,
-            alifestd_unfurl_traversal_postorder_asexual,
             alifestd_unfurl_traversal_levelorder_polars,
+            alifestd_unfurl_traversal_postorder_asexual,
             alifestd_unfurl_traversal_preorder_polars,
         )
         from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
