@@ -38,6 +38,9 @@ from ._alifestd_calc_clade_trait_frequency_asexual import (
 from ._alifestd_calc_mrca_id_matrix_asexual import (
     alifestd_calc_mrca_id_matrix_asexual,
 )
+from ._alifestd_calc_mrca_id_matrix_asexual_polars import (
+    alifestd_calc_mrca_id_matrix_asexual_polars,
+)
 from ._alifestd_calc_mrca_id_vector_asexual import (
     alifestd_calc_mrca_id_vector_asexual,
 )
@@ -562,6 +565,7 @@ __all__ = [
     "alifestd_calc_clade_trait_count_asexual",
     "alifestd_calc_clade_trait_frequency_asexual",
     "alifestd_calc_mrca_id_matrix_asexual",
+    "alifestd_calc_mrca_id_matrix_asexual_polars",
     "alifestd_calc_mrca_id_vector_asexual",
     "alifestd_calc_mrca_id_vector_asexual_polars",
     "alifestd_calc_polytomic_index",
