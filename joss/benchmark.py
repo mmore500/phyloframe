@@ -60,9 +60,11 @@ def _run_in_child(conn, bench_cls, newick, op, return_value):
         result = fn()
         elapsed = time.perf_counter() - t0
         if return_value:
-            conn.send((elapsed, result))
+            conn.send(("ok", elapsed, result))
         else:
-            conn.send((elapsed, None))
+            conn.send(("ok", elapsed, None))
+    except NotImplementedError as exc:
+        conn.send(("unavailable", str(exc)))
     except Exception as exc:
         conn.send(("error", str(exc)))
     finally:
@@ -80,6 +82,8 @@ def _run_memory_child(conn, bench_cls, newick):
         bench.warmup()
         result = bench.memory_bytes()
         conn.send(("ok", result))
+    except NotImplementedError as exc:
+        conn.send(("unavailable", str(exc)))
     except Exception as exc:
         conn.send(("error", str(exc)))
     finally:
@@ -87,7 +91,11 @@ def _run_memory_child(conn, bench_cls, newick):
 
 
 def timed(bench_cls, newick, op, timeout=TIMEOUT):
-    """Run an operation in a subprocess and return self-timed seconds."""
+    """Run an operation in a subprocess and return (seconds, status).
+
+    Status is one of "SUCCESS", "TIMEOUT", "FAIL", or "UNAVAILABLE".
+    seconds is None for non-SUCCESS outcomes.
+    """
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
         target=_run_in_child,
@@ -99,27 +107,29 @@ def timed(bench_cls, newick, op, timeout=TIMEOUT):
         proc.kill()
         proc.join()
         parent_conn.close()
-        return None
+        return None, "TIMEOUT"
     if proc.exitcode != 0:
         print(
             f"    error: child process exited with code {proc.exitcode}",
             file=sys.stderr,
         )
         parent_conn.close()
-        return None
+        return None, "FAIL"
     if parent_conn.poll():
         result = parent_conn.recv()
         parent_conn.close()
+        if result[0] == "unavailable":
+            return None, "UNAVAILABLE"
         if result[0] == "error":
             print(f"    error: {result[1]}", file=sys.stderr)
-            return None
-        return result[0]
+            return None, "FAIL"
+        return result[1], "SUCCESS"
     parent_conn.close()
-    return None
+    return None, "FAIL"
 
 
 def timed_call(bench_cls, newick, op, timeout=TIMEOUT):
-    """Run an operation in a subprocess and return its result, or None."""
+    """Run an operation in a subprocess and return (result, status)."""
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
         target=_run_in_child,
@@ -131,27 +141,29 @@ def timed_call(bench_cls, newick, op, timeout=TIMEOUT):
         proc.kill()
         proc.join()
         parent_conn.close()
-        return None
+        return None, "TIMEOUT"
     if proc.exitcode != 0:
         print(
             f"    error: child process exited with code {proc.exitcode}",
             file=sys.stderr,
         )
         parent_conn.close()
-        return None
+        return None, "FAIL"
     if parent_conn.poll():
         result = parent_conn.recv()
         parent_conn.close()
+        if result[0] == "unavailable":
+            return None, "UNAVAILABLE"
         if result[0] == "error":
             print(f"    error: {result[1]}", file=sys.stderr)
-            return None
-        return result[1]
+            return None, "FAIL"
+        return result[2], "SUCCESS"
     parent_conn.close()
-    return None
+    return None, "FAIL"
 
 
 def measure_memory(bench_cls, newick, timeout=TIMEOUT):
-    """Measure memory in a clean subprocess (no warmup) for accurate RSS."""
+    """Measure memory in a clean subprocess. Returns (bytes, status)."""
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
         target=_run_memory_child,
@@ -163,23 +175,25 @@ def measure_memory(bench_cls, newick, timeout=TIMEOUT):
         proc.kill()
         proc.join()
         parent_conn.close()
-        return None
+        return None, "TIMEOUT"
     if proc.exitcode != 0:
         print(
             f"    error: child process exited with code {proc.exitcode}",
             file=sys.stderr,
         )
         parent_conn.close()
-        return None
+        return None, "FAIL"
     if parent_conn.poll():
         result = parent_conn.recv()
         parent_conn.close()
+        if result[0] == "unavailable":
+            return None, "UNAVAILABLE"
         if result[0] == "error":
             print(f"    error: {result[1]}", file=sys.stderr)
-            return None
-        return result[1]
+            return None, "FAIL"
+        return result[1], "SUCCESS"
     parent_conn.close()
-    return None
+    return None, "FAIL"
 
 
 def _get_rss_bytes():
@@ -879,6 +893,8 @@ LIBRARIES = [
 
 def run_benchmarks():
     results = []
+    # Track ops that failed/timed out per library — skip on larger sizes.
+    skip_ops = {}  # (LibClass, op) -> True
     for n_leaves in SIZES:
         print(f"\n{'='*60}", file=sys.stderr)
         print(f"Generating tree with {n_leaves:,} leaves...", file=sys.stderr)
@@ -891,25 +907,35 @@ def run_benchmarks():
             skip_remaining = False
             for op in OPERATIONS:
                 fn = getattr(LibClass, op, None)
-                if fn is None or skip_remaining:
-                    value = None
+                if fn is None:
+                    value, status = None, "UNAVAILABLE"
+                elif skip_remaining or (LibClass, op) in skip_ops:
+                    value, status = None, "SKIP"
                 elif op == "memory_bytes":
-                    value = measure_memory(LibClass, newick)
+                    value, status = measure_memory(LibClass, newick)
                 else:
-                    value = timed(LibClass, newick, op)
-                    if op == "load_newick" and value is None:
+                    value, status = timed(LibClass, newick, op)
+                    if op == "load_newick" and status != "SUCCESS":
                         skip_remaining = True
-                if op == "memory_bytes":
-                    status = f"{value:,} B" if value is not None else "SKIP"
+
+                # Remember non-success so larger sizes skip this op.
+                if status in ("TIMEOUT", "FAIL", "UNAVAILABLE"):
+                    skip_ops[(LibClass, op)] = True
+
+                if status == "SUCCESS" and op == "memory_bytes":
+                    label = f"{value:,} B"
+                elif status == "SUCCESS":
+                    label = f"{value:.4f}s"
                 else:
-                    status = f"{value:.4f}s" if value is not None else "SKIP"
-                print(f"    {op}: {status}", file=sys.stderr)
+                    label = status
+                print(f"    {op}: {label}", file=sys.stderr)
                 results.append(
                     {
                         "library": LibClass.name,
                         "n_leaves": n_leaves,
                         "operation": op,
                         "seconds": value,
+                        "status": status,
                     }
                 )
 
@@ -945,7 +971,7 @@ def main():
     results = run_benchmarks()
     writer = csv.DictWriter(
         sys.stdout,
-        fieldnames=["library", "n_leaves", "operation", "seconds"],
+        fieldnames=["library", "n_leaves", "operation", "seconds", "status"],
     )
     writer.writeheader()
     writer.writerows(results)
