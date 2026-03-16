@@ -9,6 +9,7 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_make_empty_polars import alifestd_make_empty_polars
 
 
 def alifestd_aggregate_phylogenies_polars(
@@ -77,10 +78,7 @@ def alifestd_aggregate_phylogenies_polars(
         res.append(phylogeny_df)
 
     if not res:
-        return pl.DataFrame(
-            {"id": [], "ancestor_id": []},
-            schema={"id": pl.Int64, "ancestor_id": pl.Int64},
-        )
+        return alifestd_make_empty_polars()
 
     logging.info(
         "- alifestd_aggregate_phylogenies_polars: concatenating results...",
