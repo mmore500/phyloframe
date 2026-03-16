@@ -8,7 +8,6 @@ from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
-from ._alifestd_mark_node_depth_asexual import alifestd_mark_node_depth_asexual
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
@@ -149,9 +148,7 @@ def _calc_distance_matrix_postorder_jit(
 
 def _alifestd_calc_distance_matrix_asexual_fast_path(
     ancestor_ids: np.ndarray,
-    node_depths: np.ndarray,
     criterion_values: np.ndarray,
-    progress_wrap: typing.Callable = lambda x: x,
 ) -> np.ndarray:
     """Shared implementation detail for
     `alifestd_calc_distance_matrix_asexual` and
@@ -162,14 +159,8 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     ancestor_ids : np.ndarray
         1-D int64 array of ancestor ids, indexed by organism id.
         Roots are self-referential (ancestor_ids[i] == i).
-    node_depths : np.ndarray
-        1-D int64 array of node depths, indexed by organism id.
-        Retained for API compatibility; not used by the optimized path.
     criterion_values : np.ndarray
         1-D float64 array of criterion values, indexed by organism id.
-    progress_wrap : callable, optional
-        Wrapper for progress display (e.g., tqdm).
-        Retained for API compatibility; not used by the optimized path.
 
     Returns
     -------
@@ -243,15 +234,12 @@ def alifestd_calc_distance_matrix_asexual(
             "current implementation requires phylogeny_df in working format",
         )
 
-    phylogeny_df = alifestd_mark_node_depth_asexual(phylogeny_df, mutate=True)
-
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
-    node_depths = phylogeny_df["node_depth"].to_numpy().astype(np.int64)
     criterion_values = phylogeny_df[criterion].to_numpy().astype(np.float64)
     assert np.all(
         phylogeny_df["id"].to_numpy() == np.arange(len(phylogeny_df))
     )
 
     return _alifestd_calc_distance_matrix_asexual_fast_path(
-        ancestor_ids, node_depths, criterion_values, progress_wrap
+        ancestor_ids, criterion_values
     )
