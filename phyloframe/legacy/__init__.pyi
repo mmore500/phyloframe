@@ -535,6 +535,9 @@ from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
 from ._alifestd_unfurl_traversal_postorder_contiguous_polars import (
     alifestd_unfurl_traversal_postorder_contiguous_polars,
 )
+from ._alifestd_unfurl_traversal_postorder_polars import (
+    alifestd_unfurl_traversal_postorder_polars,
+)
 from ._alifestd_unfurl_traversal_preorder_asexual import (
     alifestd_unfurl_traversal_preorder_asexual,
 )
@@ -543,6 +546,9 @@ from ._alifestd_unfurl_traversal_preorder_polars import (
 )
 from ._alifestd_unfurl_traversal_semiorder_asexual import (
     alifestd_unfurl_traversal_semiorder_asexual,
+)
+from ._alifestd_unfurl_traversal_semiorder_polars import (
+    alifestd_unfurl_traversal_semiorder_polars,
 )
 from ._alifestd_validate import alifestd_validate
 from ._alifestd_warn_topological_sensitivity import (
@@ -788,9 +794,11 @@ __all__ = [
     "alifestd_unfurl_traversal_postorder_asexual",
     "alifestd_unfurl_traversal_postorder_contiguous_asexual",
     "alifestd_unfurl_traversal_postorder_contiguous_polars",
+    "alifestd_unfurl_traversal_postorder_polars",
     "alifestd_unfurl_traversal_preorder_asexual",
     "alifestd_unfurl_traversal_preorder_polars",
     "alifestd_unfurl_traversal_semiorder_asexual",
+    "alifestd_unfurl_traversal_semiorder_polars",
     "alifestd_validate",
     "alifestd_warn_topological_sensitivity",
     "alifestd_warn_topological_sensitivity_polars",
