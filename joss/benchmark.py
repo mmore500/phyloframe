@@ -55,6 +55,9 @@ def _run_in_child(conn, bench_cls, newick, op, return_value):
     try:
         bench = bench_cls(newick)
         bench.warmup()
+        # Pre-load the tree so parsing isn't included in operation timing.
+        if op not in ("load_newick", "memory_bytes"):
+            bench.load_newick()
         fn = getattr(bench, op)
         t0 = time.perf_counter()
         result = fn()
