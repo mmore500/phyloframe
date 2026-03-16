@@ -795,6 +795,75 @@ class CompactTreeBench:
         return self._tree
 
 
+class ScikitBioBench:
+    name = "scikit-bio"
+
+    def __init__(self, newick):
+        self._newick = newick
+        self._tree = None
+
+    def warmup(self):
+        pass
+
+    def load_newick(self):
+        from skbio import TreeNode
+
+        self._tree = TreeNode.read(io.StringIO(self._newick), format="newick")
+
+    def save_newick(self):
+        t = self._ensure_tree()
+        buf = io.StringIO()
+        t.write(buf, format="newick")
+
+    def preorder(self):
+        t = self._ensure_tree()
+        for _ in t.preorder():
+            pass
+
+    def postorder(self):
+        t = self._ensure_tree()
+        for _ in t.postorder():
+            pass
+
+    def inorder(self):
+        raise NotImplementedError("inorder not available in scikit-bio")
+
+    def levelorder(self):
+        t = self._ensure_tree()
+        for _ in t.levelorder():
+            pass
+
+    def mrca_allpairs(self):
+        t = self._ensure_tree()
+        tips = list(t.tips())
+        for i, a in enumerate(tips):
+            for b in tips[i + 1 :]:
+                t.lca([a, b])
+
+    def pairwise_dist(self):
+        t = self._ensure_tree()
+        t.cophenet()
+
+    def memory_bytes(self):
+        newick = self._newick
+
+        def _load():
+            from skbio import TreeNode
+
+            return TreeNode.read(io.StringIO(newick), format="newick")
+
+        return _measure_memory(_load)
+
+    def _ensure_tree(self):
+        if self._tree is None:
+            from skbio import TreeNode
+
+            self._tree = TreeNode.read(
+                io.StringIO(self._newick), format="newick"
+            )
+        return self._tree
+
+
 LIBRARIES = [
     PhyloframeBench,
     PhyloframeInMemoryBench,
@@ -804,6 +873,7 @@ LIBRARIES = [
     DendropyBench,
     EteBench,
     CompactTreeBench,
+    ScikitBioBench,
 ]
 
 
