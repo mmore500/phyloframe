@@ -108,6 +108,7 @@ def alifestd_unfurl_traversal_semiorder_polars(
         .collect()
         .to_series()
         .to_numpy()
+        .astype(np.intp)
     )
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -130,19 +131,20 @@ def alifestd_unfurl_traversal_semiorder_polars(
             .collect()
             .to_series()
             .to_numpy()
+            .astype(np.intp)
         )
 
     logging.info(
         "- alifestd_unfurl_traversal_semiorder_polars:" " finding leaf ids...",
     )
-    leaf_ids = alifestd_find_leaf_ids_polars(phylogeny_df)
+    leaf_ids = alifestd_find_leaf_ids_polars(phylogeny_df).astype(np.intp)
 
     logging.info(
         "- alifestd_unfurl_traversal_semiorder_polars:"
         " calculating semiorder traversal...",
     )
     return _alifestd_unfurl_traversal_semiorder_asexual_fast_path(
-        ancestor_ids.astype(np.intp),
-        num_descendants.astype(np.intp),
-        leaf_ids.astype(np.intp),
+        ancestor_ids,
+        num_descendants,
+        leaf_ids,
     )

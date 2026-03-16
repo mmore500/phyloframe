@@ -15,9 +15,6 @@ from ._alifestd_mark_node_depth_asexual import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._alifestd_unfurl_traversal_postorder_asexual import (
-    _alifestd_unfurl_traversal_postorder_asexual_fast_path,
-)
 
 
 def alifestd_unfurl_traversal_postorder_polars(
@@ -70,20 +67,19 @@ def alifestd_unfurl_traversal_postorder_polars(
             "topologically unsorted rows not yet supported",
         )
 
-    logging.info(
-        "- alifestd_unfurl_traversal_postorder_polars:"
-        " extracting ancestor ids...",
-    )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "node_depth" not in schema_names:
+        logging.info(
+            "- alifestd_unfurl_traversal_postorder_polars:"
+            " extracting ancestor ids...",
+        )
+        ancestor_ids = (
+            phylogeny_df.lazy()
+            .select("ancestor_id")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
         logging.info(
             "- alifestd_unfurl_traversal_postorder_polars:"
             " calculating node depths...",
@@ -91,24 +87,24 @@ def alifestd_unfurl_traversal_postorder_polars(
         node_depths = _alifestd_calc_node_depth_asexual_contiguous(
             ancestor_ids,
         )
-    else:
-        logging.info(
-            "- alifestd_unfurl_traversal_postorder_polars:"
-            " selecting node depths...",
-        )
-        node_depths = (
+        phylogeny_df = (
             phylogeny_df.lazy()
-            .select("node_depth")
+            .with_columns(
+                node_depth=pl.Series(node_depths),
+            )
             .collect()
-            .to_series()
-            .to_numpy()
         )
 
     logging.info(
         "- alifestd_unfurl_traversal_postorder_polars:"
         " calculating postorder traversal...",
     )
-    return _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-        ancestor_ids,
-        node_depths,
+    return (
+        phylogeny_df.lazy()
+        .with_row_index("_idx")
+        .sort("node_depth", "ancestor_id", descending=True)
+        .select("_idx")
+        .collect()
+        .to_series()
+        .to_numpy()
     )
