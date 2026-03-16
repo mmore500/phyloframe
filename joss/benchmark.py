@@ -53,7 +53,7 @@ OPERATIONS = [
 
 
 def _set_memory_limit():
-    """Cap this process's memory at 150% of available RAM.
+    """Cap this process's memory at 125% of available RAM.
 
     Sets limits via resource.setrlimit (RLIMIT_AS and RLIMIT_DATA) so the
     OS kills the subprocess instead of letting it OOM the whole CI runner.
@@ -63,10 +63,10 @@ def _set_memory_limit():
     import psutil
 
     available = psutil.virtual_memory().available
-    limit = int(available * 1.5)
+    limit = int(available * 1.25)
     print(
         f"    memory limit: {limit / 1e9:.1f} GB"
-        f" (150% of {available / 1e9:.1f} GB available)",
+        f" (125% of {available / 1e9:.1f} GB available)",
         file=sys.stderr,
     )
 
