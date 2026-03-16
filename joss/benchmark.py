@@ -63,10 +63,10 @@ def _set_memory_limit():
     import psutil
 
     available = psutil.virtual_memory().available
-    limit = int(available * 1.25)
+    limit = int(available * 1.2)
     print(
         f"    memory limit: {limit / 1e9:.1f} GB"
-        f" (125% of {available / 1e9:.1f} GB available)",
+        f" (120% of {available / 1e9:.1f} GB available)",
         file=sys.stderr,
     )
 
