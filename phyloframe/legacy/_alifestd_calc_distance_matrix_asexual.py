@@ -24,22 +24,21 @@ def _build_euler_tour(ancestor_ids: np.ndarray) -> tuple:
 
     # Build children adjacency in CSR format
     child_count = np.zeros(n, dtype=np.int64)
-    for i in range(n):
-        if ancestor_ids[i] != i:
-            child_count[ancestor_ids[i]] += 1
+    for i, ancestor_id in enumerate(ancestor_ids):
+        if ancestor_id != i:
+            child_count[ancestor_id] += 1
 
     child_start = np.empty(n + 1, dtype=np.int64)
     child_start[0] = 0
-    for i in range(n):
-        child_start[i + 1] = child_start[i] + child_count[i]
+    for i, count in enumerate(child_count):
+        child_start[i + 1] = child_start[i] + count
 
     children = np.empty(child_start[n], dtype=np.int64)
     fill = child_start[:n].copy()
-    for i in range(n):
-        if ancestor_ids[i] != i:
-            p = ancestor_ids[i]
-            children[fill[p]] = i
-            fill[p] += 1
+    for i, ancestor_id in enumerate(ancestor_ids):
+        if ancestor_id != i:
+            children[fill[ancestor_id]] = i
+            fill[ancestor_id] += 1
 
     # Euler tour via iterative DFS
     tour = np.empty(2 * n, dtype=np.int64)
@@ -101,11 +100,11 @@ def _compute_root_ids(ancestor_ids: np.ndarray) -> np.ndarray:
     """
     n = len(ancestor_ids)
     root_ids = np.empty(n, dtype=np.int64)
-    for i in range(n):
-        if ancestor_ids[i] == i:
+    for i, ancestor_id in enumerate(ancestor_ids):
+        if ancestor_id == i:
             root_ids[i] = i
         else:
-            root_ids[i] = root_ids[ancestor_ids[i]]
+            root_ids[i] = root_ids[ancestor_id]
     return root_ids
 
 
