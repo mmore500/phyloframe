@@ -13,9 +13,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_node_depth_asexual import (
-    _alifestd_calc_node_depth_asexual_contiguous,
-)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -93,8 +90,6 @@ def alifestd_calc_distance_matrix_polars(
             "topologically unsorted rows not yet supported",
         )
 
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-
     logging.info(
         "- alifestd_calc_distance_matrix_polars: "
         "extracting ancestor ids...",
@@ -106,27 +101,6 @@ def alifestd_calc_distance_matrix_polars(
         .to_series()
         .to_numpy()
     )
-
-    if "node_depth" not in schema_names:
-        logging.info(
-            "- alifestd_calc_distance_matrix_polars: "
-            "computing node depths...",
-        )
-        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
-            ancestor_ids,
-        )
-    else:
-        logging.info(
-            "- alifestd_calc_distance_matrix_polars: "
-            "selecting node depths...",
-        )
-        node_depths = (
-            phylogeny_df.lazy()
-            .select(pl.col("node_depth").cast(pl.Int64))
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
 
     logging.info(
         "- alifestd_calc_distance_matrix_polars: "
@@ -145,5 +119,5 @@ def alifestd_calc_distance_matrix_polars(
         "computing distance matrix...",
     )
     return _alifestd_calc_distance_matrix_asexual_fast_path(
-        ancestor_ids, node_depths, criterion_values, progress_wrap
+        ancestor_ids, criterion_values
     )

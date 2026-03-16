@@ -3,21 +3,147 @@ import typing
 import numpy as np
 import pandas as pd
 
-from ._alifestd_calc_mrca_id_matrix_asexual import (
-    _alifestd_calc_mrca_id_matrix_asexual_fast_path,
-)
+from .._auxlib._build_children_csr import build_children_csr
+from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
-from ._alifestd_mark_node_depth_asexual import alifestd_mark_node_depth_asexual
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
+
+
+@jit(nopython=True)
+def _calc_distance_matrix_postorder_jit(
+    ancestor_ids: np.ndarray,
+    criterion_values: np.ndarray,
+    num_children: np.ndarray,
+) -> np.ndarray:
+    """Compute pairwise distance matrix via postorder traversal.
+
+    Adapted from TreeSwift's distance_matrix approach: traverse the tree
+    bottom-up, accumulating node-to-ancestor distances in flat arrays and
+    filling in cross-subtree pairwise distances at each internal node.
+
+    Avoids computing the full MRCA matrix, reducing time complexity from
+    O(n^2 * depth) to O(n^2) and halving peak memory.
+    """
+    n = len(ancestor_ids)
+    result = np.full((n, n), np.nan, dtype=np.float64)
+    if n == 0:
+        return result
+
+    child_start_csr, children_flat = build_children_csr(
+        ancestor_ids.astype(np.int64),
+        num_children.astype(np.int64),
+    )
+
+    # Edge lengths as criterion delta from parent; roots are
+    # self-referential so their delta is naturally zero.
+    edge_lengths = criterion_values - criterion_values[ancestor_ids]
+
+    # Flat buffer tracking (node_id, distance_to_subtree_root) pairs.
+    # Each node appears exactly once; total entries == n.
+    buf_ids = np.empty(n, dtype=np.int64)
+    buf_dists = np.empty(n, dtype=np.float64)
+    buf_pos = np.int64(0)
+
+    # Per-node segment tracking: where this node's subtree taxa live
+    # in the buffer.
+    seg_start = np.empty(n, dtype=np.int64)
+    seg_count = np.empty(n, dtype=np.int64)
+
+    # Record where a node's descendant entries begin (set on expansion).
+    subtree_buf_start = np.empty(n, dtype=np.int64)
+
+    # Iterative DFS postorder traversal.
+    stack = np.empty(n, dtype=np.int64)
+    stack_top = np.int64(0)
+    expanded = np.zeros(n, dtype=np.bool_)
+
+    for root in range(n):
+        if ancestor_ids[root] != root:
+            continue
+
+        stack[0] = root
+        stack_top = 1
+
+        while stack_top > 0:
+            node = stack[stack_top - 1]
+            cs = child_start_csr[node]
+            ce = child_start_csr[node + 1]
+
+            if not expanded[node] and cs < ce:
+                expanded[node] = True
+                subtree_buf_start[node] = buf_pos
+                n_children = ce - cs
+                stack[stack_top : stack_top + n_children] = children_flat[
+                    cs:ce
+                ]
+                stack_top += n_children
+            else:
+                stack_top -= 1
+
+                if cs == ce:
+                    # Leaf node: single buffer entry.
+                    seg_start[node] = buf_pos
+                    seg_count[node] = 1
+                    buf_ids[buf_pos] = node
+                    buf_dists[buf_pos] = 0.0
+                    result[node, node] = 0.0
+                    buf_pos += 1
+                else:
+                    # Internal node.
+                    # 1) Add each child's edge length to its subtree
+                    #    distances.
+                    for ci in range(cs, ce):
+                        child = children_flat[ci]
+                        s = seg_start[child]
+                        buf_dists[s : s + seg_count[child]] += edge_lengths[
+                            child
+                        ]
+
+                    # 2) Cross-child pairwise distances.
+                    for ci1 in range(cs, ce - 1):
+                        child1 = children_flat[ci1]
+                        s1 = seg_start[child1]
+                        e1 = s1 + seg_count[child1]
+                        for ci2 in range(ci1 + 1, ce):
+                            child2 = children_flat[ci2]
+                            s2 = seg_start[child2]
+                            e2 = s2 + seg_count[child2]
+                            ids2 = buf_ids[s2:e2]
+                            dists2 = buf_dists[s2:e2]
+                            for k1 in range(s1, e1):
+                                id1 = buf_ids[k1]
+                                cross = buf_dists[k1] + dists2
+                                result[id1, ids2] = cross
+                                result[ids2, id1] = cross
+
+                    # 3) Distance from this node to all descendants.
+                    desc_start = subtree_buf_start[node]
+                    desc_ids = buf_ids[desc_start:buf_pos]
+                    desc_dists = buf_dists[desc_start:buf_pos]
+                    result[node, desc_ids] = desc_dists
+                    result[desc_ids, node] = desc_dists
+
+                    result[node, node] = 0.0
+
+                    # 4) Add this node to the buffer and record its
+                    #    combined segment.
+                    buf_ids[buf_pos] = node
+                    buf_dists[buf_pos] = 0.0
+                    seg_start[node] = desc_start
+                    seg_count[node] = (buf_pos - desc_start) + 1
+                    buf_pos += 1
+
+    return result
 
 
 def _alifestd_calc_distance_matrix_asexual_fast_path(
     ancestor_ids: np.ndarray,
-    node_depths: np.ndarray,
     criterion_values: np.ndarray,
-    progress_wrap: typing.Callable = lambda x: x,
 ) -> np.ndarray:
     """Shared implementation detail for
     `alifestd_calc_distance_matrix_asexual` and
@@ -28,12 +154,8 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     ancestor_ids : np.ndarray
         1-D int64 array of ancestor ids, indexed by organism id.
         Roots are self-referential (ancestor_ids[i] == i).
-    node_depths : np.ndarray
-        1-D int64 array of node depths, indexed by organism id.
     criterion_values : np.ndarray
         1-D float64 array of criterion values, indexed by organism id.
-    progress_wrap : callable, optional
-        Wrapper for progress display (e.g., tqdm).
 
     Returns
     -------
@@ -41,26 +163,14 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
         n x n float64 matrix of pairwise distances.  Entry [i, j] is NaN
         when organisms i and j share no common ancestor.
     """
-    mrca_matrix = _alifestd_calc_mrca_id_matrix_asexual_fast_path(
-        ancestor_ids, node_depths, progress_wrap
+    num_children = _alifestd_mark_num_children_asexual_fast_path(
+        ancestor_ids,
     )
-
-    n = len(ancestor_ids)
-    result = np.full((n, n), np.nan, dtype=np.float64)
-    if n == 0:
-        return result
-
-    valid_mask = mrca_matrix != -1
-    safe_mrca = np.where(valid_mask, mrca_matrix, 0)
-
-    mrca_criterion = criterion_values[safe_mrca]
-    row_criterion = criterion_values[:, None]
-    col_criterion = criterion_values[None, :]
-
-    distances = row_criterion + col_criterion - 2.0 * mrca_criterion
-    result[valid_mask] = distances[valid_mask]
-
-    return result
+    return _calc_distance_matrix_postorder_jit(
+        ancestor_ids,
+        criterion_values,
+        num_children,
+    )
 
 
 def alifestd_calc_distance_matrix_asexual(
@@ -119,15 +229,12 @@ def alifestd_calc_distance_matrix_asexual(
             "current implementation requires phylogeny_df in working format",
         )
 
-    phylogeny_df = alifestd_mark_node_depth_asexual(phylogeny_df, mutate=True)
-
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
-    node_depths = phylogeny_df["node_depth"].to_numpy().astype(np.int64)
     criterion_values = phylogeny_df[criterion].to_numpy().astype(np.float64)
     assert np.all(
         phylogeny_df["id"].to_numpy() == np.arange(len(phylogeny_df))
     )
 
     return _alifestd_calc_distance_matrix_asexual_fast_path(
-        ancestor_ids, node_depths, criterion_values, progress_wrap
+        ancestor_ids, criterion_values
     )
