@@ -8,6 +8,9 @@ from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
+from ._alifestd_mark_root_id import (
+    _alifestd_mark_root_id_asexual_fast_path,
+)
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
@@ -92,22 +95,6 @@ def _build_euler_tour(ancestor_ids: np.ndarray) -> tuple:
     return tour[:pos], tour_depth[:pos], first_occurrence
 
 
-@jit(nopython=True)
-def _compute_root_ids(ancestor_ids: np.ndarray) -> np.ndarray:
-    """Compute the root id for each node.
-
-    Requires topologically sorted, contiguous ids.
-    """
-    n = len(ancestor_ids)
-    root_ids = np.empty(n, dtype=np.int64)
-    for i, ancestor_id in enumerate(ancestor_ids):
-        if ancestor_id == i:
-            root_ids[i] = i
-        else:
-            root_ids[i] = root_ids[ancestor_id]
-    return root_ids
-
-
 def _build_sparse_table(tour_depth: np.ndarray) -> np.ndarray:
     """Build a sparse table for range minimum queries on tour_depth.
 
@@ -175,7 +162,7 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     # Preprocess: Euler tour + sparse table for O(1) LCA (O(n log n))
     tour, tour_depth, first_occ = _build_euler_tour(ancestor_ids)
     sparse = _build_sparse_table(tour_depth)
-    root_ids = _compute_root_ids(ancestor_ids)
+    root_ids = _alifestd_mark_root_id_asexual_fast_path(ancestor_ids)
 
     # All upper-triangle pairs
     rows, cols = np.triu_indices(n, k=1)
