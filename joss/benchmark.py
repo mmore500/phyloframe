@@ -305,25 +305,13 @@ class PhyloframeBench:
             alifestd_mark_ot_mrca_polars,
             alifestd_unfurl_traversal_inorder_polars,
             alifestd_unfurl_traversal_levelorder_polars,
+            alifestd_unfurl_traversal_postorder_contiguous_polars,
             alifestd_unfurl_traversal_preorder_polars,
-        )
-        from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
-            _alifestd_calc_node_depth_asexual_contiguous,
-        )
-        from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
-            _alifestd_unfurl_traversal_postorder_asexual_fast_path,
         )
 
         tiny = _balanced_newick(8)
         pldf = alifestd_from_newick_polars(tiny)
-        ancestor_ids = pldf.get_column("ancestor_id").to_numpy()
-        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
-            ancestor_ids,
-        )
-        _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-            ancestor_ids,
-            node_depths,
-        )
+        alifestd_unfurl_traversal_postorder_contiguous_polars(pldf)
         alifestd_unfurl_traversal_preorder_polars(pldf)
         alifestd_unfurl_traversal_levelorder_polars(pldf)
         alifestd_unfurl_traversal_inorder_polars(pldf)
@@ -358,22 +346,12 @@ class PhyloframeBench:
         alifestd_unfurl_traversal_preorder_polars(df)
 
     def postorder(self):
-        from phyloframe.legacy._alifestd_mark_node_depth_asexual import (
-            _alifestd_calc_node_depth_asexual_contiguous,
-        )
-        from phyloframe.legacy._alifestd_unfurl_traversal_postorder_asexual import (
-            _alifestd_unfurl_traversal_postorder_asexual_fast_path,
+        from phyloframe.legacy import (
+            alifestd_unfurl_traversal_postorder_contiguous_polars,
         )
 
         df = self._ensure_df()
-        ancestor_ids = df.get_column("ancestor_id").to_numpy()
-        node_depths = _alifestd_calc_node_depth_asexual_contiguous(
-            ancestor_ids,
-        )
-        _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-            ancestor_ids,
-            node_depths,
-        )
+        alifestd_unfurl_traversal_postorder_contiguous_polars(df)
 
     def inorder(self):
         from phyloframe.legacy import (
