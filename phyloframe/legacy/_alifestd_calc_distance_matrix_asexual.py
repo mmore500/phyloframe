@@ -77,9 +77,11 @@ def _calc_distance_matrix_postorder_jit(
             if not expanded[node] and cs < ce:
                 expanded[node] = True
                 subtree_buf_start[node] = buf_pos
-                for ci in range(cs, ce):
-                    stack[stack_top] = children_flat[ci]
-                    stack_top += 1
+                n_children = ce - cs
+                stack[stack_top : stack_top + n_children] = children_flat[
+                    cs:ce
+                ]
+                stack_top += n_children
             else:
                 stack_top -= 1
 
