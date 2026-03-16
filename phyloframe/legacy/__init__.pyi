@@ -529,14 +529,14 @@ from ._alifestd_unfurl_traversal_levelorder_polars import (
 from ._alifestd_unfurl_traversal_postorder_asexual import (
     alifestd_unfurl_traversal_postorder_asexual,
 )
-from ._alifestd_unfurl_traversal_postorder_polars import (
-    alifestd_unfurl_traversal_postorder_polars,
-)
 from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
     alifestd_unfurl_traversal_postorder_contiguous_asexual,
 )
 from ._alifestd_unfurl_traversal_postorder_contiguous_polars import (
     alifestd_unfurl_traversal_postorder_contiguous_polars,
+)
+from ._alifestd_unfurl_traversal_postorder_polars import (
+    alifestd_unfurl_traversal_postorder_polars,
 )
 from ._alifestd_unfurl_traversal_preorder_asexual import (
     alifestd_unfurl_traversal_preorder_asexual,
