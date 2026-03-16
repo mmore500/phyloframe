@@ -17,7 +17,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 @jit(nopython=True)
 def _calc_distance_matrix_postorder_jit(
     ancestor_ids: np.ndarray,
-    edge_lengths: np.ndarray,
+    criterion_values: np.ndarray,
     num_children: np.ndarray,
 ) -> np.ndarray:
     """Compute pairwise distance matrix via postorder traversal.
@@ -38,6 +38,10 @@ def _calc_distance_matrix_postorder_jit(
         ancestor_ids.astype(np.int64),
         num_children.astype(np.int64),
     )
+
+    # Edge lengths as criterion delta from parent; roots are
+    # self-referential so their delta is naturally zero.
+    edge_lengths = criterion_values - criterion_values[ancestor_ids]
 
     # Flat buffer tracking (node_id, distance_to_subtree_root) pairs.
     # Each node appears exactly once; total entries == n.
@@ -160,12 +164,9 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     num_children = _alifestd_mark_num_children_asexual_fast_path(
         ancestor_ids,
     )
-    # Edge lengths as criterion delta from parent; roots are
-    # self-referential so their delta is naturally zero.
-    edge_lengths = criterion_values - criterion_values[ancestor_ids]
     return _calc_distance_matrix_postorder_jit(
         ancestor_ids,
-        edge_lengths,
+        criterion_values,
         num_children,
     )
 
