@@ -22,7 +22,9 @@ import time
 # forking a process with polars/numba background threads.
 multiprocessing.set_start_method("forkserver", force=True)
 
-TIMEOUT = 30  # seconds per operation
+TIMEOUT_PROBE = 10  # seconds for 100x-smaller preamble load
+TIMEOUT_LOAD = 100  # seconds for load_newick
+TIMEOUT_OP = 210  # seconds for subsequent operations
 SIZES = [
     100,
     300,
@@ -93,7 +95,7 @@ def _run_memory_child(conn, bench_cls, newick):
         conn.close()
 
 
-def timed(bench_cls, newick, op, timeout=TIMEOUT):
+def timed(bench_cls, newick, op, timeout=TIMEOUT_OP):
     """Run an operation in a subprocess and return (seconds, status).
 
     Status is one of "SUCCESS", "TIMEOUT", "FAIL", or "UNAVAILABLE".
@@ -131,7 +133,7 @@ def timed(bench_cls, newick, op, timeout=TIMEOUT):
     return None, "FAIL"
 
 
-def timed_call(bench_cls, newick, op, timeout=TIMEOUT):
+def timed_call(bench_cls, newick, op, timeout=TIMEOUT_OP):
     """Run an operation in a subprocess and return (result, status)."""
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
@@ -165,7 +167,7 @@ def timed_call(bench_cls, newick, op, timeout=TIMEOUT):
     return None, "FAIL"
 
 
-def measure_memory(bench_cls, newick, timeout=TIMEOUT):
+def measure_memory(bench_cls, newick, timeout=TIMEOUT_OP):
     """Measure memory in a clean subprocess. Returns (bytes, status)."""
     parent_conn, child_conn = multiprocessing.Pipe()
     proc = multiprocessing.Process(
@@ -888,41 +890,116 @@ LIBRARIES = [
     PhyloframeBench,
     PhyloframeInMemoryBench,
     PhyloframeStreamingBench,
+    CompactTreeBench,
+    ScikitBioBench,
     TreeswiftBench,
     BiopythonBench,
     DendropyBench,
     EteBench,
-    CompactTreeBench,
-    ScikitBioBench,
 ]
 
 
-def run_benchmarks():
+def run_benchmarks(sizes=None):
+    if sizes is None:
+        sizes = SIZES
     results = []
     # Track ops that failed/timed out per library — skip on larger sizes.
     skip_ops = {}  # (LibClass, op) -> True
-    for n_leaves in SIZES:
+    # Track libraries that failed the probe — skip entirely.
+    skip_libs = set()
+    for n_leaves in sizes:
         print(f"\n{'='*60}", file=sys.stderr)
         print(f"Generating tree with {n_leaves:,} leaves...", file=sys.stderr)
         newick = _balanced_newick(n_leaves)
         print(f"  newick length: {len(newick):,} chars", file=sys.stderr)
 
+        # Generate a 100x smaller probe tree for the preamble test.
+        probe_n = max(4, n_leaves // 100)
+        probe_newick = _balanced_newick(probe_n)
+
         for LibClass in LIBRARIES:
             print(f"  {LibClass.name}:", file=sys.stderr)
 
-            skip_remaining = False
+            if LibClass in skip_libs:
+                print("    SKIP (probe failed)", file=sys.stderr)
+                for op in OPERATIONS:
+                    results.append(
+                        {
+                            "library": LibClass.name,
+                            "n_leaves": n_leaves,
+                            "operation": op,
+                            "seconds": None,
+                            "status": "SKIP",
+                        }
+                    )
+                continue
+
+            # ── Preamble: probe with 100x smaller tree ──────────────
+            _, probe_status = timed(
+                LibClass, probe_newick, "load_newick",
+                timeout=TIMEOUT_PROBE,
+            )
+            if probe_status != "SUCCESS":
+                print(
+                    f"    probe ({probe_n:,} leaves) {probe_status}"
+                    " — skipping library",
+                    file=sys.stderr,
+                )
+                skip_libs.add(LibClass)
+                for op in OPERATIONS:
+                    results.append(
+                        {
+                            "library": LibClass.name,
+                            "n_leaves": n_leaves,
+                            "operation": op,
+                            "seconds": None,
+                            "status": "SKIP",
+                        }
+                    )
+                continue
+            print(
+                f"    probe ({probe_n:,} leaves): ok", file=sys.stderr,
+            )
+
+            # ── Load newick (100s timeout) ──────────────────────────
+            load_val, load_status = timed(
+                LibClass, newick, "load_newick", timeout=TIMEOUT_LOAD,
+            )
+            skip_remaining = load_status != "SUCCESS"
+            if skip_remaining:
+                skip_ops[(LibClass, "load_newick")] = True
+            if load_status == "SUCCESS":
+                print(f"    load_newick: {load_val:.4f}s", file=sys.stderr)
+            else:
+                print(f"    load_newick: {load_status}", file=sys.stderr)
+            results.append(
+                {
+                    "library": LibClass.name,
+                    "n_leaves": n_leaves,
+                    "operation": "load_newick",
+                    "seconds": load_val,
+                    "status": load_status,
+                }
+            )
+
+            # ── Remaining operations (210s timeout) ─────────────────
             for op in OPERATIONS:
+                if op == "load_newick":
+                    continue  # already handled above
+
                 fn = getattr(LibClass, op, None)
                 if fn is None:
                     value, status = None, "UNAVAILABLE"
                 elif skip_remaining or (LibClass, op) in skip_ops:
                     value, status = None, "SKIP"
                 elif op == "memory_bytes":
-                    value, status = measure_memory(LibClass, newick)
+                    value, status = measure_memory(
+                        LibClass, newick, timeout=TIMEOUT_OP,
+                    )
                 else:
-                    value, status = timed(LibClass, newick, op)
-                    if op == "load_newick" and status != "SUCCESS":
-                        skip_remaining = True
+                    value, status = timed(
+                        LibClass, newick, op, timeout=TIMEOUT_OP,
+                    )
 
                 # Remember non-success so larger sizes skip this op.
                 if status in ("TIMEOUT", "FAIL", "UNAVAILABLE"):
@@ -974,7 +1051,19 @@ def print_summary_table(results):
 
 
 def main():
-    results = run_benchmarks()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run phylo benchmarks")
+    parser.add_argument(
+        "--size",
+        type=int,
+        default=None,
+        help="Run benchmark for a single tree size (n_leaves).",
+    )
+    args = parser.parse_args()
+
+    sizes = [args.size] if args.size is not None else None
+    results = run_benchmarks(sizes=sizes)
     writer = csv.DictWriter(
         sys.stdout,
         fieldnames=["library", "n_leaves", "operation", "seconds", "status"],

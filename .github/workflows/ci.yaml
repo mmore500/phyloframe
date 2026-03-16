@@ -308,7 +308,24 @@ jobs:
           path: joss/paper.pdf
 
   benchmark:
+    name: "benchmark ${{ matrix.n_leaves }} leaves"
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        n_leaves:
+          - 100
+          - 300
+          - 1000
+          - 3000
+          - 10000
+          - 30000
+          - 100000
+          - 300000
+          - 1000000
+          - 3000000
+          - 10000000
+          - 30000000
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -333,11 +350,11 @@ jobs:
             /tmp/compacttree-1.0.0/CompactTree/compact_tree.i
           python3 -m pip install /tmp/compacttree-1.0.0
       - name: Run benchmark
-        run: python3 joss/benchmark.py > joss/benchmark-results.csv
+        run: python3 joss/benchmark.py --size ${{ matrix.n_leaves }} > joss/benchmark-results.csv
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results
+          name: benchmark-results-${{ matrix.n_leaves }}
           path: joss/benchmark-results.csv
 
   deploy-test:
