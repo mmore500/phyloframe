@@ -817,7 +817,10 @@ class ScikitBioBench:
         self._tree = None
 
     def warmup(self):
-        pass
+        from skbio import TreeNode  # noqa: F401
+
+        tiny = _balanced_newick(8)
+        TreeNode.read(io.StringIO(tiny), format="newick")
 
     def load_newick(self):
         from skbio import TreeNode
