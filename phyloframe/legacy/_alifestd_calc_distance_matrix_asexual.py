@@ -3,6 +3,7 @@ import typing
 import numpy as np
 import pandas as pd
 
+from .._auxlib._bit_length_numpy import bit_length_numpy
 from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
@@ -136,17 +137,6 @@ def _build_sparse_table(tour_depth: np.ndarray) -> np.ndarray:
     return sparse
 
 
-def _ilog2(x: np.ndarray) -> np.ndarray:
-    """Vectorized floor(log2(x)) for a positive integer array."""
-    result = np.zeros(len(x), dtype=np.intp)
-    remaining = x.copy()
-    for shift in (32, 16, 8, 4, 2, 1):
-        mask = remaining >= (np.int64(1) << np.intp(shift))
-        result[mask] += shift
-        remaining[mask] >>= shift
-    return result
-
-
 def _alifestd_calc_distance_matrix_asexual_fast_path(
     ancestor_ids: np.ndarray,
     criterion_values: np.ndarray,
@@ -203,7 +193,7 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     left = np.minimum(first_occ[valid_rows], first_occ[valid_cols])
     right = np.maximum(first_occ[valid_rows], first_occ[valid_cols])
     length = right - left + 1
-    k = _ilog2(length)
+    k = bit_length_numpy(length) - 1
     half = np.int64(1) << k
 
     left_min = sparse[k, left]

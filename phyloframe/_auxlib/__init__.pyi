@@ -3,6 +3,7 @@ from ._RngStateContext import RngStateContext
 from ._add_bool_arg import add_bool_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
+from ._bit_length_numpy import bit_length_numpy
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -48,6 +49,7 @@ __all__ = [
     "add_bool_arg",
     "all_unique",
     "begin_prod_logging",
+    "bit_length_numpy",
     "coerce_to_pandas",
     "coerce_to_polars",
     "collapse_nonleading_whitespace",
