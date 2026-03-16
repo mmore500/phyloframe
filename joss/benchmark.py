@@ -52,8 +52,42 @@ OPERATIONS = [
 ]
 
 
+def _set_memory_limit():
+    """Cap this process's memory at 70% of available RAM.
+
+    Sets limits via resource.setrlimit (RLIMIT_AS and RLIMIT_DATA) so the
+    OS kills the subprocess instead of letting it OOM the whole CI runner.
+    """
+    import resource
+
+    import psutil
+
+    available = psutil.virtual_memory().available
+    limit = int(available * 0.7)
+    print(
+        f"    memory limit: {limit / 1e9:.1f} GB"
+        f" (70% of {available / 1e9:.1f} GB available)",
+        file=sys.stderr,
+    )
+
+    # RLIMIT_AS — virtual address space; most reliable on Linux.
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_AS)
+        resource.setrlimit(resource.RLIMIT_AS, (limit, hard))
+    except (ValueError, OSError):
+        pass
+
+    # RLIMIT_DATA — heap size; redundant safety net.
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_DATA)
+        resource.setrlimit(resource.RLIMIT_DATA, (limit, hard))
+    except (ValueError, OSError):
+        pass
+
+
 def _run_in_child(conn, bench_cls, newick, op, return_value):
     """Target for subprocess: construct bench, warmup, run op, send timing."""
+    _set_memory_limit()
     try:
         bench = bench_cls(newick)
         bench.warmup()
@@ -82,6 +116,7 @@ def _run_memory_child(conn, bench_cls, newick):
     Full warmup triggers lazy runtime init (thread pools, JIT, etc.).
     _measure_memory() handles gc + malloc_trim before taking baseline RSS.
     """
+    _set_memory_limit()
     try:
         bench = bench_cls(newick)
         bench.warmup()
