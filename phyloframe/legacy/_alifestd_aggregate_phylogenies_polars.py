@@ -85,4 +85,4 @@ def alifestd_aggregate_phylogenies_polars(
     logging.info(
         "- alifestd_aggregate_phylogenies_polars: concatenating results...",
     )
-    return pl.concat(res, how="vertical")
+    return pl.concat(res, how="diagonal_relaxed")
