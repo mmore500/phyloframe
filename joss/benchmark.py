@@ -442,7 +442,7 @@ class TreeswiftBench:
         self._tree = None
 
     def warmup(self):
-        pass
+        import treeswift  # noqa: F401
 
     def load_newick(self):
         import treeswift
@@ -510,7 +510,7 @@ class BiopythonBench:
         self._tree = None
 
     def warmup(self):
-        pass
+        from Bio import Phylo  # noqa: F401
 
     def load_newick(self):
         from Bio import Phylo
@@ -582,7 +582,7 @@ class DendropyBench:
         self._tree = None
 
     def warmup(self):
-        pass
+        import dendropy  # noqa: F401
 
     def load_newick(self):
         import dendropy
@@ -656,7 +656,7 @@ class EteBench:
         self._tree = None
 
     def warmup(self):
-        pass
+        from ete3 import Tree  # noqa: F401
 
     def load_newick(self):
         from ete3 import Tree
@@ -732,7 +732,7 @@ class CompactTreeBench:
         self._tree = None
 
     def warmup(self):
-        pass
+        from CompactTree import compact_tree  # noqa: F401
 
     def load_newick(self):
         from CompactTree import compact_tree
