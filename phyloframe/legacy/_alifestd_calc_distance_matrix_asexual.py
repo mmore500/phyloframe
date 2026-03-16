@@ -17,7 +17,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 @jit(nopython=True)
 def _calc_distance_matrix_postorder_jit(
     ancestor_ids: np.ndarray,
-    criterion_values: np.ndarray,
+    edge_lengths: np.ndarray,
     num_children: np.ndarray,
 ) -> np.ndarray:
     """Compute pairwise distance matrix via postorder traversal.
@@ -38,16 +38,6 @@ def _calc_distance_matrix_postorder_jit(
         ancestor_ids.astype(np.int64),
         num_children.astype(np.int64),
     )
-
-    # Edge lengths: criterion difference from parent to child.
-    edge_lengths = np.empty(n, dtype=np.float64)
-    for i in range(n):
-        if ancestor_ids[i] == i:
-            edge_lengths[i] = 0.0
-        else:
-            edge_lengths[i] = (
-                criterion_values[i] - criterion_values[ancestor_ids[i]]
-            )
 
     # Flat buffer tracking (node_id, distance_to_subtree_root) pairs.
     # Each node appears exactly once; total entries == n.
@@ -103,10 +93,10 @@ def _calc_distance_matrix_postorder_jit(
                     #    distances.
                     for ci in range(cs, ce):
                         child = children_flat[ci]
-                        el = edge_lengths[child]
                         s = seg_start[child]
-                        for k in range(s, s + seg_count[child]):
-                            buf_dists[k] += el
+                        buf_dists[s : s + seg_count[child]] += edge_lengths[
+                            child
+                        ]
 
                     # 2) Cross-child pairwise distances.
                     for ci1 in range(cs, ce - 1):
@@ -117,21 +107,20 @@ def _calc_distance_matrix_postorder_jit(
                             child2 = children_flat[ci2]
                             s2 = seg_start[child2]
                             e2 = s2 + seg_count[child2]
+                            ids2 = buf_ids[s2:e2]
+                            dists2 = buf_dists[s2:e2]
                             for k1 in range(s1, e1):
                                 id1 = buf_ids[k1]
-                                d1 = buf_dists[k1]
-                                for k2 in range(s2, e2):
-                                    id2 = buf_ids[k2]
-                                    d = d1 + buf_dists[k2]
-                                    result[id1, id2] = d
-                                    result[id2, id1] = d
+                                cross = buf_dists[k1] + dists2
+                                result[id1, ids2] = cross
+                                result[ids2, id1] = cross
 
                     # 3) Distance from this node to all descendants.
                     desc_start = subtree_buf_start[node]
-                    for k in range(desc_start, buf_pos):
-                        lid = buf_ids[k]
-                        result[node, lid] = buf_dists[k]
-                        result[lid, node] = buf_dists[k]
+                    desc_ids = buf_ids[desc_start:buf_pos]
+                    desc_dists = buf_dists[desc_start:buf_pos]
+                    result[node, desc_ids] = desc_dists
+                    result[desc_ids, node] = desc_dists
 
                     result[node, node] = 0.0
 
@@ -171,9 +160,12 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     num_children = _alifestd_mark_num_children_asexual_fast_path(
         ancestor_ids,
     )
+    # Edge lengths as criterion delta from parent; roots are
+    # self-referential so their delta is naturally zero.
+    edge_lengths = criterion_values - criterion_values[ancestor_ids]
     return _calc_distance_matrix_postorder_jit(
         ancestor_ids,
-        criterion_values,
+        edge_lengths,
         num_children,
     )
 
