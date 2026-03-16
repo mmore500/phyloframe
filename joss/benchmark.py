@@ -936,7 +936,9 @@ def run_benchmarks(sizes=None):
 
             # ── Preamble: probe with 100x smaller tree ──────────────
             _, probe_status = timed(
-                LibClass, probe_newick, "load_newick",
+                LibClass,
+                probe_newick,
+                "load_newick",
                 timeout=TIMEOUT_PROBE,
             )
             if probe_status != "SUCCESS":
@@ -958,12 +960,16 @@ def run_benchmarks(sizes=None):
                     )
                 continue
             print(
-                f"    probe ({probe_n:,} leaves): ok", file=sys.stderr,
+                f"    probe ({probe_n:,} leaves): ok",
+                file=sys.stderr,
             )
 
             # ── Load newick (100s timeout) ──────────────────────────
             load_val, load_status = timed(
-                LibClass, newick, "load_newick", timeout=TIMEOUT_LOAD,
+                LibClass,
+                newick,
+                "load_newick",
+                timeout=TIMEOUT_LOAD,
             )
             skip_remaining = load_status != "SUCCESS"
             if skip_remaining:
@@ -994,11 +1000,16 @@ def run_benchmarks(sizes=None):
                     value, status = None, "SKIP"
                 elif op == "memory_bytes":
                     value, status = measure_memory(
-                        LibClass, newick, timeout=TIMEOUT_OP,
+                        LibClass,
+                        newick,
+                        timeout=TIMEOUT_OP,
                     )
                 else:
                     value, status = timed(
-                        LibClass, newick, op, timeout=TIMEOUT_OP,
+                        LibClass,
+                        newick,
+                        op,
+                        timeout=TIMEOUT_OP,
                     )
 
                 # Remember non-success so larger sizes skip this op.
