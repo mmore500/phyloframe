@@ -3,7 +3,10 @@ import pandas as pd
 
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
-from ._alifestd_topological_sort import _topological_sort_fast_path
+from ._alifestd_topological_sort import (
+    _topological_sort_fast_path,
+    alifestd_topological_sort,
+)
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
@@ -36,8 +39,6 @@ def alifestd_unfurl_traversal_topological_asexual(
         order = _topological_sort_fast_path(ancestor_ids)
         id_loc = phylogeny_df.columns.get_loc("id")
         return phylogeny_df.iloc[order, id_loc].to_numpy()
-
-    from ._alifestd_topological_sort import alifestd_topological_sort
 
     sorted_df = alifestd_topological_sort(phylogeny_df, mutate=True)
     return sorted_df["id"].to_numpy()
