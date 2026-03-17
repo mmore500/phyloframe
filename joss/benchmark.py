@@ -314,6 +314,8 @@ def _balanced_newick(n):
 class PhyloframeBench:
     name = "phyloframe"
     engine_affinity = None
+    _from_newick_dtype_id = None  # None = default (pl.Int64)
+    _mark_after_load = ()  # extra columns to mark after load_newick
 
     _env_overrides = {
         "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_HAS_CONTIGUOUS_IDS_POLARS": "1",
@@ -337,6 +339,10 @@ class PhyloframeBench:
         from phyloframe.legacy import (
             alifestd_calc_mrca_id_matrix_asexual_polars,
             alifestd_from_newick_polars,
+            alifestd_mark_csr_children_polars,
+            alifestd_mark_csr_offsets_polars,
+            alifestd_mark_first_child_id_polars,
+            alifestd_mark_next_sibling_id_polars,
             alifestd_mark_ot_mrca_polars,
             alifestd_unfurl_traversal_inorder_polars,
             alifestd_unfurl_traversal_levelorder_polars,
@@ -346,6 +352,10 @@ class PhyloframeBench:
 
         tiny = _balanced_newick(8)
         pldf = alifestd_from_newick_polars(tiny)
+        alifestd_mark_first_child_id_polars(pldf)
+        alifestd_mark_next_sibling_id_polars(pldf)
+        pldf_csr = alifestd_mark_csr_offsets_polars(pldf)
+        alifestd_mark_csr_children_polars(pldf_csr)
         alifestd_unfurl_traversal_postorder_contiguous_polars(pldf)
         alifestd_unfurl_traversal_preorder_polars(pldf)
         alifestd_unfurl_traversal_levelorder_polars(pldf)
@@ -361,10 +371,25 @@ class PhyloframeBench:
 
         alifestd_calc_distance_matrix_polars(pldf_with_ot)
 
-    def load_newick(self):
+    def _do_from_newick(self, newick):
+        """Load newick and apply any post-load mark operations."""
+        import polars as pl
+
         from phyloframe.legacy import alifestd_from_newick_polars
 
-        self._df = alifestd_from_newick_polars(self._newick)
+        kwargs = {}
+        if self._from_newick_dtype_id is not None:
+            kwargs["dtype_id"] = self._from_newick_dtype_id
+        df = alifestd_from_newick_polars(newick, **kwargs)
+        for mark_fn_name in self._mark_after_load:
+            from phyloframe import legacy
+
+            mark_fn = getattr(legacy, mark_fn_name)
+            df = mark_fn(df)
+        return df
+
+    def load_newick(self):
+        self._df = self._do_from_newick(self._newick)
 
     def save_newick(self):
         from phyloframe.legacy import alifestd_as_newick_polars
@@ -427,18 +452,14 @@ class PhyloframeBench:
         alifestd_calc_distance_matrix_polars(df)
 
     def memory_bytes(self):
-        from phyloframe.legacy import alifestd_from_newick_polars
-
         newick = self._newick
         return _measure_memory(
-            lambda: alifestd_from_newick_polars(newick),
+            lambda: self._do_from_newick(newick),
         )
 
     def _ensure_df(self):
         if self._df is None:
-            from phyloframe.legacy import alifestd_from_newick_polars
-
-            self._df = alifestd_from_newick_polars(self._newick)
+            self._df = self._do_from_newick(self._newick)
         return self._df
 
 
@@ -447,9 +468,31 @@ class PhyloframeInMemoryBench(PhyloframeBench):
     engine_affinity = "in-memory"
 
 
-class PhyloframeStreamingBench(PhyloframeBench):
-    name = "phyloframe (streaming)"
+class PhyloframeStreamingInt32Bench(PhyloframeBench):
+    name = "phyloframe (streaming+i32)"
     engine_affinity = "streaming"
+
+    @property
+    def _from_newick_dtype_id(self):
+        import polars as pl
+
+        return pl.Int32
+
+
+class PhyloframeStreamingInt32ChildSibBench(PhyloframeStreamingInt32Bench):
+    name = "phyloframe (streaming+i32+child/sib)"
+    _mark_after_load = (
+        "alifestd_mark_first_child_id_polars",
+        "alifestd_mark_next_sibling_id_polars",
+    )
+
+
+class PhyloframeStreamingInt32CsrBench(PhyloframeStreamingInt32Bench):
+    name = "phyloframe (streaming+i32+csr)"
+    _mark_after_load = (
+        "alifestd_mark_csr_offsets_polars",
+        "alifestd_mark_csr_children_polars",
+    )
 
 
 class TreeswiftBench:
@@ -900,9 +943,10 @@ class ScikitBioBench:
 
 
 LIBRARIES = [
-    PhyloframeBench,
     PhyloframeInMemoryBench,
-    PhyloframeStreamingBench,
+    PhyloframeStreamingInt32Bench,
+    PhyloframeStreamingInt32ChildSibBench,
+    PhyloframeStreamingInt32CsrBench,
     CompactTreeBench,
     ScikitBioBench,
     TreeswiftBench,
