@@ -41,13 +41,14 @@ def _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
         Index array giving DFS preorder traversal order.
     """
     n = len(ancestor_ids)
+    dtype = ancestor_ids.dtype
     if n == 0:
-        return np.empty(0, dtype=np.int64)
+        return np.empty(0, dtype=dtype)
 
-    result = np.empty(n, dtype=np.int64)
+    result = np.empty(n, dtype=dtype)
     result_pos = 0
 
-    stack = np.empty(n, dtype=np.int64)
+    stack = np.empty(n, dtype=dtype)
     stack_top = 0
 
     for root in range(n):
