@@ -51,6 +51,7 @@ def alifestd_pipe_unary_ops_polars(
             f"applying op {i + 1} of {len(unary_ops)} {op!r}...",
         )
         phylogeny_df = op(phylogeny_df)
+    logging.info("- alifestd_pipe_unary_ops_polars: all ops applied")
     return phylogeny_df
 
 
