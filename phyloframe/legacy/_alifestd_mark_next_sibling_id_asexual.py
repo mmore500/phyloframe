@@ -34,7 +34,7 @@ def _alifestd_mark_next_sibling_id_asexual_fast_path(
     n = len(ancestor_ids)
     next_sibling_ids = np.arange(n, dtype=ancestor_ids.dtype)  # default: self
     # last_child_with_parent[p] tracks the most recently seen child of p
-    last_child_with_parent = np.full(n, -1, dtype=np.int64)
+    last_child_with_parent = np.full(n, -1, dtype=ancestor_ids.dtype)
 
     for idx, parent in enumerate(ancestor_ids):
         if parent != idx:  # skip genesis/root self-ref

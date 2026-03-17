@@ -33,7 +33,7 @@ def _alifestd_mark_csr_offsets_asexual_fast_path(
     num_children = np.bincount(ancestor_ids.astype(np.intp), minlength=n)
     num_children -= ancestor_ids == np.arange(n)
 
-    csr_offsets = np.empty(n, dtype=np.int64)
+    csr_offsets = np.empty(n, dtype=ancestor_ids.dtype)
     if n == 0:
         return csr_offsets
     csr_offsets[0] = 0

@@ -37,7 +37,7 @@ def _alifestd_mark_csr_children_asexual_fast_path(
     total number of non-root nodes are unused.
     """
     n = len(ancestor_ids)
-    csr_children = np.full(n, -1, dtype=np.int64)
+    csr_children = np.full(n, -1, dtype=ancestor_ids.dtype)
     insert_pos = csr_offsets.copy()
     for i in range(n):
         p = ancestor_ids[i]
@@ -122,19 +122,13 @@ def alifestd_mark_csr_children_asexual(
     if alifestd_has_contiguous_ids(phylogeny_df):
         ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
         if "csr_offsets" in phylogeny_df.columns:
-            csr_offsets = (
-                phylogeny_df["csr_offsets"]
-                .to_numpy()
-                .astype(
-                    np.int64,
-                )
-            )
+            csr_offsets = phylogeny_df["csr_offsets"].to_numpy()
         else:
             csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
                 ancestor_ids,
             )
         phylogeny_df[mark_as] = _alifestd_mark_csr_children_asexual_fast_path(
-            ancestor_ids.astype(np.int64),
+            ancestor_ids,
             csr_offsets,
         )
         return phylogeny_df
