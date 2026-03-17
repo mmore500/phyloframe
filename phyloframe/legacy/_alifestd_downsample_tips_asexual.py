@@ -4,8 +4,8 @@ import logging
 import os
 import sys
 import typing
-import warnings
 
+from deprecated.sphinx import deprecated
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import pandas as pd
@@ -23,6 +23,10 @@ from ._alifestd_downsample_tips_uniform_asexual import (
 )
 
 
+@deprecated(
+    version="0.6.0",
+    reason="Use alifestd_downsample_tips_uniform_asexual instead.",
+)
 def alifestd_downsample_tips_asexual(
     phylogeny_df: pd.DataFrame,
     n_downsample: int,
@@ -32,20 +36,11 @@ def alifestd_downsample_tips_asexual(
 ) -> pd.DataFrame:
     """Create a subsample phylogeny containing `n_downsample` tips.
 
-    .. deprecated::
-        Use :func:`alifestd_downsample_tips_uniform_asexual` instead.
-
     If `n_downsample` is greater than the number of tips in the phylogeny,
     the whole phylogeny is returned.
 
     Only supports asexual phylogenies.
     """
-    warnings.warn(
-        "alifestd_downsample_tips_asexual is deprecated, "
-        "use alifestd_downsample_tips_uniform_asexual instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     return alifestd_downsample_tips_uniform_asexual(
         phylogeny_df,
         n_downsample,

@@ -4,12 +4,14 @@ bumpver==2022.1120
     # via phyloframe (../../pyproject.toml)
 certifi==2026.2.25
     # via requests
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
     # via requests
 click==8.3.1
     # via bumpver
 colorama==0.4.6
     # via bumpver
+deprecated==1.3.1
+    # via phyloframe (../../pyproject.toml)
 docutils==0.22.4
     # via readme-renderer
 fishersrc==0.1.15
@@ -126,3 +128,5 @@ uv==0.4.18
     # via phyloframe (../../pyproject.toml)
 wheel==0.45.0
     # via phyloframe (../../pyproject.toml)
+wrapt==2.1.2
+    # via deprecated

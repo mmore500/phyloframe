@@ -4,8 +4,8 @@ import logging
 import os
 import sys
 import typing
-import warnings
 
+from deprecated.sphinx import deprecated
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import polars as pl
@@ -20,6 +20,10 @@ from ._alifestd_downsample_tips_uniform_polars import (
 )
 
 
+@deprecated(
+    version="0.6.0",
+    reason="Use alifestd_downsample_tips_uniform_polars instead.",
+)
 def alifestd_downsample_tips_polars(
     phylogeny_df: pl.DataFrame,
     n_downsample: int,
@@ -27,9 +31,6 @@ def alifestd_downsample_tips_polars(
     **kwargs,
 ) -> pl.DataFrame:
     """Create a subsample phylogeny containing `n_downsample` tips.
-
-    .. deprecated::
-        Use :func:`alifestd_downsample_tips_uniform_polars` instead.
 
     If `n_downsample` is greater than the number of tips in the phylogeny,
     the whole phylogeny is returned.
@@ -64,12 +65,6 @@ def alifestd_downsample_tips_polars(
     alifestd_downsample_tips_asexual :
         Pandas-based implementation.
     """
-    warnings.warn(
-        "alifestd_downsample_tips_polars is deprecated, "
-        "use alifestd_downsample_tips_uniform_polars instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     return alifestd_downsample_tips_uniform_polars(
         phylogeny_df,
         n_downsample,

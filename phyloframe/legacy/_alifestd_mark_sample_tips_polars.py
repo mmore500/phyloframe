@@ -4,8 +4,8 @@ import logging
 import os
 import sys
 import typing
-import warnings
 
+from deprecated.sphinx import deprecated
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import polars as pl
@@ -20,6 +20,10 @@ from ._alifestd_mark_sample_tips_uniform_polars import (
 )
 
 
+@deprecated(
+    version="0.6.0",
+    reason="Use alifestd_mark_sample_tips_uniform_polars instead.",
+)
 def alifestd_mark_sample_tips_polars(
     phylogeny_df: pl.DataFrame,
     n_sample: int,
@@ -28,9 +32,6 @@ def alifestd_mark_sample_tips_polars(
     mark_as: str = "alifestd_mark_sample_tips_polars",
 ) -> pl.DataFrame:
     """Mark a random subsample of `n_sample` tips.
-
-    .. deprecated::
-        Use :func:`alifestd_mark_sample_tips_uniform_polars` instead.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
 
@@ -69,12 +70,6 @@ def alifestd_mark_sample_tips_polars(
     alifestd_mark_sample_tips_asexual :
         Pandas-based implementation.
     """
-    warnings.warn(
-        "alifestd_mark_sample_tips_polars is deprecated, "
-        "use alifestd_mark_sample_tips_uniform_polars instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     return alifestd_mark_sample_tips_uniform_polars(
         phylogeny_df,
         n_sample,

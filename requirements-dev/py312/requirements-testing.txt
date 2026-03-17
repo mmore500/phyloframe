@@ -14,12 +14,14 @@ click==8.3.1
     #   black
 contexttimer==0.3.3
     # via phyloframe (../../pyproject.toml)
-coverage==7.13.4
+coverage==7.13.5
     # via phyloframe (../../pyproject.toml)
 dendropy==5.0.8
     # via alifedata-phyloinformatics-convert
 deprecated==1.3.1
-    # via alifedata-phyloinformatics-convert
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   alifedata-phyloinformatics-convert
 distlib==0.4.0
     # via virtualenv
 ete3==3.1.3
@@ -90,6 +92,11 @@ packaging==26.0
     #   pytest
     #   statsmodels
     #   tox
+pandas==3.0.1
+    # via
+    #   phyloframe (../../pyproject.toml)
+    #   alifedata-phyloinformatics-convert
+    #   statsmodels
 pathspec==1.0.4
     # via black
 patsy==1.0.2

@@ -4,8 +4,8 @@ import logging
 import os
 import sys
 import typing
-import warnings
 
+from deprecated.sphinx import deprecated
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import pandas as pd
@@ -23,6 +23,10 @@ from ._alifestd_mark_sample_tips_uniform_asexual import (
 )
 
 
+@deprecated(
+    version="0.6.0",
+    reason="Use alifestd_mark_sample_tips_uniform_asexual instead.",
+)
 def alifestd_mark_sample_tips_asexual(
     phylogeny_df: pd.DataFrame,
     n_sample: int,
@@ -33,9 +37,6 @@ def alifestd_mark_sample_tips_asexual(
 ) -> pd.DataFrame:
     """Mark a random subsample of `n_sample` tips.
 
-    .. deprecated::
-        Use :func:`alifestd_mark_sample_tips_uniform_asexual` instead.
-
     Adds a boolean column ``mark_as`` indicating retained tips.
 
     If `n_sample` is greater than the number of tips in the phylogeny,
@@ -43,12 +44,6 @@ def alifestd_mark_sample_tips_asexual(
 
     Only supports asexual phylogenies.
     """
-    warnings.warn(
-        "alifestd_mark_sample_tips_asexual is deprecated, "
-        "use alifestd_mark_sample_tips_uniform_asexual instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     return alifestd_mark_sample_tips_uniform_asexual(
         phylogeny_df,
         n_sample,
