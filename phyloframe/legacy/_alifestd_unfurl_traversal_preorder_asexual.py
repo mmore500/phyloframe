@@ -123,14 +123,15 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
         Index array giving DFS preorder traversal order.
     """
     n = len(ancestor_ids)
+    dtype = ancestor_ids.dtype
     if n == 0:
-        return np.empty(0, dtype=np.int64)
+        return np.empty(0, dtype=dtype)
 
     # Iterative DFS preorder traversal
-    result = np.empty(n, dtype=np.int64)
+    result = np.empty(n, dtype=dtype)
     result_pos = 0
 
-    stack = np.empty(n, dtype=np.int64)
+    stack = np.empty(n, dtype=dtype)
     stack_top = 0
 
     for root in range(n):
@@ -225,9 +226,9 @@ def alifestd_unfurl_traversal_preorder_asexual(
             and "next_sibling_id" in phylogeny_df.columns
         ):
             return _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
-                ancestor_ids.astype(np.int64),
-                phylogeny_df["first_child_id"].to_numpy().astype(np.int64),
-                phylogeny_df["next_sibling_id"].to_numpy().astype(np.int64),
+                ancestor_ids,
+                phylogeny_df["first_child_id"].to_numpy(),
+                phylogeny_df["next_sibling_id"].to_numpy(),
             )
         if "num_children" not in phylogeny_df.columns:
             num_children = _alifestd_mark_num_children_asexual_fast_path(
@@ -236,28 +237,16 @@ def alifestd_unfurl_traversal_preorder_asexual(
         else:
             num_children = phylogeny_df["num_children"].to_numpy()
         if "csr_offsets" in phylogeny_df.columns:
-            csr_offsets = (
-                phylogeny_df["csr_offsets"]
-                .to_numpy()
-                .astype(
-                    np.int64,
-                )
-            )
+            csr_offsets = phylogeny_df["csr_offsets"].to_numpy()
         else:
             csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
                 ancestor_ids,
             )
         if "csr_children" in phylogeny_df.columns:
-            csr_children = (
-                phylogeny_df["csr_children"]
-                .to_numpy()
-                .astype(
-                    np.int64,
-                )
-            )
+            csr_children = phylogeny_df["csr_children"].to_numpy()
         else:
             csr_children = _alifestd_mark_csr_children_asexual_fast_path(
-                ancestor_ids.astype(np.int64),
+                ancestor_ids,
                 csr_offsets,
             )
         return _alifestd_unfurl_traversal_preorder_asexual_jit(
