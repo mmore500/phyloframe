@@ -10,11 +10,13 @@ import pyarrow as pa
 
 from .._auxlib._configure_prod_logging import configure_prod_logging
 from .._auxlib._eval_kwargs import eval_kwargs
+from .._auxlib._find_equivalent_numpy_dtype_polars import (
+    find_equivalent_numpy_dtype_polars,
+)
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._pl_dtype_to_np_dtype import pl_dtype_to_np_dtype
-from .._auxlib._pl_min_scalar_type import pl_min_scalar_type
+from .._auxlib._min_scalar_type_polars import min_scalar_type_polars
 from ._alifestd_from_newick import (
     _jit_build_label_buffer,
     _jit_parse_branch_lengths,
@@ -70,7 +72,7 @@ def alifestd_from_newick_polars(
     newick = newick.strip()
     if dtype_id is None:
         comma_count = newick.count(",")
-        pl_dtype_id = pl_min_scalar_type(-max(comma_count, 1))
+        pl_dtype_id = min_scalar_type_polars(-max(comma_count, 1))
     else:
         pl_dtype_id = dtype_id
 
@@ -89,7 +91,7 @@ def alifestd_from_newick_polars(
     chars = np.frombuffer(newick.encode("ascii"), dtype=np.uint8)
     n = len(chars)
 
-    np_dtype_id = pl_dtype_to_np_dtype(pl_dtype_id)
+    np_dtype_id = find_equivalent_numpy_dtype_polars(pl_dtype_id)
 
     (
         ids,
