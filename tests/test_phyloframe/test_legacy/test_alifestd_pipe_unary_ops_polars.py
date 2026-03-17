@@ -18,12 +18,18 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     ],
 )
 def test_alifestd_pipe_unary_ops_polars_no_ops(apply: typing.Callable):
-    phylogeny_df = pl.from_pandas(pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"))
+    phylogeny_df = pl.from_pandas(
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+    )
     original_df = phylogeny_df.clone()
 
     result = alifestd_pipe_unary_ops_polars(apply(phylogeny_df))
 
-    assert result.collect().equals(original_df) if hasattr(result, "collect") else result.equals(original_df)
+    assert (
+        result.collect().equals(original_df)
+        if hasattr(result, "collect")
+        else result.equals(original_df)
+    )
 
 
 @pytest.mark.parametrize(
@@ -34,7 +40,9 @@ def test_alifestd_pipe_unary_ops_polars_no_ops(apply: typing.Callable):
     ],
 )
 def test_alifestd_pipe_unary_ops_polars_single_op(apply: typing.Callable):
-    phylogeny_df = pl.from_pandas(pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"))
+    phylogeny_df = pl.from_pandas(
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+    )
 
     result = alifestd_pipe_unary_ops_polars(
         apply(phylogeny_df),
@@ -54,7 +62,9 @@ def test_alifestd_pipe_unary_ops_polars_single_op(apply: typing.Callable):
     ],
 )
 def test_alifestd_pipe_unary_ops_polars_multiple_ops(apply: typing.Callable):
-    phylogeny_df = pl.from_pandas(pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"))
+    phylogeny_df = pl.from_pandas(
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+    )
 
     result = alifestd_pipe_unary_ops_polars(
         apply(phylogeny_df),
@@ -69,7 +79,9 @@ def test_alifestd_pipe_unary_ops_polars_multiple_ops(apply: typing.Callable):
 
 
 def test_alifestd_pipe_unary_ops_polars_order():
-    phylogeny_df = pl.from_pandas(pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"))
+    phylogeny_df = pl.from_pandas(
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
+    )
     log = []
 
     def op_a(df):

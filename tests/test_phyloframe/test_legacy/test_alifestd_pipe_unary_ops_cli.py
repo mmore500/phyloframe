@@ -32,9 +32,7 @@ def test_alifestd_pipe_unary_ops_cli_version():
 
 
 def test_alifestd_pipe_unary_ops_cli_csv_no_ops():
-    output_file = (
-        "/tmp/phyloframe_alifestd_pipe_unary_ops.csv"  # nosec B108
-    )
+    output_file = "/tmp/phyloframe_alifestd_pipe_unary_ops.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [

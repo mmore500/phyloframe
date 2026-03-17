@@ -76,9 +76,7 @@ def test_alifestd_pipe_unary_ops_polars_cli_csv_single_op():
 
 
 def test_alifestd_pipe_unary_ops_polars_cli_csv_multiple_ops():
-    output_file = (
-        "/tmp/phyloframe_alifestd_pipe_unary_ops_polars_multi.csv"  # nosec B108
-    )
+    output_file = "/tmp/phyloframe_alifestd_pipe_unary_ops_polars_multi.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [
