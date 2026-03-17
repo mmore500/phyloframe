@@ -252,7 +252,7 @@ def test_dtype_id_default():
 
 
 def test_dtype_id_int32():
-    result = alifestd_from_newick_polars("(A,B);", dtype_id=np.int32)
+    result = alifestd_from_newick_polars("(A,B);", dtype_id=pl.Int32)
     assert result["id"].dtype == pl.Int32
     assert result["ancestor_id"].dtype == pl.Int32
 

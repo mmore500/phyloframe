@@ -19,13 +19,6 @@ from ._alifestd_from_newick import (
     _parse_newick_jit,
 )
 
-_np_to_pl_int = {
-    np.dtype(np.int8): pl.Int8,
-    np.dtype(np.int16): pl.Int16,
-    np.dtype(np.int32): pl.Int32,
-    np.dtype(np.int64): pl.Int64,
-}
-
 
 # Performance (as of 2026-03-15, 200k-node caterpillar tree, JIT-warmed):
 #   with branch lengths: phyloframe ~0.06s vs treeswift ~1.4s (~0.04x)
@@ -36,7 +29,7 @@ def alifestd_from_newick_polars(
     *,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
-    dtype_id: typing.Optional[type] = np.int64,
+    dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
 ) -> pl.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -55,8 +48,8 @@ def alifestd_from_newick_polars(
         integer dtypes or ``NaN`` for float dtypes.
     create_ancestor_list : bool, default False
         If True, include an ``ancestor_list`` column in the result.
-    dtype_id : type or None, default np.int64
-        Numpy dtype for the ``id`` and ``ancestor_id`` columns. If None, the
+    dtype_id : pl.DataType or None, default pl.Int64
+        Polars dtype for the ``id`` and ``ancestor_id`` columns. If None, the
         smallest signed integer dtype is chosen automatically based on the
         number of commas in the Newick string.
 
@@ -77,7 +70,7 @@ def alifestd_from_newick_polars(
         comma_count = newick.count(",")
         pl_dtype_id = pl.Series([-max(comma_count, 1)]).shrink_dtype().dtype
     else:
-        pl_dtype_id = _np_to_pl_int[np.dtype(dtype_id)]
+        pl_dtype_id = dtype_id
 
     if not newick:
         columns = {
