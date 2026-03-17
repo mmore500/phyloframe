@@ -66,8 +66,8 @@ def _set_memory_limit():
     available = psutil.virtual_memory().available
     limit = int(available * 1.2)
     print(
-        f"    memory limit: {limit / 1e9:.1f} GB"
-        f" (120% of {available / 1e9:.1f} GB available)",
+        f"  |   mem limit: {limit / 1e9:.1f} GB"
+        f" (120% of {available / 1e9:.1f} GB avail)",
         file=sys.stderr,
     )
 
@@ -151,7 +151,7 @@ def timed(bench_cls, newick, op, timeout=TIMEOUT_OP):
         return None, "TIMEOUT"
     if proc.exitcode != 0:
         print(
-            f"    error: child process exited with code {proc.exitcode}",
+            f"  |   error: child exited with code {proc.exitcode}",
             file=sys.stderr,
         )
         parent_conn.close()
@@ -162,7 +162,7 @@ def timed(bench_cls, newick, op, timeout=TIMEOUT_OP):
         if result[0] == "unavailable":
             return None, "UNAVAILABLE"
         if result[0] == "error":
-            print(f"    error: {result[1]}", file=sys.stderr)
+            print(f"  |   error: {result[1]}", file=sys.stderr)
             return None, "FAIL"
         return result[1], "SUCCESS"
     parent_conn.close()
@@ -185,7 +185,7 @@ def timed_call(bench_cls, newick, op, timeout=TIMEOUT_OP):
         return None, "TIMEOUT"
     if proc.exitcode != 0:
         print(
-            f"    error: child process exited with code {proc.exitcode}",
+            f"  |   error: child exited with code {proc.exitcode}",
             file=sys.stderr,
         )
         parent_conn.close()
@@ -196,7 +196,7 @@ def timed_call(bench_cls, newick, op, timeout=TIMEOUT_OP):
         if result[0] == "unavailable":
             return None, "UNAVAILABLE"
         if result[0] == "error":
-            print(f"    error: {result[1]}", file=sys.stderr)
+            print(f"  |   error: {result[1]}", file=sys.stderr)
             return None, "FAIL"
         return result[2], "SUCCESS"
     parent_conn.close()
@@ -219,7 +219,7 @@ def measure_memory(bench_cls, newick, timeout=TIMEOUT_OP):
         return None, "TIMEOUT"
     if proc.exitcode != 0:
         print(
-            f"    error: child process exited with code {proc.exitcode}",
+            f"  |   error: child exited with code {proc.exitcode}",
             file=sys.stderr,
         )
         parent_conn.close()
@@ -230,7 +230,7 @@ def measure_memory(bench_cls, newick, timeout=TIMEOUT_OP):
         if result[0] == "unavailable":
             return None, "UNAVAILABLE"
         if result[0] == "error":
-            print(f"    error: {result[1]}", file=sys.stderr)
+            print(f"  |   error: {result[1]}", file=sys.stderr)
             return None, "FAIL"
         return result[1], "SUCCESS"
     parent_conn.close()
@@ -1004,21 +1004,37 @@ def run_benchmarks(sizes=None):
     skip_ops = {}  # (LibClass, op) -> True
     # Track libraries that failed the probe — skip entirely.
     skip_libs = set()
+    op_col_w = max(len(op) for op in OPERATIONS)
     for n_leaves in sizes:
-        print(f"\n{'='*60}", file=sys.stderr)
-        print(f"Generating tree with {n_leaves:,} leaves...", file=sys.stderr)
+        print(
+            f"\n{'=' * 60}\n"
+            f"  TREE: {n_leaves:>12,} leaves\n"
+            f"{'=' * 60}",
+            file=sys.stderr,
+        )
         newick = _balanced_newick(n_leaves)
-        print(f"  newick length: {len(newick):,} chars", file=sys.stderr)
+        print(
+            f"  newick length: {len(newick):,} chars",
+            file=sys.stderr,
+        )
 
         # Generate a 100x smaller probe tree for the preamble test.
         probe_n = max(4, n_leaves // 100)
         probe_newick = _balanced_newick(probe_n)
 
         for LibClass in LIBRARIES:
-            print(f"  {LibClass.name}:", file=sys.stderr)
+            print(
+                f"\n  {'-' * 56}\n"
+                f"  | {LibClass.name}\n"
+                f"  {'-' * 56}",
+                file=sys.stderr,
+            )
 
             if LibClass in skip_libs:
-                print("    SKIP (probe failed)", file=sys.stderr)
+                print(
+                    f"  | {'SKIP':<{op_col_w}}   (probe failed)",
+                    file=sys.stderr,
+                )
                 for op in OPERATIONS:
                     results.append(
                         {
@@ -1040,8 +1056,8 @@ def run_benchmarks(sizes=None):
             )
             if probe_status != "SUCCESS":
                 print(
-                    f"    probe ({probe_n:,} leaves) {probe_status}"
-                    " — skipping library",
+                    f"  | probe ({probe_n:,} leaves) {probe_status}"
+                    " -- skipping library",
                     file=sys.stderr,
                 )
                 skip_libs.add(LibClass)
@@ -1057,7 +1073,7 @@ def run_benchmarks(sizes=None):
                     )
                 continue
             print(
-                f"    probe ({probe_n:,} leaves): ok",
+                f"  | {'probe':<{op_col_w}}   ok ({probe_n:,} leaves)",
                 file=sys.stderr,
             )
 
@@ -1072,9 +1088,15 @@ def run_benchmarks(sizes=None):
             if skip_remaining:
                 skip_ops[(LibClass, "load_newick")] = True
             if load_status == "SUCCESS":
-                print(f"    load_newick: {load_val:.4f}s", file=sys.stderr)
+                print(
+                    f"  | {'load_newick':<{op_col_w}}   {load_val:.4f}s",
+                    file=sys.stderr,
+                )
             else:
-                print(f"    load_newick: {load_status}", file=sys.stderr)
+                print(
+                    f"  | {'load_newick':<{op_col_w}}   {load_status}",
+                    file=sys.stderr,
+                )
             results.append(
                 {
                     "library": LibClass.name,
@@ -1119,7 +1141,10 @@ def run_benchmarks(sizes=None):
                     label = f"{value:.4f}s"
                 else:
                     label = status
-                print(f"    {op}: {label}", file=sys.stderr)
+                print(
+                    f"  | {op:<{op_col_w}}   {label}",
+                    file=sys.stderr,
+                )
                 results.append(
                     {
                         "library": LibClass.name,
@@ -1146,7 +1171,10 @@ def print_summary_table(results):
         # reorder columns to match LIBRARIES order
         lib_order = [L.name for L in LIBRARIES]
         pivot = pivot[[c for c in lib_order if c in pivot.columns]]
-        print(f"\n--- {n_leaves:,} leaves ---", file=sys.stderr)
+        header = f" SUMMARY: {n_leaves:,} leaves "
+        pad = max(0, 60 - len(header))
+        banner = "=" * (pad // 2) + header + "=" * (pad - pad // 2)
+        print(f"\n{banner}", file=sys.stderr)
         with pd.option_context(
             "display.float_format",
             "{:.6f}".format,
@@ -1156,6 +1184,7 @@ def print_summary_table(results):
             200,
         ):
             print(pivot.to_string(na_rep="--"), file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
 
 
 def main():
