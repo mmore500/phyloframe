@@ -1,2 +1,2 @@
 def get_phyloframe_version() -> str:
-    return "0.5.3"
+    return "0.6.0"
