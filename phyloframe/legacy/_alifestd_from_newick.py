@@ -21,9 +21,8 @@ from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 def _pick_id_dtype_for_newick(newick: str) -> np.dtype:
     """Choose the smallest signed integer dtype for node ids.
 
-    Uses ``np.min_scalar_type`` on the comma count (a proxy for tree
-    size), then promotes unsigned results to their signed counterpart so
-    that ids are always signed.
+    Uses ``np.min_scalar_type`` on the negated comma count (a proxy for
+    tree size) to directly obtain a signed dtype.
 
     Parameters
     ----------
@@ -36,18 +35,8 @@ def _pick_id_dtype_for_newick(newick: str) -> np.dtype:
         One of np.int8, np.int16, np.int32, or np.int64.
     """
     comma_count = newick.count(",")
-    dt = np.min_scalar_type(comma_count)
-    # min_scalar_type returns unsigned for non-negative values;
-    # promote to the signed type with the same width (or next wider)
-    if np.issubdtype(dt, np.unsignedinteger):
-        signed = {
-            np.dtype(np.uint8): np.dtype(np.int16),
-            np.dtype(np.uint16): np.dtype(np.int32),
-            np.dtype(np.uint32): np.dtype(np.int64),
-            np.dtype(np.uint64): np.dtype(np.int64),
-        }
-        dt = signed[dt]
-    return dt
+    # passing a negative value makes min_scalar_type return signed
+    return np.min_scalar_type(-max(comma_count, 1))
 
 
 @jit(nopython=True)

@@ -623,22 +623,22 @@ def test_id_dtype_int32():
 
 def test_id_dtype_none_small():
     result = alifestd_from_newick("(A,B);", id_dtype=None)
-    # 1 comma -> uint8 via min_scalar_type -> int16 signed
-    assert result["id"].dtype == np.int16
-    assert result["ancestor_id"].dtype == np.int16
+    # 1 comma -> min_scalar_type(-1) -> int8
+    assert result["id"].dtype == np.int8
+    assert result["ancestor_id"].dtype == np.int8
     assert len(result) == 3
 
 
 def test_id_dtype_none_empty():
     result = alifestd_from_newick("", id_dtype=None)
-    # 0 commas -> uint8 via min_scalar_type -> int16 signed
-    assert result["id"].dtype == np.int16
+    # 0 commas -> min_scalar_type(-1) -> int8
+    assert result["id"].dtype == np.int8
     assert len(result) == 0
 
 
 def test_id_dtype_none_values_correct():
     result = alifestd_from_newick("(A,(B,C));", id_dtype=None)
-    assert result["id"].dtype == np.int16
+    assert result["id"].dtype == np.int8
     # verify tree structure is intact
     assert len(result) == 5
     root = result[result["ancestor_id"] == result["id"]]
