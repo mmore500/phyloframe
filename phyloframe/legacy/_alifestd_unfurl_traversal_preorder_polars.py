@@ -105,11 +105,31 @@ def alifestd_unfurl_traversal_preorder_polars(
             .to_series()
             .to_numpy()
         )
-    csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(ancestor_ids)
-    csr_children = _alifestd_mark_csr_children_asexual_fast_path(
-        ancestor_ids,
-        csr_offsets,
-    )
+    if "csr_offsets" not in schema_names:
+        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+            ancestor_ids,
+        )
+    else:
+        csr_offsets = (
+            phylogeny_df.lazy()
+            .select("csr_offsets")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+    if "csr_children" not in schema_names:
+        csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+            ancestor_ids,
+            csr_offsets,
+        )
+    else:
+        csr_children = (
+            phylogeny_df.lazy()
+            .select("csr_children")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
     return _alifestd_unfurl_traversal_preorder_asexual_jit(
         ancestor_ids,
         csr_offsets,
