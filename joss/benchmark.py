@@ -344,6 +344,7 @@ class PhyloframeBench:
             alifestd_mark_csr_offsets_polars,
             alifestd_mark_first_child_id_polars,
             alifestd_mark_next_sibling_id_polars,
+            alifestd_mark_num_children_polars,
             alifestd_mark_ot_mrca_polars,
             alifestd_unfurl_traversal_inorder_polars,
             alifestd_unfurl_traversal_levelorder_polars,
@@ -356,6 +357,7 @@ class PhyloframeBench:
         pldf = alifestd_from_newick_polars(tiny)
         alifestd_mark_first_child_id_polars(pldf)
         alifestd_mark_next_sibling_id_polars(pldf)
+        alifestd_mark_num_children_polars(pldf)
         pldf_csr = alifestd_mark_csr_offsets_polars(pldf)
         alifestd_mark_csr_children_polars(pldf_csr)
         alifestd_unfurl_traversal_postorder_contiguous_polars(pldf)
@@ -499,6 +501,7 @@ class PhyloframeStreamingInt32ChildSibBench(PhyloframeStreamingInt32Bench):
 class PhyloframeStreamingInt32CsrBench(PhyloframeStreamingInt32Bench):
     name = "phyloframe (streaming+i32+csr)"
     _mark_after_load = (
+        "alifestd_mark_num_children_polars",
         "alifestd_mark_csr_offsets_polars",
         "alifestd_mark_csr_children_polars",
     )
