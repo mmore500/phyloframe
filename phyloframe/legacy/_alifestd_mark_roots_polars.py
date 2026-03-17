@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -15,13 +16,18 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-def alifestd_mark_roots_polars(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
-    """Create column `is_root` to mark rows with no ancestor."""
+def alifestd_mark_roots_polars(
+    phylogeny_df: pl.DataFrame, mark_as: str = "is_root"
+) -> pl.DataFrame:
+    """Create column `is_root` to mark rows with no ancestor.
+
+    The output column name can be changed via the ``mark_as`` parameter.
+    """
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     return phylogeny_df.with_columns(
-        is_root=(pl.col("id") == pl.col("ancestor_id")),
+        (pl.col("id") == pl.col("ancestor_id")).alias(mark_as),
     )
 
 
@@ -51,6 +57,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_roots_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_root",
+        type=str,
+        help="output column name (default: is_root)",
+    )
     return parser
 
 
@@ -67,7 +79,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_roots_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_roots_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

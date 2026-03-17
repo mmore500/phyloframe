@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -64,8 +65,11 @@ def _alifestd_mark_left_child_asexual_slow_path(
 def alifestd_mark_left_child_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    mark_as: str = "left_child_id",
 ) -> pd.DataFrame:
     """Add column `left_child`, containing for each node its smallest-id child.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Leaf nodes will be marked with their own id.
 
@@ -85,9 +89,7 @@ def alifestd_mark_left_child_asexual(
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
 
     if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df[
-            "left_child_id"
-        ] = _alifestd_mark_left_child_asexual_fast_path(
+        phylogeny_df[mark_as] = _alifestd_mark_left_child_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy()
         )
         return phylogeny_df
@@ -121,6 +123,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_left_child_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="left_child_id",
+        type=str,
+        help="output column name (default: left_child_id)",
+    )
     return parser
 
 
@@ -135,6 +143,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_left_child_asexual,
+                functools.partial(
+                    alifestd_mark_left_child_asexual, mark_as=args.mark_as
+                ),
             ),
         )

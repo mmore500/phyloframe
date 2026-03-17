@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 import typing
@@ -39,8 +40,11 @@ def alifestd_mark_root_id(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     selector: typing.Callable = min,
+    mark_as: str = "root_id",
 ) -> pd.DataFrame:
     """Add column `root_id`, containing the `id` of entries' ultimate ancestor.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     For sexual data, the field `root_id` is chosen according to the selection
     of callable `selector` over parents' `root_id` values. Note that subsets
@@ -66,28 +70,28 @@ def alifestd_mark_root_id(
         alifestd_has_contiguous_ids(phylogeny_df)
         and "ancestor_id" in phylogeny_df.columns
     ):
-        phylogeny_df["root_id"] = _alifestd_mark_root_id_asexual_fast_path(
+        phylogeny_df[mark_as] = _alifestd_mark_root_id_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
         )
     elif "ancestor_id" in phylogeny_df.columns:  # asexual, non-contiguous
         phylogeny_df.index = phylogeny_df["id"]
-        phylogeny_df["root_id"] = phylogeny_df["id"]
+        phylogeny_df[mark_as] = phylogeny_df["id"]
         for index in phylogeny_df.index:
             ancestor_id = phylogeny_df.at[index, "ancestor_id"]
-            phylogeny_df.at[index, "root_id"] = phylogeny_df.at[
-                ancestor_id, "root_id"
+            phylogeny_df.at[index, mark_as] = phylogeny_df.at[
+                ancestor_id, mark_as
             ]
     else:  # sexual
         phylogeny_df.index = phylogeny_df["id"]
-        phylogeny_df["root_id"] = phylogeny_df["id"]
+        phylogeny_df[mark_as] = phylogeny_df["id"]
         for index in phylogeny_df.index:
             ancestor_list = phylogeny_df.at[index, "ancestor_list"]
             ancestor_ids = alifestd_parse_ancestor_ids(ancestor_list)
             candidate_roots = [
-                phylogeny_df.at[aid, "root_id"] for aid in ancestor_ids
+                phylogeny_df.at[aid, mark_as] for aid in ancestor_ids
             ]
             # "or" covers genesis empty list case
-            phylogeny_df.at[index, "root_id"] = selector(
+            phylogeny_df.at[index, mark_as] = selector(
                 candidate_roots or [index]
             )
 
@@ -120,6 +124,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_root_id",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="root_id",
+        type=str,
+        help="output column name (default: root_id)",
+    )
     return parser
 
 
@@ -134,6 +144,6 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_root_id,
+                functools.partial(alifestd_mark_root_id, mark_as=args.mark_as),
             ),
         )

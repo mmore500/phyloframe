@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -91,9 +92,12 @@ def alifestd_mark_colless_index_asexual_slow_path(
 def alifestd_mark_colless_index_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    mark_as: str = "colless_index",
 ) -> pd.DataFrame:
     """Add column `colless_index` with Colless imbalance index for
     each subtree.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Computes the classic Colless index for strictly bifurcating trees.
     For each internal node with exactly two children, the local
@@ -155,7 +159,7 @@ def alifestd_mark_colless_index_asexual(
         phylogeny_df = phylogeny_df.copy()
 
     if phylogeny_df.empty:
-        phylogeny_df["colless_index"] = pd.Series(dtype=int)
+        phylogeny_df[mark_as] = pd.Series(dtype=int)
         return phylogeny_df
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
@@ -187,17 +191,13 @@ def alifestd_mark_colless_index_asexual(
         )
 
     if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df[
-            "colless_index"
-        ] = alifestd_mark_colless_index_asexual_fast_path(
+        phylogeny_df[mark_as] = alifestd_mark_colless_index_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
             phylogeny_df["num_leaves"].to_numpy(),
             phylogeny_df["left_child_id"].to_numpy(),
         )
     else:
-        phylogeny_df[
-            "colless_index"
-        ] = alifestd_mark_colless_index_asexual_slow_path(
+        phylogeny_df[mark_as] = alifestd_mark_colless_index_asexual_slow_path(
             phylogeny_df,
         )
 
@@ -236,6 +236,12 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="colless_index",
+        type=str,
+        help="output column name (default: colless_index)",
+    )
     return parser
 
 
@@ -251,6 +257,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_colless_index_asexual,
+                functools.partial(
+                    alifestd_mark_colless_index_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

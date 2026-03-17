@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -14,10 +15,12 @@ from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
 
 
 def alifestd_mark_oldest_root_polars(
-    phylogeny_df: pl.DataFrame,
+    phylogeny_df: pl.DataFrame, mark_as: str = "is_oldest_root"
 ) -> pl.DataFrame:
     """Point all other roots to oldest root, measured by lowest
     `origin_time` (if available) or otherwise lowest `id`.
+
+    The output column name can be changed via the ``mark_as`` parameter.
     """
 
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -30,7 +33,7 @@ def alifestd_mark_oldest_root_polars(
 
     if len(phylogeny_df.lazy().limit(2).collect()) <= 1:
         return phylogeny_df.with_columns(
-            is_oldest_root=pl.lit(True),
+            pl.lit(True).alias(mark_as),
         )
 
     logging.info(
@@ -56,7 +59,7 @@ def alifestd_mark_oldest_root_polars(
         )
 
     return phylogeny_df.with_columns(
-        is_oldest_root=(pl.col("id") == oldest_root_id),
+        (pl.col("id") == oldest_root_id).alias(mark_as),
     )
 
 
@@ -93,6 +96,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module=("phyloframe.legacy._alifestd_mark_oldest_root_polars"),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_oldest_root",
+        type=str,
+        help="output column name (default: is_oldest_root)",
+    )
     return parser
 
 
@@ -109,7 +118,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_oldest_root_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_oldest_root_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

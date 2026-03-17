@@ -1,4 +1,5 @@
 import argparse
+import functools
 import itertools as it
 import logging
 import os
@@ -29,10 +30,13 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_ot_mrca_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    mark_as: str = "ot_mrca",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> pd.DataFrame:
     """Appends columns characterizing the Most Recent Common Ancestor (MRCA) of the
     entire extant population at each taxon's `origin_time`.
+
+    The output column name prefix can be changed via the ``mark_as`` parameter.
 
     The extant population is defined in terms of active lineages: any branch of the
     tree existing at an `origin_time` which contains at least one descendant at or
@@ -91,17 +95,17 @@ def alifestd_mark_ot_mrca_asexual(
             origin_times,
             is_leaf,
         )
-        phylogeny_df["ot_mrca_id"] = ot_mrca_id
-        phylogeny_df["ot_mrca_time_of"] = ot_mrca_time_of
-        phylogeny_df["ot_mrca_time_since"] = ot_mrca_time_since
+        phylogeny_df[f"{mark_as}_id"] = ot_mrca_id
+        phylogeny_df[f"{mark_as}_time_of"] = ot_mrca_time_of
+        phylogeny_df[f"{mark_as}_time_since"] = ot_mrca_time_since
         return phylogeny_df
 
     warnings.warn("mark_ot_mrca_asexual may be slow with uncontiguous ids")
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["ot_mrca_id"] = phylogeny_df["id"].max() + 1
-    phylogeny_df["ot_mrca_time_of"] = phylogeny_df["origin_time"].max()
-    phylogeny_df["ot_mrca_time_since"] = phylogeny_df["origin_time"].max()
+    phylogeny_df[f"{mark_as}_id"] = phylogeny_df["id"].max() + 1
+    phylogeny_df[f"{mark_as}_time_of"] = phylogeny_df["origin_time"].max()
+    phylogeny_df[f"{mark_as}_time_since"] = phylogeny_df["origin_time"].max()
 
     df = phylogeny_df
     df["bwd_origin_time"] = -df["origin_time"]
@@ -147,9 +151,9 @@ def alifestd_mark_ot_mrca_asexual(
             it.repeat(-bwd_origin_time - mrca_time, size),
         )
 
-    df.loc[indices, "ot_mrca_id"] = ot_mrca_ids
-    df.loc[indices, "ot_mrca_time_of"] = ot_mrca_times_of
-    df.loc[indices, "ot_mrca_time_since"] = ot_mrca_times_since
+    df.loc[indices, f"{mark_as}_id"] = ot_mrca_ids
+    df.loc[indices, f"{mark_as}_time_of"] = ot_mrca_times_of
+    df.loc[indices, f"{mark_as}_time_since"] = ot_mrca_times_since
     df.drop("bwd_origin_time", axis=1, inplace=True)
     return df
 
@@ -180,6 +184,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_ot_mrca_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="ot_mrca",
+        type=str,
+        help="output column name prefix (default: ot_mrca)",
+    )
     return parser
 
 
@@ -194,6 +204,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_ot_mrca_asexual,
+                functools.partial(
+                    alifestd_mark_ot_mrca_asexual, mark_as=args.mark_as
+                ),
             ),
         )

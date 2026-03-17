@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -41,8 +42,11 @@ def _alifestd_get_ancestor_origin_time_asexual_contiguous(
 def alifestd_mark_ancestor_origin_time_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    mark_as: str = "ancestor_origin_time",
 ) -> pd.DataFrame:
     """Add column `ancestor_origin_time`.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Dataframe must provide column `origin_time`.
 
@@ -68,7 +72,7 @@ def alifestd_mark_ancestor_origin_time_asexual(
     if alifestd_has_contiguous_ids(phylogeny_df) and not phylogeny_df.empty:
         # optimized implementation for contiguous ids
         phylogeny_df[
-            "ancestor_origin_time"
+            mark_as
         ] = _alifestd_get_ancestor_origin_time_asexual_contiguous(
             phylogeny_df["ancestor_id"].values,
             phylogeny_df["origin_time"].values,
@@ -78,12 +82,12 @@ def alifestd_mark_ancestor_origin_time_asexual(
     # slower fallback implementation
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["ancestor_origin_time"] = phylogeny_df["origin_time"].copy()
+    phylogeny_df[mark_as] = phylogeny_df["origin_time"].copy()
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         ancestor_origin_time = phylogeny_df.at[ancestor_id, "origin_time"]
-        phylogeny_df.at[idx, "ancestor_origin_time"] = ancestor_origin_time
+        phylogeny_df.at[idx, mark_as] = ancestor_origin_time
 
     return phylogeny_df
 
@@ -114,6 +118,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_ancestor_origin_time_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="ancestor_origin_time",
+        type=str,
+        help="output column name (default: ancestor_origin_time)",
+    )
     return parser
 
 
@@ -129,6 +139,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_ancestor_origin_time_asexual,
+                functools.partial(
+                    alifestd_mark_ancestor_origin_time_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

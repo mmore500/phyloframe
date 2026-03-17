@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -20,10 +21,13 @@ from ._alifestd_mark_max_descendant_origin_time_polars import (
 
 def alifestd_mark_clade_subtended_duration_polars(
     phylogeny_df: pl.DataFrame,
+    mark_as: str = "clade_subtended_duration",
 ) -> pl.DataFrame:
     """Add column `clade_subtended_duration`, containing the difference between
     each node's ancestor's `origin_time` and the maximum `origin_time` of its
     descendants.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Ancestor origin time for root nodes will be 0.
     """
@@ -43,12 +47,12 @@ def alifestd_mark_clade_subtended_duration_polars(
     )
     # For roots (ancestor_id == id), use 0 as ancestor origin time
     return phylogeny_df.with_columns(
-        clade_subtended_duration=(
+        (
             pl.col("max_descendant_origin_time").cast(pl.Float64)
             - pl.when(pl.col("ancestor_id") != pl.col("id"))
             .then(pl.col("ancestor_origin_time").cast(pl.Float64))
             .otherwise(0.0)
-        ),
+        ).alias(mark_as),
     )
 
 
@@ -78,6 +82,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_clade_subtended_duration_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_subtended_duration",
+        type=str,
+        help="output column name (default: clade_subtended_duration)",
+    )
     return parser
 
 
@@ -94,7 +104,10 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_clade_subtended_duration_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_clade_subtended_duration_polars,
+                    mark_as=args.mark_as,
+                ),
             )
     except NotImplementedError as e:
         logging.error(

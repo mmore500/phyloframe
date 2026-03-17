@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -69,9 +70,12 @@ def _alifestd_mark_clade_faithpd_asexual_slow_path(
 def alifestd_mark_clade_faithpd_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    mark_as: str = "clade_faithpd",
 ) -> pd.DataFrame:
     """Add column `clade_faithpd`, containing sum branch length among
     descendant noes.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Branch length is defined as the difference between the origin time
     of the node and the origin time of its ancestor.
@@ -106,17 +110,21 @@ def alifestd_mark_clade_faithpd_asexual(
         ].astype(np.int64)
 
     if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df[
-            "clade_faithpd"
-        ] = _alifestd_mark_clade_faithpd_asexual_fast_path(
+        phylogeny_df[mark_as] = _alifestd_mark_clade_faithpd_asexual_fast_path(
             pd.to_numeric(phylogeny_df["ancestor_id"]).to_numpy(),
             pd.to_numeric(phylogeny_df["origin_time_delta"]).to_numpy(),
         )
         return phylogeny_df
     else:
-        return _alifestd_mark_clade_faithpd_asexual_slow_path(
+        phylogeny_df = _alifestd_mark_clade_faithpd_asexual_slow_path(
             phylogeny_df,
         )
+        if mark_as != "clade_faithpd":
+            phylogeny_df.rename(
+                columns={"clade_faithpd": mark_as},
+                inplace=True,
+            )
+        return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
@@ -145,6 +153,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_clade_faithpd_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_faithpd",
+        type=str,
+        help="output column name (default: clade_faithpd)",
+    )
     return parser
 
 
@@ -160,6 +174,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_clade_faithpd_asexual,
+                functools.partial(
+                    alifestd_mark_clade_faithpd_asexual, mark_as=args.mark_as
+                ),
             ),
         )

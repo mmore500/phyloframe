@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -60,9 +61,12 @@ def _alifestd_mark_num_leaves_asexual_slow_path(
 def alifestd_mark_num_leaves_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    mark_as: str = "num_leaves",
 ) -> pd.DataFrame:
     """Add column `num_leaves` with count of all descendant leaves, including
     self if a leaf.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     A topological sort will be applied if `phylogeny_df` is not topologically
     sorted. Dataframe reindexing (e.g., df.index) may be applied.
@@ -81,9 +85,7 @@ def alifestd_mark_num_leaves_asexual(
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
     if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df[
-            "num_leaves"
-        ] = _alifestd_mark_num_leaves_asexual_fast_path(
+        phylogeny_df[mark_as] = _alifestd_mark_num_leaves_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy()
         )
         return phylogeny_df
@@ -117,6 +119,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_num_leaves_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="num_leaves",
+        type=str,
+        help="output column name (default: num_leaves)",
+    )
     return parser
 
 
@@ -131,6 +139,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_num_leaves_asexual,
+                functools.partial(
+                    alifestd_mark_num_leaves_asexual, mark_as=args.mark_as
+                ),
             ),
         )

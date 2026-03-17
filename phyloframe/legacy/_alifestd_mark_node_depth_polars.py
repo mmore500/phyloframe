@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -25,10 +26,12 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 def alifestd_mark_node_depth_polars(
-    phylogeny_df: pl.DataFrame,
+    phylogeny_df: pl.DataFrame, mark_as: str = "node_depth"
 ) -> pl.DataFrame:
     """Add column `node_depth`, counting the number of nodes between a
     node and the root.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Parameters
     ----------
@@ -55,7 +58,7 @@ def alifestd_mark_node_depth_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            node_depth=pl.lit(0).cast(pl.Int64),
+            pl.lit(0).cast(pl.Int64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -87,7 +90,7 @@ def alifestd_mark_node_depth_polars(
     node_depths = _alifestd_calc_node_depth_asexual_contiguous(ancestor_ids)
 
     return phylogeny_df.with_columns(
-        node_depth=pl.Series(node_depths),
+        pl.Series(node_depths).alias(mark_as),
     )
 
 
@@ -127,6 +130,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module=("phyloframe.legacy._alifestd_mark_node_depth_polars"),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="node_depth",
+        type=str,
+        help="output column name (default: node_depth)",
+    )
     return parser
 
 
@@ -143,7 +152,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=(alifestd_mark_node_depth_polars),
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_node_depth_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -29,9 +30,12 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_colless_index_corrected_polars(
     phylogeny_df: pl.DataFrame,
+    mark_as: str = "colless_index_corrected",
 ) -> pl.DataFrame:
     """Add column `colless_index_corrected` with the corrected Colless
     index for each subtree.
+
+    The output column name can be changed via the ``mark_as`` parameter.
     """
 
     logging.info(
@@ -42,7 +46,7 @@ def alifestd_mark_colless_index_corrected_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            colless_index_corrected=pl.lit(0.0).cast(pl.Float64),
+            pl.lit(0.0).cast(pl.Float64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -70,9 +74,10 @@ def alifestd_mark_colless_index_corrected_polars(
     n = pl.col("num_leaves").cast(pl.Float64)
     c = pl.col("colless_index").cast(pl.Float64)
     return phylogeny_df.with_columns(
-        colless_index_corrected=pl.when(n > 2)
+        pl.when(n > 2)
         .then(2.0 * c / ((n - 1.0) * (n - 2.0)))
-        .otherwise(0.0),
+        .otherwise(0.0)
+        .alias(mark_as),
     )
 
 
@@ -105,6 +110,12 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="colless_index_corrected",
+        type=str,
+        help="output column name (default: colless_index_corrected)",
+    )
     return parser
 
 
@@ -122,8 +133,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=(
-                    alifestd_mark_colless_index_corrected_polars
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_colless_index_corrected_polars,
+                    mark_as=args.mark_as,
                 ),
             )
     except NotImplementedError as e:

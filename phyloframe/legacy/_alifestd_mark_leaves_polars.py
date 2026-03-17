@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -16,9 +17,11 @@ from ._alifestd_mark_num_children_polars import (
 
 
 def alifestd_mark_leaves_polars(
-    phylogeny_df: pl.DataFrame,
+    phylogeny_df: pl.DataFrame, mark_as: str = "is_leaf"
 ) -> pl.DataFrame:
     """Add column `is_leaf` marking rows that are ancestor to no other row.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Parameters
     ----------
@@ -39,14 +42,14 @@ def alifestd_mark_leaves_polars(
     """
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            is_leaf=pl.lit(False),  # sets Boolean dtype, but no values
+            pl.lit(False).alias(mark_as),  # sets Boolean dtype, but no values
         )
 
     if "num_children" not in phylogeny_df.lazy().collect_schema().names():
         phylogeny_df = alifestd_mark_num_children_polars(phylogeny_df)
 
     return phylogeny_df.with_columns(
-        is_leaf=pl.col("num_children") == 0,
+        (pl.col("num_children") == 0).alias(mark_as),
     )
 
 
@@ -84,6 +87,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_leaves_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_leaf",
+        type=str,
+        help="output column name (default: is_leaf)",
+    )
     return parser
 
 
@@ -100,7 +109,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_leaves_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_leaves_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -26,8 +27,11 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_num_descendants_polars(
     phylogeny_df: pl.DataFrame,
+    mark_as: str = "num_descendants",
 ) -> pl.DataFrame:
     """Add column `num_descendants`, excluding self.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Parameters
     ----------
@@ -54,7 +58,7 @@ def alifestd_mark_num_descendants_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            num_descendants=pl.lit(0).cast(pl.Int64),
+            pl.lit(0).cast(pl.Int64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -88,7 +92,7 @@ def alifestd_mark_num_descendants_polars(
     )
 
     return phylogeny_df.with_columns(
-        num_descendants=descendant_counts,
+        pl.Series(descendant_counts).alias(mark_as),
     )
 
 
@@ -128,6 +132,12 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="num_descendants",
+        type=str,
+        help="output column name (default: num_descendants)",
+    )
     return parser
 
 
@@ -144,7 +154,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_num_descendants_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_num_descendants_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

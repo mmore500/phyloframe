@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -21,8 +22,11 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_num_leaves_sibling_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    mark_as: str = "num_leaves_sibling",
 ) -> pd.DataFrame:
     """Mark the number of leaves descendant from each node's siblings.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Nodes with no siblings (e.g., root nodes) will have value 0 marked.
 
@@ -55,7 +59,7 @@ def alifestd_mark_num_leaves_sibling_asexual(
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["num_leaves_sibling"] = (
+    phylogeny_df[mark_as] = (
         phylogeny_df.loc[
             phylogeny_df["ancestor_id"],
             "num_leaves",
@@ -92,6 +96,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_num_leaves_sibling_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="num_leaves_sibling",
+        type=str,
+        help="output column name (default: num_leaves_sibling)",
+    )
     return parser
 
 
@@ -107,6 +117,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_num_leaves_sibling_asexual,
+                functools.partial(
+                    alifestd_mark_num_leaves_sibling_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

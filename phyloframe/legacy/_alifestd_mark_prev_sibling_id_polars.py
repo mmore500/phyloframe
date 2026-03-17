@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -23,9 +24,12 @@ from ._alifestd_mark_prev_sibling_id_asexual import (
 
 def alifestd_mark_prev_sibling_id_polars(
     phylogeny_df: pl.DataFrame,
+    mark_as: str = "prev_sibling_id",
 ) -> pl.DataFrame:
     """Add column `prev_sibling_id`, the next-lowest id sharing the same
     parent.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     If no such sibling exists, marks own id.
     """
@@ -62,7 +66,7 @@ def alifestd_mark_prev_sibling_id_polars(
     )
 
     return phylogeny_df.with_columns(
-        prev_sibling_id=prev_sibling_ids,
+        pl.Series(prev_sibling_ids).alias(mark_as),
     )
 
 
@@ -92,6 +96,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_prev_sibling_id_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="prev_sibling_id",
+        type=str,
+        help="output column name (default: prev_sibling_id)",
+    )
     return parser
 
 
@@ -108,7 +118,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_prev_sibling_id_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_prev_sibling_id_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

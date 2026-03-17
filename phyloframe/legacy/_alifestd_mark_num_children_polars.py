@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -24,9 +25,12 @@ from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
 
 def alifestd_mark_num_children_polars(
     phylogeny_df: pl.DataFrame,
+    mark_as: str = "num_children",
 ) -> pl.DataFrame:
     """Add column `num_children`, counting for each node the number of nodes it
     is parent to.
+
+    The output column name can be changed via the ``mark_as`` parameter.
     """
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -64,7 +68,7 @@ def alifestd_mark_num_children_polars(
     child_counts = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
 
     return phylogeny_df.with_columns(
-        num_children=child_counts,
+        pl.Series(child_counts).alias(mark_as),
     )
 
 
@@ -94,6 +98,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_num_children_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="num_children",
+        type=str,
+        help="output column name (default: num_children)",
+    )
     return parser
 
 
@@ -110,7 +120,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_num_children_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_num_children_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(
