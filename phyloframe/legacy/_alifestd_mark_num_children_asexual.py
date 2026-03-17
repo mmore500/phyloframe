@@ -34,19 +34,20 @@ def _alifestd_mark_num_children_asexual_fast_path(
 
 def _alifestd_mark_num_children_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "num_children",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_num_children_asexual`."""
 
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["num_children"] = 0
+    phylogeny_df[mark_as] = 0
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         if ancestor_id == idx:
             continue  # handle genesis cases
 
-        phylogeny_df.at[ancestor_id, "num_children"] += 1
+        phylogeny_df.at[ancestor_id, mark_as] += 1
 
     return phylogeny_df
 
@@ -86,6 +87,7 @@ def alifestd_mark_num_children_asexual(
     else:
         return _alifestd_mark_num_children_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 

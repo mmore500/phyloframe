@@ -45,22 +45,23 @@ def _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
 
 def _alifestd_mark_max_descendant_origin_time_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "max_descendant_origin_time",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_max_descendant_origin_time_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["max_descendant_origin_time"] = phylogeny_df["origin_time"]
+    phylogeny_df[mark_as] = phylogeny_df["origin_time"]
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         if ancestor_id == idx:
             continue  # handle root cases
 
-        own_max = phylogeny_df.at[idx, "max_descendant_origin_time"]
+        own_max = phylogeny_df.at[idx, mark_as]
 
-        phylogeny_df.at[ancestor_id, "max_descendant_origin_time"] = max(
+        phylogeny_df.at[ancestor_id, mark_as] = max(
             own_max,
-            phylogeny_df.at[ancestor_id, "max_descendant_origin_time"],
+            phylogeny_df.at[ancestor_id, mark_as],
         )
 
     return phylogeny_df
@@ -103,6 +104,7 @@ def alifestd_mark_max_descendant_origin_time_asexual(
     else:
         return _alifestd_mark_max_descendant_origin_time_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 

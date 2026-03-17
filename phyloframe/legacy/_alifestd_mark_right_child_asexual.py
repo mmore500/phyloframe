@@ -43,21 +43,22 @@ def _alifestd_mark_right_child_asexual_fast_path(
 
 def _alifestd_mark_right_child_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "right_child_id",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_right_child_asexual`."""
 
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["right_child_id"] = phylogeny_df["id"]
+    phylogeny_df[mark_as] = phylogeny_df["id"]
 
     for idx in phylogeny_df.index:
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         if ancestor_id == idx:
             continue  # handle genesis cases
 
-        cur_right_child = phylogeny_df.at[ancestor_id, "right_child_id"]
+        cur_right_child = phylogeny_df.at[ancestor_id, mark_as]
         if cur_right_child == ancestor_id or idx > cur_right_child:
-            phylogeny_df.at[ancestor_id, "right_child_id"] = idx
+            phylogeny_df.at[ancestor_id, mark_as] = idx
 
     return phylogeny_df
 
@@ -97,6 +98,7 @@ def alifestd_mark_right_child_asexual(
     else:
         return _alifestd_mark_right_child_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 

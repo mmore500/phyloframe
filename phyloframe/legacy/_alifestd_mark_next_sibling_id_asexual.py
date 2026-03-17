@@ -48,11 +48,12 @@ def _alifestd_mark_next_sibling_id_asexual_fast_path(
 
 def _alifestd_mark_next_sibling_id_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "next_sibling_id",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_next_sibling_id_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["next_sibling_id"] = phylogeny_df["id"]
+    phylogeny_df[mark_as] = phylogeny_df["id"]
 
     last_child_with_parent = {}
     for idx in phylogeny_df.index:
@@ -61,7 +62,7 @@ def _alifestd_mark_next_sibling_id_asexual_slow_path(
             continue  # handle genesis cases
         if ancestor_id in last_child_with_parent:
             prev = last_child_with_parent[ancestor_id]
-            phylogeny_df.at[prev, "next_sibling_id"] = idx
+            phylogeny_df.at[prev, mark_as] = idx
         last_child_with_parent[ancestor_id] = idx
 
     return phylogeny_df
@@ -106,6 +107,7 @@ def alifestd_mark_next_sibling_id_asexual(
     else:
         return _alifestd_mark_next_sibling_id_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 

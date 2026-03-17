@@ -39,21 +39,22 @@ def _alifestd_mark_num_leaves_asexual_fast_path(
 
 def _alifestd_mark_num_leaves_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "num_leaves",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_num_leaves_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["num_leaves"] = 0
+    phylogeny_df[mark_as] = 0
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
 
-        if phylogeny_df.at[idx, "num_leaves"] == 0:
-            phylogeny_df.at[idx, "num_leaves"] = 1
+        if phylogeny_df.at[idx, mark_as] == 0:
+            phylogeny_df.at[idx, mark_as] = 1
 
-        delta = phylogeny_df.at[idx, "num_leaves"]
+        delta = phylogeny_df.at[idx, mark_as]
         if ancestor_id != idx:  # exclude genesis case
-            phylogeny_df.at[ancestor_id, "num_leaves"] += delta
+            phylogeny_df.at[ancestor_id, mark_as] += delta
 
     return phylogeny_df
 
@@ -91,7 +92,10 @@ def alifestd_mark_num_leaves_asexual(
         )
         return phylogeny_df
     else:
-        return _alifestd_mark_num_leaves_asexual_slow_path(phylogeny_df)
+        return _alifestd_mark_num_leaves_asexual_slow_path(
+            phylogeny_df,
+            mark_as=mark_as,
+        )
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

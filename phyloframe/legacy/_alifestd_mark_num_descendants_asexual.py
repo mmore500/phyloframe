@@ -41,22 +41,23 @@ def _alifestd_mark_num_descendants_asexual_fast_path(
 
 def _alifestd_mark_num_descendants_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "num_descendants",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_num_descendants_asexual`."""
 
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["num_descendants"] = 0
+    phylogeny_df[mark_as] = 0
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         if ancestor_id == idx:
             continue  # handle genesis cases
 
-        own_num_descendants = phylogeny_df.at[idx, "num_descendants"]
+        own_num_descendants = phylogeny_df.at[idx, mark_as]
 
         delta = own_num_descendants + 1
-        phylogeny_df.at[ancestor_id, "num_descendants"] += delta
+        phylogeny_df.at[ancestor_id, mark_as] += delta
 
     return phylogeny_df
 
@@ -95,7 +96,10 @@ def alifestd_mark_num_descendants_asexual(
         )
         return phylogeny_df
     else:
-        return _alifestd_mark_num_descendants_asexual_slow_path(phylogeny_df)
+        return _alifestd_mark_num_descendants_asexual_slow_path(
+            phylogeny_df,
+            mark_as=mark_as,
+        )
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

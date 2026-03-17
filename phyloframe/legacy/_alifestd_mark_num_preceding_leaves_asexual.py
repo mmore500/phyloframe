@@ -50,18 +50,19 @@ def _alifestd_mark_num_preceding_leaves_asexual_fast_path(
 
 def _alifestd_mark_num_preceding_leaves_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "num_preceding_leaves",
 ) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_mark_num_preceding_leaves_asexual`."""
 
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["num_preceding_leaves"] = 0
+    phylogeny_df[mark_as] = 0
 
     for idx in phylogeny_df.index:
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
-        phylogeny_df.at[idx, "num_preceding_leaves"] = (
-            phylogeny_df.at[ancestor_id, "num_preceding_leaves"]
+        phylogeny_df.at[idx, mark_as] = (
+            phylogeny_df.at[ancestor_id, mark_as]
             + (
                 phylogeny_df.at[ancestor_id, "num_leaves"]
                 - phylogeny_df.at[idx, "num_leaves"]
@@ -129,6 +130,7 @@ def alifestd_mark_num_preceding_leaves_asexual(
     else:
         return _alifestd_mark_num_preceding_leaves_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 
