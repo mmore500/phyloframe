@@ -37,8 +37,11 @@ def alifestd_try_add_ancestor_id_col(
         )
 
     if "ancestor_id" in phylogeny_df:
+        id_dtype = phylogeny_df["id"].dtype
+        if pd.api.types.is_float_dtype(id_dtype):
+            id_dtype = "int64"
         phylogeny_df["ancestor_id"] = phylogeny_df["ancestor_id"].astype(
-            phylogeny_df["id"].dtype,
+            id_dtype,
         )
 
     return phylogeny_df
