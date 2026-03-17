@@ -7,13 +7,13 @@ from tqdm import tqdm
 
 from phyloframe.legacy import (
     alifestd_calc_mrca_id_matrix_asexual,
-    alifestd_make_empty,
 )
 from phyloframe.legacy import (
     alifestd_calc_mrca_id_vector_asexual as alifestd_calc_mrca_id_vector_asexual_,
 )
 from phyloframe.legacy import (
     alifestd_is_chronologically_ordered,
+    alifestd_make_empty,
     alifestd_to_working_format,
 )
 
