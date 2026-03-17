@@ -131,7 +131,7 @@ def alifestd_as_newick_polars(
         origin_time_deltas=origin_time_deltas,
     )
 
-    logging.info("calculating postorder traversal order...")
+    logging.info("gathering num_children...")
     if "num_children" not in schema_names:
         num_children = _alifestd_mark_num_children_asexual_fast_path(
             ancestor_ids,
@@ -143,11 +143,32 @@ def alifestd_as_newick_polars(
             .to_series()
             .to_numpy()
         )
-    csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(ancestor_ids)
-    csr_children = _alifestd_mark_csr_children_asexual_fast_path(
-        ancestor_ids,
-        csr_offsets,
-    )
+
+    logging.info("gathering csr_offsets...")
+    if "csr_offsets" not in schema_names:
+        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+            ancestor_ids
+        )
+    else:
+        csr_offsets = (
+            phylogeny_df.select("csr_offsets").collect().to_series().to_numpy()
+        )
+
+    logging.info("gathering csr_children...")
+    if "csr_children" not in schema_names:
+        csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+            ancestor_ids,
+            csr_offsets,
+        )
+    else:
+        csr_children = (
+            phylogeny_df.select("csr_children")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+
+    logging.info("calculating postorder traversal order...")
     postorder_index = (
         _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
             ancestor_ids,
@@ -173,34 +194,25 @@ def alifestd_as_newick_polars(
     )
 
     logging.info("preparing labels...")
-    _target_label = taxon_label if taxon_label is not None else "_taxon_label"
+    label_cname = "__as_newick_taxon_label"
     if taxon_label is not None:
         phylogeny_df = phylogeny_df.with_columns(
-            **{taxon_label: pl.col(taxon_label).cast(pl.String)}
+            **{label_cname: pl.col(taxon_label).cast(pl.String)},
         )
         dtype = schema.get(taxon_label)
         if dtype in (pl.String, pl.Utf8, pl.Object):
             phylogeny_df = phylogeny_df.with_columns(
                 **{
-                    taxon_label: pl.when(
-                        pl.col(taxon_label).str.contains(r"[:();,]")
+                    label_cname: pl.when(
+                        pl.col(label_cname).str.contains(r"[:();,]")
                     )
-                    .then(pl.lit("'") + pl.col(taxon_label) + pl.lit("'"))
-                    .otherwise(pl.col(taxon_label))
+                    .then(pl.lit("'") + pl.col(label_cname) + pl.lit("'"))
+                    .otherwise(pl.col(label_cname))
                 }
             )
-        taxon_label_expr = pl.col(taxon_label)
+        taxon_label_expr = pl.col(label_cname)
     else:
         taxon_label_expr = pl.lit("")
-
-    logging.info("marking roots...")
-    if "is_root" not in schema_names:
-        phylogeny_df = phylogeny_df.with_columns(
-            is_root=(
-                pl.col("ancestor_id").cast(pl.Int64)
-                == pl.col("id").cast(pl.Int64)
-            ),
-        )
 
     logging.info("marking node depth diffs...")
     phylogeny_df = phylogeny_df.with_columns(
@@ -223,7 +235,9 @@ def alifestd_as_newick_polars(
         pl.when(pl.col("needs_comma")).then(pl.lit(",")).otherwise(pl.lit(""))
     )
     root_str = (
-        pl.when(pl.col("is_root")).then(pl.lit(";\n")).otherwise(pl.lit(""))
+        pl.when(pl.col("ancestor_id") == pl.col("id"))
+        .then(pl.lit(";\n"))
+        .otherwise(pl.lit(""))
     )
 
     # Format branch lengths: strip trailing zeros after decimal point
