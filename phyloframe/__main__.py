@@ -134,6 +134,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_lineage_stratified_pol
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_polars
+$ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops
+$ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_asexual
