@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -40,9 +41,13 @@ def _alifestd_calc_node_depth_asexual_contiguous(
 def alifestd_mark_node_depth_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "node_depth",
 ) -> pd.DataFrame:
     """Add column `node_depth`, counting the number of nodes between a node
     and the root.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     A topological sort will be applied if `phylogeny_df` is not topologically
     sorted. Dataframe reindexing (e.g., df.index) may be applied.
@@ -65,18 +70,18 @@ def alifestd_mark_node_depth_asexual(
         node_depths = _alifestd_calc_node_depth_asexual_contiguous(
             phylogeny_df["ancestor_id"].values,
         )
-        phylogeny_df["node_depth"] = node_depths
+        phylogeny_df[mark_as] = node_depths
         return phylogeny_df
 
     # slower fallback implementation
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["node_depth"] = -1
+    phylogeny_df[mark_as] = -1
 
     for idx in phylogeny_df.index:
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
-        ancestor_depth = phylogeny_df.at[ancestor_id, "node_depth"]
-        phylogeny_df.at[idx, "node_depth"] = ancestor_depth + 1
+        ancestor_depth = phylogeny_df.at[ancestor_id, mark_as]
+        phylogeny_df.at[idx, mark_as] = ancestor_depth + 1
 
     return phylogeny_df
 
@@ -107,6 +112,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_node_depth_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="node_depth",
+        type=str,
+        help="output column name (default: node_depth)",
+    )
     return parser
 
 
@@ -121,6 +132,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_node_depth_asexual,
+                functools.partial(
+                    alifestd_mark_node_depth_asexual, mark_as=args.mark_as
+                ),
             ),
         )

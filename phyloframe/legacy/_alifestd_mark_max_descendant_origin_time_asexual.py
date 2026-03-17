@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -44,22 +45,23 @@ def _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
 
 def _alifestd_mark_max_descendant_origin_time_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "max_descendant_origin_time",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_max_descendant_origin_time_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["max_descendant_origin_time"] = phylogeny_df["origin_time"]
+    phylogeny_df[mark_as] = phylogeny_df["origin_time"]
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         if ancestor_id == idx:
             continue  # handle root cases
 
-        own_max = phylogeny_df.at[idx, "max_descendant_origin_time"]
+        own_max = phylogeny_df.at[idx, mark_as]
 
-        phylogeny_df.at[ancestor_id, "max_descendant_origin_time"] = max(
+        phylogeny_df.at[ancestor_id, mark_as] = max(
             own_max,
-            phylogeny_df.at[ancestor_id, "max_descendant_origin_time"],
+            phylogeny_df.at[ancestor_id, mark_as],
         )
 
     return phylogeny_df
@@ -68,8 +70,12 @@ def _alifestd_mark_max_descendant_origin_time_asexual_slow_path(
 def alifestd_mark_max_descendant_origin_time_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "max_descendant_origin_time",
 ) -> pd.DataFrame:
     """Add column `max_descendant_origin_time`, excluding self.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     A topological sort will be applied if `phylogeny_df` is not topologically
     sorted. Dataframe reindexing (e.g., df.index) may be applied.
@@ -89,7 +95,7 @@ def alifestd_mark_max_descendant_origin_time_asexual(
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df[
-            "max_descendant_origin_time"
+            mark_as
         ] = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
             pd.to_numeric(phylogeny_df["ancestor_id"]).to_numpy(),
             pd.to_numeric(phylogeny_df["origin_time"]).to_numpy(),
@@ -98,6 +104,7 @@ def alifestd_mark_max_descendant_origin_time_asexual(
     else:
         return _alifestd_mark_max_descendant_origin_time_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 
@@ -127,6 +134,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_max_descendant_origin_time_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="max_descendant_origin_time",
+        type=str,
+        help="output column name (default: max_descendant_origin_time)",
+    )
     return parser
 
 
@@ -142,6 +155,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_max_descendant_origin_time_asexual,
+                functools.partial(
+                    alifestd_mark_max_descendant_origin_time_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

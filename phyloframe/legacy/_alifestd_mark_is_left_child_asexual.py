@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -25,9 +26,13 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_is_left_child_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "is_left_child",
 ) -> pd.DataFrame:
     """Add column `is_left_child`, containing for each node whether it is the
     smaller-id child.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Root nodes will be marked False. Tree must be strictly bifurcating.
 
@@ -59,7 +64,7 @@ def alifestd_mark_is_left_child_asexual(
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["is_left_child"] = (
+    phylogeny_df[mark_as] = (
         phylogeny_df.loc[phylogeny_df["ancestor_id"], "left_child_id"].values
         == phylogeny_df["id"].values
     ) & ~phylogeny_df["is_root"].values
@@ -93,6 +98,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_is_left_child_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_left_child",
+        type=str,
+        help="output column name (default: is_left_child)",
+    )
     return parser
 
 
@@ -108,6 +119,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_is_left_child_asexual,
+                functools.partial(
+                    alifestd_mark_is_left_child_asexual, mark_as=args.mark_as
+                ),
             ),
         )

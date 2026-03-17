@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -26,9 +27,13 @@ from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 def alifestd_mark_clade_subtended_duration_ratio_sister_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "clade_subtended_duration_ratio_sister",
 ) -> pd.DataFrame:
     """Add column `clade_subtended_duration_ratio_sister`, containing the ratio of each
     clade's subtended duration to that of its sister.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Root nodes will have ratio 1, unless also a leaf node. Leaf nodes and
     leaf-sisters may have ratio inf or NaN.
@@ -61,7 +66,7 @@ def alifestd_mark_clade_subtended_duration_ratio_sister_asexual(
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["clade_subtended_duration_ratio_sister"] = (
+    phylogeny_df[mark_as] = (
         phylogeny_df["clade_subtended_duration"].values
         / phylogeny_df.loc[
             phylogeny_df["sister_id"].values, "clade_subtended_duration"
@@ -97,6 +102,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_clade_subtended_duration_ratio_sister_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_subtended_duration_ratio_sister",
+        type=str,
+        help="output column name (default: clade_subtended_duration_ratio_sister)",
+    )
     return parser
 
 
@@ -112,6 +123,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_clade_subtended_duration_ratio_sister_asexual,
+                functools.partial(
+                    alifestd_mark_clade_subtended_duration_ratio_sister_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

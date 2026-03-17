@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -29,9 +30,13 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_clade_leafcount_ratio_sister_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "clade_leafcount_ratio_sister",
 ) -> pl.DataFrame:
     """Add column `clade_leafcount_ratio_sister`, containing the ratio of each
     clade's leaf count to that of its sister.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Tree must be strictly bifurcating.
     """
@@ -43,7 +48,7 @@ def alifestd_mark_clade_leafcount_ratio_sister_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            clade_leafcount_ratio_sister=pl.lit(0.0).cast(pl.Float64),
+            pl.lit(0.0).cast(pl.Float64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -66,10 +71,10 @@ def alifestd_mark_clade_leafcount_ratio_sister_polars(
         "- alifestd_mark_clade_leafcount_ratio_sister_polars: computing...",
     )
     return phylogeny_df.with_columns(
-        clade_leafcount_ratio_sister=(
+        (
             pl.col("num_leaves").cast(pl.Float64)
             / pl.col("num_leaves").cast(pl.Float64).gather(pl.col("sister_id"))
-        ),
+        ).alias(mark_as),
     )
 
 
@@ -99,6 +104,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_clade_leafcount_ratio_sister_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_leafcount_ratio_sister",
+        type=str,
+        help="output column name (default: clade_leafcount_ratio_sister)",
+    )
     return parser
 
 
@@ -115,7 +126,10 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_clade_leafcount_ratio_sister_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_clade_leafcount_ratio_sister_polars,
+                    mark_as=args.mark_as,
+                ),
             )
     except NotImplementedError as e:
         logging.error(

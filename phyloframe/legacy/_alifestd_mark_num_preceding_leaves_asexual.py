@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -49,18 +50,19 @@ def _alifestd_mark_num_preceding_leaves_asexual_fast_path(
 
 def _alifestd_mark_num_preceding_leaves_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "num_preceding_leaves",
 ) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_mark_num_preceding_leaves_asexual`."""
 
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["num_preceding_leaves"] = 0
+    phylogeny_df[mark_as] = 0
 
     for idx in phylogeny_df.index:
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
-        phylogeny_df.at[idx, "num_preceding_leaves"] = (
-            phylogeny_df.at[ancestor_id, "num_preceding_leaves"]
+        phylogeny_df.at[idx, mark_as] = (
+            phylogeny_df.at[ancestor_id, mark_as]
             + (
                 phylogeny_df.at[ancestor_id, "num_leaves"]
                 - phylogeny_df.at[idx, "num_leaves"]
@@ -74,9 +76,13 @@ def _alifestd_mark_num_preceding_leaves_asexual_slow_path(
 def alifestd_mark_num_preceding_leaves_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "num_preceding_leaves",
 ) -> pd.DataFrame:
     """Add column `num_preceding_leaves` with count of all leaves occuring
     before the present node in an inorder traversal.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     For internal nodes, the number of leaf nodes prior to the traversal of
     first (i.e., leftmost) descendant is marked.
@@ -114,7 +120,7 @@ def alifestd_mark_num_preceding_leaves_asexual(
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df[
-            "num_preceding_leaves"
+            mark_as
         ] = _alifestd_mark_num_preceding_leaves_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
             phylogeny_df["num_leaves"].to_numpy(),
@@ -124,6 +130,7 @@ def alifestd_mark_num_preceding_leaves_asexual(
     else:
         return _alifestd_mark_num_preceding_leaves_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 
@@ -153,6 +160,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_num_preceding_leaves_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="num_preceding_leaves",
+        type=str,
+        help="output column name (default: num_preceding_leaves)",
+    )
     return parser
 
 
@@ -168,6 +181,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_num_preceding_leaves_asexual,
+                functools.partial(
+                    alifestd_mark_num_preceding_leaves_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

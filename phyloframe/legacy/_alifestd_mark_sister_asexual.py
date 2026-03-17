@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -33,8 +34,12 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_sister_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "sister_id",
 ) -> pd.DataFrame:
     """Add column `sister`, containing the id of each node's sibling.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Root nodes will be marked with their own id. Phylogeny must be
     strictly bifurcating.
@@ -76,7 +81,7 @@ def alifestd_mark_sister_asexual(
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["sister_id"] = (
+    phylogeny_df[mark_as] = (
         phylogeny_df.loc[phylogeny_df["ancestor_id"], "right_child_id"].values
         * phylogeny_df["is_left_child"].values
         + phylogeny_df.loc[phylogeny_df["ancestor_id"], "left_child_id"].values
@@ -114,6 +119,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_sister_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="sister_id",
+        type=str,
+        help="output column name (default: sister_id)",
+    )
     return parser
 
 
@@ -128,6 +139,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_sister_asexual,
+                functools.partial(
+                    alifestd_mark_sister_asexual, mark_as=args.mark_as
+                ),
             ),
         )

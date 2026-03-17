@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -23,9 +24,13 @@ from ._alifestd_mark_num_leaves_asexual import alifestd_mark_num_leaves_asexual
 def alifestd_mark_colless_index_corrected_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "colless_index_corrected",
 ) -> pd.DataFrame:
     """Add column `colless_index_corrected` with the corrected Colless
     index for each subtree.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     The corrected Colless index IC(T) normalizes the Colless index by
     tree size. For a subtree with n leaves:
@@ -88,7 +93,7 @@ def alifestd_mark_colless_index_corrected_asexual(
         phylogeny_df = phylogeny_df.copy()
 
     if phylogeny_df.empty:
-        phylogeny_df["colless_index_corrected"] = pd.Series(
+        phylogeny_df[mark_as] = pd.Series(
             dtype=float,
         )
         return phylogeny_df
@@ -109,7 +114,7 @@ def alifestd_mark_colless_index_corrected_asexual(
     result = np.zeros_like(n)
     mask = n > 2
     result[mask] = 2.0 * c[mask] / ((n[mask] - 1.0) * (n[mask] - 2.0))
-    phylogeny_df["colless_index_corrected"] = result
+    phylogeny_df[mark_as] = result
 
     return phylogeny_df
 
@@ -140,6 +145,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_colless_index_corrected_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="colless_index_corrected",
+        type=str,
+        help="output column name (default: colless_index_corrected)",
+    )
     return parser
 
 
@@ -155,6 +166,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_colless_index_corrected_asexual,
+                functools.partial(
+                    alifestd_mark_colless_index_corrected_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -26,12 +27,17 @@ from ._alifestd_mark_sackin_index_asexual import (
 
 def alifestd_mark_sackin_index_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "sackin_index",
 ) -> pl.DataFrame:
-    """Add column `sackin_index` with Sackin index for each subtree."""
+    """Add column `sackin_index` with Sackin index for each subtree.
+
+    The output column name can be changed via the ``mark_as`` parameter.
+    """
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            sackin_index=pl.lit(0).cast(pl.Int64),
+            pl.lit(0).cast(pl.Int64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -79,7 +85,7 @@ def alifestd_mark_sackin_index_polars(
     )
 
     return phylogeny_df.with_columns(
-        sackin_index=sackin_index,
+        pl.Series(mark_as, sackin_index),
     )
 
 
@@ -116,6 +122,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module=("phyloframe.legacy._alifestd_mark_sackin_index_polars"),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="sackin_index",
+        type=str,
+        help="output column name (default: sackin_index)",
+    )
     return parser
 
 
@@ -132,7 +144,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_sackin_index_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_sackin_index_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

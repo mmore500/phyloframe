@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -29,9 +30,13 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_clade_faithpd_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "clade_faithpd",
 ) -> pl.DataFrame:
     """Add column `clade_faithpd`, containing sum branch length among
     descendant nodes.
+
+    The output column name can be changed via the ``mark_as`` parameter.
     """
 
     logging.info(
@@ -41,7 +46,7 @@ def alifestd_mark_clade_faithpd_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            clade_faithpd=pl.lit(0.0).cast(pl.Float64),
+            pl.lit(0.0).cast(pl.Float64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -81,9 +86,12 @@ def alifestd_mark_clade_faithpd_polars(
         "- alifestd_mark_clade_faithpd_polars: computing clade_faithpd...",
     )
     return phylogeny_df.with_columns(
-        clade_faithpd=_alifestd_mark_clade_faithpd_asexual_fast_path(
-            ancestor_ids,
-            origin_time_deltas,
+        pl.Series(
+            mark_as,
+            _alifestd_mark_clade_faithpd_asexual_fast_path(
+                ancestor_ids,
+                origin_time_deltas,
+            ),
         ),
     )
 
@@ -114,6 +122,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module=("phyloframe.legacy._alifestd_mark_clade_faithpd_polars"),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_faithpd",
+        type=str,
+        help="output column name (default: clade_faithpd)",
+    )
     return parser
 
 
@@ -130,7 +144,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_clade_faithpd_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_clade_faithpd_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -47,11 +48,12 @@ def _alifestd_mark_next_sibling_id_asexual_fast_path(
 
 def _alifestd_mark_next_sibling_id_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "next_sibling_id",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_next_sibling_id_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["next_sibling_id"] = phylogeny_df["id"]
+    phylogeny_df[mark_as] = phylogeny_df["id"]
 
     last_child_with_parent = {}
     for idx in phylogeny_df.index:
@@ -60,7 +62,7 @@ def _alifestd_mark_next_sibling_id_asexual_slow_path(
             continue  # handle genesis cases
         if ancestor_id in last_child_with_parent:
             prev = last_child_with_parent[ancestor_id]
-            phylogeny_df.at[prev, "next_sibling_id"] = idx
+            phylogeny_df.at[prev, mark_as] = idx
         last_child_with_parent[ancestor_id] = idx
 
     return phylogeny_df
@@ -69,9 +71,13 @@ def _alifestd_mark_next_sibling_id_asexual_slow_path(
 def alifestd_mark_next_sibling_id_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "next_sibling_id",
 ) -> pd.DataFrame:
     """Add column `next_sibling_id`, the next-highest id sharing the same
     parent.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     If no such sibling exists, marks own id.
 
@@ -93,7 +99,7 @@ def alifestd_mark_next_sibling_id_asexual(
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df[
-            "next_sibling_id"
+            mark_as
         ] = _alifestd_mark_next_sibling_id_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
         )
@@ -101,6 +107,7 @@ def alifestd_mark_next_sibling_id_asexual(
     else:
         return _alifestd_mark_next_sibling_id_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
 
 
@@ -130,6 +137,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_next_sibling_id_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="next_sibling_id",
+        type=str,
+        help="output column name (default: next_sibling_id)",
+    )
     return parser
 
 
@@ -145,6 +158,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_next_sibling_id_asexual,
+                functools.partial(
+                    alifestd_mark_next_sibling_id_asexual, mark_as=args.mark_as
+                ),
             ),
         )

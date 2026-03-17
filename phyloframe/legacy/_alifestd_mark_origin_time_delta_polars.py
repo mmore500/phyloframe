@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -17,8 +18,12 @@ from ._alifestd_mark_ancestor_origin_time_polars import (
 
 def alifestd_mark_origin_time_delta_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "origin_time_delta",
 ) -> pl.DataFrame:
     """Add columns `origin_time_delta` and `ancestor_origin_time`.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Dataframe must provide column `origin_time`.
     """
@@ -32,8 +37,8 @@ def alifestd_mark_origin_time_delta_polars(
         "- alifestd_mark_origin_time_delta_polars: calculating time deltas...",
     )
     return phylogeny_df.with_columns(
-        origin_time_delta=(
-            pl.col("origin_time") - pl.col("ancestor_origin_time")
+        (pl.col("origin_time") - pl.col("ancestor_origin_time")).alias(
+            mark_as
         ),
     )
 
@@ -73,6 +78,12 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="origin_time_delta",
+        type=str,
+        help="output column name (default: origin_time_delta)",
+    )
     return parser
 
 
@@ -89,7 +100,10 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=(alifestd_mark_origin_time_delta_polars),
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_origin_time_delta_polars,
+                    mark_as=args.mark_as,
+                ),
             )
     except NotImplementedError as e:
         logging.error(

@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -17,10 +18,15 @@ from ._alifestd_mark_roots import alifestd_mark_roots
 
 
 def alifestd_mark_oldest_root(
-    phylogeny_df: pd.DataFrame, mutate: bool = False
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    mark_as: str = "is_oldest_root",
 ) -> pd.DataFrame:
     """Point all other roots to oldest root, measured by lowest `origin_time`
     (if available) or otherwise lowest `id`.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -31,7 +37,7 @@ def alifestd_mark_oldest_root(
 
     phylogeny_df = alifestd_mark_roots(phylogeny_df, mutate=True)
     if len(phylogeny_df) <= 1:
-        phylogeny_df["is_oldest_root"] = True
+        phylogeny_df[mark_as] = True
         return phylogeny_df
 
     phylogeny_df.reset_index(drop=True, inplace=True)
@@ -45,8 +51,8 @@ def alifestd_mark_oldest_root(
     else:
         idxmin = phylogeny_df.loc[phylogeny_df["is_root"], "id"].idxmin()
 
-    phylogeny_df["is_oldest_root"] = False
-    phylogeny_df.at[idxmin, "is_oldest_root"] = True
+    phylogeny_df[mark_as] = False
+    phylogeny_df.at[idxmin, mark_as] = True
 
     return phylogeny_df
 
@@ -77,6 +83,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_oldest_root",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_oldest_root",
+        type=str,
+        help="output column name (default: is_oldest_root)",
+    )
     return parser
 
 
@@ -91,6 +103,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_oldest_root,
+                functools.partial(
+                    alifestd_mark_oldest_root, mark_as=args.mark_as
+                ),
             ),
         )

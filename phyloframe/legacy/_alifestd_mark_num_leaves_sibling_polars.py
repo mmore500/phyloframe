@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -26,8 +27,12 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_num_leaves_sibling_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "num_leaves_sibling",
 ) -> pl.DataFrame:
     """Mark the number of leaves descendant from each node's siblings.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Nodes with no siblings (e.g., root nodes) will have value 0 marked.
     """
@@ -39,7 +44,7 @@ def alifestd_mark_num_leaves_sibling_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            num_leaves_sibling=pl.lit(0).cast(pl.Int64),
+            pl.lit(0).cast(pl.Int64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -63,12 +68,13 @@ def alifestd_mark_num_leaves_sibling_polars(
     )
     # num_leaves[ancestor_id] - num_leaves[node], but 0 for roots
     return phylogeny_df.with_columns(
-        num_leaves_sibling=pl.when(pl.col("ancestor_id") != pl.col("id"))
+        pl.when(pl.col("ancestor_id") != pl.col("id"))
         .then(
             pl.col("num_leaves").gather(pl.col("ancestor_id"))
             - pl.col("num_leaves"),
         )
-        .otherwise(0),
+        .otherwise(0)
+        .alias(mark_as),
     )
 
 
@@ -98,6 +104,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_num_leaves_sibling_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="num_leaves_sibling",
+        type=str,
+        help="output column name (default: num_leaves_sibling)",
+    )
     return parser
 
 
@@ -114,7 +126,10 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_num_leaves_sibling_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_num_leaves_sibling_polars,
+                    mark_as=args.mark_as,
+                ),
             )
     except NotImplementedError as e:
         logging.error(

@@ -57,6 +57,7 @@ def alifestd_mark_clade_logistic_growth_children_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
+    mark_as: str = "clade_logistic_growth_children",
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = lambda x: x,
     work_mask: typing.Optional[np.ndarray] = None,
@@ -64,6 +65,8 @@ def alifestd_mark_clade_logistic_growth_children_asexual(
     """Add column `clade_logistic_growth_children`, containing the coefficient
     of a logistic regression fit to origin times of the leaf descendants of
     each node.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Nodes with left/right child clades with equal growth rates will have value
     approximately 0.0. If left child clade has greater growth rate, value will
@@ -221,7 +224,7 @@ def alifestd_mark_clade_logistic_growth_children_asexual(
         results[sparse_mask] = sparse_results
 
     assert len(results) == len(node_depths)
-    phylogeny_df["clade_logistic_growth_children"] = pd.Series(
+    phylogeny_df[mark_as] = pd.Series(
         results, index=inorder_traversal, dtype=float
     )
 
@@ -268,6 +271,12 @@ def _create_parser() -> argparse.ArgumentParser:
         default=None,
         help="joblib parallel backend to use (default: None)",
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_logistic_growth_children",
+        type=str,
+        help="output column name (default: clade_logistic_growth_children)",
+    )
     return parser
 
 
@@ -285,6 +294,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_mark_clade_logistic_growth_children_asexual,
+                    mark_as=args.mark_as,
                     parallel_backend=args.parallel_backend,
                 ),
             ),

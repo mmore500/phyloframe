@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -21,8 +22,12 @@ from ._alifestd_mark_ancestor_origin_time_asexual import (
 def alifestd_mark_origin_time_delta_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "origin_time_delta",
 ) -> pd.DataFrame:
     """Add columns `origin_time_delta` and `ancestor_origin_time`.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Dataframe must provide column `origin_time`.
 
@@ -40,7 +45,7 @@ def alifestd_mark_origin_time_delta_asexual(
         phylogeny_df, mutate=True
     )
 
-    phylogeny_df["origin_time_delta"] = (
+    phylogeny_df[mark_as] = (
         phylogeny_df["origin_time"] - phylogeny_df["ancestor_origin_time"]
     )
 
@@ -73,6 +78,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_origin_time_delta_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="origin_time_delta",
+        type=str,
+        help="output column name (default: origin_time_delta)",
+    )
     return parser
 
 
@@ -88,6 +99,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_origin_time_delta_asexual,
+                functools.partial(
+                    alifestd_mark_origin_time_delta_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

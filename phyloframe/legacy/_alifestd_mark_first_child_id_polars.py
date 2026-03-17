@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -23,8 +24,12 @@ from ._alifestd_mark_first_child_id_asexual import (
 
 def alifestd_mark_first_child_id_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "first_child_id",
 ) -> pl.DataFrame:
     """Add column `first_child_id`, the smallest-id child of each node.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     If a node has no children (is a leaf), marks own id.
     """
@@ -61,7 +66,7 @@ def alifestd_mark_first_child_id_polars(
     )
 
     return phylogeny_df.with_columns(
-        first_child_id=first_child_ids,
+        pl.Series(first_child_ids).alias(mark_as),
     )
 
 
@@ -91,6 +96,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_first_child_id_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="first_child_id",
+        type=str,
+        help="output column name (default: first_child_id)",
+    )
     return parser
 
 
@@ -107,7 +118,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_first_child_id_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_first_child_id_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -32,9 +33,13 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_num_preceding_leaves_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "num_preceding_leaves",
 ) -> pl.DataFrame:
     """Add column `num_preceding_leaves` with count of all leaves occurring
     before the present node in an inorder traversal.
+
+    The output column name can be changed via the ``mark_as`` parameter.
     """
 
     logging.info(
@@ -45,7 +50,7 @@ def alifestd_mark_num_preceding_leaves_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            num_preceding_leaves=pl.lit(0).cast(pl.Int64),
+            pl.lit(0).cast(pl.Int64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -96,11 +101,13 @@ def alifestd_mark_num_preceding_leaves_polars(
         "computing num_preceding_leaves...",
     )
     return phylogeny_df.with_columns(
-        num_preceding_leaves=_alifestd_mark_num_preceding_leaves_asexual_fast_path(
-            ancestor_ids,
-            num_leaves,
-            is_right_child,
-        ),
+        pl.Series(
+            _alifestd_mark_num_preceding_leaves_asexual_fast_path(
+                ancestor_ids,
+                num_leaves,
+                is_right_child,
+            )
+        ).alias(mark_as),
     )
 
 
@@ -132,6 +139,12 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="num_preceding_leaves",
+        type=str,
+        help="output column name (default: num_preceding_leaves)",
+    )
     return parser
 
 
@@ -148,8 +161,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=(
-                    alifestd_mark_num_preceding_leaves_polars
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_num_preceding_leaves_polars,
+                    mark_as=args.mark_as,
                 ),
             )
     except NotImplementedError as e:

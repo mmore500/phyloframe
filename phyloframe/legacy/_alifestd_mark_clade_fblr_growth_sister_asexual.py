@@ -34,6 +34,7 @@ def alifestd_mark_clade_fblr_growth_sister_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
+    mark_as: str = "clade_fblr_growth_sister",
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = lambda x: x,
     work_mask: typing.Optional[np.ndarray] = None,
@@ -41,6 +42,8 @@ def alifestd_mark_clade_fblr_growth_sister_asexual(
     """Add column `clade_fblr_growth_children`, containing the coefficient
     of a fblr regression fit to origin times of this clade's descendant
     leaves versus those of its sister clade.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Clades with equal growth rate to their sister will have value approximately
     0.0. Clades growing faster than their sister clade will have value greater
@@ -119,16 +122,14 @@ def alifestd_mark_clade_fblr_growth_sister_asexual(
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["clade_fblr_growth_sister"] = phylogeny_df.loc[
+    phylogeny_df[mark_as] = phylogeny_df.loc[
         phylogeny_df["ancestor_id"], "clade_fblr_growth_children"
     ].values * (1 - 2 * phylogeny_df["is_left_child"].values)
 
-    phylogeny_df.loc[
-        phylogeny_df["is_root"].values, "clade_fblr_growth_sister"
-    ] = np.nan
+    phylogeny_df.loc[phylogeny_df["is_root"].values, mark_as] = np.nan
 
     if work_mask is not None:
-        phylogeny_df.loc[nowork_ids, "clade_fblr_growth_sister"] = np.nan
+        phylogeny_df.loc[nowork_ids, mark_as] = np.nan
 
     return phylogeny_df
 
@@ -165,6 +166,12 @@ def _create_parser() -> argparse.ArgumentParser:
         default=None,
         help="joblib parallel backend to use (default: None)",
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_fblr_growth_sister",
+        type=str,
+        help="output column name (default: clade_fblr_growth_sister)",
+    )
     return parser
 
 
@@ -182,6 +189,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_mark_clade_fblr_growth_sister_asexual,
+                    mark_as=args.mark_as,
                     parallel_backend=args.parallel_backend,
                 ),
             ),

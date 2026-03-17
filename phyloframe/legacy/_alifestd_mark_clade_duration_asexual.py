@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -21,9 +22,13 @@ from ._alifestd_mark_max_descendant_origin_time_asexual import (
 def alifestd_mark_clade_duration_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "clade_duration",
 ) -> pd.DataFrame:
     """Add column `clade_duration`, containing the difference between each the
     `origin_time` of each node and the maximum `origin_time` of its descendants.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Leaf nodes will have duration 0.
 
@@ -45,7 +50,7 @@ def alifestd_mark_clade_duration_asexual(
             phylogeny_df, mutate=True
         )
 
-    phylogeny_df["clade_duration"] = (
+    phylogeny_df[mark_as] = (
         phylogeny_df["max_descendant_origin_time"].values
         - phylogeny_df["origin_time"].values
     )
@@ -79,6 +84,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_clade_duration_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="clade_duration",
+        type=str,
+        help="output column name (default: clade_duration)",
+    )
     return parser
 
 
@@ -94,6 +105,8 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_clade_duration_asexual,
+                functools.partial(
+                    alifestd_mark_clade_duration_asexual, mark_as=args.mark_as
+                ),
             ),
         )

@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -21,9 +22,13 @@ from ._alifestd_mark_colless_like_index_mdm_asexual import (
 def alifestd_mark_colless_like_index_sd_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    mark_as: str = "colless_like_index_sd",
 ) -> pd.DataFrame:
     """Add column `colless_like_index_sd` with Colless-like index
     using sample standard deviation as dissimilarity.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Computes the Colless-like balance index from Mir, Rossello, and
     Rotger (2018) that supports polytomies. Uses weight function
@@ -86,7 +91,7 @@ def alifestd_mark_colless_like_index_sd_asexual(
     """
     return _alifestd_mark_colless_like_index_asexual_impl(
         phylogeny_df,
-        "colless_like_index_sd",
+        mark_as,
         "sd",
         mutate=mutate,
     )
@@ -118,6 +123,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_colless_like_index_sd_asexual",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="colless_like_index_sd",
+        type=str,
+        help="output column name (default: colless_like_index_sd)",
+    )
     return parser
 
 
@@ -133,6 +144,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_colless_like_index_sd_asexual,
+                functools.partial(
+                    alifestd_mark_colless_like_index_sd_asexual,
+                    mark_as=args.mark_as,
+                ),
             ),
         )

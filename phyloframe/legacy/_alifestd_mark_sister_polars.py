@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -35,8 +36,12 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_sister_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "sister_id",
 ) -> pl.DataFrame:
     """Add column `sister_id`, containing the id of each node's sibling.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Root nodes will be marked with their own id.
     """
@@ -48,7 +53,7 @@ def alifestd_mark_sister_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            sister_id=pl.lit(0).cast(pl.Int64),
+            pl.lit(0).cast(pl.Int64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -78,11 +83,12 @@ def alifestd_mark_sister_polars(
         "- alifestd_mark_sister_polars: computing sister ids...",
     )
     return phylogeny_df.with_columns(
-        sister_id=pl.when(pl.col("ancestor_id") == pl.col("id"))
+        pl.when(pl.col("ancestor_id") == pl.col("id"))
         .then(pl.col("id"))
         .when(pl.col("is_left_child"))
         .then(pl.col("right_child_id").gather(pl.col("ancestor_id")))
-        .otherwise(pl.col("left_child_id").gather(pl.col("ancestor_id"))),
+        .otherwise(pl.col("left_child_id").gather(pl.col("ancestor_id")))
+        .alias(mark_as),
     )
 
 
@@ -112,6 +118,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_sister_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="sister_id",
+        type=str,
+        help="output column name (default: sister_id)",
+    )
     return parser
 
 
@@ -128,7 +140,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_sister_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_sister_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

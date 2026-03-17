@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -28,10 +29,14 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_ot_mrca_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "ot_mrca",
 ) -> pl.DataFrame:
     """Appends columns characterizing the Most Recent Common Ancestor
     (MRCA) of the entire extant population at each taxon's
     `origin_time`.
+
+    The output column name prefix can be changed via the ``mark_as`` parameter.
 
     The extant population is defined in terms of active lineages: any
     branch of the tree existing at an `origin_time` which contains at
@@ -73,9 +78,9 @@ def alifestd_mark_ot_mrca_polars(
     # handle empty case
     if phylogeny_df.is_empty():
         return phylogeny_df.with_columns(
-            ot_mrca_id=pl.lit(0).cast(pl.Int64),
-            ot_mrca_time_of=pl.lit(0).cast(pl.Float64),
-            ot_mrca_time_since=pl.lit(0).cast(pl.Float64),
+            pl.lit(0).cast(pl.Int64).alias(f"{mark_as}_id"),
+            pl.lit(0).cast(pl.Float64).alias(f"{mark_as}_time_of"),
+            pl.lit(0).cast(pl.Float64).alias(f"{mark_as}_time_since"),
         )
 
     # setup
@@ -103,9 +108,9 @@ def alifestd_mark_ot_mrca_polars(
     )
 
     return phylogeny_df.with_columns(
-        pl.Series("ot_mrca_id", ot_mrca_id),
-        pl.Series("ot_mrca_time_of", ot_mrca_time_of),
-        pl.Series("ot_mrca_time_since", ot_mrca_time_since),
+        pl.Series(f"{mark_as}_id", ot_mrca_id),
+        pl.Series(f"{mark_as}_time_of", ot_mrca_time_of),
+        pl.Series(f"{mark_as}_time_since", ot_mrca_time_since),
     )
 
 
@@ -135,6 +140,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_ot_mrca_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="ot_mrca",
+        type=str,
+        help="output column name prefix (default: ot_mrca)",
+    )
     return parser
 
 
@@ -151,7 +162,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_ot_mrca_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_ot_mrca_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

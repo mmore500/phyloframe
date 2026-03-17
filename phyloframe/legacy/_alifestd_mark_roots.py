@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -18,9 +19,14 @@ from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 
 
 def alifestd_mark_roots(
-    phylogeny_df: pd.DataFrame, mutate: bool = False
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    mark_as: str = "is_root",
 ) -> pd.DataFrame:
     """Create column `is_root` to mark rows with no ancestor.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -35,8 +41,8 @@ def alifestd_mark_roots(
         phylogeny_df.index = phylogeny_df["id"]
 
     root_ids = alifestd_find_root_ids(phylogeny_df)
-    phylogeny_df["is_root"] = False
-    phylogeny_df.loc[root_ids, "is_root"] = True
+    phylogeny_df[mark_as] = False
+    phylogeny_df.loc[root_ids, mark_as] = True
 
     return phylogeny_df
 
@@ -67,6 +73,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_roots",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_root",
+        type=str,
+        help="output column name (default: is_root)",
+    )
     return parser
 
 
@@ -81,6 +93,6 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_roots,
+                functools.partial(alifestd_mark_roots, mark_as=args.mark_as),
             ),
         )

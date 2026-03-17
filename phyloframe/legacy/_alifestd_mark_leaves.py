@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -18,9 +19,14 @@ from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 
 
 def alifestd_mark_leaves(
-    phylogeny_df: pd.DataFrame, mutate: bool = False
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    mark_as: str = "is_leaf",
 ) -> pd.DataFrame:
     """What rows are ancestor to no other row?
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -35,8 +41,8 @@ def alifestd_mark_leaves(
         phylogeny_df.index = phylogeny_df["id"]
 
     leaf_ids = alifestd_find_leaf_ids(phylogeny_df)
-    phylogeny_df["is_leaf"] = False
-    phylogeny_df.loc[leaf_ids, "is_leaf"] = True
+    phylogeny_df[mark_as] = False
+    phylogeny_df.loc[leaf_ids, mark_as] = True
 
     return phylogeny_df
 
@@ -72,6 +78,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_leaves",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_leaf",
+        type=str,
+        help="output column name (default: is_leaf)",
+    )
     return parser
 
 
@@ -86,6 +98,6 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_mark_leaves,
+                functools.partial(alifestd_mark_leaves, mark_as=args.mark_as),
             ),
         )

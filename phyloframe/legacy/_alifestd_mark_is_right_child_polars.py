@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -27,9 +28,13 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_is_right_child_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_as: str = "is_right_child",
 ) -> pl.DataFrame:
     """Add column `is_right_child`, containing for each node whether it is the
     larger-id child.
+
+    The output column name can be changed via the ``mark_as`` parameter.
 
     Root nodes will be marked False.
     """
@@ -41,7 +46,7 @@ def alifestd_mark_is_right_child_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            is_right_child=pl.lit(False),
+            pl.lit(False).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -67,12 +72,12 @@ def alifestd_mark_is_right_child_polars(
         "computing is_right_child...",
     )
     return phylogeny_df.with_columns(
-        is_right_child=(
+        (
             pl.col("right_child_id")
             .gather(pl.col("ancestor_id"))
             .eq(pl.col("id"))
             & ~pl.col("is_root")
-        ),
+        ).alias(mark_as),
     )
 
 
@@ -104,6 +109,12 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="is_right_child",
+        type=str,
+        help="output column name (default: is_right_child)",
+    )
     return parser
 
 
@@ -120,7 +131,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_is_right_child_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_is_right_child_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(

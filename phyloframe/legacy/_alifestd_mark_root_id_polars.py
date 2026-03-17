@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 
@@ -25,10 +26,12 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 def alifestd_mark_root_id_polars(
-    phylogeny_df: pl.DataFrame,
+    phylogeny_df: pl.DataFrame, *, mark_as: str = "root_id"
 ) -> pl.DataFrame:
     """Add column `root_id`, containing the `id` of entries' ultimate
     ancestor.
+
+    The output column name can be changed via the ``mark_as`` parameter.
     """
 
     logging.info(
@@ -38,7 +41,7 @@ def alifestd_mark_root_id_polars(
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
-            root_id=pl.lit(0).cast(pl.Int64),
+            pl.lit(0).cast(pl.Int64).alias(mark_as),
         )
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -70,7 +73,7 @@ def alifestd_mark_root_id_polars(
     root_ids = _alifestd_mark_root_id_asexual_fast_path(ancestor_ids)
 
     return phylogeny_df.with_columns(
-        root_id=root_ids,
+        pl.Series(root_ids).alias(mark_as),
     )
 
 
@@ -107,6 +110,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_mark_root_id_polars",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--mark-as",
+        default="root_id",
+        type=str,
+        help="output column name (default: root_id)",
+    )
     return parser
 
 
@@ -123,7 +132,9 @@ if __name__ == "__main__":
         ):
             _run_dataframe_cli(
                 base_parser=parser,
-                output_dataframe_op=alifestd_mark_root_id_polars,
+                output_dataframe_op=functools.partial(
+                    alifestd_mark_root_id_polars, mark_as=args.mark_as
+                ),
             )
     except NotImplementedError as e:
         logging.error(
