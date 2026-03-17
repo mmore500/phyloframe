@@ -1,6 +1,7 @@
 import os
 
 import pandas as pd
+
 from phyloframe.legacy import alifestd_pipe_unary_ops
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
