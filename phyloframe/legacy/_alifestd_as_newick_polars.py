@@ -138,12 +138,17 @@ def alifestd_as_newick_polars(
         )
     else:
         num_children = (
-            phylogeny_df.select("num_children").collect().to_series().to_numpy()
+            phylogeny_df.select("num_children")
+            .collect()
+            .to_series()
+            .to_numpy()
         )
 
     logging.info("gathering csr_offsets...")
     if "csr_offsets" not in schema_names:
-        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(ancestor_ids)
+        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+            ancestor_ids
+        )
     else:
         csr_offsets = (
             phylogeny_df.select("csr_offsets").collect().to_series().to_numpy()
@@ -157,7 +162,10 @@ def alifestd_as_newick_polars(
         )
     else:
         csr_children = (
-            phylogeny_df.select("csr_children").collect().to_series().to_numpy()
+            phylogeny_df.select("csr_children")
+            .collect()
+            .to_series()
+            .to_numpy()
         )
 
     logging.info("calculating postorder traversal order...")
