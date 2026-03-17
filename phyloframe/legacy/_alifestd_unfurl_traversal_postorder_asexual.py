@@ -9,6 +9,9 @@ from ._alifestd_mark_node_depth_asexual import (
     alifestd_mark_node_depth_asexual,
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
+from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
+    _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit,
+)
 
 
 @jit(nopython=True)
@@ -139,6 +142,17 @@ def alifestd_unfurl_traversal_postorder_asexual(
                 ancestor_ids.astype(np.int64),
                 phylogeny_df["first_child_id"].to_numpy().astype(np.int64),
                 phylogeny_df["next_sibling_id"].to_numpy().astype(np.int64),
+            )
+        if (
+            "csr_offsets" in phylogeny_df.columns
+            and "csr_children" in phylogeny_df.columns
+            and "num_children" in phylogeny_df.columns
+        ):
+            return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
+                ancestor_ids.astype(np.int64),
+                phylogeny_df["csr_offsets"].to_numpy().astype(np.int64),
+                phylogeny_df["csr_children"].to_numpy().astype(np.int64),
+                phylogeny_df["num_children"].to_numpy().astype(np.int64),
             )
         if "node_depth" not in phylogeny_df.columns:
             node_depths = _alifestd_calc_node_depth_asexual_contiguous(

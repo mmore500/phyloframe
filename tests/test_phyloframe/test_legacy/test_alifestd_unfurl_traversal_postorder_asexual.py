@@ -1,4 +1,5 @@
 import os
+import typing
 
 import pandas as pd
 import pytest
@@ -7,7 +8,12 @@ from phyloframe.legacy import (
     alifestd_find_leaf_ids,
     alifestd_find_root_ids,
     alifestd_make_empty,
-    alifestd_mark_node_depth_asexual,
+    alifestd_mark_csr_children_asexual,
+    alifestd_mark_csr_offsets_asexual,
+    alifestd_mark_first_child_id_asexual,
+    alifestd_mark_next_sibling_id_asexual,
+    alifestd_mark_num_children_asexual,
+    alifestd_try_add_ancestor_id_col,
 )
 from phyloframe.legacy import (
     alifestd_unfurl_traversal_postorder_asexual as alifestd_unfurl_traversal_postorder_asexual_,
@@ -20,8 +26,21 @@ alifestd_unfurl_traversal_postorder_asexual = enforce_dtype_stability_pandas(
 )
 
 
-def is_nondecreasing(seq):
-    return all(a <= b for a, b in zip(seq, seq[1:]))
+def _prep_noop(df):
+    return df
+
+
+def _prep_csr(df):
+    df = alifestd_mark_num_children_asexual(df, mutate=True)
+    df = alifestd_mark_csr_offsets_asexual(df, mutate=True)
+    df = alifestd_mark_csr_children_asexual(df, mutate=True)
+    return df
+
+
+def _prep_linked_list(df):
+    df = alifestd_mark_first_child_id_asexual(df, mutate=True)
+    df = alifestd_mark_next_sibling_id_asexual(df, mutate=True)
+    return df
 
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
@@ -38,25 +57,34 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
-def test_fuzz(phylogeny_df: pd.DataFrame):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_fuzz(phylogeny_df: pd.DataFrame, apply: typing.Callable):
     original = phylogeny_df.copy()
 
-    result = alifestd_unfurl_traversal_postorder_asexual(phylogeny_df)
+    result = alifestd_unfurl_traversal_postorder_asexual(
+        apply(phylogeny_df.copy()),
+    )
 
     assert original.equals(phylogeny_df)
 
     assert len(result) == len(phylogeny_df)
     assert set(result) == set(phylogeny_df["id"])
 
-    reference_df = alifestd_mark_node_depth_asexual(phylogeny_df)
-    node_depths = dict(
-        zip(
-            reference_df["id"],
-            reference_df["node_depth"],
-        ),
-    )
-    node_depths = [node_depths[id_] for id_ in reversed(result)]
-    assert is_nondecreasing(node_depths)
+    # Verify valid postorder: every child appears before its parent.
+    df_ref = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
+    ancestor_of = dict(zip(df_ref["id"], df_ref["ancestor_id"]))
+    pos = {node: i for i, node in enumerate(result)}
+    for node_id in result:
+        anc = ancestor_of[node_id]
+        if node_id != anc:
+            assert pos[node_id] < pos[anc]
 
     assert result[-1] in alifestd_find_root_ids(phylogeny_df)
     assert result[0] in alifestd_find_leaf_ids(phylogeny_df)
@@ -68,7 +96,15 @@ def test_empty():
 
 
 @pytest.mark.parametrize("mutate", [True, False])
-def test_simple1(mutate: bool):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_simple1(mutate: bool, apply: typing.Callable):
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -77,7 +113,7 @@ def test_simple1(mutate: bool):
     )
     original_df = phylogeny_df.copy()
     result = alifestd_unfurl_traversal_postorder_asexual(
-        phylogeny_df,
+        apply(phylogeny_df.copy()),
         mutate=mutate,
     )
     assert result.tolist() == [2, 1, 0]
@@ -125,7 +161,15 @@ def test_simple3(mutate: bool):
 
 
 @pytest.mark.parametrize("mutate", [True, False])
-def test_simple4(mutate: bool):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_simple4(mutate: bool, apply: typing.Callable):
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -134,11 +178,16 @@ def test_simple4(mutate: bool):
     )
     original_df = phylogeny_df.copy()
     result = alifestd_unfurl_traversal_postorder_asexual(
-        phylogeny_df,
+        apply(phylogeny_df.copy()),
         mutate=mutate,
     )
 
-    assert result.tolist() == [3, 2, 1, 0]
+    # Valid postorder: children before parents.
+    assert set(result) == {0, 1, 2, 3}
+    pos = {v: i for i, v in enumerate(result)}
+    assert pos[3] < pos[1]  # child 3 before parent 1
+    assert pos[1] < pos[0]  # child 1 before parent 0
+    assert pos[2] < pos[0]  # child 2 before parent 0
 
     if not mutate:
         assert original_df.equals(phylogeny_df)
