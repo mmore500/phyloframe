@@ -45,10 +45,9 @@ def alifestd_pipe_unary_ops_polars(
     alifestd_pipe_unary_ops :
         Pandas-based implementation.
     """
-    n_ops = len(unary_ops)
     for i, op in enumerate(progress_wrap(unary_ops)):
         logging.info(
-            f"- alifestd_pipe_unary_ops_polars: applying op {i + 1} of {n_ops} {op!r}..."
+            f"- alifestd_pipe_unary_ops_polars: applying op {i + 1} of {len(unary_ops)} {op!r}..."
         )
         phylogeny_df = op(phylogeny_df)
     return phylogeny_df
