@@ -47,7 +47,8 @@ def alifestd_pipe_unary_ops_polars(
     """
     for i, op in enumerate(progress_wrap(unary_ops)):
         logging.info(
-            f"- alifestd_pipe_unary_ops_polars: applying op {i + 1} of {len(unary_ops)} {op!r}..."
+            "- alifestd_pipe_unary_ops_polars: "
+            f"applying op {i + 1} of {len(unary_ops)} {op!r}...",
         )
         phylogeny_df = op(phylogeny_df)
     return phylogeny_df
