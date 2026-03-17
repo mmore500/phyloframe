@@ -373,8 +373,6 @@ class PhyloframeBench:
 
     def _do_from_newick(self, newick):
         """Load newick and apply any post-load mark operations."""
-        import polars as pl
-
         from phyloframe.legacy import alifestd_from_newick_polars
 
         kwargs = {}
