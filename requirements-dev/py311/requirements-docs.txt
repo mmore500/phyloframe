@@ -28,6 +28,8 @@ decorator==5.2.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
+deprecated==1.3.1
+    # via phyloframe (../../pyproject.toml)
 docutils==0.21.2
     # via
     #   nbsphinx
@@ -270,3 +272,5 @@ webencodings==0.5.1
     # via
     #   bleach
     #   tinycss2
+wrapt==2.1.2
+    # via deprecated

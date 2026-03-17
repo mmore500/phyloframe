@@ -17,8 +17,8 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_mark_sample_tips_asexual import (
-    alifestd_mark_sample_tips_asexual,
+from ._alifestd_mark_sample_tips_uniform_asexual import (
+    alifestd_mark_sample_tips_uniform_asexual,
 )
 from ._alifestd_prune_extinct_lineages_asexual import (
     alifestd_prune_extinct_lineages_asexual,
@@ -46,7 +46,7 @@ def alifestd_downsample_tips_uniform_asexual(
 
     Only supports asexual phylogenies.
     """
-    phylogeny_df = alifestd_mark_sample_tips_asexual(
+    phylogeny_df = alifestd_mark_sample_tips_uniform_asexual(
         phylogeny_df,
         n_downsample,
         mutate=mutate,

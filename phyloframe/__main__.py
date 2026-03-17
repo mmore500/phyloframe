@@ -122,7 +122,6 @@ $ python3 -m phyloframe.legacy._alifestd_mark_roots
 $ python3 -m phyloframe.legacy._alifestd_mark_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sackin_index_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sackin_index_polars
-$ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_canopy_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_canopy_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_clade_asexual
@@ -131,7 +130,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_lineage_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_lineage_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_lineage_stratified_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_lineage_stratified_polars
-$ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_polars
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops

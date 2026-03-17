@@ -481,6 +481,12 @@ from ._alifestd_mark_sample_tips_lineage_stratified_polars import (
 from ._alifestd_mark_sample_tips_polars import (
     alifestd_mark_sample_tips_polars,
 )
+from ._alifestd_mark_sample_tips_uniform_asexual import (
+    alifestd_mark_sample_tips_uniform_asexual,
+)
+from ._alifestd_mark_sample_tips_uniform_polars import (
+    alifestd_mark_sample_tips_uniform_polars,
+)
 from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 from ._alifestd_mark_sister_polars import alifestd_mark_sister_polars
 from ._alifestd_mask_descendants_asexual import (
@@ -683,6 +689,8 @@ __all__ = [
     "alifestd_mark_sample_tips_lineage_stratified_asexual",
     "alifestd_mark_sample_tips_lineage_stratified_polars",
     "alifestd_mark_sample_tips_polars",
+    "alifestd_mark_sample_tips_uniform_asexual",
+    "alifestd_mark_sample_tips_uniform_polars",
     "alifestd_drop_topological_sensitivity",
     "alifestd_drop_topological_sensitivity_polars",
     "alifestd_estimate_triplet_distance_asexual",
