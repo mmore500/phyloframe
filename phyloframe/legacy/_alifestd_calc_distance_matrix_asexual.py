@@ -8,13 +8,13 @@ from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
 from ._alifestd_mark_csr_children_asexual import (
-    _alifestd_mark_csr_children_asexual_fast_path,
+    alifestd_mark_csr_children_asexual,
 )
 from ._alifestd_mark_csr_offsets_asexual import (
-    _alifestd_mark_csr_offsets_asexual_fast_path,
+    alifestd_mark_csr_offsets_asexual,
 )
 from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
+    alifestd_mark_num_children_asexual,
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
@@ -145,9 +145,9 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
     ancestor_ids: np.ndarray,
     criterion_values: np.ndarray,
     *,
-    csr_offsets: np.ndarray = None,
-    csr_children: np.ndarray = None,
-    num_children: np.ndarray = None,
+    csr_offsets: np.ndarray,
+    csr_children: np.ndarray,
+    num_children: np.ndarray,
 ) -> np.ndarray:
     """Shared implementation detail for
     `alifestd_calc_distance_matrix_asexual` and
@@ -160,12 +160,12 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
         Roots are self-referential (ancestor_ids[i] == i).
     criterion_values : np.ndarray
         1-D float64 array of criterion values, indexed by organism id.
-    csr_offsets : np.ndarray, optional
-        Pre-computed CSR offsets.
-    csr_children : np.ndarray, optional
-        Pre-computed flat children array.
-    num_children : np.ndarray, optional
-        Pre-computed child counts.
+    csr_offsets : np.ndarray
+        CSR offsets array.
+    csr_children : np.ndarray
+        Flat children array.
+    num_children : np.ndarray
+        Child counts array.
 
     Returns
     -------
@@ -173,19 +173,6 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
         n x n float64 matrix of pairwise distances.  Entry [i, j] is NaN
         when organisms i and j share no common ancestor.
     """
-    if num_children is None:
-        num_children = _alifestd_mark_num_children_asexual_fast_path(
-            ancestor_ids,
-        )
-    if csr_offsets is None:
-        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
-            ancestor_ids,
-        )
-    if csr_children is None:
-        csr_children = _alifestd_mark_csr_children_asexual_fast_path(
-            ancestor_ids.astype(np.int64),
-            csr_offsets,
-        )
     return _calc_distance_matrix_postorder_jit(
         ancestor_ids,
         criterion_values,
@@ -251,24 +238,36 @@ def alifestd_calc_distance_matrix_asexual(
             "current implementation requires phylogeny_df in working format",
         )
 
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
-    criterion_values = phylogeny_df[criterion].to_numpy().astype(np.float64)
     assert np.all(
         phylogeny_df["id"].to_numpy() == np.arange(len(phylogeny_df))
     )
 
-    kwargs = {}
-    if "num_children" in phylogeny_df.columns:
-        kwargs["num_children"] = phylogeny_df["num_children"].to_numpy()
-    if "csr_offsets" in phylogeny_df.columns:
-        kwargs["csr_offsets"] = (
-            phylogeny_df["csr_offsets"].to_numpy().astype(np.int64)
+    if "num_children" not in phylogeny_df.columns:
+        phylogeny_df = alifestd_mark_num_children_asexual(
+            phylogeny_df,
+            mutate=True,
         )
-    if "csr_children" in phylogeny_df.columns:
-        kwargs["csr_children"] = (
-            phylogeny_df["csr_children"].to_numpy().astype(np.int64)
+    if "csr_offsets" not in phylogeny_df.columns:
+        phylogeny_df = alifestd_mark_csr_offsets_asexual(
+            phylogeny_df,
+            mutate=True,
+        )
+    if "csr_children" not in phylogeny_df.columns:
+        phylogeny_df = alifestd_mark_csr_children_asexual(
+            phylogeny_df,
+            mutate=True,
         )
 
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
+    criterion_values = phylogeny_df[criterion].to_numpy().astype(np.float64)
+    num_children = phylogeny_df["num_children"].to_numpy()
+    csr_offsets = phylogeny_df["csr_offsets"].to_numpy().astype(np.int64)
+    csr_children = phylogeny_df["csr_children"].to_numpy().astype(np.int64)
+
     return _alifestd_calc_distance_matrix_asexual_fast_path(
-        ancestor_ids, criterion_values, **kwargs
+        ancestor_ids,
+        criterion_values,
+        csr_offsets=csr_offsets,
+        csr_children=csr_children,
+        num_children=num_children,
     )

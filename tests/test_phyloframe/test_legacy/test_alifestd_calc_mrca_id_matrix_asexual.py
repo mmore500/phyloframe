@@ -162,14 +162,14 @@ def test_simple1(mutate: bool, apply: typing.Callable):
     [
         pd.DataFrame(
             {
-                "id": [],
-                "ancestor_list": [],
+                "id": pd.array([], dtype="int64"),
+                "ancestor_list": pd.array([], dtype="object"),
             }
         ),
         pd.DataFrame(
             {
-                "id": [],
-                "ancestor_id": [],
+                "id": pd.array([], dtype="int64"),
+                "ancestor_id": pd.array([], dtype="int64"),
             }
         ),
         pd.DataFrame(

@@ -14,7 +14,9 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
 )
-from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 @alifestd_topological_sensitivity_warned_polars(
@@ -45,7 +47,7 @@ def alifestd_delete_trunk_asexual_polars(
     if "ancestor_list" in phylogeny_df:
         raise NotImplementedError
 
-    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
     has_contiguous_ids = phylogeny_df.select(
         pl.col("id").diff() == 1
