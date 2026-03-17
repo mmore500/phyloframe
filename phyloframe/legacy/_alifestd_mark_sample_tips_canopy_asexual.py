@@ -56,6 +56,7 @@ def alifestd_mark_sample_tips_canopy_asexual(
     n_sample: typing.Optional[int] = None,
     mutate: bool = False,
     criterion: str = "origin_time",
+    *,
     mark_as: str = "alifestd_mark_sample_tips_canopy_asexual",
 ) -> pd.DataFrame:
     """Mark the `n_sample` leaves with the largest `criterion` values.

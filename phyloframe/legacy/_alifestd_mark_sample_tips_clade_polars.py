@@ -158,6 +158,7 @@ def alifestd_mark_sample_tips_clade_polars(
     phylogeny_df: pl.DataFrame,
     n_sample: int,
     seed: typing.Optional[int] = None,
+    *,
     mark_as: str = "alifestd_mark_sample_tips_clade_polars",
 ) -> pl.DataFrame:
     """Mark tips belonging to a randomly sampled clade of at most

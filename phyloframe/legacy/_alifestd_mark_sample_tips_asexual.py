@@ -47,6 +47,7 @@ def alifestd_mark_sample_tips_asexual(
     n_sample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
+    *,
     mark_as: str = "alifestd_mark_sample_tips_asexual",
 ) -> pd.DataFrame:
     """Mark a random subsample of `n_sample` tips.

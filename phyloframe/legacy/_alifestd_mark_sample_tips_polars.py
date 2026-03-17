@@ -74,6 +74,7 @@ def alifestd_mark_sample_tips_polars(
     phylogeny_df: pl.DataFrame,
     n_sample: int,
     seed: typing.Optional[int] = None,
+    *,
     mark_as: str = "alifestd_mark_sample_tips_polars",
 ) -> pl.DataFrame:
     """Mark a random subsample of `n_sample` tips.

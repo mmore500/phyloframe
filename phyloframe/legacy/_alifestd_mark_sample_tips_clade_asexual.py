@@ -85,6 +85,7 @@ def alifestd_mark_sample_tips_clade_asexual(
     n_sample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
+    *,
     mark_as: str = "alifestd_mark_sample_tips_clade_asexual",
 ) -> pd.DataFrame:
     """Mark tips belonging to a randomly sampled clade of at most
