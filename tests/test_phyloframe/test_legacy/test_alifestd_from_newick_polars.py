@@ -259,21 +259,21 @@ def test_id_dtype_int32():
 
 def test_id_dtype_none_small():
     result = alifestd_from_newick_polars("(A,B);", id_dtype=None)
-    # 1 comma -> fits in int8
-    assert result["id"].dtype == pl.Int8
-    assert result["ancestor_id"].dtype == pl.Int8
+    # 1 comma -> uint8 via min_scalar_type -> int16 signed
+    assert result["id"].dtype == pl.Int16
+    assert result["ancestor_id"].dtype == pl.Int16
     assert len(result) == 3
 
 
 def test_id_dtype_none_empty():
     result = alifestd_from_newick_polars("", id_dtype=None)
-    assert result["id"].dtype == pl.Int8
+    assert result["id"].dtype == pl.Int16
     assert len(result) == 0
 
 
 def test_id_dtype_none_values_correct():
     result = alifestd_from_newick_polars("(A,(B,C));", id_dtype=None)
-    assert result["id"].dtype == pl.Int8
+    assert result["id"].dtype == pl.Int16
     assert len(result) == 5
     root = result.filter(pl.col("ancestor_id") == pl.col("id"))
     assert len(root) == 1
