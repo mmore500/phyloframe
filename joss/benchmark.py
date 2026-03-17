@@ -46,6 +46,7 @@ OPERATIONS = [
     "postorder",
     "inorder",
     "levelorder",
+    "topological_order",
     "mrca_allpairs",
     "pairwise_dist",
     "memory_bytes",
@@ -348,6 +349,7 @@ class PhyloframeBench:
             alifestd_unfurl_traversal_levelorder_polars,
             alifestd_unfurl_traversal_postorder_contiguous_polars,
             alifestd_unfurl_traversal_preorder_polars,
+            alifestd_unfurl_traversal_topological_polars,
         )
 
         tiny = _balanced_newick(8)
@@ -360,6 +362,7 @@ class PhyloframeBench:
         alifestd_unfurl_traversal_preorder_polars(pldf)
         alifestd_unfurl_traversal_levelorder_polars(pldf)
         alifestd_unfurl_traversal_inorder_polars(pldf)
+        alifestd_unfurl_traversal_topological_polars(pldf)
         pldf_with_ot = pldf.with_columns(
             pl.col("origin_time_delta").cum_sum().alias("origin_time"),
         )
@@ -426,6 +429,14 @@ class PhyloframeBench:
 
         df = self._ensure_df()
         alifestd_unfurl_traversal_levelorder_polars(df)
+
+    def topological_order(self):
+        from phyloframe.legacy import (
+            alifestd_unfurl_traversal_topological_polars,
+        )
+
+        df = self._ensure_df()
+        alifestd_unfurl_traversal_topological_polars(df)
 
     def mrca_allpairs(self):
         from phyloframe.legacy import (
@@ -532,6 +543,11 @@ class TreeswiftBench:
         for _ in t.traverse_levelorder():
             pass
 
+    def topological_order(self):
+        raise NotImplementedError(
+            "topological_order not available in treeswift"
+        )
+
     def mrca_allpairs(self):
         t = self._ensure_tree()
         labels = [n.label for n in t.traverse_leaves()]
@@ -600,6 +616,11 @@ class BiopythonBench:
         t = self._ensure_tree()
         for _ in t.find_clades(order="level"):
             pass
+
+    def topological_order(self):
+        raise NotImplementedError(
+            "topological_order not available in biopython"
+        )
 
     def mrca_allpairs(self):
         t = self._ensure_tree()
@@ -672,6 +693,11 @@ class DendropyBench:
         for _ in t.levelorder_node_iter():
             pass
 
+    def topological_order(self):
+        raise NotImplementedError(
+            "topological_order not available in dendropy"
+        )
+
     def mrca_allpairs(self):
 
         t = self._ensure_tree()
@@ -743,6 +769,9 @@ class EteBench:
         t = self._ensure_tree()
         for _ in t.traverse("levelorder"):
             pass
+
+    def topological_order(self):
+        raise NotImplementedError("topological_order not available in ete")
 
     def mrca_allpairs(self):
         t = self._ensure_tree()
@@ -826,6 +855,11 @@ class CompactTreeBench:
         for _ in traverse_levelorder(t):
             pass
 
+    def topological_order(self):
+        raise NotImplementedError(
+            "topological_order not available in CompactTree"
+        )
+
     def mrca_allpairs(self):
         from CompactTree import traverse_leaves
 
@@ -908,6 +942,11 @@ class ScikitBioBench:
         t = self._ensure_tree()
         for _ in t.levelorder():
             pass
+
+    def topological_order(self):
+        raise NotImplementedError(
+            "topological_order not available in scikit-bio"
+        )
 
     def mrca_allpairs(self):
         t = self._ensure_tree()
