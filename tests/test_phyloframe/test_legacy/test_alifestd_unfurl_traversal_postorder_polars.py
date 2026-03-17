@@ -5,6 +5,11 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_mark_csr_children_polars,
+    alifestd_mark_csr_offsets_polars,
+    alifestd_mark_first_child_id_polars,
+    alifestd_mark_next_sibling_id_polars,
+    alifestd_mark_num_children_polars,
     alifestd_unfurl_traversal_postorder_polars,
 )
 
@@ -244,3 +249,90 @@ def test_matches_pandas():
     assert set(pd_result) == set(pl_result) == set(range(n))
     _assert_valid_postorder(pd_result, ancestor_ids)
     _assert_valid_postorder(pl_result, ancestor_ids)
+
+
+def _add_sibling_cols(df: pl.DataFrame) -> pl.DataFrame:
+    """Add first_child_id and next_sibling_id columns."""
+    df = alifestd_mark_first_child_id_polars(df)
+    df = alifestd_mark_next_sibling_id_polars(df)
+    return df
+
+
+def _add_csr_cols(df: pl.DataFrame) -> pl.DataFrame:
+    """Add num_children, csr_offsets, and csr_children columns."""
+    df = alifestd_mark_num_children_polars(df)
+    df = alifestd_mark_csr_offsets_polars(df)
+    df = alifestd_mark_csr_children_polars(df)
+    return df
+
+
+def test_with_sibling_cols():
+    """Test that sibling columns trigger the sibling JIT path."""
+    ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
+    df = _add_sibling_cols(_make_contiguous_df(ancestor_ids))
+    result = alifestd_unfurl_traversal_postorder_polars(df)
+    assert set(result) == set(range(len(ancestor_ids)))
+    _assert_valid_postorder(result, ancestor_ids)
+    assert result[-1] == 0
+
+
+def test_with_csr_cols():
+    """Test that CSR columns trigger the CSR JIT path."""
+    ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
+    df = _add_csr_cols(_make_contiguous_df(ancestor_ids))
+    result = alifestd_unfurl_traversal_postorder_polars(df)
+    assert set(result) == set(range(len(ancestor_ids)))
+    _assert_valid_postorder(result, ancestor_ids)
+    assert result[-1] == 0
+
+
+@pytest.mark.parametrize(
+    "phylogeny_csv",
+    [
+        "example-standard-toy-asexual-phylogeny.csv",
+        "nk_ecoeaselection.csv",
+        "nk_lexicaseselection.csv",
+        "nk_tournamentselection.csv",
+    ],
+)
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_add_sibling_cols, id="sibling"),
+        pytest.param(_add_csr_cols, id="csr"),
+    ],
+)
+def test_fuzz_jit_paths(phylogeny_csv: str, apply):
+    """Fuzz test sibling-based and CSR-based JIT paths."""
+    phylogeny_df = pl.read_csv(f"{assets_path}/{phylogeny_csv}")
+    if "ancestor_list" in phylogeny_df.columns:
+        phylogeny_df = phylogeny_df.with_columns(
+            ancestor_id=pl.col("ancestor_list")
+            .str.extract(r"(\d+)", 1)
+            .cast(pl.Int64, strict=False)
+            .fill_null(pl.col("id")),
+        )
+
+    phylogeny_df = phylogeny_df.sort("id")
+    ids = phylogeny_df["id"].to_numpy()
+    if not (ids == np.arange(len(ids))).all():
+        id_map = {int(old): new for new, old in enumerate(ids)}
+        ancestor_ids = np.array(
+            [id_map[int(a)] for a in phylogeny_df["ancestor_id"].to_numpy()],
+            dtype=np.int64,
+        )
+        phylogeny_df = _make_contiguous_df(ancestor_ids)
+
+    phylogeny_df = apply(phylogeny_df)
+    result = alifestd_unfurl_traversal_postorder_polars(phylogeny_df)
+
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+    n = len(ancestor_ids)
+    assert len(result) == n
+    assert set(result) == set(range(n))
+
+    pos = {node: i for i, node in enumerate(result)}
+    for child in range(n):
+        parent = ancestor_ids[child]
+        if child != parent:
+            assert pos[parent] > pos[child]
