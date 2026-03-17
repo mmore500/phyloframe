@@ -18,27 +18,6 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 
 
-def _pick_id_dtype_for_newick(newick: str) -> np.dtype:
-    """Choose the smallest signed integer dtype for node ids.
-
-    Uses ``np.min_scalar_type`` on the negated comma count (a proxy for
-    tree size) to directly obtain a signed dtype.
-
-    Parameters
-    ----------
-    newick : str
-        A Newick format string.
-
-    Returns
-    -------
-    np.dtype
-        One of np.int8, np.int16, np.int32, or np.int64.
-    """
-    comma_count = newick.count(",")
-    # passing a negative value makes min_scalar_type return signed
-    return np.min_scalar_type(-max(comma_count, 1))
-
-
 @jit(nopython=True)
 def _parse_newick_jit(
     chars: np.ndarray,
@@ -423,7 +402,8 @@ def alifestd_from_newick(
     """
     newick = newick.strip()
     if id_dtype is None:
-        resolved_id_dtype = _pick_id_dtype_for_newick(newick)
+        comma_count = newick.count(",")
+        resolved_id_dtype = np.min_scalar_type(-max(comma_count, 1))
     else:
         resolved_id_dtype = np.dtype(id_dtype)
 
