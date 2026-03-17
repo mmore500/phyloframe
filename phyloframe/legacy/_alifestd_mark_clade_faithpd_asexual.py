@@ -47,21 +47,22 @@ def _alifestd_mark_clade_faithpd_asexual_fast_path(
 
 def _alifestd_mark_clade_faithpd_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str = "clade_faithpd",
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mark_clade_faithpd_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
-    phylogeny_df["clade_faithpd"] = phylogeny_df["origin_time_delta"].copy()
-    phylogeny_df["clade_faithpd"] = 0
+    phylogeny_df[mark_as] = phylogeny_df["origin_time_delta"].copy()
+    phylogeny_df[mark_as] = 0
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         if ancestor_id == idx:
             continue  # handle root cases
 
-        phylogeny_df.at[ancestor_id, "clade_faithpd"] += (
+        phylogeny_df.at[ancestor_id, mark_as] += (
             phylogeny_df.at[idx, "origin_time_delta"]
-            + phylogeny_df.at[idx, "clade_faithpd"]
+            + phylogeny_df.at[idx, mark_as]
         )
 
     return phylogeny_df
@@ -117,15 +118,10 @@ def alifestd_mark_clade_faithpd_asexual(
         )
         return phylogeny_df
     else:
-        phylogeny_df = _alifestd_mark_clade_faithpd_asexual_slow_path(
+        return _alifestd_mark_clade_faithpd_asexual_slow_path(
             phylogeny_df,
+            mark_as=mark_as,
         )
-        if mark_as != "clade_faithpd":
-            phylogeny_df.rename(
-                columns={"clade_faithpd": mark_as},
-                inplace=True,
-            )
-        return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
