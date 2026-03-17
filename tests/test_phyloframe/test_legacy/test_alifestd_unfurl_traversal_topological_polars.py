@@ -82,7 +82,7 @@ def test_deep_tree():
 
 
 def test_unsorted_computes_order():
-    """Test that unsorted data produces valid topological order."""
+    """Test that unsorted data produces valid topological index order."""
     # ancestor_ids where node 0 has parent 1, so not topologically sorted
     df = pl.DataFrame(
         {
@@ -92,10 +92,13 @@ def test_unsorted_computes_order():
     )
     result = alifestd_unfurl_traversal_topological_polars(df)
     result_list = result.tolist()
-    pos = {node: i for i, node in enumerate(result_list)}
-    # 1 is root (parent of 0), 0 is parent of 2
-    assert pos[1] < pos[0]
-    assert pos[0] < pos[2]
+    # Result contains row indices; verify parent rows come before children
+    ancestor_ids = df["ancestor_id"].to_numpy()
+    pos = {idx: i for i, idx in enumerate(result_list)}
+    for child_idx in range(len(ancestor_ids)):
+        parent_idx = ancestor_ids[child_idx]
+        if parent_idx != child_idx:
+            assert pos[parent_idx] < pos[child_idx]
 
 
 def test_valid_topological_order():
@@ -159,12 +162,24 @@ def test_fuzz(phylogeny_csv: str):
             assert pos[parent] < pos[child]
 
 
-def test_non_contiguous_ids():
-    """Test that non-contiguous IDs raise NotImplementedError."""
+def test_non_contiguous_ids_sorted():
+    """Non-contiguous but already sorted returns arange."""
     df = pl.DataFrame(
         {
             "id": [10, 20, 30],
             "ancestor_id": [10, 10, 20],
+        },
+    )
+    result = alifestd_unfurl_traversal_topological_polars(df)
+    assert result.tolist() == [0, 1, 2]
+
+
+def test_non_contiguous_ids_unsorted():
+    """Non-contiguous and unsorted raises NotImplementedError."""
+    df = pl.DataFrame(
+        {
+            "id": [30, 10, 20],
+            "ancestor_id": [20, 10, 10],
         },
     )
     with pytest.raises(NotImplementedError):
