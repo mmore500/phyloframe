@@ -79,6 +79,10 @@ $ python3 -m phyloframe.legacy._alifestd_mark_colless_like_index_sd_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_colless_like_index_sd_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_colless_like_index_var_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_colless_like_index_var_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_children_flat_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_children_flat_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_csr_offsets_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_csr_offsets_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_first_child_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_first_child_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars

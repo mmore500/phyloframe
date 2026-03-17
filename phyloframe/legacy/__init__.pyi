@@ -355,6 +355,18 @@ from ._alifestd_mark_colless_like_index_var_asexual import (
 from ._alifestd_mark_colless_like_index_var_polars import (
     alifestd_mark_colless_like_index_var_polars,
 )
+from ._alifestd_mark_children_flat_asexual import (
+    alifestd_mark_children_flat_asexual,
+)
+from ._alifestd_mark_children_flat_polars import (
+    alifestd_mark_children_flat_polars,
+)
+from ._alifestd_mark_csr_offsets_asexual import (
+    alifestd_mark_csr_offsets_asexual,
+)
+from ._alifestd_mark_csr_offsets_polars import (
+    alifestd_mark_csr_offsets_polars,
+)
 from ._alifestd_mark_first_child_id_asexual import (
     alifestd_mark_first_child_id_asexual,
 )
@@ -779,6 +791,10 @@ __all__ = [
     "alifestd_mark_colless_like_index_sd_polars",
     "alifestd_mark_colless_like_index_var_asexual",
     "alifestd_mark_colless_like_index_var_polars",
+    "alifestd_mark_children_flat_asexual",
+    "alifestd_mark_children_flat_polars",
+    "alifestd_mark_csr_offsets_asexual",
+    "alifestd_mark_csr_offsets_polars",
     "alifestd_mark_first_child_id_asexual",
     "alifestd_mark_first_child_id_polars",
     "alifestd_mark_is_left_child_asexual",

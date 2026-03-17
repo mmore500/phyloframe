@@ -1,10 +1,15 @@
 import numpy as np
 import pandas as pd
 
-from .._auxlib._build_children_csr import build_children_csr
 from .._auxlib._jit import jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
+from ._alifestd_mark_children_flat_asexual import (
+    _alifestd_mark_children_flat_asexual_fast_path,
+)
+from ._alifestd_mark_csr_offsets_asexual import (
+    _alifestd_mark_csr_offsets_asexual_fast_path,
+)
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
@@ -84,6 +89,8 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit(
 @jit(nopython=True)
 def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     ancestor_ids: np.ndarray,
+    csr_offsets: np.ndarray,
+    children_flat: np.ndarray,
     num_children: np.ndarray,
 ) -> np.ndarray:
     """Return DFS postorder traversal indices for contiguous, sorted phylogeny.
@@ -96,6 +103,10 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     ancestor_ids : np.ndarray
         Array of ancestor IDs, assumed contiguous (ids == row indices)
         and topologically sorted.
+    csr_offsets : np.ndarray
+        CSR offset array of length n.
+    children_flat : np.ndarray
+        Flat array of child ids, grouped by parent.
     num_children : np.ndarray
         Array of child counts per node.
 
@@ -107,12 +118,6 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     n = len(ancestor_ids)
     if n == 0:
         return np.empty(0, dtype=np.int64)
-
-    ancestor_ids = ancestor_ids.astype(np.int64)
-    child_start, children_flat = build_children_csr(
-        ancestor_ids,
-        num_children.astype(np.int64),
-    )
 
     # Iterative DFS postorder traversal
     result = np.empty(n, dtype=np.int64)
@@ -131,8 +136,8 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
 
         while stack_top > 0:
             node = stack[stack_top - 1]
-            c_start = child_start[node]
-            c_end = child_start[node + 1]
+            c_start = csr_offsets[node]
+            c_end = c_start + num_children[node]
 
             if not expanded[node] and c_start < c_end:
                 expanded[node] = True
@@ -193,7 +198,34 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
         )
     else:
         num_children = phylogeny_df["num_children"].to_numpy()
+    if "csr_offsets" in phylogeny_df.columns:
+        csr_offsets = (
+            phylogeny_df["csr_offsets"]
+            .to_numpy()
+            .astype(
+                np.int64,
+            )
+        )
+    else:
+        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+            ancestor_ids,
+        )
+    if "children_flat" in phylogeny_df.columns:
+        children_flat = (
+            phylogeny_df["children_flat"]
+            .to_numpy()
+            .astype(
+                np.int64,
+            )
+        )
+    else:
+        children_flat = _alifestd_mark_children_flat_asexual_fast_path(
+            ancestor_ids.astype(np.int64),
+            csr_offsets,
+        )
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
+        csr_offsets,
+        children_flat,
         num_children,
     )
