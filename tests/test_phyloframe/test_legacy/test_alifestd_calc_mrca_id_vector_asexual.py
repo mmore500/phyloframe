@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from phyloframe.legacy import (
     alifestd_calc_mrca_id_matrix_asexual,
+    alifestd_make_empty,
 )
 from phyloframe.legacy import (
     alifestd_calc_mrca_id_vector_asexual as alifestd_calc_mrca_id_vector_asexual_,
@@ -113,18 +114,8 @@ def test_simple1(mutate: bool):
 @pytest.mark.parametrize(
     "phylogeny_df",
     [
-        pd.DataFrame(
-            {
-                "id": [],
-                "ancestor_list": [],
-            }
-        ),
-        pd.DataFrame(
-            {
-                "id": [],
-                "ancestor_id": [],
-            }
-        ),
+        alifestd_make_empty(),
+        alifestd_make_empty(ancestor_id=True),
         pd.DataFrame(
             {
                 "id": [0],
