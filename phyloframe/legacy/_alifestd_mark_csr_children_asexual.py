@@ -120,9 +120,11 @@ def alifestd_mark_csr_children_asexual(
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
     if alifestd_has_contiguous_ids(phylogeny_df):
-        ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+        ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
         if "csr_offsets" in phylogeny_df.columns:
-            csr_offsets = phylogeny_df["csr_offsets"].to_numpy()
+            csr_offsets = (
+                phylogeny_df["csr_offsets"].to_numpy().astype(np.int64)
+            )
         else:
             csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
                 ancestor_ids,
