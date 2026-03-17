@@ -36,7 +36,7 @@ def alifestd_from_newick_polars(
     *,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
-    id_dtype: typing.Optional[type] = np.int64,
+    dtype_id: typing.Optional[type] = np.int64,
 ) -> pl.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -55,7 +55,7 @@ def alifestd_from_newick_polars(
         integer dtypes or ``NaN`` for float dtypes.
     create_ancestor_list : bool, default False
         If True, include an ``ancestor_list`` column in the result.
-    id_dtype : type or None, default np.int64
+    dtype_id : type or None, default np.int64
         Numpy dtype for the ``id`` and ``ancestor_id`` columns. If None, the
         smallest signed integer dtype is chosen automatically based on the
         number of commas in the Newick string.
@@ -73,16 +73,16 @@ def alifestd_from_newick_polars(
         Inverse conversion, from alife standard to Newick format.
     """
     newick = newick.strip()
-    if id_dtype is None:
+    if dtype_id is None:
         comma_count = newick.count(",")
-        pl_id_dtype = pl.Series([-max(comma_count, 1)]).shrink_dtype().dtype
+        pl_dtype_id = pl.Series([-max(comma_count, 1)]).shrink_dtype().dtype
     else:
-        pl_id_dtype = _np_to_pl_int[np.dtype(id_dtype)]
+        pl_dtype_id = _np_to_pl_int[np.dtype(dtype_id)]
 
     if not newick:
         columns = {
-            "id": pl.Series([], dtype=pl_id_dtype),
-            "ancestor_id": pl.Series([], dtype=pl_id_dtype),
+            "id": pl.Series([], dtype=pl_dtype_id),
+            "ancestor_id": pl.Series([], dtype=pl_dtype_id),
             "taxon_label": pl.Series([], dtype=pl.Utf8),
             "origin_time_delta": pl.Series([], dtype=pl.Float64),
             "branch_length": pl.Series([], dtype=pl.Float64),
@@ -145,8 +145,8 @@ def alifestd_from_newick_polars(
         otd_series = pl.Series(branch_lengths.copy())
 
     columns = {
-        "id": pl.Series(ids, dtype=pl_id_dtype),
-        "ancestor_id": pl.Series(ancestor_ids, dtype=pl_id_dtype),
+        "id": pl.Series(ids, dtype=pl_dtype_id),
+        "ancestor_id": pl.Series(ancestor_ids, dtype=pl_dtype_id),
         "taxon_label": labels_series,
         "origin_time_delta": otd_series,
         "branch_length": bl_series,
@@ -158,8 +158,8 @@ def alifestd_from_newick_polars(
         )
 
         columns["ancestor_list"] = alifestd_make_ancestor_list_col_polars(
-            pl.Series(ids, dtype=pl_id_dtype),
-            pl.Series(ancestor_ids, dtype=pl_id_dtype),
+            pl.Series(ids, dtype=pl_dtype_id),
+            pl.Series(ancestor_ids, dtype=pl_dtype_id),
         )
 
     return pl.DataFrame(columns)

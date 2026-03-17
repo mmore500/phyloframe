@@ -245,34 +245,34 @@ def test_alifestd_asset_roundtrip(
         )
 
 
-def test_id_dtype_default():
+def test_dtype_id_default():
     result = alifestd_from_newick_polars("(A,B);")
     assert result["id"].dtype == pl.Int64
     assert result["ancestor_id"].dtype == pl.Int64
 
 
-def test_id_dtype_int32():
-    result = alifestd_from_newick_polars("(A,B);", id_dtype=np.int32)
+def test_dtype_id_int32():
+    result = alifestd_from_newick_polars("(A,B);", dtype_id=np.int32)
     assert result["id"].dtype == pl.Int32
     assert result["ancestor_id"].dtype == pl.Int32
 
 
-def test_id_dtype_none_small():
-    result = alifestd_from_newick_polars("(A,B);", id_dtype=None)
+def test_dtype_id_none_small():
+    result = alifestd_from_newick_polars("(A,B);", dtype_id=None)
     # 1 comma -> min_scalar_type(-1) -> int8
     assert result["id"].dtype == pl.Int8
     assert result["ancestor_id"].dtype == pl.Int8
     assert len(result) == 3
 
 
-def test_id_dtype_none_empty():
-    result = alifestd_from_newick_polars("", id_dtype=None)
+def test_dtype_id_none_empty():
+    result = alifestd_from_newick_polars("", dtype_id=None)
     assert result["id"].dtype == pl.Int8
     assert len(result) == 0
 
 
-def test_id_dtype_none_values_correct():
-    result = alifestd_from_newick_polars("(A,(B,C));", id_dtype=None)
+def test_dtype_id_none_values_correct():
+    result = alifestd_from_newick_polars("(A,(B,C));", dtype_id=None)
     assert result["id"].dtype == pl.Int8
     assert len(result) == 5
     root = result.filter(pl.col("ancestor_id") == pl.col("id"))

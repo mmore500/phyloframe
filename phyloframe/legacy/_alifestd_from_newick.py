@@ -364,7 +364,7 @@ def alifestd_from_newick(
     *,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
-    id_dtype: typing.Optional[type] = np.int64,
+    dtype_id: typing.Optional[type] = np.int64,
 ) -> pd.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -383,7 +383,7 @@ def alifestd_from_newick(
         for integer dtypes or ``NaN`` for float dtypes.
     create_ancestor_list : bool, default False
         If True, include an ``ancestor_list`` column in the result.
-    id_dtype : type or None, default np.int64
+    dtype_id : type or None, default np.int64
         Numpy dtype for the ``id`` and ``ancestor_id`` columns. If None, the
         smallest signed integer dtype is chosen automatically based on the
         number of commas in the Newick string.
@@ -401,16 +401,16 @@ def alifestd_from_newick(
         Inverse conversion, from alife standard to Newick format.
     """
     newick = newick.strip()
-    if id_dtype is None:
+    if dtype_id is None:
         comma_count = newick.count(",")
-        resolved_id_dtype = np.min_scalar_type(-max(comma_count, 1))
+        resolved_dtype_id = np.min_scalar_type(-max(comma_count, 1))
     else:
-        resolved_id_dtype = np.dtype(id_dtype)
+        resolved_dtype_id = np.dtype(dtype_id)
 
     if not newick:
         columns = {
-            "id": pd.Series(dtype=resolved_id_dtype),
-            "ancestor_id": pd.Series(dtype=resolved_id_dtype),
+            "id": pd.Series(dtype=resolved_dtype_id),
+            "ancestor_id": pd.Series(dtype=resolved_dtype_id),
             "taxon_label": pd.Series(dtype=str),
             "origin_time_delta": pd.Series(dtype=float),
             "branch_length": pd.Series(dtype=float),
@@ -430,8 +430,8 @@ def alifestd_from_newick(
     ) = _parse_newick(newick, chars, n, branch_length_dtype)
 
     # cast id arrays to requested dtype
-    ids = ids.astype(resolved_id_dtype)
-    ancestor_ids = ancestor_ids.astype(resolved_id_dtype)
+    ids = ids.astype(resolved_dtype_id)
+    ancestor_ids = ancestor_ids.astype(resolved_dtype_id)
 
     labels = _extract_labels(newick, chars, label_start_stops)
 
