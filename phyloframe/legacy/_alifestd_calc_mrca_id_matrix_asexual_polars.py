@@ -13,6 +13,15 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_csr_children_polars import (
+    alifestd_mark_csr_children_polars,
+)
+from ._alifestd_mark_csr_offsets_polars import (
+    alifestd_mark_csr_offsets_polars,
+)
+from ._alifestd_mark_num_children_polars import (
+    alifestd_mark_num_children_polars,
+)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -76,9 +85,29 @@ def alifestd_calc_mrca_id_matrix_asexual_polars(
             "topologically unsorted rows not yet supported",
         )
 
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "num_children" not in schema_names:
+        logging.info(
+            "- alifestd_calc_mrca_id_matrix_asexual_polars: "
+            "marking num_children...",
+        )
+        phylogeny_df = alifestd_mark_num_children_polars(phylogeny_df)
+    if "csr_offsets" not in schema_names:
+        logging.info(
+            "- alifestd_calc_mrca_id_matrix_asexual_polars: "
+            "marking csr_offsets...",
+        )
+        phylogeny_df = alifestd_mark_csr_offsets_polars(phylogeny_df)
+    if "csr_children" not in schema_names:
+        logging.info(
+            "- alifestd_calc_mrca_id_matrix_asexual_polars: "
+            "marking csr_children...",
+        )
+        phylogeny_df = alifestd_mark_csr_children_polars(phylogeny_df)
+
     logging.info(
         "- alifestd_calc_mrca_id_matrix_asexual_polars: "
-        "extracting ancestor ids...",
+        "extracting arrays...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -87,38 +116,35 @@ def alifestd_calc_mrca_id_matrix_asexual_polars(
         .to_series()
         .to_numpy()
     )
-
-    kwargs = {}
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    if "num_children" in schema_names:
-        kwargs["num_children"] = (
-            phylogeny_df.lazy()
-            .select("num_children")
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    if "csr_offsets" in schema_names:
-        kwargs["csr_offsets"] = (
-            phylogeny_df.lazy()
-            .select(pl.col("csr_offsets").cast(pl.Int64))
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    if "csr_children" in schema_names:
-        kwargs["csr_children"] = (
-            phylogeny_df.lazy()
-            .select(pl.col("csr_children").cast(pl.Int64))
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
+    num_children = (
+        phylogeny_df.lazy()
+        .select("num_children")
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    csr_offsets = (
+        phylogeny_df.lazy()
+        .select(pl.col("csr_offsets").cast(pl.Int64))
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    csr_children = (
+        phylogeny_df.lazy()
+        .select(pl.col("csr_children").cast(pl.Int64))
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
 
     logging.info(
         "- alifestd_calc_mrca_id_matrix_asexual_polars: "
         "computing mrca id matrix...",
     )
     return _alifestd_calc_mrca_id_matrix_asexual_fast_path(
-        ancestor_ids, **kwargs
+        ancestor_ids,
+        csr_offsets=csr_offsets,
+        csr_children=csr_children,
+        num_children=num_children,
     )
