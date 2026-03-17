@@ -1,4 +1,5 @@
 import numpy as np
+from packaging.version import parse
 import pandas as pd
 
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
@@ -32,13 +33,13 @@ def alifestd_unfurl_traversal_topological_asexual(
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
 
     if alifestd_is_topologically_sorted(phylogeny_df):
-        return phylogeny_df["id"].to_numpy(copy=True)
+        return phylogeny_df["id"].to_numpy(copy=parse(pd.__version__) >= parse("3.0.0"))
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
         order = _topological_sort_fast_path(ancestor_ids)
         id_loc = phylogeny_df.columns.get_loc("id")
-        return phylogeny_df.iloc[order, id_loc].to_numpy(copy=True)
+        return phylogeny_df.iloc[order, id_loc].to_numpy(copy=parse(pd.__version__) >= parse("3.0.0"))
 
     sorted_df = alifestd_topological_sort(phylogeny_df, mutate=True)
-    return sorted_df["id"].to_numpy(copy=True)
+    return sorted_df["id"].to_numpy(copy=parse(pd.__version__) >= parse("3.0.0"))
