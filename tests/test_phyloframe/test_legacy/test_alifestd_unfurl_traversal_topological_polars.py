@@ -162,24 +162,12 @@ def test_fuzz(phylogeny_csv: str):
             assert pos[parent] < pos[child]
 
 
-def test_non_contiguous_ids_sorted():
-    """Non-contiguous but already sorted returns arange."""
+def test_non_contiguous_ids():
+    """Test that non-contiguous IDs raise NotImplementedError."""
     df = pl.DataFrame(
         {
             "id": [10, 20, 30],
             "ancestor_id": [10, 10, 20],
-        },
-    )
-    result = alifestd_unfurl_traversal_topological_polars(df)
-    assert result.tolist() == [0, 1, 2]
-
-
-def test_non_contiguous_ids_unsorted():
-    """Non-contiguous and unsorted raises NotImplementedError."""
-    df = pl.DataFrame(
-        {
-            "id": [30, 10, 20],
-            "ancestor_id": [20, 10, 10],
         },
     )
     with pytest.raises(NotImplementedError):

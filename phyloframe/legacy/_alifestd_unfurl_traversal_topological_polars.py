@@ -18,11 +18,10 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_unfurl_traversal_topological_polars(
     phylogeny_df: pl.DataFrame,
 ) -> np.ndarray:
-    """List `id` values in topological traversal order for contiguous ids,
-    or row indices for non-contiguous ids.
+    """List node indices in topological traversal order.
 
     Parents are visited before children. If the dataframe is already
-    topologically sorted, the existing order is returned directly.
+    topologically sorted, the existing row indices are returned directly.
     Otherwise, a topological ordering is computed.
 
     Parameters
@@ -30,13 +29,12 @@ def alifestd_unfurl_traversal_topological_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format.
 
-        Must represent an asexual phylogeny.
+        Must represent an asexual phylogeny with contiguous ids.
 
     Returns
     -------
     np.ndarray
-        If ids are contiguous, array of `id` values in topological order.
-        Otherwise, index array giving topological traversal order.
+        Index array giving topological traversal order.
 
     See Also
     --------
@@ -56,30 +54,18 @@ def alifestd_unfurl_traversal_topological_polars(
         "- alifestd_unfurl_traversal_topological_polars:"
         " checking contiguous ids...",
     )
-    is_contiguous = alifestd_has_contiguous_ids_polars(phylogeny_df)
+    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+        raise NotImplementedError(
+            "non-contiguous ids not yet supported",
+        )
 
     logging.info(
         "- alifestd_unfurl_traversal_topological_polars:"
         " checking topological sort...",
     )
     if alifestd_is_topologically_sorted_polars(phylogeny_df):
-        if is_contiguous:
-            return (
-                phylogeny_df.lazy()
-                .select("id")
-                .collect()
-                .to_series()
-                .to_numpy()
-            )
-        else:
-            n = phylogeny_df.lazy().select(pl.len()).collect().item()
-            return np.arange(n, dtype=np.int64)
-
-    if not is_contiguous:
-        raise NotImplementedError(
-            "non-contiguous ids that are not topologically sorted"
-            " not yet supported",
-        )
+        n = phylogeny_df.lazy().select(pl.len()).collect().item()
+        return np.arange(n, dtype=np.int64)
 
     logging.info(
         "- alifestd_unfurl_traversal_topological_polars:"
@@ -97,6 +83,4 @@ def alifestd_unfurl_traversal_topological_polars(
         "- alifestd_unfurl_traversal_topological_polars:"
         " computing topological order...",
     )
-    order = _topological_sort_fast_path(ancestor_ids)
-    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
-    return ids[order]
+    return _topological_sort_fast_path(ancestor_ids)
