@@ -88,8 +88,37 @@ def alifestd_calc_mrca_id_matrix_asexual_polars(
         .to_numpy()
     )
 
+    kwargs = {}
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "num_children" in schema_names:
+        kwargs["num_children"] = (
+            phylogeny_df.lazy()
+            .select("num_children")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+    if "csr_offsets" in schema_names:
+        kwargs["csr_offsets"] = (
+            phylogeny_df.lazy()
+            .select(pl.col("csr_offsets").cast(pl.Int64))
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+    if "csr_children" in schema_names:
+        kwargs["csr_children"] = (
+            phylogeny_df.lazy()
+            .select(pl.col("csr_children").cast(pl.Int64))
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+
     logging.info(
         "- alifestd_calc_mrca_id_matrix_asexual_polars: "
         "computing mrca id matrix...",
     )
-    return _alifestd_calc_mrca_id_matrix_asexual_fast_path(ancestor_ids)
+    return _alifestd_calc_mrca_id_matrix_asexual_fast_path(
+        ancestor_ids, **kwargs
+    )
