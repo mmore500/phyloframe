@@ -53,7 +53,7 @@ OPERATIONS = [
 
 
 def _set_memory_limit():
-    """Cap this process's memory at 125% of available RAM.
+    """Cap this process's memory at 120% of available RAM.
 
     Sets limits via resource.setrlimit (RLIMIT_AS and RLIMIT_DATA) so the
     OS kills the subprocess instead of letting it OOM the whole CI runner.
