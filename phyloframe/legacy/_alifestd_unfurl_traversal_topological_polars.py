@@ -64,8 +64,9 @@ def alifestd_unfurl_traversal_topological_polars(
         " checking topological sort...",
     )
     if alifestd_is_topologically_sorted_polars(phylogeny_df):
-        n = phylogeny_df.lazy().select(pl.len()).collect().item()
-        return np.arange(n, dtype=np.int64)
+        return (
+            phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
+        )
 
     logging.info(
         "- alifestd_unfurl_traversal_topological_polars:"
