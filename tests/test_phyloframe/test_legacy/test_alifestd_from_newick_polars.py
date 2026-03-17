@@ -243,3 +243,37 @@ def test_alifestd_asset_roundtrip(
         assert reconstructed["branch_length"].is_nan().sum() < len(
             reconstructed
         )
+
+
+def test_dtype_id_default():
+    result = alifestd_from_newick_polars("(A,B);")
+    assert result["id"].dtype == pl.Int64
+    assert result["ancestor_id"].dtype == pl.Int64
+
+
+def test_dtype_id_int32():
+    result = alifestd_from_newick_polars("(A,B);", dtype_id=pl.Int32)
+    assert result["id"].dtype == pl.Int32
+    assert result["ancestor_id"].dtype == pl.Int32
+
+
+def test_dtype_id_none_small():
+    result = alifestd_from_newick_polars("(A,B);", dtype_id=None)
+    # 1 comma -> min_scalar_type(-1) -> int8
+    assert result["id"].dtype == pl.Int8
+    assert result["ancestor_id"].dtype == pl.Int8
+    assert len(result) == 3
+
+
+def test_dtype_id_none_empty():
+    result = alifestd_from_newick_polars("", dtype_id=None)
+    assert result["id"].dtype == pl.Int8
+    assert len(result) == 0
+
+
+def test_dtype_id_none_values_correct():
+    result = alifestd_from_newick_polars("(A,(B,C));", dtype_id=None)
+    assert result["id"].dtype == pl.Int8
+    assert len(result) == 5
+    root = result.filter(pl.col("ancestor_id") == pl.col("id"))
+    assert len(root) == 1

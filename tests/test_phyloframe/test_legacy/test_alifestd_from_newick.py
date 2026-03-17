@@ -607,3 +607,39 @@ def test_scientific_notation_positive_exponent():
     b = result[result["taxon_label"] == "B"]
     assert a["branch_length"].iloc[0] == pytest.approx(1e3)
     assert b["branch_length"].iloc[0] == pytest.approx(2.5e2)
+
+
+def test_dtype_id_default():
+    result = alifestd_from_newick("(A,B);")
+    assert result["id"].dtype == np.int64
+    assert result["ancestor_id"].dtype == np.int64
+
+
+def test_dtype_id_int32():
+    result = alifestd_from_newick("(A,B);", dtype_id=np.int32)
+    assert result["id"].dtype == np.int32
+    assert result["ancestor_id"].dtype == np.int32
+
+
+def test_dtype_id_none_small():
+    result = alifestd_from_newick("(A,B);", dtype_id=None)
+    # 1 comma -> min_scalar_type(-1) -> int8
+    assert result["id"].dtype == np.int8
+    assert result["ancestor_id"].dtype == np.int8
+    assert len(result) == 3
+
+
+def test_dtype_id_none_empty():
+    result = alifestd_from_newick("", dtype_id=None)
+    # 0 commas -> min_scalar_type(-1) -> int8
+    assert result["id"].dtype == np.int8
+    assert len(result) == 0
+
+
+def test_dtype_id_none_values_correct():
+    result = alifestd_from_newick("(A,(B,C));", dtype_id=None)
+    assert result["id"].dtype == np.int8
+    # verify tree structure is intact
+    assert len(result) == 5
+    root = result[result["ancestor_id"] == result["id"]]
+    assert len(root) == 1
