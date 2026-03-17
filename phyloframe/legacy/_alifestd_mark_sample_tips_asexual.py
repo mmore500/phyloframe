@@ -7,6 +7,7 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import pandas as pd
 
 from .._auxlib._add_bool_arg import add_bool_arg
@@ -17,56 +18,74 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_mark_sample_tips_asexual import (
-    alifestd_mark_sample_tips_asexual,
-)
-from ._alifestd_prune_extinct_lineages_asexual import (
-    alifestd_prune_extinct_lineages_asexual,
-)
-from ._alifestd_topological_sensitivity_warned import (
-    alifestd_topological_sensitivity_warned,
-)
+from .._auxlib._with_rng_state_context import with_rng_state_context
+from ._alifestd_find_leaf_ids import alifestd_find_leaf_ids
+from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-@alifestd_topological_sensitivity_warned(
-    insert=False,
-    delete=True,
-    update=False,
-)
-def alifestd_downsample_tips_asexual(
+def _alifestd_mark_sample_tips_asexual_impl(
+    phylogeny_df: pd.DataFrame,
+    n_downsample: int,
+    mark_as: str,
+) -> pd.DataFrame:
+    """Implementation detail for alifestd_mark_sample_tips_asexual."""
+    tips = alifestd_find_leaf_ids(phylogeny_df)
+    kept = np.random.choice(tips, min(n_downsample, len(tips)), replace=False)
+    if alifestd_has_contiguous_ids(phylogeny_df):
+        extant = np.zeros(len(phylogeny_df), dtype=bool)
+        extant[kept] = True
+        phylogeny_df[mark_as] = extant
+    else:
+        phylogeny_df[mark_as] = phylogeny_df["id"].isin(kept)
+
+    return phylogeny_df
+
+
+def alifestd_mark_sample_tips_asexual(
     phylogeny_df: pd.DataFrame,
     n_downsample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
+    mark_as: str = "alifestd_mark_sample_tips_asexual",
 ) -> pd.DataFrame:
-    """Create a subsample phylogeny containing `n_downsample` tips.
+    """Mark a random subsample of `n_downsample` tips.
+
+    Adds a boolean column ``mark_as`` indicating retained tips.
 
     If `n_downsample` is greater than the number of tips in the phylogeny,
-    the whole phylogeny is returned.
+    all tips are marked.
 
     Only supports asexual phylogenies.
     """
-    phylogeny_df = alifestd_mark_sample_tips_asexual(
-        phylogeny_df,
-        n_downsample,
-        mutate=mutate,
-        seed=seed,
-        mark_as="extant",
-    )
+    if not mutate:
+        phylogeny_df = phylogeny_df.copy()
+
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df)
+    if "ancestor_id" not in phylogeny_df.columns:
+        raise ValueError(
+            "alifestd_mark_sample_tips_asexual only supports "
+            "asexual phylogenies.",
+        )
 
     if phylogeny_df.empty:
-        return phylogeny_df.drop(columns=["extant"])
+        phylogeny_df[mark_as] = pd.Series(dtype=bool)
+        return phylogeny_df
 
-    return alifestd_prune_extinct_lineages_asexual(
-        phylogeny_df, mutate=True
-    ).drop(columns=["extant"])
+    impl = (
+        with_rng_state_context(seed)(_alifestd_mark_sample_tips_asexual_impl)
+        if seed is not None
+        else _alifestd_mark_sample_tips_asexual_impl
+    )
+
+    return impl(phylogeny_df, n_downsample, mark_as)
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Create a subsample phylogeny containing `-n` tips.
+Mark a random subsample of `-n` tips with a boolean column.
 
-If `-n` is greater than the number of tips in the phylogeny, the whole phylogeny is returned.
+If `-n` is greater than the number of tips in the phylogeny, all tips are marked.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
@@ -82,7 +101,7 @@ Otherwise, no action is taken.
 
 See Also
 ========
-phyloframe.legacy._alifestd_downsample_tips_polars :
+phyloframe.legacy._alifestd_mark_sample_tips_polars :
     Entrypoint for high-performance Polars-based implementation.
 """
 
@@ -96,14 +115,14 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_downsample_tips_asexual",
+        dfcli_module="phyloframe.legacy._alifestd_mark_sample_tips_asexual",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
         "-n",
         default=sys.maxsize,
         type=int,
-        help="Number of tips to subsample.",
+        help="Number of tips to mark.",
     )
     parser.add_argument(
         "--seed",
@@ -111,6 +130,12 @@ def _create_parser() -> argparse.ArgumentParser:
         dest="seed",
         help="Integer seed for deterministic behavior.",
         type=int,
+    )
+    parser.add_argument(
+        "--mark-as",
+        default="alifestd_mark_sample_tips_asexual",
+        type=str,
+        help="Column name for the boolean mark (default: alifestd_mark_sample_tips_asexual).",
     )
     add_bool_arg(
         parser,
@@ -133,17 +158,16 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
     with log_context_duration(
-        "phyloframe.legacy._alifestd_downsample_tips_asexual", logging.info
+        "phyloframe.legacy._alifestd_mark_sample_tips_asexual", logging.info
     ):
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
-                    alifestd_downsample_tips_asexual,
+                    alifestd_mark_sample_tips_asexual,
                     n_downsample=args.n,
                     seed=args.seed,
-                    ignore_topological_sensitivity=args.ignore_topological_sensitivity,
-                    drop_topological_sensitivity=args.drop_topological_sensitivity,
+                    mark_as=args.mark_as,
                 ),
             ),
             overridden_arguments="ignore",  # seed is overridden
