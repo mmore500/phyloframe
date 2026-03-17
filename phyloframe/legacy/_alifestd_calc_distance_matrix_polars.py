@@ -120,8 +120,7 @@ def alifestd_calc_distance_matrix_polars(
         phylogeny_df = alifestd_mark_csr_children_polars(phylogeny_df)
 
     logging.info(
-        "- alifestd_calc_distance_matrix_polars: "
-        "extracting arrays...",
+        "- alifestd_calc_distance_matrix_polars: " "extracting arrays...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()

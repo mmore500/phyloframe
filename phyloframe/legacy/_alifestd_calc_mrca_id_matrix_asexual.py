@@ -192,15 +192,18 @@ def alifestd_calc_mrca_id_matrix_asexual(
 
     if "num_children" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_num_children_asexual(
-            phylogeny_df, mutate=True,
+            phylogeny_df,
+            mutate=True,
         )
     if "csr_offsets" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_csr_offsets_asexual(
-            phylogeny_df, mutate=True,
+            phylogeny_df,
+            mutate=True,
         )
     if "csr_children" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_csr_children_asexual(
-            phylogeny_df, mutate=True,
+            phylogeny_df,
+            mutate=True,
         )
 
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
