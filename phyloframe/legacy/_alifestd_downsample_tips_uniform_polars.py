@@ -14,8 +14,8 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_mark_sample_tips_polars import (
-    alifestd_mark_sample_tips_polars,
+from ._alifestd_mark_sample_tips_uniform_polars import (
+    alifestd_mark_sample_tips_uniform_polars,
 )
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
@@ -68,7 +68,7 @@ def alifestd_downsample_tips_uniform_polars(
     alifestd_downsample_tips_uniform_asexual :
         Pandas-based implementation.
     """
-    phylogeny_df = alifestd_mark_sample_tips_polars(
+    phylogeny_df = alifestd_mark_sample_tips_uniform_polars(
         phylogeny_df,
         n_downsample,
         seed=seed,
