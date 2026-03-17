@@ -161,3 +161,46 @@ def test_with_num_children_col():
     )
     result = alifestd_unfurl_traversal_preorder_asexual(phylogeny_df)
     assert result.tolist() == [0, 1, 3, 2]
+
+
+def test_with_sibling_cols():
+    """Test sibling fast path with first_child_id + next_sibling_id."""
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "first_child_id": [1, 3, 2, 3],
+            "next_sibling_id": [0, 2, 2, 3],
+        },
+    )
+    result = alifestd_unfurl_traversal_preorder_asexual(phylogeny_df)
+    assert result.tolist() == [0, 1, 3, 2]
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        pd.read_csv(
+            f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
+        ),
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
+    ],
+)
+def test_sibling_fast_path_matches_baseline(phylogeny_df: pd.DataFrame):
+    """Verify sibling-based fast path gives same result as CSR-based."""
+    from phyloframe.legacy import (
+        alifestd_mark_first_child_id_asexual,
+        alifestd_mark_next_sibling_id_asexual,
+        alifestd_try_add_ancestor_id_col,
+    )
+
+    result_base = alifestd_unfurl_traversal_preorder_asexual(phylogeny_df)
+
+    df_sib = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
+    df_sib = alifestd_mark_first_child_id_asexual(df_sib, mutate=True)
+    df_sib = alifestd_mark_next_sibling_id_asexual(df_sib, mutate=True)
+    result_sib = alifestd_unfurl_traversal_preorder_asexual(df_sib)
+
+    assert result_base.tolist() == result_sib.tolist()

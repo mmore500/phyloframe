@@ -155,3 +155,57 @@ def test_with_node_depth_col():
     )
     result = alifestd_unfurl_traversal_postorder_asexual(phylogeny_df)
     assert result.tolist() == [3, 2, 1, 0]
+
+
+def test_with_sibling_cols():
+    """Test sibling fast path with first_child_id + next_sibling_id."""
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "first_child_id": [1, 3, 2, 3],
+            "next_sibling_id": [0, 2, 2, 3],
+        },
+    )
+    result = alifestd_unfurl_traversal_postorder_asexual(phylogeny_df)
+    # Valid postorder: children before parents
+    result_list = result.tolist()
+    pos = {v: i for i, v in enumerate(result_list)}
+    assert pos[3] < pos[1]  # child 3 before parent 1
+    assert pos[1] < pos[0]  # child 1 before parent 0
+    assert pos[2] < pos[0]  # child 2 before parent 0
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        pd.read_csv(
+            f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
+        ),
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
+    ],
+)
+def test_sibling_fast_path_valid_postorder(phylogeny_df: pd.DataFrame):
+    """Verify sibling-based fast path produces valid postorder."""
+    from phyloframe.legacy import (
+        alifestd_mark_first_child_id_asexual,
+        alifestd_mark_next_sibling_id_asexual,
+        alifestd_try_add_ancestor_id_col,
+    )
+
+    df_sib = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
+    df_sib = alifestd_mark_first_child_id_asexual(df_sib, mutate=True)
+    df_sib = alifestd_mark_next_sibling_id_asexual(df_sib, mutate=True)
+    result = alifestd_unfurl_traversal_postorder_asexual(df_sib)
+
+    assert len(result) == len(phylogeny_df)
+    assert set(result) == set(df_sib["id"])
+
+    ancestor_of = dict(zip(df_sib["id"], df_sib["ancestor_id"]))
+    pos = {node: i for i, node in enumerate(result)}
+    for node_id in result:
+        ancestor_id = ancestor_of[node_id]
+        if node_id != ancestor_id:
+            assert pos[node_id] < pos[ancestor_id]

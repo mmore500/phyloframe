@@ -255,3 +255,54 @@ def test_with_ancestor_list_col():
     )
     result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
     assert result.tolist() == [2, 1, 0]
+
+
+def test_with_sibling_cols():
+    """Test sibling fast path with first_child_id + next_sibling_id."""
+    df = _make_contiguous_df(np.array([0, 0, 0, 1]))
+    df["first_child_id"] = [1, 3, 2, 3]
+    df["next_sibling_id"] = [0, 2, 2, 3]
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    assert result.tolist() == [2, 3, 1, 0]
+
+
+@pytest.mark.parametrize(
+    "phylogeny_csv",
+    [
+        "example-standard-toy-asexual-phylogeny.csv",
+        "nk_ecoeaselection.csv",
+        "nk_lexicaseselection.csv",
+        "nk_tournamentselection.csv",
+    ],
+)
+def test_sibling_fast_path_matches_baseline(phylogeny_csv: str):
+    """Verify sibling-based fast path gives same result as CSR-based."""
+    from phyloframe.legacy import (
+        alifestd_mark_first_child_id_asexual,
+        alifestd_mark_next_sibling_id_asexual,
+        alifestd_try_add_ancestor_id_col,
+    )
+
+    phylogeny_df = pd.read_csv(f"{assets_path}/{phylogeny_csv}")
+    phylogeny_df = phylogeny_df.sort_values("id").reset_index(drop=True)
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
+    ids = phylogeny_df["id"].to_numpy()
+    id_map = {int(old): new for new, old in enumerate(ids)}
+    ancestor_ids = np.array(
+        [id_map[int(a)] for a in phylogeny_df["ancestor_id"].to_numpy()],
+        dtype=np.int64,
+    )
+    df_base = _make_contiguous_df(ancestor_ids)
+
+    result_base = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        df_base,
+    )
+
+    df_sib = df_base.copy()
+    df_sib = alifestd_mark_first_child_id_asexual(df_sib, mutate=True)
+    df_sib = alifestd_mark_next_sibling_id_asexual(df_sib, mutate=True)
+    result_sib = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        df_sib,
+    )
+
+    assert result_base.tolist() == result_sib.tolist()
