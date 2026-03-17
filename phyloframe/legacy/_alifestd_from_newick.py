@@ -18,6 +18,32 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 
 
+def _pick_id_dtype_for_newick(newick: str) -> np.dtype:
+    """Choose the smallest signed integer dtype for node ids.
+
+    The comma count in a Newick string is used as a proxy for tree size.
+
+    Parameters
+    ----------
+    newick : str
+        A Newick format string.
+
+    Returns
+    -------
+    np.dtype
+        One of np.int8, np.int16, np.int32, or np.int64.
+    """
+    comma_count = newick.count(",")
+    if comma_count <= np.iinfo(np.int8).max:
+        return np.dtype(np.int8)
+    elif comma_count <= np.iinfo(np.int16).max:
+        return np.dtype(np.int16)
+    elif comma_count <= np.iinfo(np.int32).max:
+        return np.dtype(np.int32)
+    else:
+        return np.dtype(np.int64)
+
+
 @jit(nopython=True)
 def _parse_newick_jit(
     chars: np.ndarray,
@@ -364,6 +390,7 @@ def alifestd_from_newick(
     *,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
+    id_dtype: typing.Optional[type] = np.int64,
 ) -> pd.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -382,6 +409,10 @@ def alifestd_from_newick(
         for integer dtypes or ``NaN`` for float dtypes.
     create_ancestor_list : bool, default False
         If True, include an ``ancestor_list`` column in the result.
+    id_dtype : type or None, default np.int64
+        Numpy dtype for the ``id`` and ``ancestor_id`` columns. If None, the
+        smallest signed integer dtype is chosen automatically based on the
+        number of commas in the Newick string.
 
     Returns
     -------
@@ -396,10 +427,15 @@ def alifestd_from_newick(
         Inverse conversion, from alife standard to Newick format.
     """
     newick = newick.strip()
+    if id_dtype is None:
+        resolved_id_dtype = _pick_id_dtype_for_newick(newick)
+    else:
+        resolved_id_dtype = np.dtype(id_dtype)
+
     if not newick:
         columns = {
-            "id": pd.Series(dtype=int),
-            "ancestor_id": pd.Series(dtype=int),
+            "id": pd.Series(dtype=resolved_id_dtype),
+            "ancestor_id": pd.Series(dtype=resolved_id_dtype),
             "taxon_label": pd.Series(dtype=str),
             "origin_time_delta": pd.Series(dtype=float),
             "branch_length": pd.Series(dtype=float),
@@ -417,6 +453,10 @@ def alifestd_from_newick(
         branch_lengths,
         label_start_stops,
     ) = _parse_newick(newick, chars, n, branch_length_dtype)
+
+    # cast id arrays to requested dtype
+    ids = ids.astype(resolved_id_dtype)
+    ancestor_ids = ancestor_ids.astype(resolved_id_dtype)
 
     labels = _extract_labels(newick, chars, label_start_stops)
 

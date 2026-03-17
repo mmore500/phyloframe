@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import pathlib
+import typing
 
 import numpy as np
 import polars as pl
@@ -16,7 +17,15 @@ from ._alifestd_from_newick import (
     _jit_build_label_buffer,
     _jit_parse_branch_lengths,
     _parse_newick_jit,
+    _pick_id_dtype_for_newick,
 )
+
+_np_to_pl_int = {
+    np.dtype(np.int8): pl.Int8,
+    np.dtype(np.int16): pl.Int16,
+    np.dtype(np.int32): pl.Int32,
+    np.dtype(np.int64): pl.Int64,
+}
 
 
 # Performance (as of 2026-03-15, 200k-node caterpillar tree, JIT-warmed):
@@ -28,6 +37,7 @@ def alifestd_from_newick_polars(
     *,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
+    id_dtype: typing.Optional[type] = np.int64,
 ) -> pl.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -46,6 +56,10 @@ def alifestd_from_newick_polars(
         integer dtypes or ``NaN`` for float dtypes.
     create_ancestor_list : bool, default False
         If True, include an ``ancestor_list`` column in the result.
+    id_dtype : type or None, default np.int64
+        Numpy dtype for the ``id`` and ``ancestor_id`` columns. If None, the
+        smallest signed integer dtype is chosen automatically based on the
+        number of commas in the Newick string.
 
     Returns
     -------
@@ -60,10 +74,16 @@ def alifestd_from_newick_polars(
         Inverse conversion, from alife standard to Newick format.
     """
     newick = newick.strip()
+    if id_dtype is None:
+        resolved_id_dtype = _pick_id_dtype_for_newick(newick)
+    else:
+        resolved_id_dtype = np.dtype(id_dtype)
+    pl_id_dtype = _np_to_pl_int[resolved_id_dtype]
+
     if not newick:
         columns = {
-            "id": pl.Series([], dtype=pl.Int64),
-            "ancestor_id": pl.Series([], dtype=pl.Int64),
+            "id": pl.Series([], dtype=pl_id_dtype),
+            "ancestor_id": pl.Series([], dtype=pl_id_dtype),
             "taxon_label": pl.Series([], dtype=pl.Utf8),
             "origin_time_delta": pl.Series([], dtype=pl.Float64),
             "branch_length": pl.Series([], dtype=pl.Float64),
@@ -87,9 +107,9 @@ def alifestd_from_newick_polars(
         num_bls,
     ) = _parse_newick_jit(chars, n)
 
-    # trim to actual sizes
-    ids = ids[:num_nodes]
-    ancestor_ids = ancestor_ids[:num_nodes]
+    # trim to actual sizes and cast to requested id dtype
+    ids = ids[:num_nodes].astype(resolved_id_dtype)
+    ancestor_ids = ancestor_ids[:num_nodes].astype(resolved_id_dtype)
 
     # build labels via JIT byte-copy + pyarrow zero-copy string array
     label_data, label_offsets = _jit_build_label_buffer(
@@ -126,8 +146,8 @@ def alifestd_from_newick_polars(
         otd_series = pl.Series(branch_lengths.copy())
 
     columns = {
-        "id": pl.Series(ids, dtype=pl.Int64),
-        "ancestor_id": pl.Series(ancestor_ids, dtype=pl.Int64),
+        "id": pl.Series(ids, dtype=pl_id_dtype),
+        "ancestor_id": pl.Series(ancestor_ids, dtype=pl_id_dtype),
         "taxon_label": labels_series,
         "origin_time_delta": otd_series,
         "branch_length": bl_series,
@@ -139,8 +159,8 @@ def alifestd_from_newick_polars(
         )
 
         columns["ancestor_list"] = alifestd_make_ancestor_list_col_polars(
-            pl.Series(ids, dtype=pl.Int64),
-            pl.Series(ancestor_ids, dtype=pl.Int64),
+            pl.Series(ids, dtype=pl_id_dtype),
+            pl.Series(ancestor_ids, dtype=pl_id_dtype),
         )
 
     return pl.DataFrame(columns)
