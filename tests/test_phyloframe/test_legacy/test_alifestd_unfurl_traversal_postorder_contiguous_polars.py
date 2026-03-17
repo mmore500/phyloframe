@@ -5,6 +5,8 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_mark_first_child_id_polars,
+    alifestd_mark_next_sibling_id_polars,
     alifestd_unfurl_traversal_postorder_contiguous_polars,
 )
 
@@ -264,3 +266,74 @@ def test_with_ancestor_list_col():
     )
     result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
     assert result.tolist() == [2, 1, 0]
+
+
+def _add_sibling_cols(df: pl.DataFrame) -> pl.DataFrame:
+    """Add first_child_id and next_sibling_id columns."""
+    df = alifestd_mark_first_child_id_polars(df)
+    df = alifestd_mark_next_sibling_id_polars(df)
+    return df
+
+
+def test_with_sibling_cols():
+    """Test that sibling columns trigger the sibling JIT path."""
+    ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
+    df = _add_sibling_cols(_make_contiguous_df(ancestor_ids))
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    assert result.tolist() == [2, 3, 1, 0]
+
+
+def test_with_sibling_cols_star():
+    """Test sibling JIT path with star graph."""
+    df = _add_sibling_cols(
+        _make_contiguous_df(np.array([0, 0, 0, 0, 0], dtype=np.int64)),
+    )
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    assert result.tolist() == [4, 3, 2, 1, 0]
+
+
+@pytest.mark.parametrize(
+    "phylogeny_csv",
+    [
+        "example-standard-toy-asexual-phylogeny.csv",
+        "nk_ecoeaselection.csv",
+        "nk_lexicaseselection.csv",
+        "nk_tournamentselection.csv",
+    ],
+)
+def test_fuzz_with_sibling_cols(phylogeny_csv: str):
+    """Fuzz test using sibling-based JIT path."""
+    phylogeny_df = pl.read_csv(f"{assets_path}/{phylogeny_csv}")
+    if "ancestor_list" in phylogeny_df.columns:
+        phylogeny_df = phylogeny_df.with_columns(
+            ancestor_id=pl.col("ancestor_list")
+            .str.extract(r"(\d+)", 1)
+            .cast(pl.Int64, strict=False)
+            .fill_null(pl.col("id")),
+        )
+
+    phylogeny_df = phylogeny_df.sort("id")
+    ids = phylogeny_df["id"].to_numpy()
+    if not (ids == np.arange(len(ids))).all():
+        id_map = {int(old): new for new, old in enumerate(ids)}
+        ancestor_ids = np.array(
+            [id_map[int(a)] for a in phylogeny_df["ancestor_id"].to_numpy()],
+            dtype=np.int64,
+        )
+        phylogeny_df = _make_contiguous_df(ancestor_ids)
+
+    phylogeny_df = _add_sibling_cols(phylogeny_df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(
+        phylogeny_df,
+    )
+
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+    n = len(ancestor_ids)
+    assert len(result) == n
+    assert set(result) == set(range(n))
+
+    pos = {node: i for i, node in enumerate(result)}
+    for child in range(n):
+        parent = ancestor_ids[child]
+        if child != parent:
+            assert pos[child] < pos[parent]

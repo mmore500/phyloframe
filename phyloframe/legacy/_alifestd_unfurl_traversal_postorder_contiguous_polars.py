@@ -23,6 +23,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
     _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit,
+    _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit,
 )
 
 
@@ -94,6 +95,30 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
         " calculating postorder traversal...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
+
+    # Prefer sibling-based JIT when first_child_id/next_sibling_id available
+    if "first_child_id" in schema_names and "next_sibling_id" in schema_names:
+        first_child_ids = (
+            phylogeny_df.lazy()
+            .select("first_child_id")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+        next_sibling_ids = (
+            phylogeny_df.lazy()
+            .select("next_sibling_id")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+        return _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit(
+            ancestor_ids,
+            first_child_ids,
+            next_sibling_ids,
+        )
+
+    # Fall back to CSR-based JIT
     if "num_children" not in schema_names:
         num_children = _alifestd_mark_num_children_asexual_fast_path(
             ancestor_ids,

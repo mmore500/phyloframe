@@ -221,39 +221,41 @@ def alifestd_unfurl_traversal_preorder_asexual(
         phylogeny_df,
     ) and alifestd_is_topologically_sorted(phylogeny_df):
         ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-        if (
+        has_sibling_cols = (
             "first_child_id" in phylogeny_df.columns
             and "next_sibling_id" in phylogeny_df.columns
-        ):
-            return _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
-                ancestor_ids,
-                phylogeny_df["first_child_id"].to_numpy(),
-                phylogeny_df["next_sibling_id"].to_numpy(),
-            )
-        if "num_children" not in phylogeny_df.columns:
-            num_children = _alifestd_mark_num_children_asexual_fast_path(
-                ancestor_ids,
-            )
-        else:
-            num_children = phylogeny_df["num_children"].to_numpy()
-        if "csr_offsets" in phylogeny_df.columns:
-            csr_offsets = phylogeny_df["csr_offsets"].to_numpy()
-        else:
-            csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
-                ancestor_ids,
-            )
-        if "csr_children" in phylogeny_df.columns:
-            csr_children = phylogeny_df["csr_children"].to_numpy()
-        else:
-            csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+        )
+        # Prefer CSR-based JIT; fall back to sibling when CSR absent
+        if not has_sibling_cols:
+            if "num_children" not in phylogeny_df.columns:
+                num_children = _alifestd_mark_num_children_asexual_fast_path(
+                    ancestor_ids,
+                )
+            else:
+                num_children = phylogeny_df["num_children"].to_numpy()
+            if "csr_offsets" in phylogeny_df.columns:
+                csr_offsets = phylogeny_df["csr_offsets"].to_numpy()
+            else:
+                csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+                    ancestor_ids,
+                )
+            if "csr_children" in phylogeny_df.columns:
+                csr_children = phylogeny_df["csr_children"].to_numpy()
+            else:
+                csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+                    ancestor_ids,
+                    csr_offsets,
+                )
+            return _alifestd_unfurl_traversal_preorder_asexual_jit(
                 ancestor_ids,
                 csr_offsets,
+                csr_children,
+                num_children,
             )
-        return _alifestd_unfurl_traversal_preorder_asexual_jit(
+        return _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
             ancestor_ids,
-            csr_offsets,
-            csr_children,
-            num_children,
+            phylogeny_df["first_child_id"].to_numpy(),
+            phylogeny_df["next_sibling_id"].to_numpy(),
         )
     else:
         return _alifestd_unfurl_traversal_preorder_asexual_slow_path(

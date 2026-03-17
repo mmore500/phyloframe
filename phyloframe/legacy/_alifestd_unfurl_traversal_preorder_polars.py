@@ -23,6 +23,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 from ._alifestd_unfurl_traversal_preorder_asexual import (
     _alifestd_unfurl_traversal_preorder_asexual_jit,
+    _alifestd_unfurl_traversal_preorder_asexual_sibling_jit,
 )
 
 
@@ -93,46 +94,73 @@ def alifestd_unfurl_traversal_preorder_polars(
         " calculating preorder traversal...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    if "num_children" not in schema_names:
-        num_children = _alifestd_mark_num_children_asexual_fast_path(
-            ancestor_ids,
-        )
-    else:
-        num_children = (
-            phylogeny_df.lazy()
-            .select("num_children")
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    if "csr_offsets" not in schema_names:
-        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
-            ancestor_ids,
-        )
-    else:
-        csr_offsets = (
-            phylogeny_df.lazy()
-            .select("csr_offsets")
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    if "csr_children" not in schema_names:
-        csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+
+    # Prefer CSR-based JIT (default path, builds CSR if needed)
+    has_sibling_cols = (
+        "first_child_id" in schema_names and "next_sibling_id" in schema_names
+    )
+    if not has_sibling_cols:
+        if "num_children" not in schema_names:
+            num_children = _alifestd_mark_num_children_asexual_fast_path(
+                ancestor_ids,
+            )
+        else:
+            num_children = (
+                phylogeny_df.lazy()
+                .select("num_children")
+                .collect()
+                .to_series()
+                .to_numpy()
+            )
+        if "csr_offsets" not in schema_names:
+            csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+                ancestor_ids,
+            )
+        else:
+            csr_offsets = (
+                phylogeny_df.lazy()
+                .select("csr_offsets")
+                .collect()
+                .to_series()
+                .to_numpy()
+            )
+        if "csr_children" not in schema_names:
+            csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+                ancestor_ids,
+                csr_offsets,
+            )
+        else:
+            csr_children = (
+                phylogeny_df.lazy()
+                .select("csr_children")
+                .collect()
+                .to_series()
+                .to_numpy()
+            )
+        return _alifestd_unfurl_traversal_preorder_asexual_jit(
             ancestor_ids,
             csr_offsets,
+            csr_children,
+            num_children,
         )
-    else:
-        csr_children = (
-            phylogeny_df.lazy()
-            .select("csr_children")
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    return _alifestd_unfurl_traversal_preorder_asexual_jit(
+
+    # Fall back to sibling-based JIT when CSR columns are absent
+    first_child_ids = (
+        phylogeny_df.lazy()
+        .select("first_child_id")
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    next_sibling_ids = (
+        phylogeny_df.lazy()
+        .select("next_sibling_id")
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    return _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
         ancestor_ids,
-        csr_offsets,
-        csr_children,
-        num_children,
+        first_child_ids,
+        next_sibling_ids,
     )
