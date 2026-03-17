@@ -36,6 +36,9 @@ def alifestd_try_add_ancestor_id_col(
             phylogeny_df["id"], phylogeny_df["ancestor_list"]
         )
 
+    if "ancestor_id" in phylogeny_df:
+        phylogeny_df["ancestor_id"] = phylogeny_df["ancestor_id"].astype(int)
+
     return phylogeny_df
 
 
