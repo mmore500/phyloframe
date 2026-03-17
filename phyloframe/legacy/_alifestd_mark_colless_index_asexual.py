@@ -92,6 +92,7 @@ def alifestd_mark_colless_index_asexual_slow_path(
 def alifestd_mark_colless_index_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "colless_index",
 ) -> pd.DataFrame:
     """Add column `colless_index` with Colless imbalance index for

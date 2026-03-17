@@ -27,6 +27,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_left_child_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "left_child_id",
 ) -> pl.DataFrame:
     """Add column `left_child_id`, containing for each node its smallest-id

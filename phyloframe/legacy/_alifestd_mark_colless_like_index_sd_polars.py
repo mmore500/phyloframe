@@ -27,6 +27,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_colless_like_index_sd_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "colless_like_index_sd",
 ) -> pl.DataFrame:
     """Add column `colless_like_index_sd` with Colless-like index using

@@ -70,6 +70,7 @@ def _alifestd_mark_clade_faithpd_asexual_slow_path(
 def alifestd_mark_clade_faithpd_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "clade_faithpd",
 ) -> pd.DataFrame:
     """Add column `clade_faithpd`, containing sum branch length among

@@ -54,6 +54,7 @@ def _alifestd_mark_num_children_asexual_slow_path(
 def alifestd_mark_num_children_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "num_children",
 ) -> pd.DataFrame:
     """Add column `num_children`, counting for each node the number of nodes it

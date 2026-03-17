@@ -26,7 +26,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 def alifestd_mark_node_depth_polars(
-    phylogeny_df: pl.DataFrame, mark_as: str = "node_depth"
+    phylogeny_df: pl.DataFrame, *, mark_as: str = "node_depth"
 ) -> pl.DataFrame:
     """Add column `node_depth`, counting the number of nodes between a
     node and the root.

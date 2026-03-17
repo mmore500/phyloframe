@@ -24,6 +24,7 @@ from ._alifestd_mark_num_leaves_asexual import alifestd_mark_num_leaves_asexual
 def alifestd_mark_colless_index_corrected_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "colless_index_corrected",
 ) -> pd.DataFrame:
     """Add column `colless_index_corrected` with the corrected Colless

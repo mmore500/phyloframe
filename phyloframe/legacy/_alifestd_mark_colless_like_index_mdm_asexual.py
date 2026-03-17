@@ -227,6 +227,7 @@ def _alifestd_mark_colless_like_index_asexual_impl(
 def alifestd_mark_colless_like_index_mdm_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "colless_like_index_mdm",
 ) -> pd.DataFrame:
     """Add column `colless_like_index_mdm` with Colless-like index

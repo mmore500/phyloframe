@@ -22,6 +22,7 @@ from ._alifestd_mark_ancestor_origin_time_asexual import (
 def alifestd_mark_origin_time_delta_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "origin_time_delta",
 ) -> pd.DataFrame:
     """Add columns `origin_time_delta` and `ancestor_origin_time`.

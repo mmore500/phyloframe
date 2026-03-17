@@ -26,7 +26,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 def alifestd_mark_root_id_polars(
-    phylogeny_df: pl.DataFrame, mark_as: str = "root_id"
+    phylogeny_df: pl.DataFrame, *, mark_as: str = "root_id"
 ) -> pl.DataFrame:
     """Add column `root_id`, containing the `id` of entries' ultimate
     ancestor.

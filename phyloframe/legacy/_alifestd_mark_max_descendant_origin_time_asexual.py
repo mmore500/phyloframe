@@ -69,6 +69,7 @@ def _alifestd_mark_max_descendant_origin_time_asexual_slow_path(
 def alifestd_mark_max_descendant_origin_time_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "max_descendant_origin_time",
 ) -> pd.DataFrame:
     """Add column `max_descendant_origin_time`, excluding self.

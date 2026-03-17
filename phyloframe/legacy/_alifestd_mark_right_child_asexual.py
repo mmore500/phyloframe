@@ -65,6 +65,7 @@ def _alifestd_mark_right_child_asexual_slow_path(
 def alifestd_mark_right_child_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "right_child_id",
 ) -> pd.DataFrame:
     """Add column `right_child`, containing for each node its largest-id child.

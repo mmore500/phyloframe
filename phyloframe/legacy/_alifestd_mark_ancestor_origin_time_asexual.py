@@ -42,6 +42,7 @@ def _alifestd_get_ancestor_origin_time_asexual_contiguous(
 def alifestd_mark_ancestor_origin_time_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "ancestor_origin_time",
 ) -> pd.DataFrame:
     """Add column `ancestor_origin_time`.

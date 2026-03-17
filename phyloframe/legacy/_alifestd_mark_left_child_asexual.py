@@ -65,6 +65,7 @@ def _alifestd_mark_left_child_asexual_slow_path(
 def alifestd_mark_left_child_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "left_child_id",
 ) -> pd.DataFrame:
     """Add column `left_child`, containing for each node its smallest-id child.

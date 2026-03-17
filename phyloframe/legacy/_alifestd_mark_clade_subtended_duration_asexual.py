@@ -24,6 +24,7 @@ from ._alifestd_mark_max_descendant_origin_time_asexual import (
 def alifestd_mark_clade_subtended_duration_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "clade_subtended_duration",
 ) -> pd.DataFrame:
     """Add column `clade_subtended_duration`, containing the difference between each the

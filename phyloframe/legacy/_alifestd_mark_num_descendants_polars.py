@@ -27,6 +27,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_num_descendants_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "num_descendants",
 ) -> pl.DataFrame:
     """Add column `num_descendants`, excluding self.

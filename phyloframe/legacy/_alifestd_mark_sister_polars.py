@@ -36,6 +36,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_sister_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "sister_id",
 ) -> pl.DataFrame:
     """Add column `sister_id`, containing the id of each node's sibling.

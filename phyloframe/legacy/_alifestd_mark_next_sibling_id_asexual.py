@@ -70,6 +70,7 @@ def _alifestd_mark_next_sibling_id_asexual_slow_path(
 def alifestd_mark_next_sibling_id_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "next_sibling_id",
 ) -> pd.DataFrame:
     """Add column `next_sibling_id`, the next-highest id sharing the same

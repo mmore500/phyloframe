@@ -29,6 +29,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_ot_mrca_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "ot_mrca",
 ) -> pl.DataFrame:
     """Appends columns characterizing the Most Recent Common Ancestor

@@ -30,6 +30,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_colless_index_corrected_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "colless_index_corrected",
 ) -> pl.DataFrame:
     """Add column `colless_index_corrected` with the corrected Colless

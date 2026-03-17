@@ -41,6 +41,7 @@ def _alifestd_calc_node_depth_asexual_contiguous(
 def alifestd_mark_node_depth_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "node_depth",
 ) -> pd.DataFrame:
     """Add column `node_depth`, counting the number of nodes between a node

@@ -61,6 +61,7 @@ def _alifestd_mark_num_leaves_asexual_slow_path(
 def alifestd_mark_num_leaves_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "num_leaves",
 ) -> pd.DataFrame:
     """Add column `num_leaves` with count of all descendant leaves, including

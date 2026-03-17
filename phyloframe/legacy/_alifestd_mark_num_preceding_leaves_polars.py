@@ -33,6 +33,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_num_preceding_leaves_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "num_preceding_leaves",
 ) -> pl.DataFrame:
     """Add column `num_preceding_leaves` with count of all leaves occurring

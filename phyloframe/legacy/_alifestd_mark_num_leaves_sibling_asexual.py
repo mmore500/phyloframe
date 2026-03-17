@@ -22,6 +22,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_num_leaves_sibling_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "num_leaves_sibling",
 ) -> pd.DataFrame:
     """Mark the number of leaves descendant from each node's siblings.

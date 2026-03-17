@@ -25,6 +25,7 @@ from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
 
 def alifestd_mark_num_children_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "num_children",
 ) -> pl.DataFrame:
     """Add column `num_children`, counting for each node the number of nodes it

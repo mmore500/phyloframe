@@ -17,7 +17,7 @@ from ._alifestd_mark_num_children_polars import (
 
 
 def alifestd_mark_leaves_polars(
-    phylogeny_df: pl.DataFrame, mark_as: str = "is_leaf"
+    phylogeny_df: pl.DataFrame, *, mark_as: str = "is_leaf"
 ) -> pl.DataFrame:
     """Add column `is_leaf` marking rows that are ancestor to no other row.
 

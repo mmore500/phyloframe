@@ -40,6 +40,7 @@ def alifestd_mark_root_id(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     selector: typing.Callable = min,
+    *,
     mark_as: str = "root_id",
 ) -> pd.DataFrame:
     """Add column `root_id`, containing the `id` of entries' ultimate ancestor.

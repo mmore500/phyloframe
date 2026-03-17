@@ -75,6 +75,7 @@ def _alifestd_mark_num_preceding_leaves_asexual_slow_path(
 def alifestd_mark_num_preceding_leaves_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "num_preceding_leaves",
 ) -> pd.DataFrame:
     """Add column `num_preceding_leaves` with count of all leaves occuring

@@ -64,6 +64,7 @@ def alifestd_mark_sackin_index_asexual_slow_path(
 def alifestd_mark_sackin_index_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "sackin_index",
 ) -> pd.DataFrame:
     """Add column `sackin_index` with Sackin index for each subtree.

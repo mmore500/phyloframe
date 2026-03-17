@@ -20,6 +20,7 @@ from ._alifestd_mark_roots import alifestd_mark_roots
 def alifestd_mark_oldest_root(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "is_oldest_root",
 ) -> pd.DataFrame:
     """Point all other roots to oldest root, measured by lowest `origin_time`

@@ -24,6 +24,7 @@ from ._alifestd_mark_num_leaves_asexual import (
 
 def alifestd_mark_num_leaves_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "num_leaves",
 ) -> pl.DataFrame:
     """Add column `num_leaves` with count of all descendant leaves, including

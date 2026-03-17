@@ -30,6 +30,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_ot_mrca_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "ot_mrca",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> pd.DataFrame:

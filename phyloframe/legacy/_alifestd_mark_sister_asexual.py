@@ -34,6 +34,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_sister_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "sister_id",
 ) -> pd.DataFrame:
     """Add column `sister`, containing the id of each node's sibling.

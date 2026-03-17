@@ -64,6 +64,7 @@ def _alifestd_mark_num_descendants_asexual_slow_path(
 def alifestd_mark_num_descendants_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "num_descendants",
 ) -> pd.DataFrame:
     """Add column `num_descendants`, excluding self.

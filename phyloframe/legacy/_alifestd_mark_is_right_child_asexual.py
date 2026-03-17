@@ -28,6 +28,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def alifestd_mark_is_right_child_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "is_right_child",
 ) -> pd.DataFrame:
     """Add column `is_right_child`, containing for each node whether it is the

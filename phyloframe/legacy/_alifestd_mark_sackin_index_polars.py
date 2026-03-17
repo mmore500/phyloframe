@@ -27,6 +27,7 @@ from ._alifestd_mark_sackin_index_asexual import (
 
 def alifestd_mark_sackin_index_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "sackin_index",
 ) -> pl.DataFrame:
     """Add column `sackin_index` with Sackin index for each subtree.

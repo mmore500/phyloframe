@@ -18,6 +18,7 @@ from ._alifestd_mark_ancestor_origin_time_polars import (
 
 def alifestd_mark_origin_time_delta_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "origin_time_delta",
 ) -> pl.DataFrame:
     """Add columns `origin_time_delta` and `ancestor_origin_time`.

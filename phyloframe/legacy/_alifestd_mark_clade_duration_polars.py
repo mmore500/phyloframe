@@ -18,6 +18,7 @@ from ._alifestd_mark_max_descendant_origin_time_polars import (
 
 def alifestd_mark_clade_duration_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "clade_duration",
 ) -> pl.DataFrame:
     """Add column `clade_duration`, containing the difference between each

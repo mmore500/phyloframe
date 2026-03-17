@@ -24,6 +24,7 @@ from ._alifestd_mark_first_child_id_asexual import (
 
 def alifestd_mark_first_child_id_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "first_child_id",
 ) -> pl.DataFrame:
     """Add column `first_child_id`, the smallest-id child of each node.

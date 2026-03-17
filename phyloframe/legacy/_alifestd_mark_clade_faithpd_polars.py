@@ -30,6 +30,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_clade_faithpd_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "clade_faithpd",
 ) -> pl.DataFrame:
     """Add column `clade_faithpd`, containing sum branch length among

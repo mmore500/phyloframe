@@ -19,7 +19,10 @@ from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 
 
 def alifestd_mark_leaves(
-    phylogeny_df: pd.DataFrame, mutate: bool = False, mark_as: str = "is_leaf"
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    mark_as: str = "is_leaf",
 ) -> pd.DataFrame:
     """What rows are ancestor to no other row?
 

@@ -15,7 +15,7 @@ from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
 
 
 def alifestd_mark_oldest_root_polars(
-    phylogeny_df: pl.DataFrame, mark_as: str = "is_oldest_root"
+    phylogeny_df: pl.DataFrame, *, mark_as: str = "is_oldest_root"
 ) -> pl.DataFrame:
     """Point all other roots to oldest root, measured by lowest
     `origin_time` (if available) or otherwise lowest `id`.

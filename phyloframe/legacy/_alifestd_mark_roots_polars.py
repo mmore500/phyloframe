@@ -17,7 +17,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 def alifestd_mark_roots_polars(
-    phylogeny_df: pl.DataFrame, mark_as: str = "is_root"
+    phylogeny_df: pl.DataFrame, *, mark_as: str = "is_root"
 ) -> pl.DataFrame:
     """Create column `is_root` to mark rows with no ancestor.
 

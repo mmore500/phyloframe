@@ -24,6 +24,7 @@ from ._alifestd_mark_next_sibling_id_asexual import (
 
 def alifestd_mark_next_sibling_id_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "next_sibling_id",
 ) -> pl.DataFrame:
     """Add column `next_sibling_id`, the next-highest id sharing the same

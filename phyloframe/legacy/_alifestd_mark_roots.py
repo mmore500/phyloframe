@@ -19,7 +19,10 @@ from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 
 
 def alifestd_mark_roots(
-    phylogeny_df: pd.DataFrame, mutate: bool = False, mark_as: str = "is_root"
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    mark_as: str = "is_root",
 ) -> pd.DataFrame:
     """Create column `is_root` to mark rows with no ancestor.
 

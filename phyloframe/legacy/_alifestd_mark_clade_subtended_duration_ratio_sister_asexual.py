@@ -27,6 +27,7 @@ from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 def alifestd_mark_clade_subtended_duration_ratio_sister_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
     mark_as: str = "clade_subtended_duration_ratio_sister",
 ) -> pd.DataFrame:
     """Add column `clade_subtended_duration_ratio_sister`, containing the ratio of each

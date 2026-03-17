@@ -33,6 +33,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_colless_index_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "colless_index",
 ) -> pl.DataFrame:
     """Add column `colless_index` with Colless imbalance index for each

@@ -30,6 +30,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_clade_leafcount_ratio_sister_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     mark_as: str = "clade_leafcount_ratio_sister",
 ) -> pl.DataFrame:
     """Add column `clade_leafcount_ratio_sister`, containing the ratio of each
