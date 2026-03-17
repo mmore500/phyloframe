@@ -9,6 +9,12 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_csr_children_asexual import (
+    _alifestd_mark_csr_children_asexual_fast_path,
+)
+from ._alifestd_mark_csr_offsets_asexual import (
+    _alifestd_mark_csr_offsets_asexual_fast_path,
+)
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
@@ -100,7 +106,14 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
             .to_series()
             .to_numpy()
         )
+    csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(ancestor_ids)
+    csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+        ancestor_ids,
+        csr_offsets,
+    )
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
+        csr_offsets,
+        csr_children,
         num_children,
     )

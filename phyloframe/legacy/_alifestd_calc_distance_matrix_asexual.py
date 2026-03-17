@@ -3,10 +3,15 @@ import typing
 import numpy as np
 import pandas as pd
 
-from .._auxlib._build_children_csr import build_children_csr
 from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
+)
+from ._alifestd_mark_csr_children_asexual import (
+    _alifestd_mark_csr_children_asexual_fast_path,
+)
+from ._alifestd_mark_csr_offsets_asexual import (
+    _alifestd_mark_csr_offsets_asexual_fast_path,
 )
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
@@ -18,6 +23,8 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def _calc_distance_matrix_postorder_jit(
     ancestor_ids: np.ndarray,
     criterion_values: np.ndarray,
+    csr_offsets: np.ndarray,
+    csr_children: np.ndarray,
     num_children: np.ndarray,
 ) -> np.ndarray:
     """Compute pairwise distance matrix via postorder traversal.
@@ -33,11 +40,6 @@ def _calc_distance_matrix_postorder_jit(
     result = np.full((n, n), np.nan, dtype=np.float64)
     if n == 0:
         return result
-
-    child_start_csr, children_flat = build_children_csr(
-        ancestor_ids.astype(np.int64),
-        num_children.astype(np.int64),
-    )
 
     # Edge lengths as criterion delta from parent; roots are
     # self-referential so their delta is naturally zero.
@@ -71,16 +73,14 @@ def _calc_distance_matrix_postorder_jit(
 
         while stack_top > 0:
             node = stack[stack_top - 1]
-            cs = child_start_csr[node]
-            ce = child_start_csr[node + 1]
+            cs = csr_offsets[node]
+            ce = csr_offsets[node] + num_children[node]
 
             if not expanded[node] and cs < ce:
                 expanded[node] = True
                 subtree_buf_start[node] = buf_pos
                 n_children = ce - cs
-                stack[stack_top : stack_top + n_children] = children_flat[
-                    cs:ce
-                ]
+                stack[stack_top : stack_top + n_children] = csr_children[cs:ce]
                 stack_top += n_children
             else:
                 stack_top -= 1
@@ -98,7 +98,7 @@ def _calc_distance_matrix_postorder_jit(
                     # 1) Add each child's edge length to its subtree
                     #    distances.
                     for ci in range(cs, ce):
-                        child = children_flat[ci]
+                        child = csr_children[ci]
                         s = seg_start[child]
                         buf_dists[s : s + seg_count[child]] += edge_lengths[
                             child
@@ -106,11 +106,11 @@ def _calc_distance_matrix_postorder_jit(
 
                     # 2) Cross-child pairwise distances.
                     for ci1 in range(cs, ce - 1):
-                        child1 = children_flat[ci1]
+                        child1 = csr_children[ci1]
                         s1 = seg_start[child1]
                         e1 = s1 + seg_count[child1]
                         for ci2 in range(ci1 + 1, ce):
-                            child2 = children_flat[ci2]
+                            child2 = csr_children[ci2]
                             s2 = seg_start[child2]
                             e2 = s2 + seg_count[child2]
                             ids2 = buf_ids[s2:e2]
@@ -144,6 +144,10 @@ def _calc_distance_matrix_postorder_jit(
 def _alifestd_calc_distance_matrix_asexual_fast_path(
     ancestor_ids: np.ndarray,
     criterion_values: np.ndarray,
+    *,
+    csr_offsets: np.ndarray = None,
+    csr_children: np.ndarray = None,
+    num_children: np.ndarray = None,
 ) -> np.ndarray:
     """Shared implementation detail for
     `alifestd_calc_distance_matrix_asexual` and
@@ -156,6 +160,12 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
         Roots are self-referential (ancestor_ids[i] == i).
     criterion_values : np.ndarray
         1-D float64 array of criterion values, indexed by organism id.
+    csr_offsets : np.ndarray, optional
+        Pre-computed CSR offsets.
+    csr_children : np.ndarray, optional
+        Pre-computed flat children array.
+    num_children : np.ndarray, optional
+        Pre-computed child counts.
 
     Returns
     -------
@@ -163,12 +173,24 @@ def _alifestd_calc_distance_matrix_asexual_fast_path(
         n x n float64 matrix of pairwise distances.  Entry [i, j] is NaN
         when organisms i and j share no common ancestor.
     """
-    num_children = _alifestd_mark_num_children_asexual_fast_path(
-        ancestor_ids,
-    )
+    if num_children is None:
+        num_children = _alifestd_mark_num_children_asexual_fast_path(
+            ancestor_ids,
+        )
+    if csr_offsets is None:
+        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+            ancestor_ids,
+        )
+    if csr_children is None:
+        csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+            ancestor_ids.astype(np.int64),
+            csr_offsets,
+        )
     return _calc_distance_matrix_postorder_jit(
         ancestor_ids,
         criterion_values,
+        csr_offsets,
+        csr_children,
         num_children,
     )
 
@@ -235,6 +257,18 @@ def alifestd_calc_distance_matrix_asexual(
         phylogeny_df["id"].to_numpy() == np.arange(len(phylogeny_df))
     )
 
+    kwargs = {}
+    if "num_children" in phylogeny_df.columns:
+        kwargs["num_children"] = phylogeny_df["num_children"].to_numpy()
+    if "csr_offsets" in phylogeny_df.columns:
+        kwargs["csr_offsets"] = (
+            phylogeny_df["csr_offsets"].to_numpy().astype(np.int64)
+        )
+    if "csr_children" in phylogeny_df.columns:
+        kwargs["csr_children"] = (
+            phylogeny_df["csr_children"].to_numpy().astype(np.int64)
+        )
+
     return _alifestd_calc_distance_matrix_asexual_fast_path(
-        ancestor_ids, criterion_values
+        ancestor_ids, criterion_values, **kwargs
     )

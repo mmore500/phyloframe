@@ -1,5 +1,6 @@
 import itertools as it
 import os
+import typing
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,11 @@ from phyloframe.legacy import (
 from phyloframe.legacy import (
     alifestd_find_mrca_id_asexual,
     alifestd_is_chronologically_ordered,
+    alifestd_mark_csr_children_asexual,
+    alifestd_mark_csr_offsets_asexual,
+    alifestd_mark_first_child_id_asexual,
+    alifestd_mark_next_sibling_id_asexual,
+    alifestd_mark_num_children_asexual,
     alifestd_mark_root_id,
     alifestd_to_working_format,
 )
@@ -21,6 +27,24 @@ from ._impl import enforce_dtype_stability_pandas
 alifestd_calc_mrca_id_matrix_asexual = enforce_dtype_stability_pandas(
     alifestd_calc_mrca_id_matrix_asexual_
 )
+
+
+def _prep_noop(df):
+    return df
+
+
+def _prep_csr(df):
+    df = alifestd_mark_num_children_asexual(df, mutate=True)
+    df = alifestd_mark_csr_offsets_asexual(df, mutate=True)
+    df = alifestd_mark_csr_children_asexual(df, mutate=True)
+    return df
+
+
+def _prep_linked_list(df):
+    df = alifestd_mark_first_child_id_asexual(df, mutate=True)
+    df = alifestd_mark_next_sibling_id_asexual(df, mutate=True)
+    return df
+
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
@@ -62,7 +86,17 @@ def make_expected(phylogeny_df: pd.DataFrame) -> np.ndarray:
     "mutate",
     [True, False],
 )
-def test_big1(phylogeny_df: pd.DataFrame, mutate: bool):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_big1(
+    phylogeny_df: pd.DataFrame, mutate: bool, apply: typing.Callable
+):
     phylogeny_df = phylogeny_df.copy()
     assert alifestd_is_chronologically_ordered(phylogeny_df)
     phylogeny_df = alifestd_to_working_format(phylogeny_df)
@@ -70,7 +104,7 @@ def test_big1(phylogeny_df: pd.DataFrame, mutate: bool):
 
     expected = make_expected(phylogeny_df.copy())
     actual = alifestd_calc_mrca_id_matrix_asexual(
-        phylogeny_df,
+        apply(phylogeny_df.copy()),
         mutate=mutate,
         progress_wrap=tqdm,
     )
@@ -81,7 +115,15 @@ def test_big1(phylogeny_df: pd.DataFrame, mutate: bool):
 
 
 @pytest.mark.parametrize("mutate", [True, False])
-def test_simple1(mutate: bool):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_simple1(mutate: bool, apply: typing.Callable):
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -99,11 +141,15 @@ def test_simple1(mutate: bool):
         ],
         dtype=np.int64,
     )
-    res = alifestd_calc_mrca_id_matrix_asexual(phylogeny_df, mutate=mutate)
+    res = alifestd_calc_mrca_id_matrix_asexual(
+        apply(phylogeny_df.copy()), mutate=mutate
+    )
     np.testing.assert_array_equal(res, expected)
 
     # ensure idempotency
-    res = alifestd_calc_mrca_id_matrix_asexual(phylogeny_df, mutate=mutate)
+    res = alifestd_calc_mrca_id_matrix_asexual(
+        apply(phylogeny_df.copy()), mutate=mutate
+    )
     np.testing.assert_array_equal(res, expected)
 
     if not mutate:
