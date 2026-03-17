@@ -22,6 +22,7 @@ from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 def _parse_newick_jit(
     chars: np.ndarray,
     n: int,
+    dtype_id: np.dtype = np.dtype(np.int64),
 ) -> typing.Tuple[
     np.ndarray,
     np.ndarray,
@@ -57,8 +58,8 @@ def _parse_newick_jit(
     max_nodes = 1 + np.sum(node_weight[chars])
 
     # pre-allocate arrays using heuristic size
-    ids = np.empty(max_nodes, dtype=np.int64)
-    ancestor_ids = np.empty(max_nodes, dtype=np.int64)
+    ids = np.empty(max_nodes, dtype=dtype_id)
+    ancestor_ids = np.empty(max_nodes, dtype=dtype_id)
     label_starts = np.zeros(max_nodes, dtype=np.int64)
     label_stops = np.zeros(max_nodes, dtype=np.int64)
     bl_starts = np.empty(max_nodes, dtype=np.int64)
@@ -191,6 +192,7 @@ def _parse_newick(
     chars: np.ndarray,
     n: int,
     branch_length_dtype: type = float,
+    dtype_id: np.dtype = np.dtype(np.int64),
 ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Parse newick string characters into parallel arrays.
 
@@ -215,6 +217,8 @@ def _parse_newick(
         Dtype for branch length parsing. Strings are converted via this
         dtype (providing validation), then stored as float64 with NaN for
         missing values. Callers handle nullable-int conversion.
+    dtype_id : np.dtype, default np.dtype(np.int64)
+        Numpy dtype for ``id`` and ``ancestor_id`` arrays.
 
     Returns
     -------
@@ -235,7 +239,7 @@ def _parse_newick(
         bl_node_ids,
         num_nodes,
         num_bls,
-    ) = _parse_newick_jit(chars, n)
+    ) = _parse_newick_jit(chars, n, dtype_id)
 
     # trim to actual sizes
     ids = ids[:num_nodes]
@@ -427,11 +431,7 @@ def alifestd_from_newick(
         ancestor_ids,
         branch_lengths,
         label_start_stops,
-    ) = _parse_newick(newick, chars, n, branch_length_dtype)
-
-    # cast id arrays to requested dtype
-    ids = ids.astype(resolved_dtype_id)
-    ancestor_ids = ancestor_ids.astype(resolved_dtype_id)
+    ) = _parse_newick(newick, chars, n, branch_length_dtype, resolved_dtype_id)
 
     labels = _extract_labels(newick, chars, label_start_stops)
 

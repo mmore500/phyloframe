@@ -9,6 +9,8 @@ import polars as pl
 import pyarrow as pa
 
 from .._auxlib._configure_prod_logging import configure_prod_logging
+from .._auxlib._pl_dtype_to_np_dtype import pl_dtype_to_np_dtype
+from .._auxlib._pl_min_scalar_type import pl_min_scalar_type
 from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
@@ -68,7 +70,7 @@ def alifestd_from_newick_polars(
     newick = newick.strip()
     if dtype_id is None:
         comma_count = newick.count(",")
-        pl_dtype_id = pl.Series([-max(comma_count, 1)]).shrink_dtype().dtype
+        pl_dtype_id = pl_min_scalar_type(-max(comma_count, 1))
     else:
         pl_dtype_id = dtype_id
 
@@ -87,6 +89,8 @@ def alifestd_from_newick_polars(
     chars = np.frombuffer(newick.encode("ascii"), dtype=np.uint8)
     n = len(chars)
 
+    np_dtype_id = pl_dtype_to_np_dtype(pl_dtype_id)
+
     (
         ids,
         ancestor_ids,
@@ -97,7 +101,7 @@ def alifestd_from_newick_polars(
         bl_node_ids,
         num_nodes,
         num_bls,
-    ) = _parse_newick_jit(chars, n)
+    ) = _parse_newick_jit(chars, n, np_dtype_id)
 
     # trim to actual sizes
     ids = ids[:num_nodes]
