@@ -17,7 +17,6 @@ from ._alifestd_from_newick import (
     _jit_build_label_buffer,
     _jit_parse_branch_lengths,
     _parse_newick_jit,
-    _pick_id_dtype_for_newick,
 )
 
 _np_to_pl_int = {
@@ -75,10 +74,12 @@ def alifestd_from_newick_polars(
     """
     newick = newick.strip()
     if id_dtype is None:
-        resolved_id_dtype = _pick_id_dtype_for_newick(newick)
+        comma_count = newick.count(",")
+        pl_id_dtype = (
+            pl.Series([-max(comma_count, 1)]).shrink_dtype().dtype
+        )
     else:
-        resolved_id_dtype = np.dtype(id_dtype)
-    pl_id_dtype = _np_to_pl_int[resolved_id_dtype]
+        pl_id_dtype = _np_to_pl_int[np.dtype(id_dtype)]
 
     if not newick:
         columns = {
@@ -107,9 +108,9 @@ def alifestd_from_newick_polars(
         num_bls,
     ) = _parse_newick_jit(chars, n)
 
-    # trim to actual sizes and cast to requested id dtype
-    ids = ids[:num_nodes].astype(resolved_id_dtype)
-    ancestor_ids = ancestor_ids[:num_nodes].astype(resolved_id_dtype)
+    # trim to actual sizes
+    ids = ids[:num_nodes]
+    ancestor_ids = ancestor_ids[:num_nodes]
 
     # build labels via JIT byte-copy + pyarrow zero-copy string array
     label_data, label_offsets = _jit_build_label_buffer(
