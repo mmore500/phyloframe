@@ -18,20 +18,20 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_children_flat_asexual import (
-    _alifestd_mark_children_flat_asexual_fast_path,
+from ._alifestd_mark_csr_children_asexual import (
+    _alifestd_mark_csr_children_asexual_fast_path,
 )
 from ._alifestd_mark_csr_offsets_asexual import (
     _alifestd_mark_csr_offsets_asexual_fast_path,
 )
 
 
-def alifestd_mark_children_flat_polars(
+def alifestd_mark_csr_children_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    mark_as: str = "children_flat",
+    mark_as: str = "csr_children",
 ) -> pl.DataFrame:
-    """Add column `children_flat`, a flat array of child ids grouped by parent
+    """Add column `csr_children`, a flat array of child ids grouped by parent
     according to CSR offsets from the `csr_offsets` column.
 
     The output column name can be changed via the ``mark_as`` parameter.
@@ -50,7 +50,7 @@ def alifestd_mark_children_flat_polars(
         )
 
     logging.info(
-        "- alifestd_mark_children_flat_polars: extracting ancestor ids...",
+        "- alifestd_mark_csr_children_polars: extracting ancestor ids...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -62,7 +62,7 @@ def alifestd_mark_children_flat_polars(
 
     if "csr_offsets" in phylogeny_df.lazy().collect_schema().names():
         logging.info(
-            "- alifestd_mark_children_flat_polars: "
+            "- alifestd_mark_csr_children_polars: "
             "using existing csr_offsets column...",
         )
         csr_offsets = (
@@ -75,7 +75,7 @@ def alifestd_mark_children_flat_polars(
         )
     else:
         logging.info(
-            "- alifestd_mark_children_flat_polars: "
+            "- alifestd_mark_csr_children_polars: "
             "computing csr_offsets offsets...",
         )
         csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
@@ -83,22 +83,22 @@ def alifestd_mark_children_flat_polars(
         )
 
     logging.info(
-        "- alifestd_mark_children_flat_polars: "
+        "- alifestd_mark_csr_children_polars: "
         "scattering children into flat array...",
     )
-    children_flat = _alifestd_mark_children_flat_asexual_fast_path(
+    csr_children = _alifestd_mark_csr_children_asexual_fast_path(
         ancestor_ids.astype(np.int64),
         csr_offsets,
     )
 
     return phylogeny_df.with_columns(
-        pl.Series(children_flat).alias(mark_as),
+        pl.Series(csr_children).alias(mark_as),
     )
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column `children_flat`, a flat array of child ids grouped by parent according to CSR offsets.
+Add column `csr_children`, a flat array of child ids grouped by parent according to CSR offsets.
 
 Data is assumed to be in alife standard format.
 
@@ -119,14 +119,14 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_mark_children_flat_polars",
+        dfcli_module="phyloframe.legacy._alifestd_mark_csr_children_polars",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
         "--mark-as",
-        default="children_flat",
+        default="csr_children",
         type=str,
-        help="output column name (default: children_flat)",
+        help="output column name (default: csr_children)",
     )
     return parser
 
@@ -139,13 +139,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_children_flat_polars",
+            "phyloframe.legacy._alifestd_mark_csr_children_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_mark_children_flat_polars, mark_as=args.mark_as
+                    alifestd_mark_csr_children_polars, mark_as=args.mark_as
                 ),
             )
     except NotImplementedError as e:

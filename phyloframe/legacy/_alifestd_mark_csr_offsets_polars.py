@@ -28,7 +28,7 @@ def alifestd_mark_csr_offsets_polars(
     mark_as: str = "csr_offsets",
 ) -> pl.DataFrame:
     """Add column `csr_offsets`, the CSR offset where each node's children
-    begin in the corresponding `children_flat` array.
+    begin in the corresponding `csr_children` array.
 
     The output column name can be changed via the ``mark_as`` parameter.
     """
@@ -68,7 +68,7 @@ def alifestd_mark_csr_offsets_polars(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column `csr_offsets`, the CSR offset where each node's children begin in the corresponding `children_flat` array.
+Add column `csr_offsets`, the CSR offset where each node's children begin in the corresponding `csr_children` array.
 
 Data is assumed to be in alife standard format.
 

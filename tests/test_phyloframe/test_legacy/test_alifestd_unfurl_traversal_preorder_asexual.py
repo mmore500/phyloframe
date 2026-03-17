@@ -1,4 +1,5 @@
 import os
+import typing
 
 import pandas as pd
 import pytest
@@ -7,6 +8,11 @@ from phyloframe.legacy import (
     alifestd_find_leaf_ids,
     alifestd_find_root_ids,
     alifestd_make_empty,
+    alifestd_mark_csr_children_asexual,
+    alifestd_mark_csr_offsets_asexual,
+    alifestd_mark_first_child_id_asexual,
+    alifestd_mark_next_sibling_id_asexual,
+    alifestd_mark_num_children_asexual,
 )
 from phyloframe.legacy import (
     alifestd_unfurl_traversal_preorder_asexual as alifestd_unfurl_traversal_preorder_asexual_,
@@ -23,6 +29,23 @@ def is_nonincreasing(seq):
     return all(a >= b for a, b in zip(seq, seq[1:]))
 
 
+def _prep_noop(df):
+    return df
+
+
+def _prep_csr(df):
+    df = alifestd_mark_num_children_asexual(df, mutate=True)
+    df = alifestd_mark_csr_offsets_asexual(df, mutate=True)
+    df = alifestd_mark_csr_children_asexual(df, mutate=True)
+    return df
+
+
+def _prep_linked_list(df):
+    df = alifestd_mark_first_child_id_asexual(df, mutate=True)
+    df = alifestd_mark_next_sibling_id_asexual(df, mutate=True)
+    return df
+
+
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
@@ -37,10 +60,20 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
     ],
 )
-def test_fuzz(phylogeny_df: pd.DataFrame):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_fuzz(phylogeny_df: pd.DataFrame, apply: typing.Callable):
     original = phylogeny_df.copy()
 
-    result = alifestd_unfurl_traversal_preorder_asexual(phylogeny_df)
+    result = alifestd_unfurl_traversal_preorder_asexual(
+        apply(phylogeny_df.copy())
+    )
 
     assert original.equals(phylogeny_df)
 
@@ -69,7 +102,15 @@ def test_empty():
 
 
 @pytest.mark.parametrize("mutate", [True, False])
-def test_simple1(mutate: bool):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_simple1(mutate: bool, apply: typing.Callable):
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -78,7 +119,7 @@ def test_simple1(mutate: bool):
     )
     original_df = phylogeny_df.copy()
     result = alifestd_unfurl_traversal_preorder_asexual(
-        phylogeny_df,
+        apply(phylogeny_df.copy()),
         mutate=mutate,
     )
     assert result.tolist() == [0, 1, 2]
@@ -130,7 +171,15 @@ def test_simple3(mutate: bool):
 
 
 @pytest.mark.parametrize("mutate", [True, False])
-def test_simple4(mutate: bool):
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+def test_simple4(mutate: bool, apply: typing.Callable):
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -139,7 +188,7 @@ def test_simple4(mutate: bool):
     )
     original_df = phylogeny_df.copy()
     result = alifestd_unfurl_traversal_preorder_asexual(
-        phylogeny_df,
+        apply(phylogeny_df.copy()),
         mutate=mutate,
     )
     # Tree: 0 -> {1, 2}, 1 -> {3}

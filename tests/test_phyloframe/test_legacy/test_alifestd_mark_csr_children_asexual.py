@@ -7,7 +7,7 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 from phyloframe.legacy import (
-    alifestd_mark_children_flat_asexual as alifestd_mark_children_flat_asexual_,
+    alifestd_mark_csr_children_asexual as alifestd_mark_csr_children_asexual_,
 )
 from phyloframe.legacy import (
     alifestd_mark_csr_offsets_asexual,
@@ -17,8 +17,8 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mark_children_flat_asexual = enforce_dtype_stability_pandas(
-    alifestd_mark_children_flat_asexual_
+alifestd_mark_csr_children_asexual = enforce_dtype_stability_pandas(
+    alifestd_mark_csr_children_asexual_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
@@ -28,7 +28,7 @@ def _get_children(result_df, node_id):
     """Helper: extract children of a node from CSR columns."""
     start = result_df.loc[node_id, "csr_offsets"]
     nc = result_df.loc[node_id, "num_children"]
-    flat = result_df["children_flat"].tolist()
+    flat = result_df["csr_children"].tolist()
     return flat[start : start + nc]
 
 
@@ -48,7 +48,7 @@ def test_fuzz(phylogeny_df: pd.DataFrame):
 
     result = alifestd_mark_num_children_asexual(phylogeny_df)
     result = alifestd_mark_csr_offsets_asexual(result, mutate=True)
-    result = alifestd_mark_children_flat_asexual(result, mutate=True)
+    result = alifestd_mark_csr_children_asexual(result, mutate=True)
 
     assert alifestd_validate(result)
     assert original.equals(phylogeny_df)
@@ -68,8 +68,8 @@ def test_fuzz(phylogeny_df: pd.DataFrame):
 
 
 def test_empty():
-    res = alifestd_mark_children_flat_asexual(alifestd_make_empty())
-    assert "children_flat" in res
+    res = alifestd_mark_csr_children_asexual(alifestd_make_empty())
+    assert "csr_children" in res
     assert len(res) == 0
 
 
@@ -85,13 +85,13 @@ def test_simple_chain(mutate: bool):
     original_df = phylogeny_df.copy()
     result_df = alifestd_mark_num_children_asexual(phylogeny_df)
     result_df = alifestd_mark_csr_offsets_asexual(result_df, mutate=True)
-    result_df = alifestd_mark_children_flat_asexual(
+    result_df = alifestd_mark_csr_children_asexual(
         result_df,
         mutate=mutate,
     )
     # csr_offsets: [0, 1, 2], num_children: [1, 1, 0]
-    # children_flat: [1, 2, ...]  (3rd entry unused)
-    flat = result_df["children_flat"].tolist()
+    # csr_children: [1, 2, ...]  (3rd entry unused)
+    flat = result_df["csr_children"].tolist()
     assert flat[0] == 1  # child of node 0
     assert flat[1] == 2  # child of node 1
 
@@ -117,11 +117,11 @@ def test_simple_tree(mutate: bool):
     original_df = phylogeny_df.copy()
     result_df = alifestd_mark_num_children_asexual(phylogeny_df)
     result_df = alifestd_mark_csr_offsets_asexual(result_df, mutate=True)
-    result_df = alifestd_mark_children_flat_asexual(
+    result_df = alifestd_mark_csr_children_asexual(
         result_df,
         mutate=mutate,
     )
-    flat = result_df["children_flat"].tolist()
+    flat = result_df["csr_children"].tolist()
     # node 0's children at [0:2]: {1, 2}
     assert set(flat[0:2]) == {1, 2}
     # node 1's children at [2:4]: {3, 4}
@@ -139,11 +139,11 @@ def test_single_root(mutate: bool):
             "ancestor_list": ["[None]"],
         }
     )
-    result_df = alifestd_mark_children_flat_asexual(
+    result_df = alifestd_mark_csr_children_asexual(
         phylogeny_df,
         mutate=mutate,
     )
-    assert "children_flat" in result_df.columns
+    assert "csr_children" in result_df.columns
 
 
 @pytest.mark.parametrize("mutate", [True, False])
@@ -164,18 +164,18 @@ def test_star_topology(mutate: bool):
     )
     result_df = alifestd_mark_num_children_asexual(phylogeny_df)
     result_df = alifestd_mark_csr_offsets_asexual(result_df, mutate=True)
-    result_df = alifestd_mark_children_flat_asexual(
+    result_df = alifestd_mark_csr_children_asexual(
         result_df,
         mutate=mutate,
     )
-    flat = result_df["children_flat"].tolist()
+    flat = result_df["csr_children"].tolist()
     # node 0's children at [0:5]: {1, 2, 3, 4, 5}
     assert set(flat[0:5]) == {1, 2, 3, 4, 5}
 
 
 @pytest.mark.parametrize("mutate", [True, False])
 def test_uses_existing_csr_offsets(mutate: bool):
-    """Verify children_flat uses existing csr_offsets column if present."""
+    """Verify csr_children uses existing csr_offsets column if present."""
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -183,10 +183,10 @@ def test_uses_existing_csr_offsets(mutate: bool):
         }
     )
     result_df = alifestd_mark_csr_offsets_asexual(phylogeny_df)
-    result_df = alifestd_mark_children_flat_asexual(
+    result_df = alifestd_mark_csr_children_asexual(
         result_df,
         mutate=mutate,
     )
-    flat = result_df["children_flat"].tolist()
+    flat = result_df["csr_children"].tolist()
     assert flat[0] == 1
     assert flat[1] == 2

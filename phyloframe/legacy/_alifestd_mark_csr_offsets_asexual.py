@@ -27,7 +27,7 @@ def _alifestd_mark_csr_offsets_asexual_fast_path(
     """Implementation detail for `alifestd_mark_csr_offsets_asexual`.
 
     Returns array where each node's value is the CSR offset where its children
-    begin in the corresponding `children_flat` array. Length n.
+    begin in the corresponding `csr_children` array. Length n.
     """
     n = len(ancestor_ids)
     num_children = np.bincount(ancestor_ids.astype(np.intp), minlength=n)
@@ -78,7 +78,7 @@ def alifestd_mark_csr_offsets_asexual(
     mark_as: str = "csr_offsets",
 ) -> pd.DataFrame:
     """Add column `csr_offsets`, the CSR offset where each node's children
-    begin in the corresponding `children_flat` array.
+    begin in the corresponding `csr_children` array.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -112,7 +112,7 @@ def alifestd_mark_csr_offsets_asexual(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column `csr_offsets`, the CSR offset where each node's children begin in the corresponding `children_flat` array.
+Add column `csr_offsets`, the CSR offset where each node's children begin in the corresponding `csr_children` array.
 
 Data is assumed to be in alife standard format.
 

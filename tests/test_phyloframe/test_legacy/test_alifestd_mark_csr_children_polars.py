@@ -6,23 +6,22 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_mark_children_flat_asexual,
+    alifestd_mark_csr_children_asexual,
     alifestd_mark_csr_offsets_asexual,
     alifestd_mark_num_children_asexual,
     alifestd_to_working_format,
 )
-from phyloframe.legacy._alifestd_mark_children_flat_polars import (
-    alifestd_mark_children_flat_polars as alifestd_mark_children_flat_polars_,
+from phyloframe.legacy._alifestd_mark_csr_children_polars import (
+    alifestd_mark_csr_children_polars as alifestd_mark_csr_children_polars_,
 )
 from phyloframe.legacy._alifestd_mark_csr_offsets_polars import (
     alifestd_mark_csr_offsets_polars,
 )
 
-
 from ._impl import enforce_dtype_stability_polars
 
-alifestd_mark_children_flat_polars = enforce_dtype_stability_polars(
-    alifestd_mark_children_flat_polars_
+alifestd_mark_csr_children_polars = enforce_dtype_stability_polars(
+    alifestd_mark_csr_children_polars_
 )
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
@@ -54,16 +53,16 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_fuzz(
+def test_alifestd_mark_csr_children_polars_fuzz(
     phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
-    """Verify children_flat column is correctly added."""
+    """Verify csr_children column is correctly added."""
     df_prepared = pl.from_pandas(phylogeny_df)
     df_pl = apply(df_prepared)
 
-    result = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
+    result = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
 
-    assert "children_flat" in result.columns
+    assert "csr_children" in result.columns
     assert len(result) == len(df_prepared)
 
     assert result["id"].to_list() == df_prepared["id"].to_list()
@@ -95,19 +94,19 @@ def test_alifestd_mark_children_flat_polars_fuzz(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_matches_pandas(
+def test_alifestd_mark_csr_children_polars_matches_pandas(
     phylogeny_df: pd.DataFrame, apply: typing.Callable
 ):
     """Verify polars result matches pandas result."""
     result_pd = alifestd_mark_num_children_asexual(phylogeny_df, mutate=False)
     result_pd = alifestd_mark_csr_offsets_asexual(result_pd, mutate=True)
-    result_pd = alifestd_mark_children_flat_asexual(result_pd, mutate=True)
+    result_pd = alifestd_mark_csr_children_asexual(result_pd, mutate=True)
 
     df_pl = apply(pl.from_pandas(phylogeny_df))
-    result_pl = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
+    result_pl = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
 
-    assert result_pd["children_flat"].tolist() == (
-        result_pl["children_flat"].to_list()
+    assert result_pd["csr_children"].tolist() == (
+        result_pl["csr_children"].to_list()
     )
 
 
@@ -118,7 +117,7 @@ def test_alifestd_mark_children_flat_polars_matches_pandas(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_simple_chain(
+def test_alifestd_mark_csr_children_polars_simple_chain(
     apply: typing.Callable,
 ):
     """Test a simple chain: 0 -> 1 -> 2."""
@@ -131,8 +130,8 @@ def test_alifestd_mark_children_flat_polars_simple_chain(
         ),
     )
 
-    result = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
-    flat = result["children_flat"].to_list()
+    result = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
+    flat = result["csr_children"].to_list()
 
     assert flat[0] == 1  # child of node 0
     assert flat[1] == 2  # child of node 1
@@ -145,7 +144,7 @@ def test_alifestd_mark_children_flat_polars_simple_chain(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_simple_tree(
+def test_alifestd_mark_csr_children_polars_simple_tree(
     apply: typing.Callable,
 ):
     """Test a simple tree.
@@ -166,8 +165,8 @@ def test_alifestd_mark_children_flat_polars_simple_tree(
         ),
     )
 
-    result = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
-    flat = result["children_flat"].to_list()
+    result = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
+    flat = result["csr_children"].to_list()
 
     # node 0's children at [0:2]: {1, 2}
     assert set(flat[0:2]) == {1, 2}
@@ -182,7 +181,7 @@ def test_alifestd_mark_children_flat_polars_simple_tree(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_single_node(
+def test_alifestd_mark_csr_children_polars_single_node(
     apply: typing.Callable,
 ):
     """A single root node."""
@@ -195,9 +194,9 @@ def test_alifestd_mark_children_flat_polars_single_node(
         ),
     )
 
-    result = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
+    result = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
 
-    assert "children_flat" in result.columns
+    assert "csr_children" in result.columns
 
 
 @pytest.mark.parametrize(
@@ -207,8 +206,8 @@ def test_alifestd_mark_children_flat_polars_single_node(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_empty(apply: typing.Callable):
-    """Empty dataframe gets children_flat column."""
+def test_alifestd_mark_csr_children_polars_empty(apply: typing.Callable):
+    """Empty dataframe gets csr_children column."""
     df_pl = apply(
         pl.DataFrame(
             {"id": [], "ancestor_id": []},
@@ -216,9 +215,9 @@ def test_alifestd_mark_children_flat_polars_empty(apply: typing.Callable):
         ),
     )
 
-    result = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
+    result = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
 
-    assert "children_flat" in result.columns
+    assert "csr_children" in result.columns
     assert result.is_empty()
 
 
@@ -229,7 +228,7 @@ def test_alifestd_mark_children_flat_polars_empty(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_non_contiguous_ids(
+def test_alifestd_mark_csr_children_polars_non_contiguous_ids(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for non-contiguous ids."""
@@ -242,7 +241,7 @@ def test_alifestd_mark_children_flat_polars_non_contiguous_ids(
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_children_flat_polars(df_pl).lazy().collect()
+        alifestd_mark_csr_children_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -252,7 +251,7 @@ def test_alifestd_mark_children_flat_polars_non_contiguous_ids(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_unsorted(
+def test_alifestd_mark_csr_children_polars_unsorted(
     apply: typing.Callable,
 ):
     """Verify NotImplementedError for topologically unsorted data."""
@@ -265,7 +264,7 @@ def test_alifestd_mark_children_flat_polars_unsorted(
         ),
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_children_flat_polars(df_pl).lazy().collect()
+        alifestd_mark_csr_children_polars(df_pl).lazy().collect()
 
 
 @pytest.mark.parametrize(
@@ -275,7 +274,7 @@ def test_alifestd_mark_children_flat_polars_unsorted(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_star_topology(
+def test_alifestd_mark_csr_children_polars_star_topology(
     apply: typing.Callable,
 ):
     """Root with many direct children."""
@@ -288,8 +287,8 @@ def test_alifestd_mark_children_flat_polars_star_topology(
         ),
     )
 
-    result = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
-    flat = result["children_flat"].to_list()
+    result = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
+    flat = result["csr_children"].to_list()
 
     # node 0's children at [0:5]: {1, 2, 3, 4, 5}
     assert set(flat[0:5]) == {1, 2, 3, 4, 5}
@@ -302,7 +301,7 @@ def test_alifestd_mark_children_flat_polars_star_topology(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_mark_children_flat_polars_uses_existing_csr_offsets(
+def test_alifestd_mark_csr_children_polars_uses_existing_csr_offsets(
     apply: typing.Callable,
 ):
     """If csr_offsets already exists, it should be used directly."""
@@ -315,8 +314,8 @@ def test_alifestd_mark_children_flat_polars_uses_existing_csr_offsets(
     df_pl = alifestd_mark_csr_offsets_polars(df_pl)
     df_pl = apply(df_pl)
 
-    result = alifestd_mark_children_flat_polars(df_pl).lazy().collect()
-    flat = result["children_flat"].to_list()
+    result = alifestd_mark_csr_children_polars(df_pl).lazy().collect()
+    flat = result["csr_children"].to_list()
 
     assert flat[0] == 1
     assert flat[1] == 2

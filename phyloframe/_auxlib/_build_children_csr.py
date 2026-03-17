@@ -24,7 +24,7 @@ def build_children_csr(
     -------
     child_start : np.ndarray
         CSR offset array of length n+1.
-    children_flat : np.ndarray
+    csr_children : np.ndarray
         Flat array of child ids, grouped by parent.
     """
     n = len(ancestor_ids)
@@ -33,11 +33,11 @@ def build_children_csr(
     for i, cc in enumerate(num_children):
         child_start[i + 1] = child_start[i] + cc
 
-    children_flat = np.empty(n, dtype=np.int64)
+    csr_children = np.empty(n, dtype=np.int64)
     insert_pos = child_start[:-1].copy()
     for i, p in enumerate(ancestor_ids):
         if p != i:
-            children_flat[insert_pos[p]] = i
+            csr_children[insert_pos[p]] = i
             insert_pos[p] += 1
 
-    return child_start, children_flat
+    return child_start, csr_children

@@ -1,10 +1,16 @@
 import os
+import typing
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_mark_csr_children_asexual,
+    alifestd_mark_csr_offsets_asexual,
+    alifestd_mark_first_child_id_asexual,
+    alifestd_mark_next_sibling_id_asexual,
+    alifestd_mark_num_children_asexual,
     alifestd_unfurl_traversal_postorder_contiguous_asexual,
 )
 
@@ -22,26 +28,57 @@ def _make_contiguous_df(ancestor_ids) -> pd.DataFrame:
     )
 
 
-def test_empty():
+def _prep_noop(df):
+    return df
+
+
+def _prep_csr(df):
+    df = alifestd_mark_num_children_asexual(df, mutate=True)
+    df = alifestd_mark_csr_offsets_asexual(df, mutate=True)
+    df = alifestd_mark_csr_children_asexual(df, mutate=True)
+    return df
+
+
+def _prep_linked_list(df):
+    df = alifestd_mark_first_child_id_asexual(df, mutate=True)
+    df = alifestd_mark_next_sibling_id_asexual(df, mutate=True)
+    return df
+
+
+_prep_params = pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(_prep_noop, id="no-precompute"),
+        pytest.param(_prep_csr, id="csr"),
+        pytest.param(_prep_linked_list, id="linked-list"),
+    ],
+)
+
+
+@_prep_params
+def test_empty(apply: typing.Callable):
     df = _make_contiguous_df(np.array([], dtype=np.int64))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     assert len(result) == 0
 
 
-def test_single_node():
+@_prep_params
+def test_single_node(apply: typing.Callable):
     df = _make_contiguous_df(np.array([0]))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     assert result.tolist() == [0]
 
 
-def test_chain():
+@_prep_params
+def test_chain(apply: typing.Callable):
     """Linear chain: 0 -> 1 -> 2."""
     df = _make_contiguous_df(np.array([0, 0, 1]))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     assert result.tolist() == [2, 1, 0]
 
 
-def test_simple_branching():
+@_prep_params
+def test_simple_branching(apply: typing.Callable):
     """Tree: 0 -> {1, 2}, 1 -> {3}.
 
     DFS visits children in ascending id order (highest-id on top of stack,
@@ -51,38 +88,42 @@ def test_simple_branching():
     Result: [2, 3, 1, 0]
     """
     df = _make_contiguous_df(np.array([0, 0, 0, 1]))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     assert result.tolist() == [2, 3, 1, 0]
 
 
-def test_simple4():
+@_prep_params
+def test_simple4(apply: typing.Callable):
     """Tree: 0 -> {1, 2, 4}, 1 -> {3}.
 
     Children of 0 visited as: 4, 2, then subtree of 1 (3, 1).
     Result: [4, 2, 3, 1, 0]
     """
     df = _make_contiguous_df(np.array([0, 0, 0, 1, 0]))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     assert result.tolist() == [4, 2, 3, 1, 0]
 
 
-def test_multi_root():
+@_prep_params
+def test_multi_root(apply: typing.Callable):
     """Two roots: 0 -> {2}, 1 -> {3}."""
     df = _make_contiguous_df(np.array([0, 1, 0, 1]))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     # Root 0 processed first, then root 1
     assert result.tolist() == [2, 0, 3, 1]
 
 
-def test_star():
+@_prep_params
+def test_star(apply: typing.Callable):
     """Star graph: root 0 with children 1, 2, 3, 4."""
     df = _make_contiguous_df(np.array([0, 0, 0, 0, 0]))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     # Highest-id child on top of stack, processed first
     assert result.tolist() == [4, 3, 2, 1, 0]
 
 
-def test_deep_tree():
+@_prep_params
+def test_deep_tree(apply: typing.Callable):
     """Caterpillar: 0 -> 1 -> 2 -> ... -> 9."""
     n = 10
     ancestor_ids = np.arange(n, dtype=np.int64)
@@ -91,17 +132,18 @@ def test_deep_tree():
         ancestor_ids[i] = i - 1
 
     df = _make_contiguous_df(ancestor_ids)
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     assert result.tolist() == list(range(n - 1, -1, -1))
 
 
-def test_subtree_contiguity():
+@_prep_params
+def test_subtree_contiguity(apply: typing.Callable):
     """Verify that each subtree's nodes are contiguous in the result.
 
     Tree: 0 -> {1, 2}, 1 -> {3, 4}, 2 -> {5}.
     """
     df = _make_contiguous_df(np.array([0, 0, 0, 1, 1, 2]))
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
 
     result_list = result.tolist()
 
@@ -118,11 +160,12 @@ def test_subtree_contiguity():
     assert result_list.index(1) > result_list.index(4)
 
 
-def test_valid_postorder():
+@_prep_params
+def test_valid_postorder(apply: typing.Callable):
     """Every node must appear after all its descendants."""
     ancestor_ids = np.array([0, 0, 0, 1, 1, 2])
     df = _make_contiguous_df(ancestor_ids)
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
     result_list = result.tolist()
     pos = {node: i for i, node in enumerate(result_list)}
 
@@ -156,7 +199,8 @@ def test_mutate(mutate: bool):
         "nk_tournamentselection.csv",
     ],
 )
-def test_fuzz(phylogeny_csv: str):
+@_prep_params
+def test_fuzz(phylogeny_csv: str, apply: typing.Callable):
     phylogeny_df = pd.read_csv(f"{assets_path}/{phylogeny_csv}")
 
     # Sort by id and remap to contiguous 0..n-1
@@ -172,7 +216,7 @@ def test_fuzz(phylogeny_csv: str):
     )
     df = _make_contiguous_df(ancestor_ids)
 
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
 
     n = len(ancestor_ids)
     assert len(result) == n

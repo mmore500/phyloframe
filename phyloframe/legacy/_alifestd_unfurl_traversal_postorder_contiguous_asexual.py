@@ -4,8 +4,8 @@ import pandas as pd
 from .._auxlib._jit import jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
-from ._alifestd_mark_children_flat_asexual import (
-    _alifestd_mark_children_flat_asexual_fast_path,
+from ._alifestd_mark_csr_children_asexual import (
+    _alifestd_mark_csr_children_asexual_fast_path,
 )
 from ._alifestd_mark_csr_offsets_asexual import (
     _alifestd_mark_csr_offsets_asexual_fast_path,
@@ -90,7 +90,7 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit(
 def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
     ancestor_ids: np.ndarray,
     csr_offsets: np.ndarray,
-    children_flat: np.ndarray,
+    csr_children: np.ndarray,
     num_children: np.ndarray,
 ) -> np.ndarray:
     """Return DFS postorder traversal indices for contiguous, sorted phylogeny.
@@ -105,7 +105,7 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         and topologically sorted.
     csr_offsets : np.ndarray
         CSR offset array of length n.
-    children_flat : np.ndarray
+    csr_children : np.ndarray
         Flat array of child ids, grouped by parent.
     num_children : np.ndarray
         Array of child counts per node.
@@ -143,7 +143,7 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
                 expanded[node] = True
                 # Push children; ascending id order means highest-id on top
                 for ci in range(c_start, c_end):
-                    stack[stack_top] = children_flat[ci]
+                    stack[stack_top] = csr_children[ci]
                     stack_top += 1
             else:
                 stack_top -= 1
@@ -210,22 +210,22 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
         csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
             ancestor_ids,
         )
-    if "children_flat" in phylogeny_df.columns:
-        children_flat = (
-            phylogeny_df["children_flat"]
+    if "csr_children" in phylogeny_df.columns:
+        csr_children = (
+            phylogeny_df["csr_children"]
             .to_numpy()
             .astype(
                 np.int64,
             )
         )
     else:
-        children_flat = _alifestd_mark_children_flat_asexual_fast_path(
+        csr_children = _alifestd_mark_csr_children_asexual_fast_path(
             ancestor_ids.astype(np.int64),
             csr_offsets,
         )
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
         csr_offsets,
-        children_flat,
+        csr_children,
         num_children,
     )

@@ -26,33 +26,33 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _alifestd_mark_children_flat_asexual_fast_path(
+def _alifestd_mark_csr_children_asexual_fast_path(
     ancestor_ids: np.ndarray,
     csr_offsets: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mark_children_flat_asexual`.
+    """Implementation detail for `alifestd_mark_csr_children_asexual`.
 
     Returns flat array of child ids grouped by parent, ordered according
     to CSR offsets given by `csr_offsets`. Length n; entries beyond the
     total number of non-root nodes are unused.
     """
     n = len(ancestor_ids)
-    children_flat = np.full(n, -1, dtype=np.int64)
+    csr_children = np.full(n, -1, dtype=np.int64)
     insert_pos = csr_offsets.copy()
     for i in range(n):
         p = ancestor_ids[i]
         if p != i:
-            children_flat[insert_pos[p]] = i
+            csr_children[insert_pos[p]] = i
             insert_pos[p] += 1
 
-    return children_flat
+    return csr_children
 
 
-def _alifestd_mark_children_flat_asexual_slow_path(
+def _alifestd_mark_csr_children_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
-    mark_as: str = "children_flat",
+    mark_as: str = "csr_children",
 ) -> pd.DataFrame:
-    """Implementation detail for `alifestd_mark_children_flat_asexual`."""
+    """Implementation detail for `alifestd_mark_csr_children_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
 
     # Count children per node to build offsets
@@ -75,26 +75,26 @@ def _alifestd_mark_children_flat_asexual_slow_path(
         offset += child_counts[nid]
 
     # Scatter children
-    children_flat = [0] * n
+    csr_children = [0] * n
     insert_pos = dict(start_map)
     for idx in phylogeny_df.index:
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
         if ancestor_id != idx:
-            children_flat[insert_pos[ancestor_id]] = idx
+            csr_children[insert_pos[ancestor_id]] = idx
             insert_pos[ancestor_id] += 1
 
-    phylogeny_df[mark_as] = children_flat
+    phylogeny_df[mark_as] = csr_children
 
     return phylogeny_df
 
 
-def alifestd_mark_children_flat_asexual(
+def alifestd_mark_csr_children_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    mark_as: str = "children_flat",
+    mark_as: str = "csr_children",
 ) -> pd.DataFrame:
-    """Add column `children_flat`, a flat array of child ids grouped by parent
+    """Add column `csr_children`, a flat array of child ids grouped by parent
     according to CSR offsets from the `csr_offsets` column.
 
     The output column name can be changed via the ``mark_as`` parameter.
@@ -133,13 +133,13 @@ def alifestd_mark_children_flat_asexual(
             csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
                 ancestor_ids,
             )
-        phylogeny_df[mark_as] = _alifestd_mark_children_flat_asexual_fast_path(
+        phylogeny_df[mark_as] = _alifestd_mark_csr_children_asexual_fast_path(
             ancestor_ids.astype(np.int64),
             csr_offsets,
         )
         return phylogeny_df
     else:
-        return _alifestd_mark_children_flat_asexual_slow_path(
+        return _alifestd_mark_csr_children_asexual_slow_path(
             phylogeny_df,
             mark_as=mark_as,
         )
@@ -147,7 +147,7 @@ def alifestd_mark_children_flat_asexual(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column `children_flat`, a flat array of child ids grouped by parent according to CSR offsets.
+Add column `csr_children`, a flat array of child ids grouped by parent according to CSR offsets.
 
 Data is assumed to be in alife standard format.
 
@@ -168,14 +168,14 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_mark_children_flat_asexual",
+        dfcli_module="phyloframe.legacy._alifestd_mark_csr_children_asexual",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
         "--mark-as",
-        default="children_flat",
+        default="csr_children",
         type=str,
-        help="output column name (default: children_flat)",
+        help="output column name (default: csr_children)",
     )
     return parser
 
@@ -186,14 +186,14 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
     with log_context_duration(
-        "phyloframe.legacy._alifestd_mark_children_flat_asexual",
+        "phyloframe.legacy._alifestd_mark_csr_children_asexual",
         logging.info,
     ):
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
-                    alifestd_mark_children_flat_asexual, mark_as=args.mark_as
+                    alifestd_mark_csr_children_asexual, mark_as=args.mark_as
                 ),
             ),
         )

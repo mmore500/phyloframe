@@ -20,7 +20,7 @@ _update_only_sensitive_cols = frozenset(
 _topologically_sensitive_cols = frozenset(
     (
         *_update_only_sensitive_cols,
-        "children_flat",
+        "csr_children",
         "csr_offsets",
         "clade_duration",
         "clade_duration_ratio_sister",

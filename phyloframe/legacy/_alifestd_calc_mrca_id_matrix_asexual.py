@@ -7,8 +7,8 @@ from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
-from ._alifestd_mark_children_flat_asexual import (
-    _alifestd_mark_children_flat_asexual_fast_path,
+from ._alifestd_mark_csr_children_asexual import (
+    _alifestd_mark_csr_children_asexual_fast_path,
 )
 from ._alifestd_mark_csr_offsets_asexual import (
     _alifestd_mark_csr_offsets_asexual_fast_path,
@@ -23,7 +23,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def _calc_mrca_id_matrix_postorder_jit(
     ancestor_ids: np.ndarray,
     csr_offsets: np.ndarray,
-    children_flat: np.ndarray,
+    csr_children: np.ndarray,
     num_children: np.ndarray,
 ) -> np.ndarray:
     """Compute MRCA id matrix via postorder traversal.
@@ -74,9 +74,7 @@ def _calc_mrca_id_matrix_postorder_jit(
                 expanded[node] = True
                 subtree_buf_start[node] = buf_pos
                 n_children = ce - cs
-                stack[stack_top : stack_top + n_children] = children_flat[
-                    cs:ce
-                ]
+                stack[stack_top : stack_top + n_children] = csr_children[cs:ce]
                 stack_top += n_children
             else:
                 stack_top -= 1
@@ -93,11 +91,11 @@ def _calc_mrca_id_matrix_postorder_jit(
                     # 1) Cross-child pairwise MRCAs: MRCA of any two
                     #    nodes from different child subtrees is this node.
                     for ci1 in range(cs, ce - 1):
-                        child1 = children_flat[ci1]
+                        child1 = csr_children[ci1]
                         s1 = seg_start[child1]
                         e1 = s1 + seg_count[child1]
                         for ci2 in range(ci1 + 1, ce):
-                            child2 = children_flat[ci2]
+                            child2 = csr_children[ci2]
                             s2 = seg_start[child2]
                             e2 = s2 + seg_count[child2]
                             ids2 = buf_ids[s2:e2]
@@ -129,7 +127,7 @@ def _alifestd_calc_mrca_id_matrix_asexual_fast_path(
     ancestor_ids: np.ndarray,
     *,
     csr_offsets: np.ndarray = None,
-    children_flat: np.ndarray = None,
+    csr_children: np.ndarray = None,
     num_children: np.ndarray = None,
 ) -> np.ndarray:
     """Shared implementation detail for
@@ -143,7 +141,7 @@ def _alifestd_calc_mrca_id_matrix_asexual_fast_path(
         Roots are self-referential (ancestor_ids[i] == i).
     csr_offsets : np.ndarray, optional
         Pre-computed CSR offsets.
-    children_flat : np.ndarray, optional
+    csr_children : np.ndarray, optional
         Pre-computed flat children array.
     num_children : np.ndarray, optional
         Pre-computed child counts.
@@ -162,15 +160,15 @@ def _alifestd_calc_mrca_id_matrix_asexual_fast_path(
         csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
             ancestor_ids,
         )
-    if children_flat is None:
-        children_flat = _alifestd_mark_children_flat_asexual_fast_path(
+    if csr_children is None:
+        csr_children = _alifestd_mark_csr_children_asexual_fast_path(
             ancestor_ids.astype(np.int64),
             csr_offsets,
         )
     return _calc_mrca_id_matrix_postorder_jit(
         ancestor_ids,
         csr_offsets,
-        children_flat,
+        csr_children,
         num_children,
     )
 
@@ -213,9 +211,9 @@ def alifestd_calc_mrca_id_matrix_asexual(
         kwargs["csr_offsets"] = (
             phylogeny_df["csr_offsets"].to_numpy().astype(np.int64)
         )
-    if "children_flat" in phylogeny_df.columns:
-        kwargs["children_flat"] = (
-            phylogeny_df["children_flat"].to_numpy().astype(np.int64)
+    if "csr_children" in phylogeny_df.columns:
+        kwargs["csr_children"] = (
+            phylogeny_df["csr_children"].to_numpy().astype(np.int64)
         )
 
     return _alifestd_calc_mrca_id_matrix_asexual_fast_path(
