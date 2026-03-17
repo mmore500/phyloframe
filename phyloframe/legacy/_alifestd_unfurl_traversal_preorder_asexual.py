@@ -80,11 +80,9 @@ def _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
                         break
                     sib = nxt
                 # Reverse so first child is on top of stack
-                for i in range(sibs_top // 2):
-                    j = sibs_top - 1 - i
-                    tmp = stack[stack_top + i]
-                    stack[stack_top + i] = stack[stack_top + j]
-                    stack[stack_top + j] = tmp
+                stack[stack_top : stack_top + sibs_top] = stack[
+                    stack_top : stack_top + sibs_top
+                ][::-1]
                 stack_top += sibs_top
 
     return result
