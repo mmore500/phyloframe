@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import typing
-import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -18,46 +17,52 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_downsample_tips_uniform_asexual import (
-    alifestd_downsample_tips_uniform_asexual,
+from ._alifestd_mark_sample_tips_asexual import (
+    alifestd_mark_sample_tips_asexual,
+)
+from ._alifestd_prune_extinct_lineages_asexual import (
+    alifestd_prune_extinct_lineages_asexual,
+)
+from ._alifestd_topological_sensitivity_warned import (
+    alifestd_topological_sensitivity_warned,
 )
 
 
-def alifestd_downsample_tips_asexual(
+@alifestd_topological_sensitivity_warned(
+    insert=False,
+    delete=True,
+    update=False,
+)
+def alifestd_downsample_tips_uniform_asexual(
     phylogeny_df: pd.DataFrame,
     n_downsample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
-    **kwargs,
 ) -> pd.DataFrame:
     """Create a subsample phylogeny containing `n_downsample` tips.
-
-    .. deprecated::
-        Use :func:`alifestd_downsample_tips_uniform_asexual` instead.
 
     If `n_downsample` is greater than the number of tips in the phylogeny,
     the whole phylogeny is returned.
 
     Only supports asexual phylogenies.
     """
-    warnings.warn(
-        "alifestd_downsample_tips_asexual is deprecated, "
-        "use alifestd_downsample_tips_uniform_asexual instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return alifestd_downsample_tips_uniform_asexual(
+    phylogeny_df = alifestd_mark_sample_tips_asexual(
         phylogeny_df,
         n_downsample,
         mutate=mutate,
         seed=seed,
-        **kwargs,
+        mark_as="extant",
     )
+
+    if phylogeny_df.empty:
+        return phylogeny_df.drop(columns=["extant"])
+
+    return alifestd_prune_extinct_lineages_asexual(
+        phylogeny_df, mutate=True
+    ).drop(columns=["extant"])
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
-
-DEPRECATED: Use _alifestd_downsample_tips_uniform_asexual instead.
 
 Create a subsample phylogeny containing `-n` tips.
 
@@ -77,8 +82,8 @@ Otherwise, no action is taken.
 
 See Also
 ========
-phyloframe.legacy._alifestd_downsample_tips_uniform_asexual :
-    Preferred non-deprecated entrypoint.
+phyloframe.legacy._alifestd_downsample_tips_uniform_polars :
+    Entrypoint for high-performance Polars-based implementation.
 """
 
 
@@ -91,7 +96,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_downsample_tips_asexual",
+        dfcli_module="phyloframe.legacy._alifestd_downsample_tips_uniform_asexual",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
@@ -128,13 +133,14 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
     with log_context_duration(
-        "phyloframe.legacy._alifestd_downsample_tips_asexual", logging.info
+        "phyloframe.legacy._alifestd_downsample_tips_uniform_asexual",
+        logging.info,
     ):
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
-                    alifestd_downsample_tips_asexual,
+                    alifestd_downsample_tips_uniform_asexual,
                     n_downsample=args.n,
                     seed=args.seed,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,

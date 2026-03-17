@@ -154,6 +154,12 @@ from ._alifestd_downsample_tips_lineage_stratified_polars import (
     alifestd_downsample_tips_lineage_stratified_polars,
 )
 from ._alifestd_downsample_tips_polars import alifestd_downsample_tips_polars
+from ._alifestd_downsample_tips_uniform_asexual import (
+    alifestd_downsample_tips_uniform_asexual,
+)
+from ._alifestd_downsample_tips_uniform_polars import (
+    alifestd_downsample_tips_uniform_polars,
+)
 from ._alifestd_drop_topological_sensitivity import (
     alifestd_drop_topological_sensitivity,
 )
@@ -659,6 +665,8 @@ __all__ = [
     "alifestd_downsample_tips_lineage_stratified_asexual",
     "alifestd_downsample_tips_lineage_stratified_polars",
     "alifestd_downsample_tips_polars",
+    "alifestd_downsample_tips_uniform_asexual",
+    "alifestd_downsample_tips_uniform_polars",
     "alifestd_mark_sample_tips_asexual",
     "alifestd_mark_sample_tips_canopy_asexual",
     "alifestd_mark_sample_tips_canopy_polars",
