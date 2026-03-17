@@ -26,12 +26,12 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 def _alifestd_mark_sample_tips_asexual_impl(
     phylogeny_df: pd.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     mark_as: str,
 ) -> pd.DataFrame:
     """Implementation detail for alifestd_mark_sample_tips_asexual."""
     tips = alifestd_find_leaf_ids(phylogeny_df)
-    kept = np.random.choice(tips, min(n_downsample, len(tips)), replace=False)
+    kept = np.random.choice(tips, min(n_sample, len(tips)), replace=False)
     if alifestd_has_contiguous_ids(phylogeny_df):
         extant = np.zeros(len(phylogeny_df), dtype=bool)
         extant[kept] = True
@@ -44,16 +44,16 @@ def _alifestd_mark_sample_tips_asexual_impl(
 
 def alifestd_mark_sample_tips_asexual(
     phylogeny_df: pd.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
     mark_as: str = "alifestd_mark_sample_tips_asexual",
 ) -> pd.DataFrame:
-    """Mark a random subsample of `n_downsample` tips.
+    """Mark a random subsample of `n_sample` tips.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
 
-    If `n_downsample` is greater than the number of tips in the phylogeny,
+    If `n_sample` is greater than the number of tips in the phylogeny,
     all tips are marked.
 
     Only supports asexual phylogenies.
@@ -78,7 +78,7 @@ def alifestd_mark_sample_tips_asexual(
         else _alifestd_mark_sample_tips_asexual_impl
     )
 
-    return impl(phylogeny_df, n_downsample, mark_as)
+    return impl(phylogeny_df, n_sample, mark_as)
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
@@ -165,7 +165,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_mark_sample_tips_asexual,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     seed=args.seed,
                     mark_as=args.mark_as,
                 ),

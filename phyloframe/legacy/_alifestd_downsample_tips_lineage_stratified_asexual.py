@@ -114,7 +114,7 @@ def alifestd_downsample_tips_lineage_stratified_asexual(
     """
     phylogeny_df = alifestd_mark_sample_tips_lineage_stratified_asexual(
         phylogeny_df,
-        n_downsample=n_downsample,
+        n_sample=n_downsample,
         mutate=mutate,
         seed=seed,
         criterion_delta=criterion_delta,

@@ -24,16 +24,16 @@ from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 @_deprecate_num_tips
 def alifestd_mark_sample_tips_canopy_polars(
     phylogeny_df: pl.DataFrame,
-    n_downsample: typing.Optional[int] = None,
+    n_sample: typing.Optional[int] = None,
     criterion: str = "origin_time",
     mark_as: str = "alifestd_mark_sample_tips_canopy_polars",
 ) -> pl.DataFrame:
-    """Mark the `n_downsample` leaves with the largest `criterion` values.
+    """Mark the `n_sample` leaves with the largest `criterion` values.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
 
-    If `n_downsample` is ``None``, it defaults to the number of leaves that
-    share the maximum value of the `criterion` column. If `n_downsample` is
+    If `n_sample` is ``None``, it defaults to the number of leaves that
+    share the maximum value of the `criterion` column. If `n_sample` is
     greater than or equal to the number of leaves in the phylogeny, all
     leaves are marked.  Ties are broken arbitrarily.
 
@@ -45,11 +45,11 @@ def alifestd_mark_sample_tips_canopy_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_downsample : int, optional
+    n_sample : int, optional
         Number of tips to mark. If ``None``, defaults to the count of
         leaves with the maximum `criterion` value.
     criterion : str, default "origin_time"
-        Column name used to rank leaves. The `n_downsample` leaves with the
+        Column name used to rank leaves. The `n_sample` leaves with the
         largest values in this column are marked. Ties are broken
         arbitrarily.
     mark_as : str, default "alifestd_mark_sample_tips_canopy_polars"
@@ -105,9 +105,9 @@ def alifestd_mark_sample_tips_canopy_polars(
         "- alifestd_mark_sample_tips_canopy_polars: selecting top leaf_ids...",
     )
     leaves_lazy = phylogeny_df.lazy().filter(pl.col("is_leaf"))
-    if n_downsample is None:
+    if n_sample is None:
         max_val = leaves_lazy.select(pl.col(criterion).max()).collect().item()
-        n_downsample = (
+        n_sample = (
             leaves_lazy.filter(pl.col(criterion) == max_val)
             .select(pl.len())
             .collect()
@@ -124,17 +124,17 @@ def alifestd_mark_sample_tips_canopy_polars(
         f"- alifestd_mark_sample_tips_canopy_polars: {total_leaves=}...",
     )
 
-    if n_downsample >= total_leaves:
+    if n_sample >= total_leaves:
         logging.info(
             "- alifestd_mark_sample_tips_canopy_polars: taking all...",
         )
         leaf_ids = leaves_lazy.select(pl.col("id")).collect().to_series()
-    else:  # split case to prevent extreme top_k crash where n_downsample is high
+    else:  # split case to prevent extreme top_k crash where n_sample is high
         logging.info(
             "- alifestd_mark_sample_tips_canopy_polars: taking top k...",
         )
         leaf_ids = (
-            leaves_lazy.top_k(n_downsample, by=pl.col(criterion))
+            leaves_lazy.top_k(n_sample, by=pl.col(criterion))
             .select(pl.col("id"))
             .collect()
             .to_series()
@@ -240,7 +240,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mark_sample_tips_canopy_polars,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     criterion=args.criterion,
                     mark_as=args.mark_as,
                 ),

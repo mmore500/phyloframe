@@ -44,7 +44,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 @_deprecate_n_tips
 def alifestd_mark_sample_tips_lineage_stratified_polars(
     phylogeny_df: pl.DataFrame,
-    n_downsample: typing.Optional[int] = None,
+    n_sample: typing.Optional[int] = None,
     seed: typing.Optional[int] = None,
     *,
     criterion_delta: str = "origin_time",
@@ -67,7 +67,7 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_downsample : int, optional
+    n_sample : int, optional
         Desired number of retained tips.  If ``None``, every distinct
         ``criterion_stratify`` value forms its own group.
     seed : int, optional
@@ -94,8 +94,8 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
         If `criterion_delta`, `criterion_stratify`, or
         `criterion_target` is not a column in `phylogeny_df`.
     ValueError
-        If ``n_downsample`` is not ``None`` and ``n_tips_per_stratum``
-        does not evenly divide ``n_downsample``.
+        If ``n_sample`` is not ``None`` and ``n_tips_per_stratum``
+        does not evenly divide ``n_sample``.
 
     Returns
     -------
@@ -107,10 +107,10 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
     alifestd_mark_sample_tips_lineage_stratified_asexual :
         Pandas-based implementation.
     """
-    if n_downsample is not None and n_downsample % n_tips_per_stratum != 0:
+    if n_sample is not None and n_sample % n_tips_per_stratum != 0:
         raise ValueError(
             f"n_tips_per_stratum={n_tips_per_stratum} does not evenly "
-            f"divide n_downsample={n_downsample}",
+            f"divide n_sample={n_sample}",
         )
 
     logging.info(
@@ -264,7 +264,7 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
         criterion_values=criterion_values,
         stratify_values=stratify_values,
         mrca_vector=mrca_vector,
-        n_downsample=n_downsample,
+        n_sample=n_sample,
         n_tips_per_stratum=n_tips_per_stratum,
     )
     del criterion_values, is_leaf, mrca_vector, stratify_values
@@ -404,7 +404,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mark_sample_tips_lineage_stratified_polars,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     seed=args.seed,
                     criterion_delta=args.criterion_delta,
                     criterion_stratify=args.criterion_stratify,

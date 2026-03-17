@@ -28,7 +28,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def _alifestd_mark_sample_tips_polars_impl(
     phylogeny_df: pl.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     mark_as: str,
 ) -> pl.DataFrame:
     """Implementation detail for alifestd_mark_sample_tips_polars."""
@@ -44,7 +44,7 @@ def _alifestd_mark_sample_tips_polars_impl(
         "- alifestd_mark_sample_tips_polars: sampling leaf_ids...",
     )
     leaf_ids = np.random.choice(
-        leaf_ids, size=min(n_downsample, len(leaf_ids)), replace=False
+        leaf_ids, size=min(n_sample, len(leaf_ids)), replace=False
     )
     gc.collect()
     log_memory_usage(logging.info)
@@ -72,15 +72,15 @@ def _alifestd_mark_sample_tips_polars_impl(
 
 def alifestd_mark_sample_tips_polars(
     phylogeny_df: pl.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     seed: typing.Optional[int] = None,
     mark_as: str = "alifestd_mark_sample_tips_polars",
 ) -> pl.DataFrame:
-    """Mark a random subsample of `n_downsample` tips.
+    """Mark a random subsample of `n_sample` tips.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
 
-    If `n_downsample` is greater than the number of tips in the phylogeny,
+    If `n_sample` is greater than the number of tips in the phylogeny,
     all tips are marked.
 
     Only supports asexual phylogenies.
@@ -91,7 +91,7 @@ def alifestd_mark_sample_tips_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_downsample : int
+    n_sample : int
         Number of tips to mark.
     seed : int, optional
         Integer seed for deterministic behavior.
@@ -123,7 +123,7 @@ def alifestd_mark_sample_tips_polars(
     with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
         return _alifestd_mark_sample_tips_polars_impl(
             phylogeny_df,
-            n_downsample,
+            n_sample,
             mark_as,
         )
 
@@ -214,7 +214,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mark_sample_tips_polars,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     seed=args.seed,
                     mark_as=args.mark_as,
                 ),

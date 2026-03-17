@@ -26,20 +26,25 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def _deprecate_num_tips(
     fn: typing.Callable,
 ) -> typing.Callable:
+    import inspect
+
+    params = inspect.signature(fn).parameters
+    target = "n_sample" if "n_sample" in params else "n_downsample"
+
     @functools.wraps(fn)
     def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         if "num_tips" in kwargs:
             warnings.warn(
-                "num_tips is deprecated in favor of n_downsample and "
+                f"num_tips is deprecated in favor of {target} and "
                 "will be removed in a future release of phyloframe.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            if "n_downsample" in kwargs:
+            if target in kwargs:
                 raise TypeError(
-                    "cannot specify both n_downsample and num_tips",
+                    f"cannot specify both {target} and num_tips",
                 )
-            kwargs["n_downsample"] = kwargs.pop("num_tips")
+            kwargs[target] = kwargs.pop("num_tips")
         return fn(*args, **kwargs)
 
     return wrapper
@@ -48,17 +53,17 @@ def _deprecate_num_tips(
 @_deprecate_num_tips
 def alifestd_mark_sample_tips_canopy_asexual(
     phylogeny_df: pd.DataFrame,
-    n_downsample: typing.Optional[int] = None,
+    n_sample: typing.Optional[int] = None,
     mutate: bool = False,
     criterion: str = "origin_time",
     mark_as: str = "alifestd_mark_sample_tips_canopy_asexual",
 ) -> pd.DataFrame:
-    """Mark the `n_downsample` leaves with the largest `criterion` values.
+    """Mark the `n_sample` leaves with the largest `criterion` values.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
 
-    If `n_downsample` is ``None``, it defaults to the number of leaves that
-    share the maximum value of the `criterion` column. If `n_downsample` is
+    If `n_sample` is ``None``, it defaults to the number of leaves that
+    share the maximum value of the `criterion` column. If `n_sample` is
     greater than or equal to the number of leaves in the phylogeny, all
     leaves are marked.  Ties are broken arbitrarily.
 
@@ -70,13 +75,13 @@ def alifestd_mark_sample_tips_canopy_asexual(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_downsample : int, optional
+    n_sample : int, optional
         Number of tips to mark. If ``None``, defaults to the count of
         leaves with the maximum `criterion` value.
     mutate : bool, default False
         Are side effects on the input argument `phylogeny_df` allowed?
     criterion : str, default "origin_time"
-        Column name used to rank leaves. The `n_downsample` leaves with the
+        Column name used to rank leaves. The `n_sample` leaves with the
         largest values in this column are marked. Ties are broken
         arbitrarily.
     mark_as : str, default "alifestd_mark_sample_tips_canopy_asexual"
@@ -116,20 +121,20 @@ def alifestd_mark_sample_tips_canopy_asexual(
         # numpy array indexing instead of expensive .isin() calls.
         leaf_positions = alifestd_find_leaf_ids(phylogeny_df)
         leaf_df = phylogeny_df.iloc[leaf_positions]
-        if n_downsample is None:
+        if n_sample is None:
             max_val = leaf_df[criterion].max()
-            n_downsample = int((leaf_df[criterion] == max_val).sum())
-        kept_ids = leaf_df.nlargest(n_downsample, criterion)["id"]
+            n_sample = int((leaf_df[criterion] == max_val).sum())
+        kept_ids = leaf_df.nlargest(n_sample, criterion)["id"]
         phylogeny_df[mark_as] = np.bincount(
             kept_ids.to_numpy().astype(np.intp), minlength=len(phylogeny_df)
         ).astype(bool)
     else:
         tips = alifestd_find_leaf_ids(phylogeny_df)
         leaf_df = phylogeny_df.loc[phylogeny_df["id"].isin(tips)]
-        if n_downsample is None:
+        if n_sample is None:
             max_val = leaf_df[criterion].max()
-            n_downsample = int((leaf_df[criterion] == max_val).sum())
-        kept_ids = leaf_df.nlargest(n_downsample, criterion)["id"]
+            n_sample = int((leaf_df[criterion] == max_val).sum())
+        kept_ids = leaf_df.nlargest(n_sample, criterion)["id"]
         phylogeny_df[mark_as] = phylogeny_df["id"].isin(kept_ids)
 
     return phylogeny_df
@@ -219,7 +224,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_mark_sample_tips_canopy_asexual,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     criterion=args.criterion,
                     mark_as=args.mark_as,
                 ),

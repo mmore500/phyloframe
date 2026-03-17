@@ -12,8 +12,8 @@ from phyloframe.legacy._alifestd_mark_sample_tips_canopy_polars import (
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
-@pytest.mark.parametrize("n_downsample", [1, 5, None])
-def test_alifestd_mark_sample_tips_canopy_polars(n_downsample):
+@pytest.mark.parametrize("n_sample", [1, 5, None])
+def test_alifestd_mark_sample_tips_canopy_polars(n_sample):
     phylogeny_df = pl.from_pandas(
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
@@ -22,7 +22,7 @@ def test_alifestd_mark_sample_tips_canopy_polars(n_downsample):
     n_rows = len(phylogeny_df)
 
     result = alifestd_mark_sample_tips_canopy_polars(
-        phylogeny_df, n_downsample=n_downsample
+        phylogeny_df, n_sample=n_sample
     )
 
     assert "alifestd_mark_sample_tips_canopy_polars" in result.columns
@@ -40,7 +40,7 @@ def test_alifestd_mark_sample_tips_canopy_polars_mark_as():
     )
 
     result = alifestd_mark_sample_tips_canopy_polars(
-        phylogeny_df, n_downsample=5, mark_as="my_col"
+        phylogeny_df, n_sample=5, mark_as="my_col"
     )
 
     assert "my_col" in result.columns

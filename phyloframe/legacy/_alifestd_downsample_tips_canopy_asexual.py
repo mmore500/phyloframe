@@ -78,7 +78,7 @@ def alifestd_downsample_tips_canopy_asexual(
     """
     phylogeny_df = alifestd_mark_sample_tips_canopy_asexual(
         phylogeny_df,
-        n_downsample=n_downsample,
+        n_sample=n_downsample,
         mutate=mutate,
         criterion=criterion,
         mark_as="extant",

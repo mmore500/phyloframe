@@ -30,7 +30,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 def _alifestd_mark_sample_tips_clade_asexual_impl(
     phylogeny_df: pd.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     mark_as: str,
 ) -> pd.DataFrame:
     """Implementation detail for alifestd_mark_sample_tips_clade_asexual."""
@@ -42,7 +42,7 @@ def _alifestd_mark_sample_tips_clade_asexual_impl(
             phylogeny_df, mutate=True
         )
 
-    is_candidate = phylogeny_df["num_leaves"].values <= n_downsample
+    is_candidate = phylogeny_df["num_leaves"].values <= n_sample
     if is_candidate.all():
         phylogeny_df[mark_as] = phylogeny_df["is_leaf"]
         return phylogeny_df
@@ -52,13 +52,13 @@ def _alifestd_mark_sample_tips_clade_asexual_impl(
             phylogeny_df["num_leaves"].values[
                 phylogeny_df["ancestor_id"].values.astype(np.intp)
             ]
-            > n_downsample
+            > n_sample
         )
     else:
         phylogeny_df.set_index("id", drop=False, inplace=True)
         is_candidate &= (
             phylogeny_df.loc[phylogeny_df["ancestor_id"], "num_leaves"].values
-            > n_downsample
+            > n_sample
         )
 
     candidate_ids = phylogeny_df.loc[is_candidate, "id"].values
@@ -82,18 +82,18 @@ def _alifestd_mark_sample_tips_clade_asexual_impl(
 
 def alifestd_mark_sample_tips_clade_asexual(
     phylogeny_df: pd.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
     mark_as: str = "alifestd_mark_sample_tips_clade_asexual",
 ) -> pd.DataFrame:
     """Mark tips belonging to a randomly sampled clade of at most
-    `n_downsample` tips.
+    `n_sample` tips.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
     Candidate clades are sampled proportionally to their size.
 
-    If `n_downsample` is greater than the number of tips in the phylogeny,
+    If `n_sample` is greater than the number of tips in the phylogeny,
     all tips are marked.
 
     Only supports asexual phylogenies.
@@ -120,7 +120,7 @@ def alifestd_mark_sample_tips_clade_asexual(
         else _alifestd_mark_sample_tips_clade_asexual_impl
     )
 
-    return impl(phylogeny_df, n_downsample, mark_as)
+    return impl(phylogeny_df, n_sample, mark_as)
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
@@ -205,7 +205,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_mark_sample_tips_clade_asexual,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     seed=args.seed,
                     mark_as=args.mark_as,
                 ),

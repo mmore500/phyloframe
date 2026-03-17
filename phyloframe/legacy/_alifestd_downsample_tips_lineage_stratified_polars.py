@@ -118,7 +118,7 @@ def alifestd_downsample_tips_lineage_stratified_polars(
     """
     phylogeny_df = alifestd_mark_sample_tips_lineage_stratified_polars(
         phylogeny_df,
-        n_downsample=n_downsample,
+        n_sample=n_downsample,
         seed=seed,
         criterion_delta=criterion_delta,
         criterion_stratify=criterion_stratify,

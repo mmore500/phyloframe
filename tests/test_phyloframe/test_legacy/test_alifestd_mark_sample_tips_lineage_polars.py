@@ -13,8 +13,8 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
 @pytest.mark.parametrize("seed", [1])
-@pytest.mark.parametrize("n_downsample", [1, 5])
-def test_alifestd_mark_sample_tips_lineage_polars(seed, n_downsample):
+@pytest.mark.parametrize("n_sample", [1, 5])
+def test_alifestd_mark_sample_tips_lineage_polars(seed, n_sample):
     phylogeny_df = pl.from_pandas(
         alifestd_to_working_format(
             pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
@@ -23,7 +23,7 @@ def test_alifestd_mark_sample_tips_lineage_polars(seed, n_downsample):
     n_rows = len(phylogeny_df)
 
     result = alifestd_mark_sample_tips_lineage_polars(
-        phylogeny_df, n_downsample, seed=seed
+        phylogeny_df, n_sample, seed=seed
     )
 
     assert "alifestd_mark_sample_tips_lineage_polars" in result.columns

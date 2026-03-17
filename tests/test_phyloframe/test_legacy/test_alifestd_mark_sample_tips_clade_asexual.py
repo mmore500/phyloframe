@@ -9,13 +9,13 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
 @pytest.mark.parametrize("seed", [1, 42])
-@pytest.mark.parametrize("n_downsample", [1, 5, 100000000])
-def test_alifestd_mark_sample_tips_clade_asexual(seed, n_downsample):
+@pytest.mark.parametrize("n_sample", [1, 5, 100000000])
+def test_alifestd_mark_sample_tips_clade_asexual(seed, n_sample):
     phylogeny_df = pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv")
     original_df = phylogeny_df.copy()
 
     result = alifestd_mark_sample_tips_clade_asexual(
-        phylogeny_df, n_downsample, seed=seed
+        phylogeny_df, n_sample, seed=seed
     )
 
     assert "alifestd_mark_sample_tips_clade_asexual" in result.columns

@@ -70,7 +70,7 @@ def _alifestd_downsample_tips_lineage_select_target_id(
 def _alifestd_downsample_tips_lineage_impl(
     is_leaf: np.ndarray,
     criterion_values: np.ndarray,
-    n_downsample: int,
+    n_sample: int,
     mrca_vector: np.ndarray,
 ) -> np.ndarray:
     """Shared numpy implementation for lineage-based tip downsampling.
@@ -84,7 +84,7 @@ def _alifestd_downsample_tips_lineage_impl(
         Boolean array indicating which taxa are leaves.
     criterion_values : numpy.ndarray
         Values used to compute off-lineage delta (all taxa).
-    n_downsample : int
+    n_sample : int
         Number of tips to retain.
     mrca_vector : numpy.ndarray
         Integer array of MRCA ids for each taxon with respect to the
@@ -121,12 +121,10 @@ def _alifestd_downsample_tips_lineage_impl(
     logging.info(
         "_alifestd_downsample_tips_lineage_impl: selecting kept ids...",
     )
-    if n_downsample >= len(eligible_deltas):
+    if n_sample >= len(eligible_deltas):
         kept_ids = eligible_ids
     else:
-        partition_idx = np.argpartition(eligible_deltas, n_downsample)[
-            :n_downsample
-        ]
+        partition_idx = np.argpartition(eligible_deltas, n_sample)[:n_sample]
         kept_ids = eligible_ids[partition_idx]
 
     logging.info(
@@ -138,7 +136,7 @@ def _alifestd_downsample_tips_lineage_impl(
 @_deprecate_num_tips
 def alifestd_mark_sample_tips_lineage_asexual(
     phylogeny_df: pd.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     mutate: bool = False,
     seed: typing.Optional[int] = None,
     *,
@@ -147,7 +145,7 @@ def alifestd_mark_sample_tips_lineage_asexual(
     progress_wrap: typing.Callable = lambda x: x,
     mark_as: str = "alifestd_mark_sample_tips_lineage_asexual",
 ) -> pd.DataFrame:
-    """Mark the `n_downsample` leaves closest to the lineage of a target
+    """Mark the `n_sample` leaves closest to the lineage of a target
     leaf.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
@@ -157,9 +155,9 @@ def alifestd_mark_sample_tips_lineage_asexual(
     ancestor (MRCA) with the target leaf is identified and the "off-lineage
     delta" is computed as the absolute difference between the leaf's
     `criterion_delta` value and its MRCA's `criterion_delta` value. The
-    `n_downsample` leaves with the smallest off-lineage deltas are marked.
+    `n_sample` leaves with the smallest off-lineage deltas are marked.
 
-    If `n_downsample` is greater than or equal to the number of leaves in
+    If `n_sample` is greater than or equal to the number of leaves in
     the phylogeny, all leaves are marked. Ties in off-lineage
     delta are broken arbitrarily.
 
@@ -171,7 +169,7 @@ def alifestd_mark_sample_tips_lineage_asexual(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_downsample : int
+    n_sample : int
         Number of tips to mark.
     mutate : bool, default False
         Are side effects on the input argument `phylogeny_df` allowed?
@@ -263,7 +261,7 @@ def alifestd_mark_sample_tips_lineage_asexual(
     is_marked = _alifestd_downsample_tips_lineage_impl(
         is_leaf=is_leaf,
         criterion_values=criterion_values,
-        n_downsample=n_downsample,
+        n_sample=n_sample,
         mrca_vector=mrca_vector,
     )
 
@@ -369,7 +367,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_mark_sample_tips_lineage_asexual,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     seed=args.seed,
                     criterion_delta=args.criterion_delta,
                     criterion_target=args.criterion_target,

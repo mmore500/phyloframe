@@ -40,7 +40,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def _alifestd_mark_sample_tips_clade_polars_impl(
     phylogeny_df: pl.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     mark_as: str,
 ) -> pl.DataFrame:
     """Implementation detail for alifestd_mark_sample_tips_clade_polars."""
@@ -83,14 +83,14 @@ def _alifestd_mark_sample_tips_clade_polars_impl(
     logging.info(
         "- alifestd_mark_sample_tips_clade_polars: finding candidates...",
     )
-    is_candidate = num_leaves <= n_downsample
+    is_candidate = num_leaves <= n_sample
     if is_candidate.all():
         phylogeny_df = phylogeny_df.with_columns(
             pl.col("is_leaf").alias(mark_as),
         )
         return phylogeny_df
 
-    is_candidate &= num_leaves[ancestor_ids] > n_downsample
+    is_candidate &= num_leaves[ancestor_ids] > n_sample
     gc.collect()
     log_memory_usage(logging.info)
 
@@ -156,17 +156,17 @@ def _alifestd_mark_sample_tips_clade_polars_impl(
 
 def alifestd_mark_sample_tips_clade_polars(
     phylogeny_df: pl.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     seed: typing.Optional[int] = None,
     mark_as: str = "alifestd_mark_sample_tips_clade_polars",
 ) -> pl.DataFrame:
     """Mark tips belonging to a randomly sampled clade of at most
-    `n_downsample` tips.
+    `n_sample` tips.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
     Candidate clades are sampled proportionally to their size.
 
-    If `n_downsample` is greater than the number of tips in the phylogeny,
+    If `n_sample` is greater than the number of tips in the phylogeny,
     all tips are marked.
 
     Only supports asexual phylogenies.
@@ -177,7 +177,7 @@ def alifestd_mark_sample_tips_clade_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_downsample : int
+    n_sample : int
         Number of tips to mark.
     seed : int, optional
         Integer seed for deterministic behavior.
@@ -222,7 +222,7 @@ def alifestd_mark_sample_tips_clade_polars(
     with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
         return _alifestd_mark_sample_tips_clade_polars_impl(
             phylogeny_df,
-            n_downsample,
+            n_sample,
             mark_as,
         )
 
@@ -315,7 +315,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mark_sample_tips_clade_polars,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     seed=args.seed,
                     mark_as=args.mark_as,
                 ),

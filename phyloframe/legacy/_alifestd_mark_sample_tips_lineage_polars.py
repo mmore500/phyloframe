@@ -45,7 +45,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 @_deprecate_num_tips
 def alifestd_mark_sample_tips_lineage_polars(
     phylogeny_df: pl.DataFrame,
-    n_downsample: int,
+    n_sample: int,
     seed: typing.Optional[int] = None,
     *,
     criterion_delta: str = "origin_time",
@@ -53,7 +53,7 @@ def alifestd_mark_sample_tips_lineage_polars(
     progress_wrap: typing.Callable = lambda x: x,
     mark_as: str = "alifestd_mark_sample_tips_lineage_polars",
 ) -> pl.DataFrame:
-    """Mark the `n_downsample` leaves closest to the lineage of a target
+    """Mark the `n_sample` leaves closest to the lineage of a target
     leaf.
 
     Adds a boolean column ``mark_as`` indicating retained tips.
@@ -64,7 +64,7 @@ def alifestd_mark_sample_tips_lineage_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
-    n_downsample : int
+    n_sample : int
         Number of tips to mark.
     seed : int, optional
         Random seed for reproducible target-leaf selection.
@@ -201,7 +201,7 @@ def alifestd_mark_sample_tips_lineage_polars(
     is_marked = _alifestd_downsample_tips_lineage_impl(
         is_leaf=is_leaf,
         criterion_values=criterion_values,
-        n_downsample=n_downsample,
+        n_sample=n_sample,
         mrca_vector=mrca_vector,
     )
     del criterion_values, is_leaf, mrca_vector
@@ -325,7 +325,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mark_sample_tips_lineage_polars,
-                    n_downsample=args.n,
+                    n_sample=args.n,
                     seed=args.seed,
                     criterion_delta=args.criterion_delta,
                     criterion_target=args.criterion_target,
