@@ -1,7 +1,5 @@
 import argparse
-import contextlib
 import functools
-import gc
 import logging
 import os
 import sys
@@ -9,29 +7,15 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
-import opytional as opyt
 import polars as pl
 
-from .._auxlib._RngStateContext import RngStateContext
 from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._log_memory_usage import log_memory_usage
-from ._alifestd_has_contiguous_ids_polars import (
-    alifestd_has_contiguous_ids_polars,
-)
-from ._alifestd_is_topologically_sorted_polars import (
-    alifestd_is_topologically_sorted_polars,
-)
-from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
-from ._alifestd_mark_num_leaves_polars import (
-    alifestd_mark_num_leaves_polars,
-)
-from ._alifestd_mask_descendants_polars import (
-    alifestd_mask_descendants_polars,
+from ._alifestd_mark_sample_tips_clade_polars import (
+    alifestd_mark_sample_tips_clade_polars,
 )
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
@@ -39,126 +23,6 @@ from ._alifestd_prune_extinct_lineages_polars import (
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
 )
-from ._alifestd_try_add_ancestor_id_col_polars import (
-    alifestd_try_add_ancestor_id_col_polars,
-)
-
-
-def _alifestd_downsample_tips_clade_polars_impl(
-    phylogeny_df: pl.DataFrame,
-    n_downsample: int,
-) -> pl.DataFrame:
-    """Implementation detail for alifestd_downsample_tips_clade_polars."""
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: marking leaves...",
-    )
-    phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: marking num_leaves...",
-    )
-    phylogeny_df = alifestd_mark_num_leaves_polars(phylogeny_df)
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "collecting ancestor_id values...",
-    )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    num_leaves = (
-        phylogeny_df.lazy()
-        .select("num_leaves")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: finding candidates...",
-    )
-    is_candidate = num_leaves <= n_downsample
-    if is_candidate.all():
-        return phylogeny_df
-
-    is_candidate &= num_leaves[ancestor_ids] > n_downsample
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "sampling weighted candidate...",
-    )
-    ids = phylogeny_df.lazy().select("id").collect().to_series().to_numpy()
-    candidate_ids = ids[is_candidate]
-    candidate_num_leaves = num_leaves[is_candidate]
-    cumulative_weights = np.cumsum(candidate_num_leaves)
-    total_weight = cumulative_weights[-1]
-    sampled_idx = np.searchsorted(
-        cumulative_weights, np.random.randint(total_weight), side="right"
-    )
-    sampled = candidate_ids[sampled_idx]
-    del ids, candidate_ids, candidate_num_leaves, cumulative_weights
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    del ancestor_ids, num_leaves
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: "
-        "marking descendants of sampled clade...",
-    )
-    n_rows = phylogeny_df.lazy().select(pl.len()).collect().item()
-    ancestor_mask = np.zeros(n_rows, dtype=bool)
-    ancestor_mask[sampled] = True
-    phylogeny_df = alifestd_mask_descendants_polars(
-        phylogeny_df,
-        ancestor_mask=ancestor_mask,
-    )
-    del ancestor_mask
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: marking extant...",
-    )
-    is_leaf = (
-        phylogeny_df.lazy().select("is_leaf").collect().to_series().to_numpy()
-    )
-    is_descendant = (
-        phylogeny_df.lazy()
-        .select("alifestd_mask_descendants_polars")
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    extant = is_descendant & is_leaf
-    phylogeny_df = phylogeny_df.with_columns(extant=extant).drop(
-        "alifestd_mask_descendants_polars",
-    )
-    del is_descendant, is_leaf, extant
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_clade_polars: pruning...",
-    )
-    return alifestd_prune_extinct_lineages_polars(phylogeny_df).drop(
-        "extant",
-    )
 
 
 @alifestd_topological_sensitivity_warned_polars(
@@ -207,28 +71,22 @@ def alifestd_downsample_tips_clade_polars(
     alifestd_downsample_tips_clade_asexual :
         Pandas-based implementation.
     """
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+    phylogeny_df = alifestd_mark_sample_tips_clade_polars(
+        phylogeny_df,
+        n_downsample,
+        seed=seed,
+        mark_as="extant",
+    )
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df
+        return phylogeny_df.drop("extant")
 
-    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-
-        raise NotImplementedError(
-            "non-contiguous ids not supported",
-        )
-
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-
-        raise NotImplementedError(
-            "non-topologically-sorted data not supported",
-        )
-
-    with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
-        return _alifestd_downsample_tips_clade_polars_impl(
-            phylogeny_df,
-            n_downsample,
-        )
+    logging.info(
+        "- alifestd_downsample_tips_clade_polars: pruning...",
+    )
+    return alifestd_prune_extinct_lineages_polars(phylogeny_df).drop(
+        "extant",
+    )
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

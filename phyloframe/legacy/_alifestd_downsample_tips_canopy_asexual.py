@@ -3,11 +3,9 @@ import functools
 import logging
 import os
 import typing
-import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import pandas as pd
 
 from .._auxlib._add_bool_arg import add_bool_arg
@@ -18,37 +16,16 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_find_leaf_ids import alifestd_find_leaf_ids
-from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+from ._alifestd_mark_sample_tips_canopy_asexual import (
+    _deprecate_num_tips,
+    alifestd_mark_sample_tips_canopy_asexual,
+)
 from ._alifestd_prune_extinct_lineages_asexual import (
     alifestd_prune_extinct_lineages_asexual,
 )
 from ._alifestd_topological_sensitivity_warned import (
     alifestd_topological_sensitivity_warned,
 )
-from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
-
-
-def _deprecate_num_tips(
-    fn: typing.Callable,
-) -> typing.Callable:
-    @functools.wraps(fn)
-    def wrapper(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        if "num_tips" in kwargs:
-            warnings.warn(
-                "num_tips is deprecated in favor of n_downsample and "
-                "will be removed in a future release of phyloframe.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if "n_downsample" in kwargs:
-                raise TypeError(
-                    "cannot specify both n_downsample and num_tips",
-                )
-            kwargs["n_downsample"] = kwargs.pop("num_tips")
-        return fn(*args, **kwargs)
-
-    return wrapper
 
 
 @_deprecate_num_tips
@@ -99,44 +76,16 @@ def alifestd_downsample_tips_canopy_asexual(
     pandas.DataFrame
         The pruned phylogeny in alife standard format.
     """
-    if criterion not in phylogeny_df.columns:
-        raise ValueError(
-            f"criterion column {criterion!r} not found in phylogeny_df",
-        )
-
-    if not mutate:
-        phylogeny_df = phylogeny_df.copy()
-
-    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df)
-    if "ancestor_id" not in phylogeny_df.columns:
-        raise ValueError(
-            "alifestd_downsample_tips_canopy_asexual only supports "
-            "asexual phylogenies.",
-        )
+    phylogeny_df = alifestd_mark_sample_tips_canopy_asexual(
+        phylogeny_df,
+        n_sample=n_downsample,
+        mutate=mutate,
+        criterion=criterion,
+        mark_as="extant",
+    )
 
     if phylogeny_df.empty:
-        return phylogeny_df
-
-    if alifestd_has_contiguous_ids(phylogeny_df):
-        # With contiguous IDs, id == row index so we can use direct
-        # numpy array indexing instead of expensive .isin() calls.
-        leaf_positions = alifestd_find_leaf_ids(phylogeny_df)
-        leaf_df = phylogeny_df.iloc[leaf_positions]
-        if n_downsample is None:
-            max_val = leaf_df[criterion].max()
-            n_downsample = int((leaf_df[criterion] == max_val).sum())
-        kept_ids = leaf_df.nlargest(n_downsample, criterion)["id"]
-        phylogeny_df["extant"] = np.bincount(
-            kept_ids.to_numpy().astype(np.intp), minlength=len(phylogeny_df)
-        ).astype(bool)
-    else:
-        tips = alifestd_find_leaf_ids(phylogeny_df)
-        leaf_df = phylogeny_df.loc[phylogeny_df["id"].isin(tips)]
-        if n_downsample is None:
-            max_val = leaf_df[criterion].max()
-            n_downsample = int((leaf_df[criterion] == max_val).sum())
-        kept_ids = leaf_df.nlargest(n_downsample, criterion)["id"]
-        phylogeny_df["extant"] = phylogeny_df["id"].isin(kept_ids)
+        return phylogeny_df.drop(columns=["extant"])
 
     return alifestd_prune_extinct_lineages_asexual(
         phylogeny_df, mutate=True

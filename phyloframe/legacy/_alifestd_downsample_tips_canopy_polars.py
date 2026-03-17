@@ -1,6 +1,5 @@
 import argparse
 import functools
-import gc
 import logging
 import os
 import typing
@@ -14,11 +13,12 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._log_memory_usage import log_memory_usage
 from ._alifestd_downsample_tips_canopy_asexual import (
     _deprecate_num_tips,
 )
-from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
+from ._alifestd_mark_sample_tips_canopy_polars import (
+    alifestd_mark_sample_tips_canopy_polars,
+)
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
 )
@@ -79,83 +79,15 @@ def alifestd_downsample_tips_canopy_polars(
     alifestd_downsample_tips_canopy_asexual :
         Pandas-based implementation.
     """
-    logging.info(
-        "- alifestd_downsample_tips_canopy_polars: collecting schema...",
+    phylogeny_df = alifestd_mark_sample_tips_canopy_polars(
+        phylogeny_df,
+        n_sample=n_downsample,
+        criterion=criterion,
+        mark_as="extant",
     )
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    gc.collect()
-    log_memory_usage(logging.info)
-    if criterion not in schema_names:
-        raise ValueError(
-            f"criterion column {criterion!r} not found in phylogeny_df",
-        )
 
-    if "ancestor_id" not in schema_names:
-        raise NotImplementedError("ancestor_id column required")
-
-    logging.info(
-        "- alifestd_downsample_tips_canopy_polars: checking empty...",
-    )
     if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df
-
-    logging.info(
-        "- alifestd_downsample_tips_canopy_polars: finding leaf ids...",
-    )
-    phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_canopy_polars: selecting top leaf_ids...",
-    )
-    leaves_lazy = phylogeny_df.lazy().filter(pl.col("is_leaf"))
-    if n_downsample is None:
-        max_val = leaves_lazy.select(pl.col(criterion).max()).collect().item()
-        n_downsample = (
-            leaves_lazy.filter(pl.col(criterion) == max_val)
-            .select(pl.len())
-            .collect()
-            .item()
-        )
-        gc.collect()
-        log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_canopy_polars: counting leaves...",
-    )
-    total_leaves = leaves_lazy.select(pl.len()).collect().item()
-    logging.info(
-        f"- alifestd_downsample_tips_canopy_polars: {total_leaves=}...",
-    )
-
-    if n_downsample >= total_leaves:
-        logging.info(
-            "- alifestd_downsample_tips_canopy_polars: taking all...",
-        )
-        leaf_ids = leaves_lazy.select(pl.col("id")).collect().to_series()
-    else:  # split case to prevent extreme top_k crash where n_downsample is high
-        logging.info(
-            "- alifestd_downsample_tips_canopy_polars: taking top k...",
-        )
-        leaf_ids = (
-            leaves_lazy.top_k(n_downsample, by=pl.col(criterion))
-            .select(pl.col("id"))
-            .collect()
-            .to_series()
-        )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_canopy_polars: marking extant...",
-    )
-    phylogeny_df = phylogeny_df.with_columns(
-        extant=pl.col("id").is_in(leaf_ids),
-    )
-    del leaf_ids
-    gc.collect()
-    log_memory_usage(logging.info)
+        return phylogeny_df.drop("extant")
 
     logging.info(
         "- alifestd_downsample_tips_canopy_polars: pruning...",

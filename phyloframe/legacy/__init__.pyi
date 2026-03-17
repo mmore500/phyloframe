@@ -157,6 +157,12 @@ from ._alifestd_downsample_tips_lineage_stratified_polars import (
     alifestd_downsample_tips_lineage_stratified_polars,
 )
 from ._alifestd_downsample_tips_polars import alifestd_downsample_tips_polars
+from ._alifestd_downsample_tips_uniform_asexual import (
+    alifestd_downsample_tips_uniform_asexual,
+)
+from ._alifestd_downsample_tips_uniform_polars import (
+    alifestd_downsample_tips_uniform_polars,
+)
 from ._alifestd_drop_topological_sensitivity import (
     alifestd_drop_topological_sensitivity,
 )
@@ -445,6 +451,36 @@ from ._alifestd_mark_sackin_index_asexual import (
 from ._alifestd_mark_sackin_index_polars import (
     alifestd_mark_sackin_index_polars,
 )
+from ._alifestd_mark_sample_tips_asexual import (
+    alifestd_mark_sample_tips_asexual,
+)
+from ._alifestd_mark_sample_tips_canopy_asexual import (
+    alifestd_mark_sample_tips_canopy_asexual,
+)
+from ._alifestd_mark_sample_tips_canopy_polars import (
+    alifestd_mark_sample_tips_canopy_polars,
+)
+from ._alifestd_mark_sample_tips_clade_asexual import (
+    alifestd_mark_sample_tips_clade_asexual,
+)
+from ._alifestd_mark_sample_tips_clade_polars import (
+    alifestd_mark_sample_tips_clade_polars,
+)
+from ._alifestd_mark_sample_tips_lineage_asexual import (
+    alifestd_mark_sample_tips_lineage_asexual,
+)
+from ._alifestd_mark_sample_tips_lineage_polars import (
+    alifestd_mark_sample_tips_lineage_polars,
+)
+from ._alifestd_mark_sample_tips_lineage_stratified_asexual import (
+    alifestd_mark_sample_tips_lineage_stratified_asexual,
+)
+from ._alifestd_mark_sample_tips_lineage_stratified_polars import (
+    alifestd_mark_sample_tips_lineage_stratified_polars,
+)
+from ._alifestd_mark_sample_tips_polars import (
+    alifestd_mark_sample_tips_polars,
+)
 from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 from ._alifestd_mark_sister_polars import alifestd_mark_sister_polars
 from ._alifestd_mask_descendants_asexual import (
@@ -633,6 +669,18 @@ __all__ = [
     "alifestd_downsample_tips_lineage_stratified_asexual",
     "alifestd_downsample_tips_lineage_stratified_polars",
     "alifestd_downsample_tips_polars",
+    "alifestd_downsample_tips_uniform_asexual",
+    "alifestd_downsample_tips_uniform_polars",
+    "alifestd_mark_sample_tips_asexual",
+    "alifestd_mark_sample_tips_canopy_asexual",
+    "alifestd_mark_sample_tips_canopy_polars",
+    "alifestd_mark_sample_tips_clade_asexual",
+    "alifestd_mark_sample_tips_clade_polars",
+    "alifestd_mark_sample_tips_lineage_asexual",
+    "alifestd_mark_sample_tips_lineage_polars",
+    "alifestd_mark_sample_tips_lineage_stratified_asexual",
+    "alifestd_mark_sample_tips_lineage_stratified_polars",
+    "alifestd_mark_sample_tips_polars",
     "alifestd_drop_topological_sensitivity",
     "alifestd_drop_topological_sensitivity_polars",
     "alifestd_estimate_triplet_distance_asexual",

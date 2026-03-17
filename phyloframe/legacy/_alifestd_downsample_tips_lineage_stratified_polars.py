@@ -1,49 +1,30 @@
 import argparse
-import contextlib
 import functools
-import gc
 import logging
 import os
 import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import opytional as opyt
 import polars as pl
 from tqdm import tqdm
 
-from .._auxlib._RngStateContext import RngStateContext
 from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._log_memory_usage import log_memory_usage
-from ._alifestd_calc_mrca_id_vector_asexual_polars import (
-    alifestd_calc_mrca_id_vector_asexual_polars,
-)
-from ._alifestd_downsample_tips_lineage_asexual import (
-    _alifestd_downsample_tips_lineage_select_target_id,
-)
-from ._alifestd_downsample_tips_lineage_stratified_asexual import (
-    _alifestd_downsample_tips_lineage_stratified_impl,
+from ._alifestd_mark_sample_tips_lineage_stratified_asexual import (
     _deprecate_n_tips,
 )
-from ._alifestd_has_contiguous_ids_polars import (
-    alifestd_has_contiguous_ids_polars,
+from ._alifestd_mark_sample_tips_lineage_stratified_polars import (
+    alifestd_mark_sample_tips_lineage_stratified_polars,
 )
-from ._alifestd_is_topologically_sorted_polars import (
-    alifestd_is_topologically_sorted_polars,
-)
-from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
-)
-from ._alifestd_try_add_ancestor_id_col_polars import (
-    alifestd_try_add_ancestor_id_col_polars,
 )
 
 
@@ -135,176 +116,20 @@ def alifestd_downsample_tips_lineage_stratified_polars(
     alifestd_downsample_tips_lineage_stratified_asexual :
         Pandas-based implementation.
     """
-    if n_downsample is not None and n_downsample % n_tips_per_stratum != 0:
-        raise ValueError(
-            f"n_tips_per_stratum={n_tips_per_stratum} does not evenly "
-            f"divide n_downsample={n_downsample}",
-        )
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "adding ancestor_id col...",
-    )
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "collecting schema...",
-    )
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    if "ancestor_id" not in schema_names:
-        raise NotImplementedError(
-            "alifestd_downsample_tips_lineage_stratified_polars only "
-            "supports asexual phylogenies.",
-        )
-
-    for criterion in (
-        criterion_delta,
-        criterion_stratify,
-        criterion_target,
-    ):
-        if criterion not in schema_names:
-            raise ValueError(
-                f"criterion column {criterion!r} not found in phylogeny_df",
-            )
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "checking empty...",
-    )
-    if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-
-        raise NotImplementedError(
-            "non-contiguous ids not supported",
-        )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-
-        raise NotImplementedError(
-            "non-topologically-sorted data not supported",
-        )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "marking leaves...",
-    )
-    phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "collecting is_leaf values...",
-    )
-    is_leaf = (
-        phylogeny_df.lazy().select("is_leaf").collect().to_series().to_numpy()
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "collecting criterion_target values...",
-    )
-    target_values = (
-        phylogeny_df.lazy()
-        .select(criterion_target)
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "selecting target leaf...",
-    )
-    with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
-        target_id = _alifestd_downsample_tips_lineage_select_target_id(
-            is_leaf, target_values
-        )
-
-    del target_values
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "collecting criterion_delta values...",
-    )
-    criterion_values = (
-        phylogeny_df.lazy()
-        .select(criterion_delta)
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "collecting criterion_stratify values...",
-    )
-    stratify_values = (
-        phylogeny_df.lazy()
-        .select(criterion_stratify)
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        f"computing mrca vector for {target_id=}...",
-    )
-    mrca_vector = alifestd_calc_mrca_id_vector_asexual_polars(
-        phylogeny_df, target_id=target_id, progress_wrap=progress_wrap
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "computing is_extant...",
-    )
-    is_extant = _alifestd_downsample_tips_lineage_stratified_impl(
-        is_leaf=is_leaf,
-        criterion_values=criterion_values,
-        stratify_values=stratify_values,
-        mrca_vector=mrca_vector,
-        n_downsample=n_downsample,
+    phylogeny_df = alifestd_mark_sample_tips_lineage_stratified_polars(
+        phylogeny_df,
+        n_sample=n_downsample,
+        seed=seed,
+        criterion_delta=criterion_delta,
+        criterion_stratify=criterion_stratify,
+        criterion_target=criterion_target,
         n_tips_per_stratum=n_tips_per_stratum,
+        progress_wrap=progress_wrap,
+        mark_as="extant",
     )
-    del criterion_values, is_leaf, mrca_vector, stratify_values
-    gc.collect()
-    log_memory_usage(logging.info)
 
-    logging.info(
-        "- alifestd_downsample_tips_lineage_stratified_polars: "
-        "marking extant...",
-    )
-    phylogeny_df = phylogeny_df.with_columns(extant=is_extant)
-    del is_extant
-    gc.collect()
-    log_memory_usage(logging.info)
+    if phylogeny_df.lazy().limit(1).collect().is_empty():
+        return phylogeny_df.drop("extant")
 
     logging.info(
         "- alifestd_downsample_tips_lineage_stratified_polars: pruning...",

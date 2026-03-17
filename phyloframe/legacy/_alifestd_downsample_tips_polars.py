@@ -1,92 +1,35 @@
 import argparse
-import contextlib
 import functools
-import gc
 import logging
 import os
 import sys
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
-import opytional as opyt
 import polars as pl
 
-from .._auxlib._RngStateContext import RngStateContext
 from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._log_memory_usage import log_memory_usage
-from ._alifestd_find_leaf_ids_polars import alifestd_find_leaf_ids_polars
-from ._alifestd_prune_extinct_lineages_polars import (
-    alifestd_prune_extinct_lineages_polars,
-)
-from ._alifestd_topological_sensitivity_warned_polars import (
-    alifestd_topological_sensitivity_warned_polars,
-)
-from ._alifestd_try_add_ancestor_id_col_polars import (
-    alifestd_try_add_ancestor_id_col_polars,
+from ._alifestd_downsample_tips_uniform_polars import (
+    alifestd_downsample_tips_uniform_polars,
 )
 
 
-def _alifestd_downsample_tips_polars_impl(
-    phylogeny_df: pl.DataFrame,
-    n_downsample: int,
-) -> pl.DataFrame:
-    """Implementation detail for alifestd_downsample_tips_polars."""
-
-    logging.info(
-        "- alifestd_downsample_tips_polars: collecting leaf ids...",
-    )
-    leaf_ids = alifestd_find_leaf_ids_polars(phylogeny_df)
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_polars: sampling leaf_ids...",
-    )
-    leaf_ids = np.random.choice(
-        leaf_ids, size=min(n_downsample, len(leaf_ids)), replace=False
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info("- alifestd_downsample_tips_polars: collecting len(df)...")
-    len_df = phylogeny_df.lazy().select(pl.len()).collect().item()
-
-    logging.info("- alifestd_downsample_tips_polars: finding extant...")
-    extant_mask = np.bincount(leaf_ids, minlength=len_df).astype(bool)
-    del leaf_ids
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_polars: marking extant...",
-    )
-    phylogeny_df = phylogeny_df.with_columns(extant=extant_mask)
-    gc.collect()
-    log_memory_usage(logging.info)
-
-    logging.info(
-        "- alifestd_downsample_tips_polars: pruning...",
-    )
-    return alifestd_prune_extinct_lineages_polars(phylogeny_df).drop("extant")
-
-
-@alifestd_topological_sensitivity_warned_polars(
-    insert=False,
-    delete=True,
-    update=False,
-)
 def alifestd_downsample_tips_polars(
     phylogeny_df: pl.DataFrame,
     n_downsample: int,
     seed: typing.Optional[int] = None,
+    **kwargs,
 ) -> pl.DataFrame:
     """Create a subsample phylogeny containing `n_downsample` tips.
+
+    .. deprecated::
+        Use :func:`alifestd_downsample_tips_uniform_polars` instead.
 
     If `n_downsample` is greater than the number of tips in the phylogeny,
     the whole phylogeny is returned.
@@ -116,22 +59,28 @@ def alifestd_downsample_tips_polars(
 
     See Also
     --------
+    alifestd_downsample_tips_uniform_polars :
+        Preferred non-deprecated implementation.
     alifestd_downsample_tips_asexual :
         Pandas-based implementation.
     """
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-
-    if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df
-
-    with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
-        return _alifestd_downsample_tips_polars_impl(
-            phylogeny_df,
-            n_downsample,
-        )
+    warnings.warn(
+        "alifestd_downsample_tips_polars is deprecated, "
+        "use alifestd_downsample_tips_uniform_polars instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return alifestd_downsample_tips_uniform_polars(
+        phylogeny_df,
+        n_downsample,
+        seed=seed,
+        **kwargs,
+    )
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
+
+DEPRECATED: Use _alifestd_downsample_tips_uniform_polars instead.
 
 Create a subsample phylogeny containing `-n` tips.
 
@@ -151,8 +100,8 @@ Otherwise, no action is taken.
 
 See Also
 ========
-phyloframe.legacy._alifestd_downsample_tips_asexual :
-    CLI entrypoint for Pandas-based implementation.
+phyloframe.legacy._alifestd_downsample_tips_uniform_polars :
+    Preferred non-deprecated entrypoint.
 """
 
 

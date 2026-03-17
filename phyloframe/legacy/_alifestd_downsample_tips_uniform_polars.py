@@ -4,60 +4,87 @@ import logging
 import os
 import sys
 import typing
-import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import pandas as pd
+import polars as pl
 
 from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
-from .._auxlib._delegate_polars_implementation import (
-    delegate_polars_implementation,
-)
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_downsample_tips_uniform_asexual import (
-    alifestd_downsample_tips_uniform_asexual,
+from ._alifestd_mark_sample_tips_polars import (
+    alifestd_mark_sample_tips_polars,
+)
+from ._alifestd_prune_extinct_lineages_polars import (
+    alifestd_prune_extinct_lineages_polars,
+)
+from ._alifestd_topological_sensitivity_warned_polars import (
+    alifestd_topological_sensitivity_warned_polars,
 )
 
 
-def alifestd_downsample_tips_asexual(
-    phylogeny_df: pd.DataFrame,
+@alifestd_topological_sensitivity_warned_polars(
+    insert=False,
+    delete=True,
+    update=False,
+)
+def alifestd_downsample_tips_uniform_polars(
+    phylogeny_df: pl.DataFrame,
     n_downsample: int,
-    mutate: bool = False,
     seed: typing.Optional[int] = None,
-    **kwargs,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Create a subsample phylogeny containing `n_downsample` tips.
-
-    .. deprecated::
-        Use :func:`alifestd_downsample_tips_uniform_asexual` instead.
 
     If `n_downsample` is greater than the number of tips in the phylogeny,
     the whole phylogeny is returned.
 
     Only supports asexual phylogenies.
+
+    Parameters
+    ----------
+    phylogeny_df : polars.DataFrame
+        The phylogeny as a dataframe in alife standard format.
+
+        Must represent an asexual phylogeny.
+    n_downsample : int
+        Number of tips to retain.
+    seed : int, optional
+        Integer seed for deterministic behavior.
+
+    Raises
+    ------
+    NotImplementedError
+        If `phylogeny_df` has no "ancestor_id" column.
+
+    Returns
+    -------
+    polars.DataFrame
+        The downsampled phylogeny in alife standard format.
+
+    See Also
+    --------
+    alifestd_downsample_tips_uniform_asexual :
+        Pandas-based implementation.
     """
-    warnings.warn(
-        "alifestd_downsample_tips_asexual is deprecated, "
-        "use alifestd_downsample_tips_uniform_asexual instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return alifestd_downsample_tips_uniform_asexual(
+    phylogeny_df = alifestd_mark_sample_tips_polars(
         phylogeny_df,
         n_downsample,
-        mutate=mutate,
         seed=seed,
-        **kwargs,
+        mark_as="extant",
     )
+
+    if phylogeny_df.lazy().limit(1).collect().is_empty():
+        return phylogeny_df.drop("extant")
+
+    logging.info(
+        "- alifestd_downsample_tips_uniform_polars: pruning...",
+    )
+    return alifestd_prune_extinct_lineages_polars(phylogeny_df).drop("extant")
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
-
-DEPRECATED: Use _alifestd_downsample_tips_uniform_asexual instead.
 
 Create a subsample phylogeny containing `-n` tips.
 
@@ -78,7 +105,7 @@ Otherwise, no action is taken.
 See Also
 ========
 phyloframe.legacy._alifestd_downsample_tips_uniform_asexual :
-    Preferred non-deprecated entrypoint.
+    CLI entrypoint for Pandas-based implementation.
 """
 
 
@@ -91,7 +118,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_downsample_tips_asexual",
+        dfcli_module="phyloframe.legacy._alifestd_downsample_tips_uniform_polars",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
@@ -127,19 +154,25 @@ if __name__ == "__main__":
 
     parser = _create_parser()
     args, __ = parser.parse_known_args()
-    with log_context_duration(
-        "phyloframe.legacy._alifestd_downsample_tips_asexual", logging.info
-    ):
-        _run_dataframe_cli(
-            base_parser=parser,
-            output_dataframe_op=delegate_polars_implementation()(
-                functools.partial(
-                    alifestd_downsample_tips_asexual,
+
+    try:
+        with log_context_duration(
+            "phyloframe.legacy._alifestd_downsample_tips_uniform_polars",
+            logging.info,
+        ):
+            _run_dataframe_cli(
+                base_parser=parser,
+                output_dataframe_op=functools.partial(
+                    alifestd_downsample_tips_uniform_polars,
                     n_downsample=args.n,
                     seed=args.seed,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
                 ),
-            ),
-            overridden_arguments="ignore",  # seed is overridden
+                overridden_arguments="ignore",  # seed is overridden
+            )
+    except NotImplementedError as e:
+        logging.error(
+            "- polars op not yet implemented, use pandas op CLI instead",
         )
+        raise e
