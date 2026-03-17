@@ -11,6 +11,7 @@ from phyloframe.legacy import (
     alifestd_calc_mrca_id_matrix_asexual,
     alifestd_calc_mrca_id_vector_asexual,
     alifestd_is_chronologically_ordered,
+    alifestd_make_empty,
     alifestd_to_working_format,
 )
 from phyloframe.legacy._alifestd_calc_mrca_id_vector_asexual_polars import (
@@ -120,18 +121,8 @@ def test_simple1(apply: typing.Callable):
 @pytest.mark.parametrize(
     "phylogeny_df_pd",
     [
-        pd.DataFrame(
-            {
-                "id": [],
-                "ancestor_list": [],
-            }
-        ),
-        pd.DataFrame(
-            {
-                "id": [],
-                "ancestor_id": [],
-            }
-        ),
+        alifestd_make_empty(),
+        alifestd_make_empty(ancestor_id=True),
         pd.DataFrame(
             {
                 "id": [0],
