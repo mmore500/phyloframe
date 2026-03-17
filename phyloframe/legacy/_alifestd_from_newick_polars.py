@@ -75,9 +75,7 @@ def alifestd_from_newick_polars(
     newick = newick.strip()
     if id_dtype is None:
         comma_count = newick.count(",")
-        pl_id_dtype = (
-            pl.Series([-max(comma_count, 1)]).shrink_dtype().dtype
-        )
+        pl_id_dtype = pl.Series([-max(comma_count, 1)]).shrink_dtype().dtype
     else:
         pl_id_dtype = _np_to_pl_int[np.dtype(id_dtype)]
 
