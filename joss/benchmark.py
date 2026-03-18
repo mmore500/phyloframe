@@ -1156,9 +1156,7 @@ def run_benchmarks(sizes=None):
 
         for LibClass in LIBRARIES:
             print(
-                f"\n  {'-' * 56}\n"
-                f"  | {LibClass.name}\n"
-                f"  {'-' * 56}",
+                f"\n  {'-' * 56}\n" f"  | {LibClass.name}\n" f"  {'-' * 56}",
                 file=sys.stderr,
             )
 
