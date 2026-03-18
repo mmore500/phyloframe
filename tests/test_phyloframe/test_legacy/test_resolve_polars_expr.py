@@ -5,9 +5,6 @@ import pytest
 from phyloframe.legacy._alifestd_calc_distance_matrix_polars import (
     alifestd_calc_distance_matrix_polars,
 )
-from phyloframe.legacy._alifestd_coarsen_dilate_polars import (
-    alifestd_coarsen_dilate_polars,
-)
 from phyloframe.legacy._alifestd_downsample_tips_canopy_polars import (
     alifestd_downsample_tips_canopy_polars,
 )
@@ -124,27 +121,6 @@ class TestCalcDistanceMatrixPolarsExpr:
             criterion=pl.col("origin_time"),
         )
         np.testing.assert_array_equal(mat_str, mat_expr)
-
-
-class TestCoarsenDilatePolarsExpr:
-    def test_expr_matches_string(self):
-        df = _make_simple_phylogeny()
-        result_str = alifestd_coarsen_dilate_polars(
-            df,
-            criterion="origin_time",
-            dilation=2,
-            ignore_topological_sensitivity=True,
-        )
-        result_expr = alifestd_coarsen_dilate_polars(
-            df,
-            criterion=pl.col("origin_time"),
-            dilation=2,
-            ignore_topological_sensitivity=True,
-        )
-        assert result_str.shape == result_expr.shape
-        assert all(
-            not c.startswith("__phyloframe") for c in result_expr.columns
-        )
 
 
 class TestDownsampleTipsCanopyPolarsExpr:

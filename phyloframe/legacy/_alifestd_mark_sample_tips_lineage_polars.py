@@ -99,13 +99,10 @@ def alifestd_mark_sample_tips_lineage_polars(
         Pandas-based implementation.
     """
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    for name, value in [
-        ("criterion_delta", criterion_delta),
-        ("criterion_target", criterion_target),
-    ]:
-        if isinstance(value, str) and value not in schema_names:
+    for criterion in (criterion_delta, criterion_target):
+        if isinstance(criterion, str) and criterion not in schema_names:
             raise ValueError(
-                f"criterion column {value!r} not found in phylogeny_df",
+                f"criterion column {criterion!r} not found in phylogeny_df",
             )
 
     if isinstance(criterion_delta, str):

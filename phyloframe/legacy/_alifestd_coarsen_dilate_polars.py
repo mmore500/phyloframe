@@ -34,7 +34,7 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 def alifestd_coarsen_dilate_polars(
     phylogeny_df: typing.Union[pl.DataFrame, pl.LazyFrame],
     *,
-    criterion: typing.Union[str, pl.Expr] = "origin_time",
+    criterion: str = "origin_time",
     dilation: int = 1,
 ) -> pl.DataFrame:
     """Coarsen a phylogeny by collapsing inner nodes within dilation windows.
@@ -51,9 +51,8 @@ def alifestd_coarsen_dilate_polars(
     ----------
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         Input phylogeny in alife standard format.
-    criterion : str or polars.Expr, default "origin_time"
-        Column name or polars expression whose values define the time
-        axis for dilation.
+    criterion : str, default "origin_time"
+        Column whose values define the time axis for dilation.
     dilation : int
         Width of the dilation window.  Must be a positive integer.
 
@@ -79,23 +78,21 @@ def alifestd_coarsen_dilate_polars(
     if dilation <= 0:
         raise ValueError(f"dilation must be positive, got {dilation}")
 
+    if criterion in ("id", "ancestor_id"):
+        raise ValueError(
+            f"criterion must not be 'id' or 'ancestor_id', "
+            f"got {criterion!r}",
+        )
+
     logging.info(
         "- alifestd_coarsen_dilate_polars: collecting schema...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
 
-    if isinstance(criterion, str):
-        if criterion in ("id", "ancestor_id"):
-            raise ValueError(
-                f"criterion must not be 'id' or 'ancestor_id', "
-                f"got {criterion!r}",
-            )
-        if criterion not in schema_names:
-            raise ValueError(
-                f"criterion column {criterion!r} not found "
-                f"in phylogeny_df",
-            )
-        criterion = pl.col(criterion)
+    if criterion not in schema_names:
+        raise ValueError(
+            f"criterion column {criterion!r} not found in phylogeny_df",
+        )
 
     if "ancestor_list" in schema_names:
         raise NotImplementedError(
@@ -188,7 +185,6 @@ def alifestd_coarsen_dilate_polars(
     logging.info(
         "- alifestd_coarsen_dilate_polars: applying results...",
     )
-    criterion_name = criterion.meta.output_name()
     return (
         phylogeny_df.lazy()
         .collect()
@@ -196,7 +192,7 @@ def alifestd_coarsen_dilate_polars(
         .with_columns(
             id=original_ids[keep_mask],
             ancestor_id=original_ids[new_ancestor_ids[keep_mask]],
-            **{criterion_name: new_criterion_values[keep_mask]},
+            **{criterion: new_criterion_values[keep_mask]},
         )
     )
 
