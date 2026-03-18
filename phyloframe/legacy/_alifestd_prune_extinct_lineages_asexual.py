@@ -1,7 +1,6 @@
 import argparse
 import functools
 import logging
-import operator
 import os
 
 import joinem
@@ -94,11 +93,12 @@ def _create_has_extant_descendant_contiguous_sorted(
 def alifestd_prune_extinct_lineages_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    criterion: str = "extant",
 ) -> pd.DataFrame:
     """Drop taxa without extant descendants.
 
-    An "extant" column, if provided, is used to determine extant taxa.
-    Otherwise, taxa with inf or nan "destruction_time" are considered extant.
+    The `criterion` column is used to determine extant taxa.
 
     Fastest with records in working format. See `alifestd_to_working_format`.
 
@@ -110,20 +110,22 @@ def alifestd_prune_extinct_lineages_asexual(
         Must represent an asexual phylogeny.
     mutate : bool, default False
         Are side effects on the input argument `phylogeny_df` allowed?
+    criterion : str, default "extant"
+        Column name used to determine extant taxa.
 
     Raises
     ------
     ValueError
-        If `phylogeny_df` has neither "extant" or "destruction_time" columns.
-
-        Without at least one of these columns, which taxa are extant is
-        ambiguous.
+        If `criterion` is not a column in `phylogeny_df`.
 
     Returns
     -------
     pandas.DataFrame
-        The rerooted phylogeny in alife standard format.
+        The pruned phylogeny in alife standard format.
     """
+    if criterion not in phylogeny_df:
+        raise ValueError(f'Need "{criterion}" column.')
+
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
@@ -133,16 +135,7 @@ def alifestd_prune_extinct_lineages_asexual(
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
-    extant_mask = None
-    if "extant" in phylogeny_df:
-        extant_mask = phylogeny_df["extant"]
-    elif "destruction_time" in phylogeny_df:
-        extant_mask = operator.or_(
-            phylogeny_df["destruction_time"].isna(),
-            np.isinf(phylogeny_df["destruction_time"]),
-        )
-    else:
-        raise ValueError('Need "extant" or "destruction_time" column.')
+    extant_mask = phylogeny_df[criterion]
 
     if not alifestd_has_contiguous_ids(phylogeny_df):
         has_extant_descendant = _create_has_extant_descendant_noncontiguous(
@@ -173,15 +166,14 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 
 Drop taxa without extant descendants.
 
-An "extant" column, if provided, is used to determine extant taxa.
-Otherwise, taxa with inf or nan "destruction_time" are considered extant.
+The `--criterion` column is used to determine extant taxa.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
 
 Additional Notes
 ================
-- Requires 'extant' or 'destruction_time' column.
+- Requires `--criterion` column (default: 'extant').
 
 - Use `--eager-read` if modifying data file inplace.
 
@@ -218,6 +210,12 @@ def _create_parser() -> argparse.ArgumentParser:
         default=False,
         help="drop topology-sensitive columns from output (default: False)",
     )
+    parser.add_argument(
+        "--criterion",
+        default="extant",
+        type=str,
+        help="Column name used to determine extant taxa (default: extant).",
+    )
     return parser
 
 
@@ -235,6 +233,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_prune_extinct_lineages_asexual,
+                    criterion=args.criterion,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
                 ),
