@@ -47,9 +47,9 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
     n_sample: typing.Optional[int] = None,
     seed: typing.Optional[int] = None,
     *,
-    criterion_delta: str = "origin_time",
-    criterion_stratify: str = "origin_time",
-    criterion_target: str = "origin_time",
+    criterion_delta: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_stratify: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_target: typing.Union[str, pl.Expr] = "origin_time",
     n_tips_per_stratum: int = 1,
     progress_wrap: typing.Callable = lambda x: x,
     mark_as: str = "alifestd_mark_sample_tips_lineage_stratified_polars",
@@ -72,12 +72,15 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
         ``criterion_stratify`` value forms its own group.
     seed : int, optional
         Random seed for reproducible target-leaf selection.
-    criterion_delta : str, default "origin_time"
-        Column name used to compute the off-lineage delta for each leaf.
-    criterion_stratify : str, default "origin_time"
-        Column name used to stratify leaves into groups.
-    criterion_target : str, default "origin_time"
-        Column name used to select the target leaf.
+    criterion_delta : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to compute the
+        off-lineage delta for each leaf.
+    criterion_stratify : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to stratify leaves into
+        groups.
+    criterion_target : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to select the target
+        leaf.
     n_tips_per_stratum : int, default 1
         Number of tips to retain per stratified group.
     progress_wrap : Callable, optional
@@ -140,10 +143,18 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
         criterion_stratify,
         criterion_target,
     ):
-        if criterion not in schema_names:
+        if isinstance(criterion, str) and criterion not in schema_names:
             raise ValueError(
-                f"criterion column {criterion!r} not found in phylogeny_df",
+                f"criterion column {criterion!r} not found "
+                f"in phylogeny_df",
             )
+
+    if isinstance(criterion_delta, str):
+        criterion_delta = pl.col(criterion_delta)
+    if isinstance(criterion_stratify, str):
+        criterion_stratify = pl.col(criterion_stratify)
+    if isinstance(criterion_target, str):
+        criterion_target = pl.col(criterion_target)
 
     logging.info(
         "- alifestd_mark_sample_tips_lineage_stratified_polars: "

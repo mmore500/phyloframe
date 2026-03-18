@@ -12,7 +12,7 @@ def alifestd_find_pair_distance_polars(
     first: int,
     second: int,
     *,
-    criterion: str = "origin_time",
+    criterion: typing.Union[str, pl.Expr] = "origin_time",
 ) -> typing.Optional[float]:
     """Find the pairwise distance between two taxa via their MRCA.
 
@@ -33,8 +33,9 @@ def alifestd_find_pair_distance_polars(
         First taxon id.
     second : int
         Second taxon id.
-    criterion : str, default "origin_time"
-        Column name used to measure distance between taxa and their MRCA.
+    criterion : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to measure distance
+        between taxa and their MRCA.
 
     Returns
     -------
@@ -49,6 +50,9 @@ def alifestd_find_pair_distance_polars(
     alifestd_find_pair_distance_asexual :
         Pandas-based implementation.
     """
+    if isinstance(criterion, str):
+        criterion = pl.col(criterion)
+
     mrca_id = alifestd_find_pair_mrca_id_polars(
         phylogeny_df,
         first,
@@ -60,9 +64,9 @@ def alifestd_find_pair_distance_polars(
     vals = (
         phylogeny_df.lazy()
         .select(
-            pl.col(criterion).slice(first, 1).alias("first"),
-            pl.col(criterion).slice(second, 1).alias("second"),
-            pl.col(criterion).slice(mrca_id, 1).alias("mrca"),
+            criterion.slice(first, 1).alias("first"),
+            criterion.slice(second, 1).alias("second"),
+            criterion.slice(mrca_id, 1).alias("mrca"),
         )
         .collect()
     )
