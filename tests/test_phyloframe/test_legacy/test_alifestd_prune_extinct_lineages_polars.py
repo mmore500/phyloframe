@@ -65,9 +65,12 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_prune_extinct_lineages_polars_destruction_time_nop(
+def test_alifestd_prune_extinct_lineages_polars_extant_col_nop(
     phylogeny_df, apply: typing.Callable
 ):
+    phylogeny_df["extant"] = phylogeny_df[
+        "destruction_time"
+    ].isna() | np.isinf(phylogeny_df["destruction_time"])
     phylogeny_df_pl = apply(pl.from_pandas(phylogeny_df))
 
     pruned_df = (
@@ -277,12 +280,10 @@ def test_alifestd_prune_extinct_lineages_polars_independent_trees(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_alifestd_prune_extinct_lineages_polars_ambiguous_extant(
+def test_alifestd_prune_extinct_lineages_polars_missing_criterion(
     phylogeny_df, apply: typing.Callable
 ):
-    phylogeny_df_pl = apply(
-        pl.from_pandas(phylogeny_df).drop("destruction_time")
-    )
+    phylogeny_df_pl = apply(pl.from_pandas(phylogeny_df))
 
     with pytest.raises(ValueError):
         alifestd_prune_extinct_lineages_polars(
@@ -305,7 +306,7 @@ def test_alifestd_prune_extinct_lineages_polars_no_ancestor_id(
             {
                 "id": [0, 1, 2],
                 "ancestor_list": ["[none]", "[0]", "[1]"],
-                "destruction_time": [float("inf")] * 3,
+                "extant": [True, True, True],
             }
         )
     )
@@ -328,7 +329,7 @@ def test_alifestd_prune_extinct_lineages_polars_noncontiguous(
             {
                 "id": [0, 2, 5],
                 "ancestor_id": [0, 0, 2],
-                "destruction_time": [float("inf")] * 3,
+                "extant": [True, True, True],
             }
         )
     )
@@ -351,7 +352,7 @@ def test_alifestd_prune_extinct_lineages_polars_not_sorted(
             {
                 "id": [0, 1, 2],
                 "ancestor_id": [0, 2, 0],  # id 1 has ancestor 2 > 1
-                "destruction_time": [float("inf")] * 3,
+                "extant": [True, True, True],
             }
         )
     )
@@ -372,11 +373,11 @@ def test_alifestd_prune_extinct_lineages_polars_empty(
     """Empty dataframe should return empty."""
     df = apply(
         pl.DataFrame(
-            {"id": [], "ancestor_id": [], "destruction_time": []},
+            {"id": [], "ancestor_id": [], "extant": []},
             schema={
                 "id": pl.Int64,
                 "ancestor_id": pl.Int64,
-                "destruction_time": pl.Float64,
+                "extant": pl.Boolean,
             },
         ),
     )
@@ -473,3 +474,41 @@ def test_alifestd_prune_extinct_lineages_polars_none_extant(
     pruned = alifestd_prune_extinct_lineages_polars(df).lazy().collect()
 
     assert len(pruned) == 0
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_alifestd_prune_extinct_lineages_polars_custom_criterion(
+    apply: typing.Callable,
+):
+    """Test using a custom criterion column name."""
+    df = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4, 5],
+                "ancestor_id": [0, 0, 0, 1, 1, 2],
+                "my_custom_col": [
+                    False,
+                    False,
+                    False,
+                    True,
+                    False,
+                    False,
+                ],
+            }
+        )
+    )
+
+    pruned = (
+        alifestd_prune_extinct_lineages_polars(df, criterion="my_custom_col")
+        .lazy()
+        .collect()
+    )
+
+    assert set(pruned["id"].to_list()) == {0, 1, 3}
+    assert len(pruned) == 3

@@ -35,11 +35,12 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 )
 def alifestd_prune_extinct_lineages_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    criterion: str = "extant",
 ) -> pl.DataFrame:
     """Drop taxa without extant descendants.
 
-    An "extant" column, if provided, is used to determine extant taxa.
-    Otherwise, taxa with inf or nan "destruction_time" are considered extant.
+    The `criterion` column is used to determine extant taxa.
 
     Parameters
     ----------
@@ -47,6 +48,8 @@ def alifestd_prune_extinct_lineages_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
+    criterion : str, default "extant"
+        Column name used to determine extant taxa.
 
     Raises
     ------
@@ -57,7 +60,7 @@ def alifestd_prune_extinct_lineages_polars(
     NotImplementedError
         If `phylogeny_df` is not topologically sorted.
     ValueError
-        If `phylogeny_df` has neither "extant" nor "destruction_time" columns.
+        If `criterion` is not a column in `phylogeny_df`.
 
     Returns
     -------
@@ -106,14 +109,9 @@ def alifestd_prune_extinct_lineages_polars(
         "- alifestd_prune_extinct_lineages_polars: "
         "determining extant mask...",
     )
-    if "extant" in schema_names:
-        extant_mask = phylogeny_df.lazy().select("extant")
-    elif "destruction_time" in schema_names:
-        extant_mask = phylogeny_df.lazy().select(
-            ~pl.col("destruction_time").is_finite()
-        )
-    else:
-        raise ValueError('Need "extant" or "destruction_time" column.')
+    if criterion not in schema_names:
+        raise ValueError(f'Need "{criterion}" column.')
+    extant_mask = phylogeny_df.lazy().select(criterion)
     gc.collect()
     log_memory_usage(logging.info)
 
@@ -174,8 +172,7 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 
 Drop taxa without extant descendants.
 
-An "extant" column, if provided, is used to determine extant taxa.
-Otherwise, taxa with inf or nan "destruction_time" are considered extant.
+The `--criterion` column is used to determine extant taxa.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
@@ -185,7 +182,7 @@ Additional Notes
 - Requires 'ancestor_id' column to be present in input DataFrame.
 Otherwise, no action is taken.
 
-- Requires 'extant' or 'destruction_time' column.
+- Requires `--criterion` column (default: 'extant').
 
 - Use `--eager-read` if modifying data file inplace.
 
@@ -222,6 +219,12 @@ def _create_parser() -> argparse.ArgumentParser:
         default=False,
         help="drop topology-sensitive columns from output (default: False)",
     )
+    parser.add_argument(
+        "--criterion",
+        default="extant",
+        type=str,
+        help="Column name used to determine extant taxa (default: extant).",
+    )
     return parser
 
 
@@ -240,6 +243,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_prune_extinct_lineages_polars,
+                    criterion=args.criterion,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
                 ),
