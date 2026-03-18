@@ -37,8 +37,8 @@ def test_fuzz(apply: typing.Callable):
     phylogeny_df = pd.read_csv(
         f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
     )
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-    phylogeny_pl = apply(phylogeny_df)
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df)
+    phylogeny_pl = apply(pl.from_pandas(phylogeny_df))
 
     result = alifestd_as_newick_polars(phylogeny_pl, taxon_label="id")
 
