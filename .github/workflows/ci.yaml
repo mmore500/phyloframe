@@ -287,6 +287,77 @@ jobs:
           name: cibw-sdist
           path: dist/*.tar.gz
 
+  paper:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build draft PDF
+        uses: openjournals/openjournals-draft-action@master
+        with:
+          journal: joss
+          # This should be the path to the paper within your repo.
+          paper-path: joss/paper.md
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper
+          # This is the output path where Pandoc will write the compiled
+          # PDF. Note, this should be the same directory as the input
+          # paper.md
+          path: joss/paper.pdf
+
+  benchmark:
+    name: "benchmark ${{ matrix.n_leaves }} leaves"
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        n_leaves:
+          - 100
+          - 300
+          - 1000
+          - 3000
+          - 10000
+          - 30000
+          - 100000
+          - 300000
+          - 1000000
+          - 3000000
+          - 10000000
+          - 30000000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.12"
+      - name: Install phyloframe
+        run: python3 -m pip install ".[jit]"
+      - name: Install benchmark dependencies
+        run: |
+          sudo apt-get install -y swig
+          python3 -m pip install \
+            biopython==1.86 \
+            dendropy==5.0.8 \
+            treeswift==1.1.45 \
+            ete3==3.1.3 \
+            psutil \
+            scikit-bio==0.6.3
+          python3 -m pip download CompactTree==1.0.0 --no-binary :all: -d /tmp/ct
+          cd /tmp && tar xzf ct/compacttree-1.0.0.tar.gz
+          sed -i '1a %begin %{\n#include <cstdint>\n%}' \
+            /tmp/compacttree-1.0.0/CompactTree/compact_tree.i
+          python3 -m pip install /tmp/compacttree-1.0.0
+      - name: Run benchmark
+        run: python3 joss/benchmark.py --size ${{ matrix.n_leaves }} > joss/benchmark-results.csv
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.n_leaves }}
+          path: joss/benchmark-results.csv
+
   deploy-test:
     runs-on: ubuntu-24.04
     steps:
