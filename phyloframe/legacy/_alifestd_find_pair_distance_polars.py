@@ -2,13 +2,11 @@ import typing
 
 import polars as pl
 
-from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_find_pair_mrca_id_polars import (
     alifestd_find_pair_mrca_id_polars,
 )
 
 
-@_resolve_polars_expr("criterion")
 def alifestd_find_pair_distance_polars(
     phylogeny_df: pl.DataFrame,
     first: int,
@@ -52,6 +50,9 @@ def alifestd_find_pair_distance_polars(
     alifestd_find_pair_distance_asexual :
         Pandas-based implementation.
     """
+    if isinstance(criterion, str):
+        criterion = pl.col(criterion)
+
     mrca_id = alifestd_find_pair_mrca_id_polars(
         phylogeny_df,
         first,
@@ -63,9 +64,9 @@ def alifestd_find_pair_distance_polars(
     vals = (
         phylogeny_df.lazy()
         .select(
-            pl.col(criterion).slice(first, 1).alias("first"),
-            pl.col(criterion).slice(second, 1).alias("second"),
-            pl.col(criterion).slice(mrca_id, 1).alias("mrca"),
+            criterion.slice(first, 1).alias("first"),
+            criterion.slice(second, 1).alias("second"),
+            criterion.slice(mrca_id, 1).alias("mrca"),
         )
         .collect()
     )

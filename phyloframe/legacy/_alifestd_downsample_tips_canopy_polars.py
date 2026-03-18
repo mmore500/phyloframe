@@ -13,7 +13,6 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_downsample_tips_canopy_asexual import (
     _deprecate_num_tips,
 )
@@ -34,7 +33,6 @@ from ._alifestd_topological_sensitivity_warned_polars import (
     delete=True,
     update=False,
 )
-@_resolve_polars_expr("criterion")
 def alifestd_downsample_tips_canopy_polars(
     phylogeny_df: pl.DataFrame,
     n_downsample: typing.Optional[int] = None,

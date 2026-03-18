@@ -15,7 +15,6 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
-from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_downsample_tips_canopy_asexual import (
     _deprecate_num_tips,
 )
@@ -23,7 +22,6 @@ from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 
 
 @_deprecate_num_tips
-@_resolve_polars_expr("criterion")
 def alifestd_mark_sample_tips_canopy_polars(
     phylogeny_df: pl.DataFrame,
     n_sample: typing.Optional[int] = None,
@@ -81,10 +79,14 @@ def alifestd_mark_sample_tips_canopy_polars(
     schema_names = phylogeny_df.lazy().collect_schema().names()
     gc.collect()
     log_memory_usage(logging.info)
-    if criterion not in schema_names:
-        raise ValueError(
-            f"criterion column {criterion!r} not found in phylogeny_df",
-        )
+
+    if isinstance(criterion, str):
+        if criterion not in schema_names:
+            raise ValueError(
+                f"criterion column {criterion!r} not found "
+                f"in phylogeny_df",
+            )
+        criterion = pl.col(criterion)
 
     if "ancestor_id" not in schema_names:
         raise NotImplementedError("ancestor_id column required")
@@ -109,9 +111,9 @@ def alifestd_mark_sample_tips_canopy_polars(
     )
     leaves_lazy = phylogeny_df.lazy().filter(pl.col("is_leaf"))
     if n_sample is None:
-        max_val = leaves_lazy.select(pl.col(criterion).max()).collect().item()
+        max_val = leaves_lazy.select(criterion.max()).collect().item()
         n_sample = (
-            leaves_lazy.filter(pl.col(criterion) == max_val)
+            leaves_lazy.filter(criterion == max_val)
             .select(pl.len())
             .collect()
             .item()
@@ -137,7 +139,7 @@ def alifestd_mark_sample_tips_canopy_polars(
             "- alifestd_mark_sample_tips_canopy_polars: taking top k...",
         )
         leaf_ids = (
-            leaves_lazy.top_k(n_sample, by=pl.col(criterion))
+            leaves_lazy.top_k(n_sample, by=criterion)
             .select(pl.col("id"))
             .collect()
             .to_series()

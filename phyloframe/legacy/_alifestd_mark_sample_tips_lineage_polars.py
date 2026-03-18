@@ -20,7 +20,6 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
-from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_calc_mrca_id_vector_asexual_polars import (
     alifestd_calc_mrca_id_vector_asexual_polars,
 )
@@ -44,7 +43,6 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 @_deprecate_num_tips
-@_resolve_polars_expr("criterion_delta", "criterion_target")
 def alifestd_mark_sample_tips_lineage_polars(
     phylogeny_df: pl.DataFrame,
     n_sample: int,
@@ -101,11 +99,19 @@ def alifestd_mark_sample_tips_lineage_polars(
         Pandas-based implementation.
     """
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    for criterion in (criterion_delta, criterion_target):
-        if criterion not in schema_names:
+    for name, value in [
+        ("criterion_delta", criterion_delta),
+        ("criterion_target", criterion_target),
+    ]:
+        if isinstance(value, str) and value not in schema_names:
             raise ValueError(
-                f"criterion column {criterion!r} not found in phylogeny_df",
+                f"criterion column {value!r} not found in phylogeny_df",
             )
+
+    if isinstance(criterion_delta, str):
+        criterion_delta = pl.col(criterion_delta)
+    if isinstance(criterion_target, str):
+        criterion_target = pl.col(criterion_target)
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(

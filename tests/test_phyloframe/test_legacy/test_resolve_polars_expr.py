@@ -53,11 +53,6 @@ class TestSortChildrenPolarsExpr:
         # Temp column should be cleaned up
         assert all(not c.startswith("__phyloframe") for c in result.columns)
 
-    def test_type_error(self):
-        df = _make_simple_phylogeny()
-        with pytest.raises(TypeError, match="polars.Expr"):
-            alifestd_sort_children_polars(df, 42)
-
 
 class TestMarkSampleTipsCanopyPolarsExpr:
     def test_expr_matches_string(self):

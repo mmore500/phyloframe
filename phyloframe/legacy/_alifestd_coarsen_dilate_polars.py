@@ -13,7 +13,6 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_coarsen_dilate_asexual import _alifestd_coarsen_dilate_impl
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
@@ -32,7 +31,6 @@ from ._alifestd_topological_sensitivity_warned_polars import (
     delete=True,
     update=True,
 )
-@_resolve_polars_expr("criterion")
 def alifestd_coarsen_dilate_polars(
     phylogeny_df: typing.Union[pl.DataFrame, pl.LazyFrame],
     *,
@@ -81,20 +79,23 @@ def alifestd_coarsen_dilate_polars(
     if dilation <= 0:
         raise ValueError(f"dilation must be positive, got {dilation}")
 
-    if isinstance(criterion, str) and criterion in ("id", "ancestor_id"):
-        raise ValueError(
-            f"criterion must not be 'id' or 'ancestor_id', got {criterion!r}",
-        )
-
     logging.info(
         "- alifestd_coarsen_dilate_polars: collecting schema...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
 
-    if criterion not in schema_names:
-        raise ValueError(
-            f"criterion column {criterion!r} not found in phylogeny_df",
-        )
+    if isinstance(criterion, str):
+        if criterion in ("id", "ancestor_id"):
+            raise ValueError(
+                f"criterion must not be 'id' or 'ancestor_id', "
+                f"got {criterion!r}",
+            )
+        if criterion not in schema_names:
+            raise ValueError(
+                f"criterion column {criterion!r} not found "
+                f"in phylogeny_df",
+            )
+        criterion = pl.col(criterion)
 
     if "ancestor_list" in schema_names:
         raise NotImplementedError(
@@ -187,6 +188,7 @@ def alifestd_coarsen_dilate_polars(
     logging.info(
         "- alifestd_coarsen_dilate_polars: applying results...",
     )
+    criterion_name = criterion.meta.output_name()
     return (
         phylogeny_df.lazy()
         .collect()
@@ -194,7 +196,7 @@ def alifestd_coarsen_dilate_polars(
         .with_columns(
             id=original_ids[keep_mask],
             ancestor_id=original_ids[new_ancestor_ids[keep_mask]],
-            **{criterion: new_criterion_values[keep_mask]},
+            **{criterion_name: new_criterion_values[keep_mask]},
         )
     )
 

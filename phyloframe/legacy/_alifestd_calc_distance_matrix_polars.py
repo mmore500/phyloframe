@@ -4,7 +4,6 @@ import typing
 import numpy as np
 import polars as pl
 
-from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_calc_distance_matrix_asexual import (
     _alifestd_calc_distance_matrix_asexual_fast_path,
 )
@@ -28,7 +27,6 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-@_resolve_polars_expr("criterion")
 def alifestd_calc_distance_matrix_polars(
     phylogeny_df: pl.DataFrame,
     *,
@@ -79,6 +77,9 @@ def alifestd_calc_distance_matrix_polars(
     alifestd_find_pair_distance_polars :
         Computes distance for a single pair of taxa.
     """
+    if isinstance(criterion, str):
+        criterion = pl.col(criterion)
+
     logging.info(
         "- alifestd_calc_distance_matrix_polars: " "adding ancestor_id col...",
     )
@@ -134,7 +135,7 @@ def alifestd_calc_distance_matrix_polars(
     )
     criterion_values = (
         phylogeny_df.lazy()
-        .select(pl.col(criterion).cast(pl.Float64))
+        .select(criterion.cast(pl.Float64))
         .collect()
         .to_series()
         .to_numpy()

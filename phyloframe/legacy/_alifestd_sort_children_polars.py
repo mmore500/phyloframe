@@ -13,7 +13,6 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -25,7 +24,6 @@ from ._alifestd_mark_node_depth_asexual import (
 )
 
 
-@_resolve_polars_expr("criterion")
 def alifestd_sort_children_polars(
     phylogeny_df: pl.DataFrame,
     criterion: typing.Union[str, pl.Expr],
@@ -38,8 +36,7 @@ def alifestd_sort_children_polars(
     ascending ``criterion`` column values. Set ``reverse=True`` to sort
     descending (higher values first).
 
-    The ``criterion`` column must already be present in the dataframe,
-    or ``criterion`` may be a ``polars.Expr`` that computes the values.
+    The ``criterion`` column must already be present in the dataframe.
 
     Note: after sorting, ids will no longer be contiguous with respect to
     row indices. Call ``alifestd_assign_contiguous_ids_polars`` on the
@@ -79,6 +76,9 @@ def alifestd_sort_children_polars(
     alifestd_assign_contiguous_ids_polars :
         Reassign contiguous ids after reordering.
     """
+
+    if isinstance(criterion, str):
+        criterion = pl.col(criterion)
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
 
@@ -127,7 +127,7 @@ def alifestd_sort_children_polars(
         # Use ordinal rank to reverse criterion without assuming
         # numerical type, matching numpy stable double-argsort behavior.
         phylogeny_df = phylogeny_df.with_columns(
-            __sort_rank=pl.col(criterion).rank(method="ordinal"),
+            __sort_rank=criterion.rank(method="ordinal"),
         )
         result = phylogeny_df.sort(
             by=["node_depth", "ancestor_id", "__sort_rank"],
