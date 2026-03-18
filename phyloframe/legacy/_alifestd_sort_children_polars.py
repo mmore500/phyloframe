@@ -2,6 +2,7 @@ import argparse
 import functools
 import logging
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -12,6 +13,7 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -23,9 +25,10 @@ from ._alifestd_mark_node_depth_asexual import (
 )
 
 
+@_resolve_polars_expr("criterion")
 def alifestd_sort_children_polars(
     phylogeny_df: pl.DataFrame,
-    criterion: str,
+    criterion: typing.Union[str, pl.Expr],
     reverse: bool = False,
 ) -> pl.DataFrame:
     """Reorder rows so children are sorted by the given criterion column,
@@ -35,7 +38,8 @@ def alifestd_sort_children_polars(
     ascending ``criterion`` column values. Set ``reverse=True`` to sort
     descending (higher values first).
 
-    The ``criterion`` column must already be present in the dataframe.
+    The ``criterion`` column must already be present in the dataframe,
+    or ``criterion`` may be a ``polars.Expr`` that computes the values.
 
     Note: after sorting, ids will no longer be contiguous with respect to
     row indices. Call ``alifestd_assign_contiguous_ids_polars`` on the
@@ -49,8 +53,9 @@ def alifestd_sort_children_polars(
         Must represent an asexual phylogeny with contiguous ids and
         topologically sorted rows.
 
-    criterion : str
-        Name of the column to sort children by.
+    criterion : str or polars.Expr
+        Name of the column to sort children by, or a polars expression
+        whose values determine the sort order.
 
     reverse : bool, default False
         If True, sort descending (higher values first).

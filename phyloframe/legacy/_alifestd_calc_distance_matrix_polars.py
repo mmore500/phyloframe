@@ -4,6 +4,7 @@ import typing
 import numpy as np
 import polars as pl
 
+from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_calc_distance_matrix_asexual import (
     _alifestd_calc_distance_matrix_asexual_fast_path,
 )
@@ -27,10 +28,11 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
+@_resolve_polars_expr("criterion")
 def alifestd_calc_distance_matrix_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    criterion: str = "origin_time",
+    criterion: typing.Union[str, pl.Expr] = "origin_time",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> np.ndarray:
     """Calculate pairwise distances between all taxa via their MRCAs.
@@ -55,8 +57,9 @@ def alifestd_calc_distance_matrix_polars(
         topologically sorted with contiguous ids and an ancestor_id
         column, or an ancestor_list column from which ancestor_id can
         be derived).
-    criterion : str, default "origin_time"
-        Column name used to measure distance between taxa and their MRCA.
+    criterion : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to measure distance
+        between taxa and their MRCA.
     progress_wrap : callable, optional
         Wrapper for progress display (e.g., tqdm).
 

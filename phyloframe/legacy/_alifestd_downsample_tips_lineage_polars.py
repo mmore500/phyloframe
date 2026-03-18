@@ -15,6 +15,7 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_downsample_tips_canopy_asexual import (
     _deprecate_num_tips,
 )
@@ -35,13 +36,14 @@ from ._alifestd_topological_sensitivity_warned_polars import (
     delete=True,
     update=False,
 )
+@_resolve_polars_expr("criterion_delta", "criterion_target")
 def alifestd_downsample_tips_lineage_polars(
     phylogeny_df: pl.DataFrame,
     n_downsample: int,
     seed: typing.Optional[int] = None,
     *,
-    criterion_delta: str = "origin_time",
-    criterion_target: str = "origin_time",
+    criterion_delta: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_target: typing.Union[str, pl.Expr] = "origin_time",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> pl.DataFrame:
     """Retain the `n_downsample` leaves closest to the lineage of a target
@@ -71,15 +73,15 @@ def alifestd_downsample_tips_lineage_polars(
     seed : int, optional
         Random seed for reproducible target-leaf selection when there are
         ties in `criterion_target`.
-    criterion_delta : str, default "origin_time"
-        Column name used to compute the off-lineage delta for each leaf.
-        The delta is the absolute difference between a leaf's value and
-        its MRCA's value in this column.
-    criterion_target : str, default "origin_time"
-        Column name used to select the target leaf. The leaf with the
-        largest value in this column is chosen as the target. Note that
-        ties are broken by random sample, allowing a seed to be
-        provided.
+    criterion_delta : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to compute the
+        off-lineage delta for each leaf. The delta is the absolute
+        difference between a leaf's value and its MRCA's value.
+    criterion_target : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to select the target
+        leaf. The leaf with the largest value is chosen as the target.
+        Note that ties are broken by random sample, allowing a seed to
+        be provided.
     progress_wrap : Callable, optional
         Pass tqdm or equivalent to display a progress bar.
 

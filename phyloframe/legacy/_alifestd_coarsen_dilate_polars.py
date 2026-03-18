@@ -13,6 +13,7 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_coarsen_dilate_asexual import _alifestd_coarsen_dilate_impl
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
@@ -31,10 +32,11 @@ from ._alifestd_topological_sensitivity_warned_polars import (
     delete=True,
     update=True,
 )
+@_resolve_polars_expr("criterion")
 def alifestd_coarsen_dilate_polars(
     phylogeny_df: typing.Union[pl.DataFrame, pl.LazyFrame],
     *,
-    criterion: str = "origin_time",
+    criterion: typing.Union[str, pl.Expr] = "origin_time",
     dilation: int = 1,
 ) -> pl.DataFrame:
     """Coarsen a phylogeny by collapsing inner nodes within dilation windows.
@@ -51,8 +53,9 @@ def alifestd_coarsen_dilate_polars(
     ----------
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         Input phylogeny in alife standard format.
-    criterion : str, default "origin_time"
-        Column whose values define the time axis for dilation.
+    criterion : str or polars.Expr, default "origin_time"
+        Column name or polars expression whose values define the time
+        axis for dilation.
     dilation : int
         Width of the dilation window.  Must be a positive integer.
 
@@ -78,7 +81,7 @@ def alifestd_coarsen_dilate_polars(
     if dilation <= 0:
         raise ValueError(f"dilation must be positive, got {dilation}")
 
-    if criterion in ("id", "ancestor_id"):
+    if isinstance(criterion, str) and criterion in ("id", "ancestor_id"):
         raise ValueError(
             f"criterion must not be 'id' or 'ancestor_id', got {criterion!r}",
         )

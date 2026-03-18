@@ -15,6 +15,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
+from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_downsample_tips_canopy_asexual import (
     _deprecate_num_tips,
 )
@@ -22,10 +23,11 @@ from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 
 
 @_deprecate_num_tips
+@_resolve_polars_expr("criterion")
 def alifestd_mark_sample_tips_canopy_polars(
     phylogeny_df: pl.DataFrame,
     n_sample: typing.Optional[int] = None,
-    criterion: str = "origin_time",
+    criterion: typing.Union[str, pl.Expr] = "origin_time",
     *,
     mark_as: str = "alifestd_mark_sample_tips_canopy_polars",
 ) -> pl.DataFrame:
@@ -49,10 +51,10 @@ def alifestd_mark_sample_tips_canopy_polars(
     n_sample : int, optional
         Number of tips to mark. If ``None``, defaults to the count of
         leaves with the maximum `criterion` value.
-    criterion : str, default "origin_time"
-        Column name used to rank leaves. The `n_sample` leaves with the
-        largest values in this column are marked. Ties are broken
-        arbitrarily.
+    criterion : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to rank leaves. The
+        `n_sample` leaves with the largest values are marked. Ties are
+        broken arbitrarily.
     mark_as : str, default "alifestd_mark_sample_tips_canopy_polars"
         Column name for the boolean mark.
 

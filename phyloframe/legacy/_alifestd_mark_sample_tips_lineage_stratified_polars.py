@@ -19,6 +19,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
+from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_calc_mrca_id_vector_asexual_polars import (
     alifestd_calc_mrca_id_vector_asexual_polars,
 )
@@ -42,14 +43,19 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 @_deprecate_n_tips
+@_resolve_polars_expr(
+    "criterion_delta",
+    "criterion_stratify",
+    "criterion_target",
+)
 def alifestd_mark_sample_tips_lineage_stratified_polars(
     phylogeny_df: pl.DataFrame,
     n_sample: typing.Optional[int] = None,
     seed: typing.Optional[int] = None,
     *,
-    criterion_delta: str = "origin_time",
-    criterion_stratify: str = "origin_time",
-    criterion_target: str = "origin_time",
+    criterion_delta: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_stratify: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_target: typing.Union[str, pl.Expr] = "origin_time",
     n_tips_per_stratum: int = 1,
     progress_wrap: typing.Callable = lambda x: x,
     mark_as: str = "alifestd_mark_sample_tips_lineage_stratified_polars",
@@ -72,12 +78,15 @@ def alifestd_mark_sample_tips_lineage_stratified_polars(
         ``criterion_stratify`` value forms its own group.
     seed : int, optional
         Random seed for reproducible target-leaf selection.
-    criterion_delta : str, default "origin_time"
-        Column name used to compute the off-lineage delta for each leaf.
-    criterion_stratify : str, default "origin_time"
-        Column name used to stratify leaves into groups.
-    criterion_target : str, default "origin_time"
-        Column name used to select the target leaf.
+    criterion_delta : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to compute the
+        off-lineage delta for each leaf.
+    criterion_stratify : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to stratify leaves into
+        groups.
+    criterion_target : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to select the target
+        leaf.
     n_tips_per_stratum : int, default 1
         Number of tips to retain per stratified group.
     progress_wrap : Callable, optional

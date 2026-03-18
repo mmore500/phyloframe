@@ -2,17 +2,19 @@ import typing
 
 import polars as pl
 
+from .._auxlib._resolve_polars_expr import _resolve_polars_expr
 from ._alifestd_find_pair_mrca_id_polars import (
     alifestd_find_pair_mrca_id_polars,
 )
 
 
+@_resolve_polars_expr("criterion")
 def alifestd_find_pair_distance_polars(
     phylogeny_df: pl.DataFrame,
     first: int,
     second: int,
     *,
-    criterion: str = "origin_time",
+    criterion: typing.Union[str, pl.Expr] = "origin_time",
 ) -> typing.Optional[float]:
     """Find the pairwise distance between two taxa via their MRCA.
 
@@ -33,8 +35,9 @@ def alifestd_find_pair_distance_polars(
         First taxon id.
     second : int
         Second taxon id.
-    criterion : str, default "origin_time"
-        Column name used to measure distance between taxa and their MRCA.
+    criterion : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to measure distance
+        between taxa and their MRCA.
 
     Returns
     -------
