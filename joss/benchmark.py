@@ -4,7 +4,8 @@
 Reproduces the TreeSwift paper benchmark: preorder, postorder, inorder,
 levelorder traversals, all-pairs MRCA, and all-pairs pairwise distances
 on binary trees with 100 to 1,000,000 leaves.  Also benchmarks newick
-load/save.  Any single operation exceeding TIMEOUT seconds is skipped.
+load/save and tabular format I/O.  Any single operation exceeding
+TIMEOUT seconds is skipped.
 
 Each operation runs in a forkserver subprocess that does its own setup
 (imports, JIT warmup) and reports self-timed results back via a pipe,
@@ -23,7 +24,7 @@ import time
 multiprocessing.set_start_method("forkserver", force=True)
 
 TIMEOUT_PROBE = 10  # seconds for 100x-smaller preamble load
-TIMEOUT_LOAD = 100  # seconds for load_newick
+TIMEOUT_LOAD = 100  # seconds for parse_newick
 TIMEOUT_OP = 210  # seconds for subsequent operations
 SIZES = [
     100,
@@ -40,8 +41,14 @@ SIZES = [
     30_000_000,
 ]
 OPERATIONS = [
-    "load_newick",
-    "save_newick",
+    "parse_newick",
+    "make_newick",
+    "save_csv",
+    "save_feather",
+    "save_parquet",
+    "load_csv",
+    "load_feather",
+    "load_parquet",
     "preorder",
     "postorder",
     "inorder",
@@ -50,7 +57,25 @@ OPERATIONS = [
     "mrca_allpairs",
     "pairwise_dist",
     "memory_bytes",
+    "newick_bytes",
+    "newick_gzip_bytes",
+    "csv_bytes",
+    "csv_gzip_bytes",
+    "parquet_bytes",
+    "feather_bytes",
 ]
+# Operations whose return value is a byte count (not a timing).
+BYTE_VALUE_OPS = frozenset(
+    {
+        "memory_bytes",
+        "newick_bytes",
+        "newick_gzip_bytes",
+        "csv_bytes",
+        "csv_gzip_bytes",
+        "parquet_bytes",
+        "feather_bytes",
+    }
+)
 
 
 def _set_memory_limit():
@@ -93,8 +118,12 @@ def _run_in_child(conn, bench_cls, newick, op, return_value):
         bench = bench_cls(newick)
         bench.warmup()
         # Pre-load the tree so parsing isn't included in operation timing.
-        if op not in ("load_newick", "memory_bytes"):
-            bench.load_newick()
+        if op not in ("parse_newick", "memory_bytes"):
+            bench.parse_newick()
+        # Run op-specific setup (e.g., save format file before load_*).
+        setup_fn = getattr(bench, f"setup_{op}", None)
+        if setup_fn is not None:
+            setup_fn()
         fn = getattr(bench, op)
         t0 = time.perf_counter()
         result = fn()
@@ -316,7 +345,7 @@ class PhyloframeBench:
     name = "phyloframe"
     engine_affinity = None
     _from_newick_dtype_id = None  # None = default (pl.Int64)
-    _mark_after_load = ()  # extra columns to mark after load_newick
+    _mark_after_load = ()  # extra columns to mark after parse_newick
 
     _env_overrides = {
         "PHYLOFRAME_DANGEROUSLY_ASSUME_LEGACY_ALIFESTD_HAS_CONTIGUOUS_IDS_POLARS": "1",
@@ -391,14 +420,79 @@ class PhyloframeBench:
             df = mark_fn(df)
         return df
 
-    def load_newick(self):
+    def _get_export_df(self):
+        """Get df with id column dropped and dtypes shrunk for export."""
+        import polars as pl
+
+        df = self._ensure_df()
+        df = df.drop("id")
+        return df.select(pl.all().shrink_dtype())
+
+    def parse_newick(self):
         self._df = self._do_from_newick(self._newick)
 
-    def save_newick(self):
+    def make_newick(self):
         from phyloframe.legacy import alifestd_as_newick_polars
 
         df = self._ensure_df()
         alifestd_as_newick_polars(df)
+
+    def save_csv(self):
+        import tempfile
+
+        df = self._get_export_df()
+        path = tempfile.mktemp(suffix=".csv")
+        df.write_csv(path)
+
+    def save_feather(self):
+        import tempfile
+
+        df = self._get_export_df()
+        path = tempfile.mktemp(suffix=".feather")
+        df.write_ipc(path)
+
+    def save_parquet(self):
+        import tempfile
+
+        df = self._get_export_df()
+        path = tempfile.mktemp(suffix=".parquet")
+        df.write_parquet(path)
+
+    def setup_load_csv(self):
+        import tempfile
+
+        df = self._get_export_df()
+        self._csv_path = tempfile.mktemp(suffix=".csv")
+        df.write_csv(self._csv_path)
+
+    def load_csv(self):
+        import polars as pl
+
+        pl.read_csv(self._csv_path)
+
+    def setup_load_feather(self):
+        import tempfile
+
+        df = self._get_export_df()
+        self._feather_path = tempfile.mktemp(suffix=".feather")
+        df.write_ipc(self._feather_path)
+
+    def load_feather(self):
+        import polars as pl
+
+        pl.read_ipc(self._feather_path)
+
+    def setup_load_parquet(self):
+        import tempfile
+
+        df = self._get_export_df()
+        self._parquet_path = tempfile.mktemp(suffix=".parquet")
+        df.write_parquet(self._parquet_path)
+
+    def load_parquet(self):
+        import polars as pl
+
+        pl.read_parquet(self._parquet_path)
 
     def preorder(self):
         from phyloframe.legacy import (
@@ -468,6 +562,44 @@ class PhyloframeBench:
             lambda: self._do_from_newick(newick),
         )
 
+    def newick_bytes(self):
+        from phyloframe.legacy import alifestd_as_newick_polars
+
+        df = self._ensure_df()
+        nwk = alifestd_as_newick_polars(df)
+        return len(nwk.encode("utf-8"))
+
+    def newick_gzip_bytes(self):
+        import gzip
+
+        from phyloframe.legacy import alifestd_as_newick_polars
+
+        df = self._ensure_df()
+        nwk = alifestd_as_newick_polars(df)
+        return len(gzip.compress(nwk.encode("utf-8")))
+
+    def csv_bytes(self):
+        df = self._get_export_df()
+        return len(df.write_csv().encode("utf-8"))
+
+    def csv_gzip_bytes(self):
+        import gzip
+
+        df = self._get_export_df()
+        return len(gzip.compress(df.write_csv().encode("utf-8")))
+
+    def parquet_bytes(self):
+        df = self._get_export_df()
+        buf = io.BytesIO()
+        df.write_parquet(buf)
+        return buf.tell()
+
+    def feather_bytes(self):
+        df = self._get_export_df()
+        buf = io.BytesIO()
+        df.write_ipc(buf)
+        return buf.tell()
+
     def _ensure_df(self):
         if self._df is None:
             self._df = self._do_from_newick(self._newick)
@@ -517,12 +649,12 @@ class TreeswiftBench:
     def warmup(self):
         import treeswift  # noqa: F401
 
-    def load_newick(self):
+    def parse_newick(self):
         import treeswift
 
         self._tree = treeswift.read_tree_newick(self._newick)
 
-    def save_newick(self):
+    def make_newick(self):
         t = self._ensure_tree()
         t.newick()
 
@@ -590,12 +722,12 @@ class BiopythonBench:
     def warmup(self):
         from Bio import Phylo  # noqa: F401
 
-    def load_newick(self):
+    def parse_newick(self):
         from Bio import Phylo
 
         self._tree = Phylo.read(io.StringIO(self._newick), "newick")
 
-    def save_newick(self):
+    def make_newick(self):
         from Bio import Phylo
 
         t = self._ensure_tree()
@@ -667,12 +799,12 @@ class DendropyBench:
     def warmup(self):
         import dendropy  # noqa: F401
 
-    def load_newick(self):
+    def parse_newick(self):
         import dendropy
 
         self._tree = dendropy.Tree.get(data=self._newick, schema="newick")
 
-    def save_newick(self):
+    def make_newick(self):
         t = self._ensure_tree()
         t.as_string(schema="newick")
 
@@ -746,12 +878,12 @@ class EteBench:
     def warmup(self):
         from ete3 import Tree  # noqa: F401
 
-    def load_newick(self):
+    def parse_newick(self):
         from ete3 import Tree
 
         self._tree = Tree(self._newick)
 
-    def save_newick(self):
+    def make_newick(self):
         t = self._ensure_tree()
         t.write()
 
@@ -825,12 +957,12 @@ class CompactTreeBench:
     def warmup(self):
         from CompactTree import compact_tree  # noqa: F401
 
-    def load_newick(self):
+    def parse_newick(self):
         from CompactTree import compact_tree
 
         self._tree = compact_tree(self._tmppath)
 
-    def save_newick(self):
+    def make_newick(self):
         t = self._ensure_tree()
         t.get_newick()
 
@@ -918,12 +1050,12 @@ class ScikitBioBench:
         tiny = _balanced_newick(8)
         TreeNode.read(io.StringIO(tiny), format="newick")
 
-    def load_newick(self):
+    def parse_newick(self):
         from skbio import TreeNode
 
         self._tree = TreeNode.read(io.StringIO(self._newick), format="newick")
 
-    def save_newick(self):
+    def make_newick(self):
         t = self._ensure_tree()
         buf = io.StringIO()
         t.write(buf, format="newick")
@@ -1051,7 +1183,7 @@ def run_benchmarks(sizes=None):
             _, probe_status = timed(
                 LibClass,
                 probe_newick,
-                "load_newick",
+                "parse_newick",
                 timeout=TIMEOUT_PROBE,
             )
             if probe_status != "SUCCESS":
@@ -1077,31 +1209,31 @@ def run_benchmarks(sizes=None):
                 file=sys.stderr,
             )
 
-            # ── Load newick (100s timeout) ──────────────────────────
+            # ── Parse newick (100s timeout) ─────────────────────────
             load_val, load_status = timed(
                 LibClass,
                 newick,
-                "load_newick",
+                "parse_newick",
                 timeout=TIMEOUT_LOAD,
             )
             skip_remaining = load_status != "SUCCESS"
             if skip_remaining:
-                skip_ops[(LibClass, "load_newick")] = True
+                skip_ops[(LibClass, "parse_newick")] = True
             if load_status == "SUCCESS":
                 print(
-                    f"  | {'load_newick':<{op_col_w}}   {load_val:.4f}s",
+                    f"  | {'parse_newick':<{op_col_w}}   {load_val:.4f}s",
                     file=sys.stderr,
                 )
             else:
                 print(
-                    f"  | {'load_newick':<{op_col_w}}   {load_status}",
+                    f"  | {'parse_newick':<{op_col_w}}   {load_status}",
                     file=sys.stderr,
                 )
             results.append(
                 {
                     "library": LibClass.name,
                     "n_leaves": n_leaves,
-                    "operation": "load_newick",
+                    "operation": "parse_newick",
                     "seconds": load_val,
                     "status": load_status,
                 }
@@ -1109,7 +1241,7 @@ def run_benchmarks(sizes=None):
 
             # ── Remaining operations (210s timeout) ─────────────────
             for op in OPERATIONS:
-                if op == "load_newick":
+                if op == "parse_newick":
                     continue  # already handled above
 
                 fn = getattr(LibClass, op, None)
@@ -1121,6 +1253,13 @@ def run_benchmarks(sizes=None):
                     value, status = measure_memory(
                         LibClass,
                         newick,
+                        timeout=TIMEOUT_OP,
+                    )
+                elif op in BYTE_VALUE_OPS:
+                    value, status = timed_call(
+                        LibClass,
+                        newick,
+                        op,
                         timeout=TIMEOUT_OP,
                     )
                 else:
@@ -1135,7 +1274,7 @@ def run_benchmarks(sizes=None):
                 if status in ("TIMEOUT", "FAIL", "UNAVAILABLE"):
                     skip_ops[(LibClass, op)] = True
 
-                if status == "SUCCESS" and op == "memory_bytes":
+                if status == "SUCCESS" and op in BYTE_VALUE_OPS:
                     label = f"{value:,} B"
                 elif status == "SUCCESS":
                     label = f"{value:.4f}s"
