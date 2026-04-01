@@ -4,12 +4,24 @@ from iplotx.ingest.typing import TreeDataProvider
 import numpy as np
 import pandas as pd
 
+from ._alifestd_find_leaf_ids import (
+    _alifestd_find_leaf_ids_asexual_fast_path,
+)
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import (
     alifestd_is_topologically_sorted,
 )
 from ._alifestd_try_add_ancestor_id_col import (
     alifestd_try_add_ancestor_id_col,
+)
+from ._alifestd_unfurl_traversal_levelorder_asexual import (
+    alifestd_unfurl_traversal_levelorder_asexual,
+)
+from ._alifestd_unfurl_traversal_postorder_asexual import (
+    alifestd_unfurl_traversal_postorder_asexual,
+)
+from ._alifestd_unfurl_traversal_preorder_asexual import (
+    alifestd_unfurl_traversal_preorder_asexual,
 )
 
 
@@ -49,12 +61,8 @@ def _build_nodes(
     ancestor_ids: np.ndarray,
     names: typing.Optional[np.ndarray] = None,
     branch_lengths: typing.Optional[np.ndarray] = None,
-) -> typing.Tuple[
-    typing.List[_AlifestdNode],
-    typing.List[_AlifestdNode],
-    typing.List[_AlifestdNode],
-]:
-    """Build node graph from contiguous, topologically-sorted arrays.
+) -> typing.List[_AlifestdNode]:
+    """Build node list from contiguous, topologically-sorted arrays.
 
     Parameters
     ----------
@@ -69,8 +77,6 @@ def _build_nodes(
     Returns
     -------
     nodes : list of _AlifestdNode
-    roots : list of _AlifestdNode
-    leaves : list of _AlifestdNode
     """
     n = len(ancestor_ids)
     nodes: typing.List[_AlifestdNode] = []
@@ -83,16 +89,12 @@ def _build_nodes(
         )
         nodes.append(_AlifestdNode(i, name, bl))
 
-    roots: typing.List[_AlifestdNode] = []
     for i in range(n):
         parent = int(ancestor_ids[i])
-        if parent == i:
-            roots.append(nodes[i])
-        else:
+        if parent != i:
             nodes[parent]._children.append(nodes[i])
 
-    leaves = [nd for nd in nodes if not nd._children]
-    return nodes, roots, leaves
+    return nodes
 
 
 def _extract_branch_lengths_pandas(
@@ -119,7 +121,7 @@ def _extract_branch_lengths_pandas(
     return None
 
 
-class LegacyIplotxShimNumpy(TreeDataProvider):
+class AlifestdIplotxShimNumpy(TreeDataProvider):
     """Numpy-backed iplotx ``TreeDataProvider`` for alife-standard data.
 
     This class assumes *contiguous* ids (``id == row index``) and
@@ -142,8 +144,12 @@ class LegacyIplotxShimNumpy(TreeDataProvider):
         names: typing.Optional[np.ndarray] = None,
         branch_lengths: typing.Optional[np.ndarray] = None,
     ) -> None:
-        self._nodes, self._roots, self._leaves = _build_nodes(
-            ancestor_ids, names, branch_lengths
+        self._nodes = _build_nodes(ancestor_ids, names, branch_lengths)
+        self._phylogeny_df = pd.DataFrame(
+            {
+                "id": np.arange(len(ancestor_ids)),
+                "ancestor_id": ancestor_ids,
+            }
         )
         # Store a reference as ``tree`` for TreeDataProvider protocol.
         self.tree = self
@@ -154,39 +160,35 @@ class LegacyIplotxShimNumpy(TreeDataProvider):
         return True
 
     def get_root(self) -> _AlifestdNode:
-        return self._roots[0]
+        root_ids = self._phylogeny_df.loc[
+            self._phylogeny_df["id"] == self._phylogeny_df["ancestor_id"],
+            "id",
+        ]
+        return self._nodes[root_ids.iloc[0]]
 
     def preorder(self) -> typing.Iterable[_AlifestdNode]:
-        stack = list(reversed(self._roots))
-        while stack:
-            node = stack.pop()
-            yield node
-            for child in reversed(node._children):
-                stack.append(child)
+        order = alifestd_unfurl_traversal_preorder_asexual(
+            self._phylogeny_df, mutate=False
+        )
+        return [self._nodes[i] for i in order]
 
     def postorder(self) -> typing.Iterable[_AlifestdNode]:
-        # Two-stack iterative postorder
-        stack1 = list(reversed(self._roots))
-        result: typing.List[_AlifestdNode] = []
-        while stack1:
-            node = stack1.pop()
-            result.append(node)
-            for child in node._children:
-                stack1.append(child)
-        yield from reversed(result)
+        order = alifestd_unfurl_traversal_postorder_asexual(
+            self._phylogeny_df, mutate=False
+        )
+        return [self._nodes[i] for i in order]
 
     def levelorder(self) -> typing.Iterable[_AlifestdNode]:
-        from collections import deque
-
-        queue: typing.Deque[_AlifestdNode] = deque(self._roots)
-        while queue:
-            node = queue.popleft()
-            yield node
-            for child in node._children:
-                queue.append(child)
+        order = alifestd_unfurl_traversal_levelorder_asexual(
+            self._phylogeny_df, mutate=False
+        )
+        return [self._nodes[i] for i in order]
 
     def _get_leaves(self) -> typing.Sequence[_AlifestdNode]:
-        return self._leaves
+        leaf_ids = _alifestd_find_leaf_ids_asexual_fast_path(
+            self._phylogeny_df["ancestor_id"].to_numpy()
+        )
+        return [self._nodes[i] for i in leaf_ids]
 
     @staticmethod
     def get_children(
@@ -206,10 +208,10 @@ class LegacyIplotxShimNumpy(TreeDataProvider):
 
     @staticmethod
     def tree_type() -> type:
-        return LegacyIplotxShimNumpy
+        return AlifestdIplotxShimNumpy
 
 
-class LegacyIplotxShimPandas(LegacyIplotxShimNumpy):
+class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
     """Iplotx ``TreeDataProvider`` for *pandas* alife-standard dataframes.
 
     The dataframe must be asexual with contiguous ids and topologically
@@ -227,12 +229,13 @@ class LegacyIplotxShimPandas(LegacyIplotxShimNumpy):
         df = alifestd_try_add_ancestor_id_col(tree.copy())
         if not alifestd_has_contiguous_ids(df):
             raise NotImplementedError(
-                "LegacyIplotxShimPandas requires contiguous ids "
+                "AlifestdIplotxShimPandas requires contiguous ids "
                 "(id == row index)."
             )
         if not alifestd_is_topologically_sorted(df):
             raise NotImplementedError(
-                "LegacyIplotxShimPandas requires topologically " "sorted rows."
+                "AlifestdIplotxShimPandas requires topologically "
+                "sorted rows."
             )
 
         ancestor_ids = df["ancestor_id"].to_numpy()
@@ -243,9 +246,8 @@ class LegacyIplotxShimPandas(LegacyIplotxShimNumpy):
         )
         branch_lengths = _extract_branch_lengths_pandas(df)
 
-        self._nodes, self._roots, self._leaves = _build_nodes(
-            ancestor_ids, names, branch_lengths
-        )
+        self._nodes = _build_nodes(ancestor_ids, names, branch_lengths)
+        self._phylogeny_df = df[["id", "ancestor_id"]]
 
     @staticmethod
     def check_dependencies() -> bool:
@@ -256,7 +258,7 @@ class LegacyIplotxShimPandas(LegacyIplotxShimNumpy):
         return pd.DataFrame
 
 
-class LegacyIplotxShimPolars(LegacyIplotxShimNumpy):
+class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
     """Iplotx ``TreeDataProvider`` for *polars* alife-standard dataframes.
 
     The dataframe must be asexual with contiguous ids and topologically
@@ -282,12 +284,13 @@ class LegacyIplotxShimPolars(LegacyIplotxShimNumpy):
 
         if not alifestd_has_contiguous_ids_polars(tree):
             raise NotImplementedError(
-                "LegacyIplotxShimPolars requires contiguous ids "
+                "AlifestdIplotxShimPolars requires contiguous ids "
                 "(id == row index)."
             )
         if not alifestd_is_topologically_sorted_polars(tree):
             raise NotImplementedError(
-                "LegacyIplotxShimPolars requires topologically " "sorted rows."
+                "AlifestdIplotxShimPolars requires topologically "
+                "sorted rows."
             )
 
         ancestor_ids = tree["ancestor_id"].to_numpy()
@@ -306,8 +309,12 @@ class LegacyIplotxShimPolars(LegacyIplotxShimNumpy):
             deltas[is_root] = np.nan
             branch_lengths = deltas
 
-        self._nodes, self._roots, self._leaves = _build_nodes(
-            ancestor_ids, names, branch_lengths
+        self._nodes = _build_nodes(ancestor_ids, names, branch_lengths)
+        self._phylogeny_df = pd.DataFrame(
+            {
+                "id": np.arange(len(ancestor_ids)),
+                "ancestor_id": ancestor_ids,
+            }
         )
 
     @staticmethod

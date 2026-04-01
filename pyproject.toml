@@ -106,8 +106,8 @@ docs = [
 ]
 
 [project.entry-points."iplotx.tree_data_providers"]
-phyloframe_pandas = "phyloframe.legacy._alifestd_iplotx_provider:LegacyIplotxShimPandas"
-phyloframe_polars = "phyloframe.legacy._alifestd_iplotx_provider:LegacyIplotxShimPolars"
+phyloframe_pandas = "phyloframe.legacy._alifestd_iplotx_provider:AlifestdIplotxShimPandas"
+phyloframe_polars = "phyloframe.legacy._alifestd_iplotx_provider:AlifestdIplotxShimPolars"
 
 [tool.black]
 line_length = 79
