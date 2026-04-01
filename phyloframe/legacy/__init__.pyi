@@ -211,9 +211,11 @@ from ._alifestd_has_multiple_roots import alifestd_has_multiple_roots
 from ._alifestd_has_multiple_roots_polars import (
     alifestd_has_multiple_roots_polars,
 )
-from ._alifestd_iplotx_provider import AlifestdIplotxShimNumpy
-from ._alifestd_iplotx_provider import AlifestdIplotxShimPandas
-from ._alifestd_iplotx_provider import AlifestdIplotxShimPolars
+from ._alifestd_iplotx_provider import (
+    AlifestdIplotxShimNumpy,
+    AlifestdIplotxShimPandas,
+    AlifestdIplotxShimPolars,
+)
 from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_is_asexual_polars import alifestd_is_asexual_polars
 from ._alifestd_is_chronologically_ordered import (
