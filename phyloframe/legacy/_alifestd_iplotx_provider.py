@@ -1,8 +1,12 @@
 import typing
 
-from iplotx.ingest.typing import TreeDataProvider
 import numpy as np
 import pandas as pd
+
+try:
+    from iplotx.ingest.typing import TreeDataProvider
+except (ImportError, ModuleNotFoundError):
+    TreeDataProvider = object  # type: ignore[assignment,misc]
 
 from ._alifestd_find_leaf_ids import (
     _alifestd_find_leaf_ids_asexual_fast_path,

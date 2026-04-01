@@ -3,7 +3,9 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe.legacy import (
+iplotx = pytest.importorskip("iplotx")
+
+from phyloframe.legacy import (  # noqa: E402
     AlifestdIplotxShimNumpy,
     AlifestdIplotxShimPandas,
     AlifestdIplotxShimPolars,
