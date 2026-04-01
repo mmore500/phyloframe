@@ -274,6 +274,8 @@ Prefer Polars CLI entrypoints (modules ending in `_polars`) to avoid Pandas-to-P
 python3 -m phyloframe.legacy._alifestd_mark_leaves_polars output.pqt < input.pqt
 ```
 
+The CLI is built on the [joinem](https://github.com/mmore500/joinem) engine, so joinem features like `--select`, `--drop`, `--filter`, `--with-column`, `--head`, `--tail`, `--sample`, and `--shrink-dtypes` are available in all commands.
+
 List all available commands with:
 
 ```bash

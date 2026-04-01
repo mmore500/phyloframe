@@ -128,6 +128,73 @@ The Polars pipe utility:
        --op "pfl.alifestd_mark_leaves_polars" \
        output.pqt < input.pqt
 
+joinem CLI Engine
+=================
+
+Phyloframe's CLI is built on the `joinem <https://github.com/mmore500/joinem>`_ CLI engine.
+All joinem features are available in phyloframe CLI commands.
+
+Column Selection
+----------------
+
+Use ``--select`` and ``--drop`` to control which columns appear in the output:
+
+.. code-block:: bash
+
+   # Keep only specific columns
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --select id --select ancestor_list --select is_leaf \
+       output.csv < input.csv
+
+   # Drop unwanted columns
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --drop ancestor_list output.csv < input.csv
+
+Row Selection
+-------------
+
+Use ``--head``, ``--tail``, ``--sample``, and ``--shuffle`` to control which rows appear in the output:
+
+.. code-block:: bash
+
+   # Keep only the first 100 rows
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --head 100 output.csv < input.csv
+
+   # Random sample of 50 rows
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --sample 50 output.csv < input.csv
+
+Filtering and Computed Columns
+------------------------------
+
+Use ``--filter`` to filter rows and ``--with-column`` to add computed columns using Polars expressions:
+
+.. code-block:: bash
+
+   # Filter to leaf nodes only
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --filter "pl.col('is_leaf')" output.csv < input.csv
+
+   # Add a computed column
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --with-column "pl.col('id').cast(pl.Utf8).alias('id_str')" \
+       output.csv < input.csv
+
+Other joinem Features
+---------------------
+
+``--shrink-dtypes``
+    Minimize numeric column sizes for smaller output files.
+
+``--read-kwarg KEY=VALUE``
+    Pass additional keyword arguments to the reader (e.g., CSV delimiter).
+
+``--write-kwarg KEY=VALUE``
+    Pass additional keyword arguments to the writer.
+
+See the `joinem documentation <https://github.com/mmore500/joinem>`_ for full details.
+
 Common CLI Arguments
 ====================
 
