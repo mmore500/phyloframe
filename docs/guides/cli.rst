@@ -2,8 +2,9 @@
 Command-line Interface
 ======================
 
-Every phyloframe operation is available as a CLI command, enabling use from
-shell scripts and pipelines without writing Python code.
+All dataframe-to-dataframe transforms are available as CLI commands, as well
+as some other operations.
+This enables use from shell scripts and pipelines without writing Python code.
 
 Listing Available Commands
 ==========================

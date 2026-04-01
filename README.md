@@ -248,7 +248,9 @@ Polars implementations can be more performant but are more restrictive: they exc
 
 ### Command-line Interface
 
-Every phyloframe operation is available as a CLI command, reading and writing CSV or Parquet:
+All dataframe-to-dataframe transforms are available as CLI commands, as well as some other operations.
+Use `python3 -m phyloframe --help` to list available commands.
+Commands read and write CSV or Parquet:
 
 ```bash
 # Apply an operation to a file
