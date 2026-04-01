@@ -1,0 +1,162 @@
+======================
+Command-line Interface
+======================
+
+Every phyloframe operation is available as a CLI command, enabling use from
+shell scripts and pipelines without writing Python code.
+
+Listing Available Commands
+==========================
+
+.. code-block:: bash
+
+   python3 -m phyloframe --help
+
+This prints all available CLI commands, each corresponding to a module in
+``phyloframe.legacy``.
+
+Basic Usage
+===========
+
+Each command reads a DataFrame (CSV or Parquet) from stdin and writes the
+result to an output file:
+
+.. code-block:: bash
+
+   # Read from stdin, write to file
+   python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv < input.csv
+
+   # With custom arguments
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --mark-as is_tip output.csv < input.csv
+
+Get help for any command:
+
+.. code-block:: bash
+
+   python3 -m phyloframe.legacy._alifestd_mark_leaves --help
+
+Input and Output Formats
+=========================
+
+The data format is determined by file extension:
+
+- ``.csv`` --- CSV format
+- ``.pqt`` or ``.parquet`` --- Parquet format
+
+.. code-block:: bash
+
+   # CSV to CSV
+   python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv < input.csv
+
+   # Parquet to Parquet
+   python3 -m phyloframe.legacy._alifestd_mark_leaves output.pqt < input.pqt
+
+In-place Modification
+---------------------
+
+Use ``--eager-read`` when reading and writing the same file:
+
+.. code-block:: bash
+
+   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --eager-read data.csv < data.csv
+
+Piping Commands
+===============
+
+Chain operations using Unix pipes.
+Write intermediate output to ``/dev/stdout``:
+
+.. code-block:: bash
+
+   python3 -m phyloframe.legacy._alifestd_collapse_unifurcations /dev/stdout \
+       < input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves /dev/stdout \
+     | python3 -m phyloframe.legacy._alifestd_mark_node_depth_asexual \
+       output.csv
+
+Multi-operation Pipe Utility
+----------------------------
+
+For multi-step pipelines, ``_alifestd_pipe_unary_ops`` applies several
+operations in sequence within a single process:
+
+.. code-block:: bash
+
+   python3 -m phyloframe.legacy._alifestd_pipe_unary_ops \
+       --op "pfl.alifestd_collapse_unifurcations" \
+       --op "pfl.alifestd_mark_leaves" \
+       --op "pfl.alifestd_mark_node_depth_asexual" \
+       output.csv < input.csv
+
+Available names in ``--op`` expressions: ``pfl`` (phyloframe.legacy),
+``pf`` (phyloframe), ``pd`` (pandas), ``pl`` (polars), ``np`` (numpy),
+``opyt`` (opytional).
+
+Lambda expressions also work:
+
+.. code-block:: bash
+
+   python3 -m phyloframe.legacy._alifestd_pipe_unary_ops \
+       --op "pfl.alifestd_mark_leaves" \
+       --op "lambda df: df[df['is_leaf']]" \
+       output.csv < input.csv
+
+Polars CLI Entrypoints
+======================
+
+For best performance, prefer the Polars CLI entrypoints (modules ending in
+``_polars``) when working with Parquet data.
+This avoids Pandas-to-Polars conversion overhead:
+
+.. code-block:: bash
+
+   # Pandas entrypoint (converts internally)
+   python3 -m phyloframe.legacy._alifestd_mark_leaves output.pqt < input.pqt
+
+   # Polars entrypoint (no conversion, faster)
+   python3 -m phyloframe.legacy._alifestd_mark_leaves_polars \
+       output.pqt < input.pqt
+
+The Polars pipe utility:
+
+.. code-block:: bash
+
+   python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars \
+       --op "pfl.alifestd_mark_leaves_polars" \
+       output.pqt < input.pqt
+
+Common CLI Arguments
+====================
+
+Most commands share these arguments:
+
+``--eager-read``
+    Read the input file eagerly (required for in-place modification).
+
+``--mark-as COLUMN``
+    Output column name (for mark operations).
+
+``--help``
+    Show help text and available arguments.
+
+``--version``
+    Show version information.
+
+Container Usage
+===============
+
+A containerized release of phyloframe is available:
+
+.. code-block:: bash
+
+   # Via Singularity
+   singularity exec docker://ghcr.io/mmore500/phyloframe:v0.6.1 \
+       python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       output.csv < input.csv
+
+   # Via Docker
+   docker run --rm -i ghcr.io/mmore500/phyloframe:v0.6.1 \
+       python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       output.csv < input.csv
