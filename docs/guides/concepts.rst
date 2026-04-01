@@ -65,6 +65,11 @@ Many operations run fastest when the DataFrame satisfies three properties:
 
 1. **Topologically sorted** --- every ancestor appears in a row before
    its descendants.
+   This means that when iterating through rows in order, you will always
+   encounter a node's parent before the node itself.
+   This property enables single-pass algorithms that process the tree
+   from root to leaves (or vice versa) by simply iterating through the
+   array.
 2. **Contiguous IDs** --- ``id`` values are ``0, 1, 2, ...`` matching
    row indices.
 3. **``ancestor_id`` column present** --- enables direct integer indexing
@@ -116,6 +121,41 @@ optimized operations available.
 .. note::
 
    Polars implementations exclusively support asexual phylogenies.
+
+Function Naming Conventions
+===========================
+
+Phyloframe function names follow consistent suffix patterns:
+
+- **No suffix** (e.g., ``alifestd_mark_leaves``) --- works with both asexual
+  and sexual phylogenies, using ``ancestor_list`` or auto-detecting mode.
+- **``_asexual``** (e.g., ``alifestd_mark_node_depth_asexual``) --- optimized
+  for asexual phylogenies using ``ancestor_id``.
+  Raises an error or produces incorrect results if called on sexual
+  phylogenies.
+- **``_polars``** (e.g., ``alifestd_mark_leaves_polars``) --- Polars
+  implementation.
+  Requires asexual phylogeny with topological sorting and contiguous IDs.
+
+When both a non-suffixed and ``_asexual`` version exist, prefer the
+``_asexual`` version for asexual phylogenies --- it will typically be faster.
+When a ``_polars`` version exists and your data is already in Polars format,
+prefer it to avoid conversion overhead.
+
+Validation
+==========
+
+Use ``alifestd_validate`` to check that a DataFrame conforms to the alife
+standard format.
+It returns ``True`` if valid or ``False`` if problems are detected, issuing
+warnings describing each issue found:
+
+.. code-block:: python
+
+   from phyloframe import legacy as pfl
+
+   df = pfl.alifestd_from_newick("((A,B),(C,D));")
+   pfl.alifestd_validate(df)  # True
 
 Supplemental Data Structures
 =============================
@@ -207,8 +247,8 @@ Pandas vs. Polars
 Phyloframe provides dual implementations for many operations:
 
 - **Pandas** --- the default, supporting both asexual and sexual phylogenies.
-- **Polars** --- available for operations with a ``_polars`` suffix or via
-  automatic dispatch.
+- **Polars** --- available via operations with a ``_polars`` suffix (e.g.,
+  ``alifestd_mark_leaves_polars``).
 
 Polars Usage
 ------------

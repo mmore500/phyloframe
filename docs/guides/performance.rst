@@ -88,7 +88,8 @@ The ``jit`` decorator:
 - Uses Numba when available for native-speed compilation.
 - Falls back to pure Python if Numba is not installed.
 - Automatically disables compilation during coverage runs.
-- Caches compiled functions by default.
+- Enables Numba's function caching by default (pass ``cache=False`` to
+  disable, e.g., for short-lived or dynamically defined functions).
 
 Common Pattern: Array-based Algorithms
 --------------------------------------

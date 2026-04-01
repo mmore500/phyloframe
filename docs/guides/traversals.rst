@@ -63,6 +63,15 @@ Visit nodes in topological order (ancestors before descendants):
 
    order = pfl.alifestd_unfurl_traversal_topological_asexual(df)
 
+Semiorder
+---------
+
+A hybrid traversal that interleaves preorder and postorder visits:
+
+.. code-block:: python
+
+   order = pfl.alifestd_unfurl_traversal_semiorder_asexual(df)
+
 Lineage Unfurling
 -----------------
 
@@ -114,13 +123,13 @@ distance algorithms.
 Consider a tree with nodes ``{0, 1, 2, 3, 4}`` where node 0 has
 children ``{1, 2}`` and node 1 has children ``{3, 4}``::
 
-   csr_offsets:  [0, 2, 2, 2, 2]
+   csr_offsets:  [0, 2, 4, 4, 4]
    csr_children: [1, 2, 3, 4]
    num_children: [2, 2, 0, 0, 0]
 
    Node 0's children: csr_children[0:0+2] = [1, 2]
    Node 1's children: csr_children[2:2+2] = [3, 4]
-   Node 2's children: csr_children[2:2+0] = []  (leaf)
+   Node 2's children: csr_children[4:4+0] = []  (leaf)
 
 First-Child/Next-Sibling Linked List
 --------------------------------------
