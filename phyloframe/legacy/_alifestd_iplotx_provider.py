@@ -97,22 +97,23 @@ def _build_nodes(
     return nodes
 
 
-def _extract_branch_lengths_pandas(
-    phylogeny_df: pd.DataFrame,
+def _extract_branch_lengths(
+    ancestor_ids: np.ndarray,
+    origin_time_delta: typing.Optional[np.ndarray] = None,
+    origin_time: typing.Optional[np.ndarray] = None,
 ) -> typing.Optional[np.ndarray]:
-    """Extract branch lengths from a pandas phylogeny dataframe.
+    """Extract branch lengths from numpy arrays.
 
     Uses ``origin_time_delta`` if present, otherwise computes from
-    ``origin_time`` and ``ancestor_id``.  Returns ``None`` if neither
-    column is available.
+    ``origin_time`` and ``ancestor_ids``.  Returns ``None`` if neither
+    is available.
     """
-    if "origin_time_delta" in phylogeny_df.columns:
-        return phylogeny_df["origin_time_delta"].to_numpy(dtype=float)
+    if origin_time_delta is not None:
+        return origin_time_delta.astype(float)
 
-    if "origin_time" in phylogeny_df.columns:
-        origin_time = phylogeny_df["origin_time"].to_numpy(dtype=float)
-        ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-        deltas = origin_time - origin_time[ancestor_ids]
+    if origin_time is not None:
+        ot = origin_time.astype(float)
+        deltas = ot - ot[ancestor_ids]
         # Root self-references give 0; mark as NaN so they become None
         is_root = ancestor_ids == np.arange(len(ancestor_ids))
         deltas[is_root] = np.nan
@@ -151,6 +152,13 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
                 "ancestor_id": ancestor_ids,
             }
         )
+        self._ancestor_ids = ancestor_ids
+        # Root is the first node where ancestor_id == id (guaranteed by
+        # contiguous ids + topological sort).
+        (root_indices,) = np.where(
+            ancestor_ids == np.arange(len(ancestor_ids))
+        )
+        self._root = self._nodes[root_indices[0]]
         # Store a reference as ``tree`` for TreeDataProvider protocol.
         self.tree = self
 
@@ -160,33 +168,32 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         return True
 
     def get_root(self) -> _AlifestdNode:
-        root_ids = self._phylogeny_df.loc[
-            self._phylogeny_df["id"] == self._phylogeny_df["ancestor_id"],
-            "id",
-        ]
-        return self._nodes[root_ids.iloc[0]]
+        return self._root
 
     def preorder(self) -> typing.Iterable[_AlifestdNode]:
         order = alifestd_unfurl_traversal_preorder_asexual(
-            self._phylogeny_df, mutate=False
+            self._phylogeny_df,
+            mutate=True,
         )
         return [self._nodes[i] for i in order]
 
     def postorder(self) -> typing.Iterable[_AlifestdNode]:
         order = alifestd_unfurl_traversal_postorder_asexual(
-            self._phylogeny_df, mutate=False
+            self._phylogeny_df,
+            mutate=True,
         )
         return [self._nodes[i] for i in order]
 
     def levelorder(self) -> typing.Iterable[_AlifestdNode]:
         order = alifestd_unfurl_traversal_levelorder_asexual(
-            self._phylogeny_df, mutate=False
+            self._phylogeny_df,
+            mutate=True,
         )
         return [self._nodes[i] for i in order]
 
     def _get_leaves(self) -> typing.Sequence[_AlifestdNode]:
         leaf_ids = _alifestd_find_leaf_ids_asexual_fast_path(
-            self._phylogeny_df["ancestor_id"].to_numpy()
+            self._ancestor_ids,
         )
         return [self._nodes[i] for i in leaf_ids]
 
@@ -225,7 +232,6 @@ class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
     """
 
     def __init__(self, tree: pd.DataFrame) -> None:
-        self.tree = tree  # type: ignore[assignment]
         df = alifestd_try_add_ancestor_id_col(tree.copy())
         if not alifestd_has_contiguous_ids(df):
             raise NotImplementedError(
@@ -244,9 +250,22 @@ class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
             if "taxon_label" in df.columns
             else None
         )
-        branch_lengths = _extract_branch_lengths_pandas(df)
+        branch_lengths = _extract_branch_lengths(
+            ancestor_ids,
+            origin_time_delta=(
+                df["origin_time_delta"].to_numpy()
+                if "origin_time_delta" in df.columns
+                else None
+            ),
+            origin_time=(
+                df["origin_time"].to_numpy()
+                if "origin_time" in df.columns
+                else None
+            ),
+        )
 
-        self._nodes = _build_nodes(ancestor_ids, names, branch_lengths)
+        super().__init__(ancestor_ids, names, branch_lengths)
+        self.tree = tree  # type: ignore[assignment]
         self._phylogeny_df = df[["id", "ancestor_id"]]
 
     @staticmethod
@@ -280,8 +299,6 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
             alifestd_is_topologically_sorted_polars,
         )
 
-        self.tree = tree  # type: ignore[assignment]
-
         if not alifestd_has_contiguous_ids_polars(tree):
             raise NotImplementedError(
                 "AlifestdIplotxShimPolars requires contiguous ids "
@@ -299,23 +316,22 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
         if "taxon_label" in tree.columns:
             names = tree["taxon_label"].cast(pl.Utf8).to_numpy()
 
-        branch_lengths: typing.Optional[np.ndarray] = None
-        if "origin_time_delta" in tree.columns:
-            branch_lengths = tree["origin_time_delta"].to_numpy().astype(float)
-        elif "origin_time" in tree.columns:
-            origin_time = tree["origin_time"].to_numpy().astype(float)
-            deltas = origin_time - origin_time[ancestor_ids]
-            is_root = ancestor_ids == np.arange(len(ancestor_ids))
-            deltas[is_root] = np.nan
-            branch_lengths = deltas
-
-        self._nodes = _build_nodes(ancestor_ids, names, branch_lengths)
-        self._phylogeny_df = pd.DataFrame(
-            {
-                "id": np.arange(len(ancestor_ids)),
-                "ancestor_id": ancestor_ids,
-            }
+        branch_lengths = _extract_branch_lengths(
+            ancestor_ids,
+            origin_time_delta=(
+                tree["origin_time_delta"].to_numpy()
+                if "origin_time_delta" in tree.columns
+                else None
+            ),
+            origin_time=(
+                tree["origin_time"].to_numpy()
+                if "origin_time" in tree.columns
+                else None
+            ),
         )
+
+        super().__init__(ancestor_ids, names, branch_lengths)
+        self.tree = tree  # type: ignore[assignment]
 
     @staticmethod
     def check_dependencies() -> bool:
