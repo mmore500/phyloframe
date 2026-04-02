@@ -33,11 +33,11 @@ Leaf and Root Detection
 
    # Mark leaf nodes (no descendants)
    df = pfl.alifestd_mark_leaves(df)
-   # df["is_leaf"]: True for A, B, C, D
+   # df["is_leaf"]: True for A, B, C, D, False otherwise
 
    # Mark root nodes (no ancestors)
    df = pfl.alifestd_mark_roots(df)
-   # df["is_root"]: True for the root node
+   # df["is_root"]: True for the root node, False otherwise
 
 Node Depth
 ----------
