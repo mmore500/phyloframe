@@ -22,7 +22,7 @@ Dataframe-based tools for working with phylogenetic trees.
 ## Why a DataFrame-based Tree Representation?
 
 DataFrames are scripting-friendly and end-user extensible, enabling a composable, interoperable ecosystem for phylogenetic analysis.
-The R ecosystem's success with the `ape` data structure demonstrates the value of accessible tree representations --- phyloframe pushes this idea further with a fully tabular format.
+The R ecosystem's success with the `ape` data structure demonstrates the value of edge matrix tree representations --- phyloframe pushes this idea further with a fully tabular format hosted within DataFrame objects (e.g., `pd.DataFrame`, `pl.LazyFrame`, `pl.DataFrame`, etc.).
 
 **Fast and highly portable load/save.**
 Use `pandas.read_csv`, `polars.read_parquet`, R's `read.table`, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
@@ -36,7 +36,7 @@ Options exist for both binary and text formats.
 Memory-efficient representation, larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
 
 **Rich interoperative ecosystem.**
-Multi-language interoperation (e.g., zero-copy interop between R and Python via `reticulate` and Arrow; possible future support for zero-copy Polars DataFrames shared between Rust and Python).
+Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via `reticulate` and Arrow; possible future support for zero-copy Polars DataFrames shared between Rust and Python).
 Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol).
 
 ## Install
@@ -68,7 +68,8 @@ df = pfl.alifestd_mark_leaves(df)
 df = pfl.alifestd_mark_node_depth_asexual(df)
 df = pfl.alifestd_collapse_unifurcations(df)
 
-print(df[["id", "ancestor_id", "is_leaf", "node_depth"]])
+print("leaf count:", pfl.alifestd_count_leaf_nodes(df))
+print(df[["id", "ancestor_id", "is_leaf", "node_depth"]].head())
 ```
 
 Phyloframe represents phylogenies as DataFrames in the [**alife standard format**](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html).
