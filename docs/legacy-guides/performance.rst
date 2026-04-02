@@ -134,6 +134,10 @@ lazy evaluation, and memory-efficient representation.
 
    Set the ``POLARS_MAX_THREADS`` environment variable to control the number
    of threads Polars uses.
+   Set ``POLARS_ENGINE_AFFINITY`` or use
+   ``pl.Config.set_engine_affinity()`` to control the
+   `query engine optimization strategy
+   <https://docs.pola.rs/api/python/dev/reference/api/polars.Config.set_engine_affinity.html>`_.
    Polars streaming mode can also be enabled for larger-than-memory datasets
    via ``pl.Config.set_streaming_chunk_size()``.
 

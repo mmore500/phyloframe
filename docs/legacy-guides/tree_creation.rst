@@ -8,6 +8,11 @@ phyloframe.
 Empty Phylogenies
 =================
 
+``alifestd_make_empty`` creates a zero-row DataFrame with the correct column
+names and dtypes (``id`` as int, ``ancestor_list`` as str, and optionally
+``ancestor_id`` as int).
+This ensures downstream operations receive properly typed input:
+
 .. code-block:: python
 
    from phyloframe import legacy as pfl

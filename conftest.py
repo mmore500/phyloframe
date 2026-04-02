@@ -28,13 +28,9 @@ else:
         "to_parquet",
         "write_csv",
         "write_parquet",
-        "reticulate",
-        "library(",
-        "read.csv",
-        "read.table",
     ]
 
-    def _evaluate_python_block(example):
+    def _evaluate_python_block(example: "sybil.Example") -> None:
         """Execute a Python code block, skipping blocks with external deps."""
         source = example.parsed
         for pattern in _SKIP_PATTERNS:

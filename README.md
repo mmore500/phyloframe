@@ -22,11 +22,11 @@ Dataframe-based tools for working with phylogenetic trees.
 ## Why a DataFrame-based Tree Representation?
 
 DataFrames are scripting-friendly and end-user extensible, enabling a composable, interoperable ecosystem for phylogenetic analysis.
+JIT-compatible for native performance --- in our work, scalable to billion-tip phylogenies.
 The R ecosystem's success with the `ape` data structure demonstrates the value of edge matrix tree representations --- phyloframe pushes this idea further with a fully tabular format hosted within DataFrame objects (e.g., `pd.DataFrame`, `pl.LazyFrame`, `pl.DataFrame`, etc.).
 
 **Fast and highly portable load/save.**
 Use `pandas.read_csv`, `polars.read_parquet`, R's `read.table`, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
-Serialized and in-memory representations are unified.
 
 **Benefit from modern tabular data formats.**
 Granular deserialization of selected columns (e.g., Parquet), transparent compression configuration (e.g., Parquet), columnar compression for efficient storage, categorical strings, and explicit column typing.

@@ -37,9 +37,17 @@ Core Columns
 .. note::
 
    The ``ancestor_list`` column is part of the original alife data standard.
-   The ``ancestor_id`` column is an extension introduced by phyloframe for
-   efficient asexual phylogeny operations.
+   The ``ancestor_id`` column is an unofficial extension introduced by
+   phyloframe for efficient asexual phylogeny operations.
    Use ``alifestd_try_add_ancestor_id_col`` to add it automatically.
+
+.. note::
+
+   The alife data standard specifies ``ancestor_list`` as a string-encoded
+   JSON list, which incurs parsing overhead on every access.
+   This is a known design defect in the standard.
+   Phyloframe's ``ancestor_id`` column avoids this cost and is the
+   recommended representation for asexual phylogenies.
 
 Root Representation
 -------------------
@@ -104,17 +112,19 @@ indices, enabling efficient NumPy and JIT-compiled operations:
    # ancestor_ids[i] gives the row index of node i's parent
    # For root nodes, ancestor_ids[i] == i
 
-Asexual vs. Sexual Phylogenies
-==============================
+Types of Phylogeny Data
+========================
 
-Phyloframe supports two reproduction modes:
+Phyloframe focuses on asexual phylogenies.
+Partial support for sexual phylogenies is provided for compatibility with
+the alife data standard.
 
 **Asexual** phylogenies have at most one ancestor per organism.
 The ``ancestor_id`` column can represent the tree structure efficiently.
 Most phyloframe operations (especially those with ``_asexual`` suffix) target
 this mode.
 
-**Sexual** phylogenies allow multiple ancestors per organism.
+**Sexual** phylogenies (pedigrees) allow multiple ancestors per organism.
 These rely on the ``ancestor_list`` column (string-based) and have fewer
 optimized operations available.
 
@@ -335,6 +345,9 @@ When to Prefer Polars
 ---------------------
 
 - Working with large trees (millions of nodes).
+- `Query optimization <https://docs.pola.rs/user-guide/lazy/optimizations/>`_
+  via Polars' lazy evaluation engine (predicate pushdown, projection pushdown,
+  and other automatic rewrites).
 - Multithreaded operations.
 - CLI pipelines (the CLI interface is Polars-based, so using ``_polars`` entrypoints avoids conversion overhead).
 
@@ -362,8 +375,8 @@ add custom columns for your analysis:
 
    # Group, aggregate, join --- all standard operations work
    clade_stats = df.groupby("node_depth").agg(
-       mean_fitness=("fitness", "mean"),
        count=("id", "count"),
+       mean_fitness=("fitness", "mean"),
    )
 
 This extensibility is a key advantage of the DataFrame-based approach.

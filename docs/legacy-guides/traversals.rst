@@ -57,7 +57,9 @@ Visit nodes level by level from root to leaves:
 Topological Order
 -----------------
 
-Visit nodes in topological order (ancestors before descendants):
+Visit nodes in topological order (ancestors before descendants).
+For data in working format, this is simply a forward iteration along rows
+and can be much faster than other traversal orderings:
 
 .. code-block:: python
 

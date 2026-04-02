@@ -152,8 +152,10 @@ recent tips by ``origin_time``):
 .. code-block:: python
 
    df_sample = pfl.alifestd_mark_sample_tips_canopy_asexual(
-       df_sample, n_sample=5, criterion="origin_time",
+       df_sample,
+       criterion="origin_time",
        mark_as="keep_canopy",
+       n_sample=5,
    )
 
 Lineage Sampling
