@@ -145,4 +145,3 @@ DataFrame libraries transparently handle URLs and cloud storage:
 
    # Polars also supports remote sources
    df = pl.read_parquet("s3://bucket/phylogeny.pqt")
-
