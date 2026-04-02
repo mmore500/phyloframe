@@ -57,69 +57,38 @@ Exporting to Newick
        df, taxon_label="taxon_label",
    )
 
-CSV Files
-=========
+Tabular File Formats (CSV, Parquet)
+====================================
 
-Standard Pandas/Polars CSV I/O works directly:
+Use standard Pandas and Polars I/O utilities for reading and writing
+phylogeny DataFrames.
+Parquet is recommended for large phylogenies due to columnar compression,
+selective column loading, explicit typing, and efficient enum-based
+categorical string storage.
 
 .. code-block:: python
 
    import pandas as pd
-
-   # Write
-   df.to_csv("phylogeny.csv", index=False)
-
-   # Read
-   df = pd.read_csv("phylogeny.csv")
-   df = pfl.alifestd_to_working_format(df)
-
-.. code-block:: python
-
    import polars as pl
 
-   # Write
-   df_polars.write_csv("phylogeny.csv")
+   # CSV --- Pandas
+   df.to_csv("phylogeny.csv", index=False)
+   df = pd.read_csv("phylogeny.csv")
 
-   # Read
-   df_polars = pl.read_csv("phylogeny.csv")
-
-Parquet Files
-=============
-
-Parquet is recommended for large phylogenies.
-It offers columnar compression, explicit typing, and selective column
-loading.
-
-.. code-block:: python
-
-   import pandas as pd
-
-   # Write
+   # Parquet --- Pandas
    df.to_parquet("phylogeny.pqt")
-
-   # Read
    df = pd.read_parquet("phylogeny.pqt")
 
-.. code-block:: python
-
-   import polars as pl
-
-   # Write
+   # Parquet --- Polars (selective column loading)
    df_polars.write_parquet("phylogeny.pqt")
-
-   # Read --- only load the columns you need
    df_polars = pl.read_parquet(
        "phylogeny.pqt", columns=["id", "ancestor_id", "origin_time"],
    )
 
-Advantages of Parquet:
-
-- Columnar compression reduces file size.
-- Selective column deserialization speeds up loading.
-  This is particularly advantageous with Polars streaming operations.
-- Explicit column typing avoids dtype inference issues.
-- Binary format is faster to read/write than CSV.
-- Categorical strings are stored efficiently as enums.
+Selective column deserialization is particularly advantageous with Polars
+streaming operations.
+See the `Pandas I/O docs <https://pandas.pydata.org/docs/user_guide/io.html>`_
+and `Polars I/O docs <https://docs.pola.rs/user-guide/io/>`_ for full details.
 
 Remote and Cloud Sources
 ========================

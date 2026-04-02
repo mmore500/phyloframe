@@ -27,7 +27,7 @@ indices.
 Mutation for Pipeline Performance
 =================================
 
-Use ``mutate=True`` in pipelines to avoid unnecessary copies:
+Use ``mutate=True`` in Pandas-based pipelines to avoid unnecessary copies:
 
 .. code-block:: python
 
@@ -130,6 +130,13 @@ Polars for Large-scale Data
 Polars can outperform Pandas for large phylogenies due to multithreading,
 lazy evaluation, and memory-efficient representation.
 
+.. note::
+
+   Set the ``POLARS_MAX_THREADS`` environment variable to control the number
+   of threads Polars uses.
+   Polars streaming mode can also be enabled for larger-than-memory datasets
+   via ``pl.Config.set_streaming_chunk_size()``.
+
 .. code-block:: python
 
    import polars as pl
@@ -144,7 +151,7 @@ lazy evaluation, and memory-efficient representation.
 Polars restrictions:
 
 - Asexual phylogenies only.
-- Requires topological sortedness and contiguous IDs.
+- Requires data in working format (topological sortedness and contiguous IDs).
 - No ``mutate`` parameter (Polars DataFrames are immutable).
 
 CLI Performance

@@ -5,6 +5,12 @@ Tree Manipulation and Pruning
 This guide covers operations that transform the structure of a phylogeny:
 collapsing, splaying, pruning, downsampling, and masking.
 
+.. note::
+
+   Structural transforms may invalidate previously computed columns (e.g.,
+   ``node_depth``, ``num_descendants``).
+   See :doc:`concepts` for details on the topological sensitivity system.
+
 Structural Transformations
 ==========================
 
@@ -19,9 +25,10 @@ to their child:
    from phyloframe import legacy as pfl
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
-
-   df = pfl.alifestd_collapse_unifurcations(df)
+   df = (
+       df.pipe(pfl.alifestd_to_working_format)
+       .pipe(pfl.alifestd_collapse_unifurcations)
+   )
 
 Splaying Polytomies
 -------------------
@@ -227,9 +234,11 @@ to maintain tree connectivity:
    df_coarsen = pfl.alifestd_from_newick(
        "((A,B),(C,D));", create_ancestor_list=True,
    )
-   df_coarsen = pfl.alifestd_to_working_format(df_coarsen)
-   df_coarsen = pfl.alifestd_mark_node_depth_asexual(df_coarsen)
-   df_coarsen = pfl.alifestd_mark_leaves(df_coarsen)
+   df_coarsen = (
+       df_coarsen.pipe(pfl.alifestd_to_working_format)
+       .pipe(pfl.alifestd_mark_node_depth_asexual)
+       .pipe(pfl.alifestd_mark_leaves)
+   )
    mask = (df_coarsen["node_depth"] % 2 == 0) | df_coarsen["is_leaf"]
    df_coarsen = pfl.alifestd_coarsen_mask(df_coarsen, mask)
 
@@ -247,24 +256,26 @@ A complete workflow combining multiple sampling strategies and pruning:
    df = pfl.alifestd_from_newick(
        "((A:1,B:2):3,(C:4,(D:5,E:6):7):8);",
    )
-   df = pfl.alifestd_to_working_format(df)
+   df = df.pipe(pfl.alifestd_to_working_format)
    df["origin_time"] = range(len(df))
 
    # Strategy 1: canopy --- keep the 2 most recent tips
-   df = pfl.alifestd_mark_sample_tips_canopy_asexual(
-       df, n_sample=2, mark_as="keep_canopy",
+   df = df.pipe(
+       pfl.alifestd_mark_sample_tips_canopy_asexual,
+       n_sample=2, mark_as="keep_canopy",
    )
 
    # Strategy 2: lineage --- keep the 2 tips closest to focal lineage
-   df = pfl.alifestd_mark_sample_tips_lineage_asexual(
-       df, n_sample=2, mark_as="keep_lineage",
+   df = df.pipe(
+       pfl.alifestd_mark_sample_tips_lineage_asexual,
+       n_sample=2, mark_as="keep_lineage",
    )
 
    # Combine: OR the masks to keep tips matching either criterion
    df["extant"] = df["keep_canopy"] | df["keep_lineage"]
 
    # Prune lineages with no extant descendants
-   result = pfl.alifestd_prune_extinct_lineages_asexual(df)
+   result = df.pipe(pfl.alifestd_prune_extinct_lineages_asexual)
 
 Downsampling (Combined Mark + Prune)
 =====================================

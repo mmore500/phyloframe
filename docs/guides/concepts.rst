@@ -62,7 +62,8 @@ Roots are organisms with no ancestor.
 Working Format
 ==============
 
-Many operations run fastest when the DataFrame satisfies three properties:
+Many operations run fastest when the DataFrame is in **working format**,
+satisfying three properties:
 
 1. **Topologically sorted** --- every ancestor appears in a row before
    its descendants.
@@ -75,6 +76,10 @@ Many operations run fastest when the DataFrame satisfies three properties:
    row indices.
 3. **``ancestor_id`` column present** --- enables direct integer indexing
    instead of string parsing.
+
+.. note::
+
+   Polars implementations require data in working format.
 
 Convert to working format with a single call:
 
@@ -157,6 +162,49 @@ warnings describing each issue found:
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
    pfl.alifestd_validate(df)  # True
+
+Topological Sensitivity
+========================
+
+When topology-altering operations (e.g., pruning, collapsing, rerooting)
+modify the tree structure, previously computed columns like ``node_depth``,
+``branch_length``, or ``num_descendants`` may become stale.
+Phyloframe's **topological sensitivity** system detects this and warns you.
+
+Operations that alter topology are decorated to automatically emit a warning
+listing any topology-dependent columns found in the DataFrame:
+
+.. code-block:: text
+
+   UserWarning: alifestd_collapse_unifurcations performs delete/update
+   operations that do not update topology-dependent columns, which may
+   be invalidated: ['node_depth', 'branch_length']. ...
+
+To handle this:
+
+1. **Drop sensitive columns before the operation** using
+   ``alifestd_drop_topological_sensitivity`` or
+   ``alifestd_drop_topological_sensitivity_polars``, then recompute them
+   afterward.
+2. **Suppress the warning** by passing
+   ``ignore_topological_sensitivity=True`` to the operation, or by setting
+   the ``HSTRAT_ALIFESTD_WARN_TOPOLOGICAL_SENSITIVITY_SUPPRESS``
+   environment variable.
+
+.. code-block:: python
+
+   from phyloframe import legacy as pfl
+
+   df = pfl.alifestd_from_newick("((A,B),(C,D));")
+   df = pfl.alifestd_to_working_format(df)
+   df = pfl.alifestd_mark_node_depth_asexual(df)
+
+   # Drop topology-dependent columns before a structural change
+   df = pfl.alifestd_drop_topological_sensitivity(df)
+   df = pfl.alifestd_collapse_unifurcations(df)
+
+   # Recompute as needed
+   df = pfl.alifestd_mark_node_depth_asexual(df)
 
 Supplemental Data Structures
 =============================
