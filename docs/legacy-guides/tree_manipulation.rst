@@ -252,20 +252,10 @@ A complete workflow combining multiple sampling strategies and pruning:
    from phyloframe import legacy as pfl
 
    # Load or create a phylogeny with origin times
-   df = pfl.alifestd_from_newick(
-       "((A:1,B:2):3,(C:4,(D:5,E:6):7):8);",
-   )
-
-   # Strategy 1: canopy --- keep the 2 most recent tips
-   df = df.pipe(
-       pfl.alifestd_mark_sample_tips_canopy_asexual,
-       n_sample=2, mark_as="keep_canopy",
-   )
-
-   # Strategy 2: lineage --- keep the 2 tips closest to focal lineage
-   df = df.pipe(
-       pfl.alifestd_mark_sample_tips_lineage_asexual,
-       n_sample=2, mark_as="keep_lineage",
+   df = (
+       pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,(D:5,E:6):7):8);")
+       .pipe(pfl.alifestd_mark_sample_tips_canopy_asexual, n_sample=2, mark_as="keep_canopy")
+       .pipe(pfl.alifestd_mark_sample_tips_lineage_asexual, n_sample=2, mark_as="keep_lineage")
    )
 
    # Combine: OR the masks to keep tips matching either criterion
