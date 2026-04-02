@@ -83,6 +83,7 @@ testing = [
   "isort>=5.12.0",
   "ruff>=0.1.11",
   "safe-assert==0.2.0",
+  "sybil>=10.0.0",
   "scipy>=1.14.1",
   "setuptools>=75.0.0,<81",
   "tox==3.24.0",
