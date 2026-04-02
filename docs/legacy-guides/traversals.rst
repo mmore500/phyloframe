@@ -10,14 +10,12 @@ Tree Traversal (Legacy)
    A redesigned API will accompany phyloframe v1.0.0.
 
 
-This guide covers phyloframe's tree traversal operations and the
-supplemental data structures that enable them.
+This guide covers phyloframe's tree traversal operations and the supplemental data structures that enable them.
 
 Traversal Orders
 ================
 
-Phyloframe provides functions that return node IDs in standard traversal
-orders as NumPy arrays.
+Phyloframe provides functions that return node IDs in standard traversal orders as NumPy arrays.
 
 Preorder (Depth-first, Parent Before Children)
 ----------------------------------------------
@@ -30,7 +28,6 @@ Visit each node before its descendants:
    import numpy as np
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
 
    order = pfl.alifestd_unfurl_traversal_preorder_asexual(df)
    # Returns np.ndarray of node IDs in preorder
@@ -45,7 +42,7 @@ Visit each node after all its descendants:
    order = pfl.alifestd_unfurl_traversal_postorder_asexual(df)
 
 Inorder (Left, Root, Right)
-----------------------------
+---------------------------
 
 For binary trees, visit left subtree, then node, then right subtree:
 
@@ -54,7 +51,7 @@ For binary trees, visit left subtree, then node, then right subtree:
    order = pfl.alifestd_unfurl_traversal_inorder_asexual(df)
 
 Level-order (Breadth-first)
-----------------------------
+---------------------------
 
 Visit nodes level by level from root to leaves:
 
@@ -66,8 +63,7 @@ Topological Order
 -----------------
 
 Visit nodes in topological order (ancestors before descendants).
-For data in working format, this is simply a forward iteration along rows
-and can be much faster than other traversal orderings:
+For data in working format, this is simply a forward iteration along rows and can be much faster than other traversal orderings:
 
 .. code-block:: python
 
@@ -102,18 +98,16 @@ Phyloframe provides two supplemental structures for this purpose.
 CSR (Compressed Sparse Row) Representation
 -------------------------------------------
 
-The CSR format represents the parent-to-children mapping as two flat
-arrays.
-This is the most common structure used internally by traversal and
-distance algorithms.
+The CSR format represents the parent-to-children mapping as two flat arrays.
+This is the most common structure used internally by traversal and distance algorithms.
 
 .. code-block:: python
 
-   df = (
-       pfl.alifestd_from_newick("((A,B),(C,D));")
-       .pipe(pfl.alifestd_mark_num_children_asexual)
-       .pipe(pfl.alifestd_mark_csr_offsets_asexual)
-       .pipe(pfl.alifestd_mark_csr_children_asexual)
+   df = pfl.alifestd_pipe_unary_ops(
+       pfl.alifestd_from_newick("((A,B),(C,D));"),
+       pfl.alifestd_mark_num_children_asexual,
+       pfl.alifestd_mark_csr_offsets_asexual,
+       pfl.alifestd_mark_csr_children_asexual,
    )
 
    # Access children of any node in O(1)
@@ -127,8 +121,7 @@ distance algorithms.
 
 **How CSR works:**
 
-Consider a tree with nodes ``{0, 1, 2, 3, 4}`` where node 0 has
-children ``{1, 2}`` and node 1 has children ``{3, 4}``::
+Consider a tree with nodes ``{0, 1, 2, 3, 4}`` where node 0 has children ``{1, 2}`` and node 1 has children ``{3, 4}``::
 
    csr_offsets:  [0, 2, 4, 4, 4]
    csr_children: [1, 2, 3, 4]
@@ -139,18 +132,17 @@ children ``{1, 2}`` and node 1 has children ``{3, 4}``::
    Node 2's children: csr_children[4:4+0] = []  (leaf)
 
 First-Child/Next-Sibling Linked List
---------------------------------------
+-------------------------------------
 
-An alternative structure that uses two integer columns to form a linked
-list through the tree.
+An alternative structure that uses two integer columns to form a linked list through the tree.
 This uses less memory and avoids constructing auxiliary arrays.
 
 .. code-block:: python
 
-   df = (
-       pfl.alifestd_from_newick("((A,B),(C,D));")
-       .pipe(pfl.alifestd_mark_first_child_id_asexual)
-       .pipe(pfl.alifestd_mark_next_sibling_id_asexual)
+   df = pfl.alifestd_pipe_unary_ops(
+       pfl.alifestd_from_newick("((A,B),(C,D));"),
+       pfl.alifestd_mark_first_child_id_asexual,
+       pfl.alifestd_mark_next_sibling_id_asexual,
    )
 
    first_child = df["first_child_id"].values
@@ -170,8 +162,7 @@ This uses less memory and avoids constructing auxiliary arrays.
            child = nxt
        return result
 
-**Sentinel convention:** a node points to itself when there is no
-first child (leaf) or no next sibling (last sibling).
+**Sentinel convention:** a node points to itself when there is no first child (leaf) or no next sibling (last sibling).
 
 **How it works:**
 
@@ -183,15 +174,12 @@ For the same tree as above::
    ('-' means self-reference, i.e., no child/sibling)
 
 Choosing Between CSR and Linked List
---------------------------------------
+------------------------------------
 
-- **CSR** is better for algorithms that need random access to any node's
-  children (e.g., distance matrix computation).
-- **Linked list** is better for sequential traversals (e.g., DFS) where
-  you visit children in order and want to minimize memory.
+- **CSR** is better for algorithms that need random access to any node's children (e.g., distance matrix computation).
+- **Linked list** is better for sequential traversals (e.g., DFS) where you visit children in order and want to minimize memory.
 
-In practice, the traversal functions choose automatically based on what
-columns are already available.
+In practice, the traversal functions choose automatically based on what columns are already available.
 
 Using Traversals for Custom Algorithms
 ======================================

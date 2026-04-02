@@ -10,13 +10,11 @@ Tree Manipulation and Pruning (Legacy)
    A redesigned API will accompany phyloframe v1.0.0.
 
 
-This guide covers operations that transform the structure of a phylogeny:
-collapsing, splaying, pruning, downsampling, and masking.
+This guide covers operations that transform the structure of a phylogeny: collapsing, splaying, pruning, downsampling, and masking.
 
 .. note::
 
-   Structural transforms may invalidate previously computed columns (e.g.,
-   ``node_depth``, ``num_descendants``).
+   Structural transforms may invalidate previously computed columns (e.g., ``node_depth``, ``num_descendants``).
    See :doc:`concepts` for details on the topological sensitivity system.
 
 Structural Transformations
@@ -25,8 +23,7 @@ Structural Transformations
 Collapsing Unifurcations
 ------------------------
 
-Remove single-child (unifurcating) nodes, connecting their parent directly
-to their child:
+Remove single-child (unifurcating) nodes, connecting their parent directly to their child:
 
 .. code-block:: python
 
@@ -136,8 +133,7 @@ Sort rows by ``origin_time`` for time-based analyses:
 Tip Sampling (Mark Functions)
 =============================
 
-Tip sampling mark functions add a boolean column indicating which tips to
-retain.
+Tip sampling mark functions add a boolean column indicating which tips to retain.
 They do **not** remove any rows --- use a pruning step afterward.
 
 Uniform Random Sampling
@@ -150,14 +146,13 @@ Uniform Random Sampling
 
    # Mark 10 randomly selected tips
    df_sample = pfl.alifestd_mark_sample_tips_uniform_asexual(
-       df_sample, n_sample=10, seed=42, mark_as="keep",
+       df_sample, n_sample=10, mark_as="keep", seed=42,
    )
 
 Canopy Sampling
 ---------------
 
-Retain tips with the largest values in a criterion column (e.g., the most
-recent tips by ``origin_time``):
+Retain tips with the largest values in a criterion column (e.g., the most recent tips by ``origin_time``):
 
 .. code-block:: python
 
@@ -171,8 +166,7 @@ recent tips by ``origin_time``):
 Lineage Sampling
 ----------------
 
-Retain tips closest to a focal lineage (the lineage of the tip with the
-largest criterion value):
+Retain tips closest to a focal lineage (the lineage of the tip with the largest criterion value):
 
 .. code-block:: python
 
@@ -183,8 +177,7 @@ largest criterion value):
 Combining Sample Masks
 ======================
 
-Because sample marks are boolean columns, they compose naturally with
-standard boolean operations:
+Because sample marks are boolean columns, they compose naturally with standard boolean operations:
 
 .. code-block:: python
 
@@ -208,8 +201,7 @@ Pruning Extinct Lineages
 ------------------------
 
 Remove lineages that have no extant descendants.
-The ``criterion`` parameter specifies which boolean column marks extant
-taxa (default: ``"extant"``):
+The ``criterion`` parameter specifies which boolean column marks extant taxa (default: ``"extant"``):
 
 .. code-block:: python
 
@@ -237,8 +229,7 @@ You can also use a custom criterion column name:
 Coarsening with a Mask
 ----------------------
 
-Keep only rows matching a boolean mask, re-wiring ancestor relationships
-to maintain tree connectivity:
+Keep only rows matching a boolean mask, re-wiring ancestor relationships to maintain tree connectivity:
 
 .. code-block:: python
 
@@ -286,8 +277,7 @@ A complete workflow combining multiple sampling strategies and pruning:
 Downsampling (Combined Mark + Prune)
 =====================================
 
-For convenience, ``alifestd_downsample_tips_*`` functions combine the
-mark and prune steps:
+For convenience, ``alifestd_downsample_tips_*`` functions combine the mark and prune steps:
 
 .. code-block:: python
 
@@ -309,7 +299,5 @@ mark and prune steps:
        df_ds, n_downsample=5,
    )
 
-These are equivalent to calling the corresponding mark function, setting
-the ``"extant"`` column, and then pruning extinct lineages.
-Use the separate mark + prune workflow (above) when you need to combine
-multiple sampling criteria.
+These are equivalent to calling the corresponding mark function, setting the ``"extant"`` column, and then pruning extinct lineages.
+Use the separate mark + prune workflow (above) when you need to combine multiple sampling criteria.

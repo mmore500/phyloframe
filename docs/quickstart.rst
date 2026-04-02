@@ -2,9 +2,7 @@
 Quickstart
 ==========
 
-This guide walks through the basics of phyloframe: creating phylogenies,
-inspecting tree structure, marking properties, transforming trees, and
-exporting results.
+This guide walks through the basics of phyloframe: creating phylogenies, inspecting tree structure, marking properties, transforming trees, and exporting results.
 
 Installation
 ============
@@ -29,14 +27,12 @@ Import Convention
    from phyloframe import legacy as pfl
 
 The ``legacy`` module contains all current phyloframe operations.
-As phyloframe evolves, ``legacy`` will continue to be maintained for backward
-compatibility while new API designs are developed.
+As phyloframe evolves, ``legacy`` will continue to be maintained for backward compatibility while new API designs are developed.
 
-The Alife Standard Format
-=========================
+The Official Alife Standard Format
+===================================
 
-Phyloframe represents phylogenies as DataFrames in the **alife standard
-format**.
+Phyloframe represents phylogenies as DataFrames in the **alife standard format**.
 Each row represents an organism (or taxon).
 
 Required Columns
@@ -48,7 +44,14 @@ Required Columns
 ``ancestor_list`` : str
     JSON-encoded list of ancestor IDs.
     For asexual phylogenies, this is a single-element list like ``"[0]"``.
-    Root nodes use ``"[None]"`` or ``"[none]"``.
+    Root nodes use ``"[None]"``, ``"[none]"``, or ``"[]"``.
+
+.. note::
+
+   The ambiguity of root representations (``"[None]"`` vs ``"[none]"`` vs ``"[]"``) is a known defect in the current alife data standard.
+   The use of ``none`` also deviates from valid JSON.
+   The string encoding additionally incurs parsing overhead on every access.
+   Phyloframe's ``ancestor_id`` column avoids these issues.
 
 Optional Columns (Official Standard)
 -------------------------------------
@@ -62,39 +65,31 @@ Optional Columns (Official Standard)
 ``taxon_label`` : str
     Human-readable label or species name for this organism.
 
-See the `alife data standards specification
-<https://alife-data-standards.github.io/alife-data-standards/phylogeny.html>`_
-for the full list of official optional columns.
+See the `alife data standards specification <https://alife-data-standards.github.io/alife-data-standards/phylogeny.html>`_ for the full list of official optional columns.
 
 Unofficial Extension: ``ancestor_id``
 --------------------------------------
 
 ``ancestor_id`` : int
     Direct ancestor ID for asexual phylogenies.
-    This is an optimized integer representation of ``ancestor_list`` that
-    avoids repeated string parsing.
+    This is an optimized integer representation of ``ancestor_list`` that avoids repeated string parsing.
     Root nodes store their own ID as ``ancestor_id``.
 
-All phyloframe operations on asexual trees support ``ancestor_id`` in place
-of ``ancestor_list``.
-Using ``ancestor_id`` is recommended unless interoperability with other
-alife standard ecosystem tools is needed.
-Use ``alifestd_try_add_ancestor_list_col`` to generate ``ancestor_list``
-on demand when required:
+All phyloframe operations on asexual trees support ``ancestor_id`` in place of ``ancestor_list``.
+Using ``ancestor_id`` is recommended unless interoperability with other alife standard ecosystem tools is needed.
+Use ``alifestd_try_add_ancestor_list_col`` to generate ``ancestor_list`` on demand when required:
 
 .. code-block:: python
 
    df = pfl.alifestd_try_add_ancestor_list_col(df)
 
-Additional user-defined columns (e.g., trait data, fitness values) can be
-freely added --- the DataFrame is yours to extend.
+Additional user-defined columns (e.g., trait data, fitness values) can be freely added --- the DataFrame is yours to extend.
 
 Representing Roots
 ------------------
 
 Root nodes have no ancestor.
-In ``ancestor_list``, this is represented as ``"[None]"``, ``"[none]"``, or
-``"[]"``.
+In ``ancestor_list``, this is represented as ``"[None]"``, ``"[none]"``, or ``"[]"``.
 In ``ancestor_id``, roots store their own ID (i.e., ``ancestor_id == id``).
 
 Example
@@ -119,20 +114,17 @@ This represents::
 Asexual vs. Sexual Phylogenies
 ------------------------------
 
-**Asexual** phylogenies have at most one ancestor per organism (i.e.,
-single-element ``ancestor_list``).
-Most phyloframe operations target asexual phylogenies, where the
-``ancestor_id`` column enables fast integer-based lookups.
+**Asexual** phylogenies have at most one ancestor per organism (i.e., single-element ``ancestor_list``).
+Most phyloframe operations target asexual phylogenies, where the ``ancestor_id`` column enables fast integer-based lookups.
 
 **Sexual** phylogenies allow multiple ancestors (e.g., ``"[3, 7]"``).
-Sexual phylogeny support is limited to operations that work with
-``ancestor_list`` directly (primarily in Pandas).
+Sexual phylogeny support is limited to operations that work with ``ancestor_list`` directly (primarily in Pandas).
 
 .. code-block:: python
 
    # Check phylogeny type
-   pfl.alifestd_is_asexual(phylogeny_df)   # True
-   pfl.alifestd_is_sexual(phylogeny_df)     # False
+   pfl.alifestd_is_asexual(phylogeny_df)  # True
+   pfl.alifestd_is_sexual(phylogeny_df)  # False
 
 Creating Phylogenies
 ====================
@@ -177,8 +169,7 @@ From Newick Format
 Working Format
 ==============
 
-Many phyloframe operations run fastest when the DataFrame is in **working
-format**:
+Many phyloframe operations run fastest when the DataFrame is in **working format**:
 
 1. **Topologically sorted** --- ancestors appear before descendants.
 2. **Contiguous IDs** --- each organism's ``id`` equals its row number.
@@ -227,8 +218,7 @@ The original data is preserved; a new column is appended.
 Custom Column Names
 -------------------
 
-All mark functions accept a ``mark_as`` parameter to customize the output
-column name:
+All mark functions accept a ``mark_as`` parameter to customize the output column name:
 
 .. code-block:: python
 
@@ -242,16 +232,16 @@ Counting and Querying
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
 
-   pfl.alifestd_count_leaf_nodes(df)     # 4
-   pfl.alifestd_count_inner_nodes(df)    # 3
-   pfl.alifestd_count_root_nodes(df)     # 1
+   pfl.alifestd_count_leaf_nodes(df)  # 4
+   pfl.alifestd_count_inner_nodes(df)  # 3
+   pfl.alifestd_count_root_nodes(df)  # 1
 
-   pfl.alifestd_is_asexual(df)           # True
+   pfl.alifestd_is_asexual(df)  # True
    pfl.alifestd_is_topologically_sorted(df)  # True/False
-   pfl.alifestd_has_contiguous_ids(df)       # True/False
+   pfl.alifestd_has_contiguous_ids(df)  # True/False
 
    # Validate format compliance
-   pfl.alifestd_validate(df)             # True
+   pfl.alifestd_validate(df)  # True
 
 Tree Transformations
 ====================
@@ -261,35 +251,38 @@ Tree Transformations
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
    df = pfl.alifestd_to_working_format(df)
 
-   # Collapse single-child (unifurcating) nodes
-   df = pfl.alifestd_collapse_unifurcations(df)
-
-   # Expand polytomies into bifurcations
-   df = pfl.alifestd_splay_polytomies(df)
-
-   # Add a synthetic root above all existing roots
-   df = pfl.alifestd_add_global_root(df)
-
-   # Join multiple roots to the oldest root
-   df = pfl.alifestd_join_roots(df)
+   df = pfl.alifestd_pipe_unary_ops(
+       df,
+       pfl.alifestd_collapse_unifurcations,  # remove single-child nodes
+       pfl.alifestd_splay_polytomies,  # expand polytomies into bifurcations
+       pfl.alifestd_add_global_root,  # add synthetic root above all roots
+       pfl.alifestd_join_roots,  # join multiple roots to oldest root
+   )
 
 Composed Example: Downsampling with Combined Masks
 ===================================================
 
-A common workflow: select tips using multiple sampling criteria, combine
-them with boolean OR, and prune extinct lineages.
+A common workflow: select tips using multiple sampling criteria, combine them with boolean OR, and prune extinct lineages.
 
 .. code-block:: python
 
+   import numpy as np
    import pandas as pd
    from phyloframe import legacy as pfl
 
-   # Create a tree with origin times
+   # Create a tree with origin times computed from branch length deltas
    df = pfl.alifestd_from_newick(
        "((A:1,B:2):3,(C:4,(D:5,E:6):7):8);",
    )
    df = pfl.alifestd_to_working_format(df)
-   df["origin_time"] = range(len(df))
+   ancestor_ids = df["ancestor_id"].values
+   deltas = df["origin_time_delta"].fillna(0).values
+   origin_time = np.zeros(len(df))
+   for i in range(len(df)):
+       parent = ancestor_ids[i]
+       if parent != i:
+           origin_time[i] = origin_time[parent] + deltas[i]
+   df["origin_time"] = origin_time
 
    # Strategy 1: keep the most recent tips (canopy sampling)
    df = pfl.alifestd_mark_sample_tips_canopy_asexual(
@@ -308,13 +301,9 @@ them with boolean OR, and prune extinct lineages.
    pruned_df = pfl.alifestd_prune_extinct_lineages_asexual(df)
    print(pruned_df[["id", "ancestor_id"]])
 
-The ``alifestd_mark_sample_tips_*`` functions add boolean columns indicating
-which tips to retain.
-Combining masks with ``|`` (OR), ``&`` (AND), or ``~`` (NOT) gives full
-control over tip selection.
-The ``alifestd_prune_extinct_lineages_asexual`` function then removes
-any lineages that have no descendants marked as extant via the ``"extant"``
-column (configurable with the ``criterion`` parameter).
+The ``alifestd_mark_sample_tips_*`` functions add boolean columns indicating which tips to retain.
+Combining masks with ``|`` (OR), ``&`` (AND), or ``~`` (NOT) gives full control over tip selection.
+The ``alifestd_prune_extinct_lineages_asexual`` function then removes any lineages that have no descendants marked as extant via the ``"extant"`` column (configurable with the ``criterion`` parameter).
 
 Newick I/O
 ==========
@@ -362,8 +351,7 @@ By default, operations return a new DataFrame without modifying the input:
    result = pfl.alifestd_mark_leaves(df)
    assert original.equals(df)  # input unchanged
 
-Set ``mutate=True`` to allow in-place modification for better performance in
-pipelines.
+Set ``mutate=True`` to allow in-place modification for better performance in pipelines.
 Even with ``mutate=True``, always use the return value:
 
 .. code-block:: python
@@ -423,12 +411,10 @@ Use ``tqdm`` for progress feedback on long pipelines:
 Next Steps
 ==========
 
-- :doc:`legacy-guides/concepts` --- Data format, tree data structures, and design
-  decisions
+- :doc:`legacy-guides/concepts` --- Data format, tree data structures, and design decisions
 - :doc:`legacy-guides/tree_creation` --- Synthetic trees, parsing, and construction
 - :doc:`legacy-guides/tree_properties` --- Marking, counting, and metrics
-- :doc:`legacy-guides/tree_manipulation` --- Transformations, pruning, and
-  downsampling
+- :doc:`legacy-guides/tree_manipulation` --- Transformations, pruning, and downsampling
 - :doc:`legacy-guides/traversals` --- Tree traversal and supplemental data structures
 - :doc:`legacy-guides/io` --- Newick, CSV, and Parquet I/O
 - :doc:`legacy-guides/cli` --- Command-line interface and pipe operations

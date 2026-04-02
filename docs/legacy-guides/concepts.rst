@@ -10,16 +10,12 @@ Concepts and Data Structures (Legacy)
    A redesigned API will accompany phyloframe v1.0.0.
 
 
-This guide covers the core concepts behind phyloframe's data model:
-the alife standard format, supplemental tree data structures, and the
-relationship between Pandas and Polars implementations.
+This guide covers the core concepts behind phyloframe's data model: the alife standard format, supplemental tree data structures, and the relationship between Pandas and Polars implementations.
 
 The Alife Standard Format
 =========================
 
-Phyloframe stores phylogenies as DataFrames in the `alife standard format
-<https://alife-data-standards.github.io/alife-data-standards/phylogeny.html>`_,
-originally developed for the Artificial Life community.
+Phyloframe stores phylogenies as DataFrames in the `alife standard format <https://alife-data-standards.github.io/alife-data-standards/phylogeny.html>`_, originally developed for the Artificial Life community.
 Each row represents a single organism or taxon.
 
 Core Columns
@@ -27,38 +23,30 @@ Core Columns
 
 ``id`` : int
     A unique, non-negative integer identifying this organism.
-    In **working format**, IDs are contiguous and equal to row indices
-    (i.e., ``id == row_number``).
+    In **working format**, IDs are contiguous and equal to row indices (i.e., ``id == row_number``).
 
 ``ancestor_list`` : str
     A JSON-encoded list of ancestor IDs.
-    For asexual phylogenies: ``"[42]"`` (single ancestor) or ``"[None]"``
-    (root).
+    For asexual phylogenies: ``"[42]"`` (single ancestor) or ``"[None]"`` (root).
     For sexual phylogenies: ``"[3, 7]"`` (multiple ancestors).
 
 ``ancestor_id`` : int
     An optimized representation for asexual phylogenies.
-    Stores the single ancestor's ID directly as an integer, avoiding
-    repeated string parsing.
+    Stores the single ancestor's ID directly as an integer, avoiding repeated string parsing.
     Root nodes store their own ID: ``ancestor_id == id``.
 
 .. note::
 
    The ``ancestor_list`` column is part of the original alife data standard.
-   The ``ancestor_id`` column is an unofficial extension introduced by
-   phyloframe for efficient asexual phylogeny operations.
+   The ``ancestor_id`` column is an unofficial extension introduced by phyloframe for efficient asexual phylogeny operations.
    Use ``alifestd_try_add_ancestor_id_col`` to add it automatically.
 
 .. note::
 
-   The alife data standard specifies ``ancestor_list`` as a string-encoded
-   JSON list.
-   A known defect in the standard is the ambiguity of empty-list
-   representations: ``"[None]"``, ``"[none]"``, and ``"[]"`` are all used to
-   denote roots.
+   The alife data standard specifies ``ancestor_list`` as a string-encoded JSON list.
+   A known defect in the standard is the ambiguity of empty-list representations: ``"[None]"``, ``"[none]"``, and ``"[]"`` are all used to denote roots.
    The string encoding also incurs parsing overhead on every access.
-   Phyloframe's ``ancestor_id`` column avoids both issues and is the
-   recommended representation for asexual phylogenies.
+   Phyloframe's ``ancestor_id`` column avoids both issues and is the recommended representation for asexual phylogenies.
 
 Root Representation
 -------------------
@@ -81,20 +69,13 @@ Roots are organisms with no ancestor.
 Working Format
 ==============
 
-Many operations run fastest when the DataFrame is in **working format**,
-satisfying three properties:
+Many operations run fastest when the DataFrame is in **working format**, satisfying three properties:
 
-1. **Topologically sorted** --- every ancestor appears in a row before
-   its descendants.
-   This means that when iterating through rows in order, you will always
-   encounter a node's parent before the node itself.
-   This property enables single-pass algorithms that process the tree
-   from root to leaves (or vice versa) by simply iterating through the
-   array.
-2. **Contiguous IDs** --- ``id`` values are ``0, 1, 2, ...`` matching
-   row indices.
-3. **``ancestor_id`` column present** --- enables direct integer indexing
-   instead of string parsing.
+1. **Topologically sorted** --- every ancestor appears in a row before its descendants.
+   This means that when iterating through rows in order, you will always encounter a node's parent before the node itself.
+   This property enables single-pass algorithms that process the tree from root to leaves (or vice versa) by simply iterating through the array.
+2. **Contiguous IDs** --- ``id`` values are ``0, 1, 2, ...`` matching row indices.
+3. **``ancestor_id`` column present** --- enables direct integer indexing instead of string parsing.
 
 .. note::
 
@@ -108,12 +89,9 @@ Convert to working format with a single call:
 
    df = pfl.alifestd_to_working_format(df)
 
-This applies ``alifestd_try_add_ancestor_id_col``,
-``alifestd_topological_sort``, and ``alifestd_assign_contiguous_ids``
-as needed.
+This applies ``alifestd_try_add_ancestor_id_col``, ``alifestd_topological_sort``, and ``alifestd_assign_contiguous_ids`` as needed.
 
-In working format, ``ancestor_id`` values can be used directly as array
-indices.
+In working format, ``ancestor_id`` values can be used directly as array indices.
 This enables efficient NumPy and JIT-compiled operations:
 
 .. code-block:: python
@@ -128,13 +106,11 @@ Types of Phylogeny Data
 ========================
 
 Phyloframe focuses on asexual phylogenies.
-Partial support for sexual phylogenies is provided for compatibility with
-the alife data standard.
+Partial support for sexual phylogenies is provided for compatibility with the alife data standard.
 
 **Asexual** phylogenies have at most one ancestor per organism.
 The ``ancestor_id`` column can represent the tree structure efficiently.
-Most phyloframe operations (especially those with ``_asexual`` suffix) target
-this mode.
+Most phyloframe operations (especially those with ``_asexual`` suffix) target this mode.
 
 **Sexual** phylogenies (pedigrees) allow multiple ancestors per organism.
 In Pandas, these have fewer optimized operations available.
@@ -142,8 +118,8 @@ In Pandas, these have fewer optimized operations available.
 .. code-block:: python
 
    # Check mode
-   pfl.alifestd_is_asexual(df)   # True if all entries have <= 1 ancestor
-   pfl.alifestd_is_sexual(df)    # True if any entry has > 1 ancestor
+   pfl.alifestd_is_asexual(df)  # True if all entries have <= 1 ancestor
+   pfl.alifestd_is_sexual(df)  # True if any entry has > 1 ancestor
 
 .. note::
 
@@ -154,26 +130,19 @@ Function Naming Conventions
 
 Phyloframe function names follow consistent suffix patterns:
 
-- **No suffix** (e.g., ``alifestd_mark_leaves``) --- works with both asexual
-  and sexual phylogenies in Pandas.
-- **``_asexual``** (e.g., ``alifestd_mark_node_depth_asexual``) --- optimized
-  for asexual phylogenies using ``ancestor_id``.
-  Raises an error or produces incorrect results if called on sexual
-  phylogenies.
-- **``_polars``** (e.g., ``alifestd_mark_leaves_polars``) --- Polars-based
-  implementation.
+- **No suffix** (e.g., ``alifestd_mark_leaves``) --- works with both asexual and sexual phylogenies in Pandas.
+- **``_asexual``** (e.g., ``alifestd_mark_node_depth_asexual``) --- optimized for asexual phylogenies using ``ancestor_id``.
+  Raises an error or produces incorrect results if called on sexual phylogenies.
+- **``_polars``** (e.g., ``alifestd_mark_leaves_polars``) --- Polars-based.
   Requires asexual phylogeny with topological sorting and contiguous IDs.
 
-When both a non-suffixed and ``_asexual`` version exist, prefer the
-``_asexual`` version for asexual phylogenies --- it will often be faster.
+When both a non-suffixed and ``_asexual`` version exist, prefer the ``_asexual`` version for asexual phylogenies --- it will often be faster.
 
 Validation
 ==========
 
-Use ``alifestd_validate`` to check that a DataFrame conforms to the alife
-standard format.
-It returns ``True`` if valid or ``False`` if problems are detected, issuing
-warnings describing each issue found:
+Use ``alifestd_validate`` to check that a DataFrame conforms to the alife standard format.
+It returns ``True`` if valid or ``False`` if problems are detected, issuing warnings describing each issue found:
 
 .. code-block:: python
 
@@ -185,13 +154,10 @@ warnings describing each issue found:
 Topological Sensitivity
 ========================
 
-When topology-altering operations (e.g., pruning, collapsing, rerooting)
-modify the tree structure, previously computed columns like ``node_depth``,
-``branch_length``, or ``num_descendants`` may become stale.
+When topology-altering operations (e.g., pruning, collapsing, rerooting) modify the tree structure, previously computed columns like ``node_depth``, ``branch_length``, or ``num_descendants`` may become stale.
 Phyloframe's **topological sensitivity** system detects this and warns you.
 
-Operations that alter topology are decorated to automatically emit a warning
-listing any topology-dependent columns found in the DataFrame:
+Operations that alter topology are decorated to automatically emit a warning listing any topology-dependent columns found in the DataFrame:
 
 .. code-block:: text
 
@@ -201,16 +167,9 @@ listing any topology-dependent columns found in the DataFrame:
 
 To handle this:
 
-1. **Drop sensitive columns before the operation** using
-   ``alifestd_drop_topological_sensitivity`` or
-   ``alifestd_drop_topological_sensitivity_polars``, then recompute them
-   afterward.
-2. **Pass ``drop_topological_sensitivity=True``** to the operation itself,
-   which automatically drops topology-dependent columns as part of the call.
-3. **Suppress the warning** by passing
-   ``ignore_topological_sensitivity=True`` to the operation, or by setting
-   the ``HSTRAT_ALIFESTD_WARN_TOPOLOGICAL_SENSITIVITY_SUPPRESS``
-   environment variable.
+1. **Drop sensitive columns before the operation** using ``alifestd_drop_topological_sensitivity`` or ``alifestd_drop_topological_sensitivity_polars``, then recompute them afterward.
+2. **Pass ``drop_topological_sensitivity=True``** to the operation itself, which automatically drops topology-dependent columns as part of the call.
+3. **Suppress the warning** by passing ``ignore_topological_sensitivity=True`` to the operation, or by setting the ``HSTRAT_ALIFESTD_WARN_TOPOLOGICAL_SENSITIVITY_SUPPRESS`` environment variable.
 
 .. code-block:: python
 
@@ -242,26 +201,20 @@ Option 2 lets the operation drop them automatically:
 Supplemental Data Structures
 =============================
 
-For algorithms that need to navigate the tree beyond the parent pointer
-(``ancestor_id``), phyloframe provides two supplemental representations
-that can be added as columns.
-These structures optimize certain tree operations, and they will typically
-be automatically generated as needed.
+For algorithms that need to navigate the tree beyond the parent pointer (``ancestor_id``), phyloframe provides two supplemental representations that can be added as columns.
+These structures optimize certain tree operations, and they will typically be automatically generated as needed.
 
 CSR (Compressed Sparse Row)
 ---------------------------
 
-The CSR format represents the parent-to-children mapping as two flat arrays,
-enabling O(1) lookup of any node's children:
+The CSR format represents the parent-to-children mapping as two flat arrays, enabling O(1) lookup of any node's children:
 
 ``csr_offsets`` : array of int
-    ``csr_offsets[i]`` is the index in ``csr_children`` where node ``i``'s
-    children begin.
+    ``csr_offsets[i]`` is the index in ``csr_children`` where node ``i``'s children begin.
 
 ``csr_children`` : array of int
     A flat array of all child IDs, grouped by parent.
-    Node ``i``'s children are
-    ``csr_children[csr_offsets[i] : csr_offsets[i] + num_children[i]]``.
+    Node ``i``'s children are ``csr_children[csr_offsets[i] : csr_offsets[i] + num_children[i]]``.
 
 .. code-block:: python
 
@@ -281,21 +234,18 @@ enabling O(1) lookup of any node's children:
    node = 0
    node_children = children[offsets[node]:offsets[node] + num_children[node]]
 
-The CSR format is used internally by traversal algorithms (preorder,
-postorder) and distance matrix computation.
+The CSR format is used internally by traversal algorithms (preorder, postorder) and distance matrix computation.
 
 First-Child/Next-Sibling Linked List
 -------------------------------------
 
-An alternative child-navigation structure uses two integer columns to form
-a linked list:
+An alternative child-navigation structure uses two integer columns to form a linked list:
 
 ``first_child_id`` : int
     The smallest-ID child of this node, or the node's own ID if it is a leaf.
 
 ``next_sibling_id`` : int
-    The next sibling (by ID order) sharing the same parent, or the node's own
-    ID if there is no next sibling.
+    The next sibling (by ID order) sharing the same parent, or the node's own ID if there is no next sibling.
 
 .. code-block:: python
 
@@ -322,8 +272,7 @@ a linked list:
                break
            child = nxt
 
-This representation uses less memory than CSR for sparse trees and is used
-by some traversal algorithms internally.
+This representation uses less memory than CSR for sparse trees and is used by some traversal algorithms internally.
 
 Pandas vs. Polars
 =================
@@ -331,8 +280,7 @@ Pandas vs. Polars
 Phyloframe provides dual implementations for many operations:
 
 - **Pandas** --- the default, supporting both asexual and sexual phylogenies.
-- **Polars** --- available via operations with a ``_polars`` suffix (e.g.,
-  ``alifestd_mark_leaves_polars``).
+- **Polars** --- available via operations with a ``_polars`` suffix (e.g., ``alifestd_mark_leaves_polars``).
 
 Polars Usage
 ------------
@@ -361,17 +309,14 @@ When to Prefer Polars
 ---------------------
 
 - Working with large trees (millions of nodes).
-- `Query optimization <https://docs.pola.rs/user-guide/lazy/optimizations/>`_
-  via Polars' lazy evaluation engine (predicate pushdown, projection pushdown,
-  and other automatic rewrites).
+- `Query optimization <https://docs.pola.rs/user-guide/lazy/optimizations/>`_ via Polars' lazy evaluation engine (predicate pushdown, projection pushdown, and other automatic rewrites).
 - Multithreaded operations.
 - CLI pipelines (the CLI interface is Polars-based, so using ``_polars`` entrypoints avoids conversion overhead).
 
 User-extensible Columns
 ========================
 
-Because the underlying representation is a standard DataFrame, you can freely
-add custom columns for your analysis:
+Because the underlying representation is a standard DataFrame, you can freely add custom columns for your analysis:
 
 .. code-block:: python
 

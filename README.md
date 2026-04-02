@@ -22,7 +22,7 @@ Dataframe-based tools for working with phylogenetic trees.
 ## Why a DataFrame-based Tree Representation?
 
 DataFrames are scripting-friendly and end-user extensible, enabling a composable, interoperable ecosystem for phylogenetic analysis.
-JIT-compatible for native performance --- in our work, scalable to billion-tip phylogenies.
+JIT-compatible for native performance --- in applications to our work, scalable to billion-tip phylogenies.
 The R ecosystem's success with the `ape` data structure demonstrates the value of edge matrix tree representations --- phyloframe pushes this idea further with a fully tabular format hosted within DataFrame objects (e.g., `pd.DataFrame`, `pl.LazyFrame`, `pl.DataFrame`, etc.).
 
 **Fast and highly portable load/save.**
@@ -45,7 +45,7 @@ python3 -m pip install "phyloframe[jit]==0.6.1"
 ```
 
 The `[jit]` extra installs [Numba](https://numba.pydata.org/) for just-in-time compilation, providing native-level performance for many operations.
-Jit dependency is highly recommended.
+Jit dependency is strongly recommended.
 
 A containerized release of `phyloframe` is available via [ghcr.io](https://ghcr.io/mmore500/phyloframe)
 
@@ -62,10 +62,12 @@ from phyloframe import legacy as pfl
 df = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
 df = pfl.alifestd_to_working_format(df)
 
-# Mark properties and transform
-df = pfl.alifestd_mark_leaves(df)
-df = pfl.alifestd_mark_node_depth_asexual(df)
-df = pfl.alifestd_collapse_unifurcations(df)
+# Mark properties and transform using df.pipe() (pandas syntactic sugar)
+df = (
+    df.pipe(pfl.alifestd_mark_leaves)
+    .pipe(pfl.alifestd_mark_node_depth_asexual)
+    .pipe(pfl.alifestd_collapse_unifurcations)
+)
 
 print("leaf count:", pfl.alifestd_count_leaf_nodes(df))
 print(df[["id", "ancestor_id", "is_leaf", "node_depth"]].head())

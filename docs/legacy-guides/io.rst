@@ -10,8 +10,7 @@ Input and Output (Legacy)
    A redesigned API will accompany phyloframe v1.0.0.
 
 
-This guide covers reading, writing, and converting phylogenetic data in
-phyloframe.
+This guide covers reading, writing, and converting phylogenetic data in phyloframe.
 
 Newick Format
 =============
@@ -68,11 +67,8 @@ Exporting to Newick
 Tabular File Formats (CSV, Parquet)
 ====================================
 
-Use standard Pandas and Polars I/O utilities for reading and writing
-phylogeny DataFrames.
-Parquet is recommended for large phylogenies due to columnar compression,
-selective column loading, explicit typing, and efficient enum-based
-categorical string storage.
+Use standard Pandas and Polars I/O utilities for reading and writing phylogeny DataFrames.
+Parquet is recommended for large phylogenies due to columnar compression, selective column loading, explicit typing, and efficient enum-based categorical string storage.
 
 .. code-block:: python
 
@@ -93,10 +89,8 @@ categorical string storage.
        "phylogeny.pqt", columns=["id", "ancestor_id", "origin_time"],
    )
 
-Selective column deserialization is particularly advantageous with Polars
-streaming operations.
-See the `Pandas I/O docs <https://pandas.pydata.org/docs/user_guide/io.html>`_
-and `Polars I/O docs <https://docs.pola.rs/user-guide/io/>`_ for full details.
+Selective column deserialization is particularly advantageous with Polars streaming operations.
+See the `Pandas I/O docs <https://pandas.pydata.org/docs/user_guide/io.html>`_ and `Polars I/O docs <https://docs.pola.rs/user-guide/io/>`_ for full details.
 
 Remote and Cloud Sources
 ========================

@@ -10,16 +10,13 @@ Performance (Legacy)
    A redesigned API will accompany phyloframe v1.0.0.
 
 
-This guide covers techniques for getting the best performance out of
-phyloframe: JIT compilation, Polars, working format, and writing custom
-high-performance operations.
+This guide covers techniques for getting the best performance out of phyloframe: JIT compilation, Polars, working format, and writing custom high-performance operations.
 
 Working Format
 ==============
 
 Converting to working format is the single most impactful optimization.
-Many operations have fast paths that activate only when the data is
-topologically sorted with contiguous IDs:
+Many operations have fast paths that activate only when the data is topologically sorted with contiguous IDs:
 
 .. code-block:: python
 
@@ -29,8 +26,7 @@ topologically sorted with contiguous IDs:
    df = pfl.alifestd_to_working_format(df)
 
 Convert once, then chain operations.
-In working format, ``ancestor_id`` values can be used directly as array
-indices.
+In working format, ``ancestor_id`` values can be used directly as array indices.
 
 Mutation for Pipeline Performance
 =================================
@@ -55,8 +51,7 @@ Install with JIT support:
 
    python3 -m pip install "phyloframe[jit]==0.6.1"
 
-Many phyloframe operations automatically use JIT-compiled fast paths when
-Numba is available.
+Many phyloframe operations automatically use JIT-compiled fast paths when Numba is available.
 No code changes are needed --- just install the ``[jit]`` extra.
 
 Writing Custom JIT Functions
@@ -93,30 +88,26 @@ Use phyloframe's ``jit`` utility for custom native-speed operations:
    df = pfl.alifestd_to_working_format(df)
    n_deep = count_deep_nodes(df["ancestor_id"].values, threshold=5)
 
-Note that in practice, this particular operation is more idiomatically done
-by marking node depths and then filtering with a DataFrame operation:
+Note that in practice, this particular operation is more idiomatically done by marking node depths and then filtering with a DataFrame operation:
 
 .. code-block:: python
 
    df = pfl.alifestd_mark_node_depth_asexual(df)
    n_deep = (df["node_depth"] > 5).sum()
 
-The JIT approach is most useful for custom algorithms that cannot be
-expressed as combinations of existing phyloframe operations.
+The JIT approach is most useful for custom algorithms that cannot be expressed as combinations of existing phyloframe operations.
 
 The ``jit`` decorator:
 
 - Uses Numba when available for native-speed compilation.
 - Falls back to pure Python if Numba is not installed.
 - Automatically disables compilation during coverage runs.
-- Enables Numba's function caching by default (pass ``cache=False`` to
-  disable, e.g., for short-lived or dynamically defined functions).
+- Enables Numba's function caching by default (pass ``cache=False`` to disable, e.g., for short-lived or dynamically defined functions).
 
 Common Pattern: Array-based Algorithms
 --------------------------------------
 
-Working format enables a common pattern: extract NumPy arrays from the
-DataFrame, process with JIT-compiled functions, and store results back:
+Working format enables a common pattern: extract NumPy arrays from the DataFrame, process with JIT-compiled functions, and store results back:
 
 .. code-block:: python
 
@@ -137,19 +128,13 @@ DataFrame, process with JIT-compiled functions, and store results back:
 Polars for Large-scale Data
 ============================
 
-Polars can outperform Pandas for large phylogenies due to multithreading,
-lazy evaluation, and memory-efficient representation.
+Polars can outperform Pandas for large phylogenies due to multithreading, lazy evaluation, and memory-efficient representation.
 
 .. note::
 
-   Set the ``POLARS_MAX_THREADS`` environment variable to control the number
-   of threads Polars uses.
-   Set ``POLARS_ENGINE_AFFINITY`` or use
-   ``pl.Config.set_engine_affinity()`` to control the
-   `query engine optimization strategy
-   <https://docs.pola.rs/api/python/dev/reference/api/polars.Config.set_engine_affinity.html>`_.
-   Polars streaming mode can also be enabled for larger-than-memory datasets
-   via ``pl.Config.set_streaming_chunk_size()``.
+   Set the ``POLARS_MAX_THREADS`` environment variable to control the number of threads Polars uses.
+   Set ``POLARS_ENGINE_AFFINITY`` or use ``pl.Config.set_engine_affinity()`` to control the `query engine optimization strategy <https://docs.pola.rs/api/python/dev/reference/api/polars.Config.set_engine_affinity.html>`_.
+   Polars streaming mode can also be enabled for larger-than-memory datasets via ``pl.Config.set_streaming_chunk_size()``.
 
 .. code-block:: python
 
@@ -171,14 +156,13 @@ Polars restrictions:
 CLI Performance
 ===============
 
-For CLI pipelines on Parquet data, prefer Polars entrypoints to eliminate
-conversion overhead:
+For CLI pipelines on Parquet data, prefer Polars entrypoints to eliminate conversion overhead:
 
 .. code-block:: bash
 
    # Slower: converts Parquet -> Pandas -> process -> Pandas -> Parquet
-   python3 -m phyloframe.legacy._alifestd_mark_leaves output.pqt < input.pqt
+   python3 -m phyloframe.legacy._alifestd_mark_leaves "output.pqt" < "input.pqt"
 
    # Faster: native Polars processing
    python3 -m phyloframe.legacy._alifestd_mark_leaves_polars \
-       output.pqt < input.pqt
+       "output.pqt" < "input.pqt"

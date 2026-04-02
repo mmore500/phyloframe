@@ -1,6 +1,6 @@
-===================================
+=============================
 Creating Phylogenies (Legacy)
-===================================
+=============================
 
 .. note::
 
@@ -10,15 +10,12 @@ Creating Phylogenies (Legacy)
    A redesigned API will accompany phyloframe v1.0.0.
 
 
-This guide covers the different ways to create phylogeny DataFrames in
-phyloframe.
+This guide covers the different ways to create phylogeny DataFrames in phyloframe.
 
 Empty Phylogenies
 =================
 
-``alifestd_make_empty`` creates a zero-row DataFrame with the correct column
-names and dtypes (``id`` as int, ``ancestor_list`` as str, and optionally
-``ancestor_id`` as int).
+``alifestd_make_empty`` creates a zero-row DataFrame with the correct column names and dtypes (``id`` as int, ``ancestor_list`` as str, and optionally ``ancestor_id`` as int).
 This ensures downstream operations receive properly typed input:
 
 .. code-block:: python
@@ -143,8 +140,7 @@ Options
 Loading from Files
 ==================
 
-Since phyloframe uses standard DataFrames, loading from files uses standard
-library calls:
+Since phyloframe uses standard DataFrames, loading from files uses standard library calls:
 
 .. code-block:: python
 
