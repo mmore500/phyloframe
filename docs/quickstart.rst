@@ -379,7 +379,7 @@ Alternatively, ``alifestd_pipe_unary_ops`` accepts multiple operations:
        df,
        pfl.alifestd_collapse_unifurcations,
        pfl.alifestd_mark_leaves,
-       pfl.alifestd_mark_node_depth_asexual,
+       lambda df: pfl.alifestd_mark_node_depth_asexual(df, mark_as="depth"),
    )
 
 Use ``tqdm`` for progress feedback on long pipelines:
