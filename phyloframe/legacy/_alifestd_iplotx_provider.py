@@ -5,7 +5,7 @@ import pandas as pd
 
 try:
     from iplotx.ingest.typing import TreeDataProvider
-except (ImportError, ModuleNotFoundError):
+except (ImportError, ModuleNotFoundError):  # pragma: no cover
     TreeDataProvider = object  # type: ignore[assignment,misc]
 
 from ._alifestd_find_leaf_ids import (
@@ -343,7 +343,7 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
             import polars  # noqa: F401
 
             return True
-        except ImportError:
+        except ImportError:  # pragma: no cover
             return False
 
     @staticmethod
