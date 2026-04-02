@@ -62,7 +62,11 @@ from phyloframe import legacy as pfl
 df = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
 
 # Mark properties and transform using df.pipe() (pandas syntactic sugar)
-df = df.pipe(pfl.alifestd_mark_leaves).pipe(pfl.alifestd_mark_node_depth_asexual).pipe(pfl.alifestd_collapse_unifurcations)
+df = (
+    df.pipe(pfl.alifestd_mark_leaves)
+    .pipe(pfl.alifestd_mark_node_depth_asexual)
+    .pipe(pfl.alifestd_collapse_unifurcations)
+)
 
 print("leaf count:", pfl.alifestd_count_leaf_nodes(df))
 print(df[["id", "ancestor_id", "is_leaf", "node_depth"]].head())
