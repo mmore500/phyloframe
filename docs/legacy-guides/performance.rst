@@ -23,7 +23,6 @@ Many operations have fast paths that activate only when the data is topologicall
    from phyloframe import legacy as pfl
 
    df = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
-   df = pfl.alifestd_to_working_format(df)
 
 Convert once, then chain operations.
 In working format, ``ancestor_id`` values can be used directly as array indices.

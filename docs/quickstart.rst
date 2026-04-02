@@ -179,7 +179,7 @@ Convert to working format once, then chain operations:
 
 .. code-block:: python
 
-   df = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
+   df = pfl.alifestd_make_balanced_bifurcating(depth=3)
    df = pfl.alifestd_to_working_format(df)
 
    # Verify properties
@@ -196,7 +196,6 @@ The original data is preserved; a new column is appended.
 
    df = pfl.alifestd_pipe_unary_ops(
        pfl.alifestd_from_newick("((A,B),(C,D));"),
-       pfl.alifestd_to_working_format,
        pfl.alifestd_mark_leaves,  # leaf detection
        pfl.alifestd_mark_node_depth_asexual,  # depth from root
        pfl.alifestd_mark_num_descendants_asexual,  # descendant count
@@ -240,11 +239,8 @@ Tree Transformations
 
 .. code-block:: python
 
-   df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
-
    df = pfl.alifestd_pipe_unary_ops(
-       df,
+       pfl.alifestd_from_newick("((A,B),(C,D));"),
        pfl.alifestd_collapse_unifurcations,  # remove single-child nodes
        pfl.alifestd_splay_polytomies,  # expand polytomies into bifurcations
        pfl.alifestd_add_global_root,  # add synthetic root above all roots
@@ -266,7 +262,6 @@ A common workflow: select tips using multiple sampling criteria, combine them wi
    df = pfl.alifestd_from_newick(
        "((A:1,B:2):3,(C:4,(D:5,E:6):7):8);",
    )
-   df = pfl.alifestd_to_working_format(df)
    ancestor_ids = df["ancestor_id"].values
    deltas = df["origin_time_delta"].fillna(0).values
    origin_time = np.zeros(len(df))

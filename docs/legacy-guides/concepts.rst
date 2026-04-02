@@ -176,7 +176,6 @@ To handle this:
    from phyloframe import legacy as pfl
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
    df = pfl.alifestd_mark_node_depth_asexual(df)
 
    # Option 1: drop topology-dependent columns explicitly
@@ -191,7 +190,6 @@ Option 2 lets the operation drop them automatically:
 .. code-block:: python
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
    df = pfl.alifestd_mark_node_depth_asexual(df)
 
    df = pfl.alifestd_collapse_unifurcations(
@@ -219,7 +217,6 @@ The CSR format represents the parent-to-children mapping as two flat arrays, ena
 .. code-block:: python
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
 
    # Add CSR columns
    df = pfl.alifestd_mark_num_children_asexual(df)
@@ -250,7 +247,6 @@ An alternative child-navigation structure uses two integer columns to form a lin
 .. code-block:: python
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
 
    # Add linked list columns
    df = pfl.alifestd_mark_first_child_id_asexual(df)
@@ -325,7 +321,6 @@ Because the underlying representation is a standard DataFrame, you can freely ad
    from phyloframe import legacy as pfl
 
    df = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
-   df = pfl.alifestd_to_working_format(df)
    df = pfl.alifestd_mark_node_depth_asexual(df)
 
    # Add trait data

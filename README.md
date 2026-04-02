@@ -58,9 +58,8 @@ singularity exec docker://ghcr.io/mmore500/phyloframe:v0.6.1 python3 -m phylofra
 ```python3
 from phyloframe import legacy as pfl
 
-# Parse a Newick tree and convert to working format
+# Parse a Newick tree (already in working format)
 df = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
-df = pfl.alifestd_to_working_format(df)
 
 # Mark properties and transform using df.pipe() (pandas syntactic sugar)
 df = df.pipe(pfl.alifestd_mark_leaves).pipe(pfl.alifestd_mark_node_depth_asexual).pipe(pfl.alifestd_collapse_unifurcations)

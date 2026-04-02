@@ -30,7 +30,6 @@ Leaf and Root Detection
    from phyloframe import legacy as pfl
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
 
    # Mark leaf nodes (no descendants)
    df = pfl.alifestd_mark_leaves(df)
@@ -82,7 +81,6 @@ These require an ``origin_time`` column in the input:
    import numpy as np
 
    df_timed = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
-   df_timed = pfl.alifestd_to_working_format(df_timed)
    ancestor_ids = df_timed["ancestor_id"].values
    deltas = df_timed["origin_time_delta"].fillna(0).values
    origin_time = np.zeros(len(df_timed))
@@ -150,7 +148,6 @@ Balance Metrics
 .. code-block:: python
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
 
    # Colless balance index (per-node)
    df = pfl.alifestd_mark_colless_index_asexual(df)
@@ -164,7 +161,6 @@ MRCA (Most Recent Common Ancestor)
 .. code-block:: python
 
    df_mrca = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df_mrca = pfl.alifestd_to_working_format(df_mrca)
 
    # Find IDs
    leaf_ids = pfl.alifestd_find_leaf_ids(df_mrca)
@@ -194,7 +190,6 @@ Compute pairwise distances between leaf nodes:
 .. code-block:: python
 
    df_dist = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
-   df_dist = pfl.alifestd_to_working_format(df_dist)
    ancestor_ids = df_dist["ancestor_id"].values
    deltas = df_dist["origin_time_delta"].fillna(0).values
    origin_time = np.zeros(len(df_dist))
