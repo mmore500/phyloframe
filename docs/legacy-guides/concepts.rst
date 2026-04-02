@@ -160,12 +160,12 @@ Phyloframe function names follow consistent suffix patterns:
   for asexual phylogenies using ``ancestor_id``.
   Raises an error or produces incorrect results if called on sexual
   phylogenies.
-- **``_polars``** (e.g., ``alifestd_mark_leaves_polars``) --- Polars
+- **``_polars``** (e.g., ``alifestd_mark_leaves_polars``) --- Polars-based
   implementation.
   Requires asexual phylogeny with topological sorting and contiguous IDs.
 
 When both a non-suffixed and ``_asexual`` version exist, prefer the
-``_asexual`` version for asexual phylogenies --- it will typically be faster.
+``_asexual`` version for asexual phylogenies --- it will often be faster.
 
 Validation
 ==========
