@@ -164,6 +164,8 @@ Supplemental Data Structures
 For algorithms that need to navigate the tree beyond the parent pointer
 (``ancestor_id``), phyloframe provides two supplemental representations
 that can be added as columns.
+These structures optimize certain tree operations, and they will typically
+be automatically generated as needed.
 
 CSR (Compressed Sparse Row)
 ---------------------------
@@ -279,8 +281,7 @@ When to Prefer Polars
 
 - Working with large trees (millions of nodes).
 - Multithreaded operations.
-- Data already in Parquet format (avoids conversion overhead).
-- CLI pipelines on Parquet data (use ``_polars`` entrypoints).
+- CLI pipelines (the CLI interface is Polars-based, so using ``_polars`` entrypoints avoids conversion overhead).
 
 User-extensible Columns
 ========================

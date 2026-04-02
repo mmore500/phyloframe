@@ -83,6 +83,17 @@ Use phyloframe's ``jit`` utility for custom native-speed operations:
    df = pfl.alifestd_to_working_format(df)
    n_deep = count_deep_nodes(df["ancestor_id"].values, threshold=5)
 
+Note that in practice, this particular operation is more idiomatically done
+by marking node depths and then filtering with a DataFrame operation:
+
+.. code-block:: python
+
+   df = pfl.alifestd_mark_node_depth_asexual(df)
+   n_deep = (df["node_depth"] > 5).sum()
+
+The JIT approach is most useful for custom algorithms that cannot be
+expressed as combinations of existing phyloframe operations.
+
 The ``jit`` decorator:
 
 - Uses Numba when available for native-speed compilation.

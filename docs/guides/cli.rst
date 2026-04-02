@@ -43,8 +43,10 @@ Input and Output Formats
 
 The data format is determined by file extension:
 
-- ``.csv`` --- CSV format
-- ``.pqt`` or ``.parquet`` --- Parquet format
+- ``.csv`` --- CSV format (input and output)
+- ``.pqt`` or ``.parquet`` --- Parquet format (input and output)
+- ``.json`` --- JSON format (output only)
+- ``.feather`` or ``.ipc`` --- Feather/IPC format (output only)
 
 .. code-block:: bash
 

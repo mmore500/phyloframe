@@ -146,28 +146,3 @@ DataFrame libraries transparently handle URLs and cloud storage:
    # Polars also supports remote sources
    df = pl.read_parquet("s3://bucket/phylogeny.pqt")
 
-Cross-language Interoperation
-=============================
-
-The DataFrame-based format enables zero-copy or near-zero-copy
-interoperation across languages:
-
-R via reticulate and Arrow
---------------------------
-
-.. code-block:: r
-
-   # In R, read a phyloframe-produced file
-   library(arrow)
-   df <- read_parquet("phylogeny.pqt")
-
-   # Or use reticulate for direct Python interop
-   library(reticulate)
-   pfl <- import("phyloframe.legacy")
-   df <- pfl$alifestd_from_newick("((A,B),(C,D));")
-
-R's ``read.table`` and ``read.csv`` also work for CSV files:
-
-.. code-block:: r
-
-   df <- read.csv("phylogeny.csv")
