@@ -9,7 +9,8 @@ relationship between Pandas and Polars implementations.
 The Alife Standard Format
 =========================
 
-Phyloframe stores phylogenies as DataFrames in the **alife standard format**,
+Phyloframe stores phylogenies as DataFrames in the `alife standard format
+<https://alife-data-standards.github.io/alife-data-standards/phylogeny.html>`_,
 originally developed for the Artificial Life community.
 Each row represents a single organism or taxon.
 

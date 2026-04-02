@@ -116,9 +116,10 @@ Advantages of Parquet:
 
 - Columnar compression reduces file size.
 - Selective column deserialization speeds up loading.
+  This is particularly advantageous with Polars streaming operations.
 - Explicit column typing avoids dtype inference issues.
 - Binary format is faster to read/write than CSV.
-- Categorical strings are stored efficiently.
+- Categorical strings are stored efficiently as enums.
 
 Remote and Cloud Sources
 ========================

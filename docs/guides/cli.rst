@@ -19,8 +19,9 @@ This prints all available CLI commands, each corresponding to a module in
 Basic Usage
 ===========
 
-Each command reads a DataFrame (CSV or Parquet) from stdin and writes the
-result to an output file:
+Each command reads a DataFrame (e.g., CSV, Parquet, etc.) from stdin and writes the
+result to an output file.
+Note that stdin takes filenames, one item per line; use the ``--stdin`` flag to read file content directly (requires ``--input-filetype`` and ``--output-filetype``).
 
 .. code-block:: bash
 
