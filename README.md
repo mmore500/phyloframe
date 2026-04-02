@@ -73,7 +73,9 @@ print(df[["id", "ancestor_id", "is_leaf", "node_depth"]].head())
 ```
 
 Phyloframe represents phylogenies as DataFrames in the [**alife standard format**](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html).
-The `legacy` module provides all current phyloframe operations.
+The `legacy` module (`from phyloframe import legacy`) provides all current phyloframe operations.
+The legacy API is stable and will continue to be maintained for backward compatibility.
+A redesigned API is under development.
 
 For the full quickstart covering tree creation, marks, transforms, Polars, CLI, JIT compilation, and more, see the [documentation quickstart](https://phyloframe.readthedocs.io/en/latest/quickstart.html).
 

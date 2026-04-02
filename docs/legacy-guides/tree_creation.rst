@@ -2,6 +2,14 @@
 Creating Phylogenies (Legacy)
 ===================================
 
+.. note::
+
+   This documentation covers the **legacy** API (from phyloframe import legacy).
+   The legacy API is stable and will continue to be maintained for backward
+   compatibility.
+   A redesigned API is under development.
+
+
 This guide covers the different ways to create phylogeny DataFrames in
 phyloframe.
 

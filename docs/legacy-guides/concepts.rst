@@ -1,6 +1,14 @@
-===========================
-Concepts and Data Structures
-===========================
+====================================
+Concepts and Data Structures (Legacy)
+====================================
+
+.. note::
+
+   This documentation covers the **legacy** API (from phyloframe import legacy).
+   The legacy API is stable and will continue to be maintained for backward
+   compatibility.
+   A redesigned API is under development.
+
 
 This guide covers the core concepts behind phyloframe's data model:
 the alife standard format, supplemental tree data structures, and the
