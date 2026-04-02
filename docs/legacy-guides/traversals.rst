@@ -109,15 +109,12 @@ distance algorithms.
 
 .. code-block:: python
 
-   df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
-
-   # Step 1: mark number of children
-   df = pfl.alifestd_mark_num_children_asexual(df)
-
-   # Step 2: compute CSR offsets and children arrays
-   df = pfl.alifestd_mark_csr_offsets_asexual(df)
-   df = pfl.alifestd_mark_csr_children_asexual(df)
+   df = (
+       pfl.alifestd_from_newick("((A,B),(C,D));")
+       .pipe(pfl.alifestd_mark_num_children_asexual)
+       .pipe(pfl.alifestd_mark_csr_offsets_asexual)
+       .pipe(pfl.alifestd_mark_csr_children_asexual)
+   )
 
    # Access children of any node in O(1)
    offsets = df["csr_offsets"].values
@@ -150,12 +147,11 @@ This uses less memory and avoids constructing auxiliary arrays.
 
 .. code-block:: python
 
-   df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
-
-   # Add linked list columns
-   df = pfl.alifestd_mark_first_child_id_asexual(df)
-   df = pfl.alifestd_mark_next_sibling_id_asexual(df)
+   df = (
+       pfl.alifestd_from_newick("((A,B),(C,D));")
+       .pipe(pfl.alifestd_mark_first_child_id_asexual)
+       .pipe(pfl.alifestd_mark_next_sibling_id_asexual)
+   )
 
    first_child = df["first_child_id"].values
    next_sibling = df["next_sibling_id"].values

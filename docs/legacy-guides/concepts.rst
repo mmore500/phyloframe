@@ -52,9 +52,12 @@ Core Columns
 .. note::
 
    The alife data standard specifies ``ancestor_list`` as a string-encoded
-   JSON list, which incurs parsing overhead on every access.
-   This is a known design defect in the standard.
-   Phyloframe's ``ancestor_id`` column avoids this cost and is the
+   JSON list.
+   A known defect in the standard is the ambiguity of empty-list
+   representations: ``"[None]"``, ``"[none]"``, and ``"[]"`` are all used to
+   denote roots.
+   The string encoding also incurs parsing overhead on every access.
+   Phyloframe's ``ancestor_id`` column avoids both issues and is the
    recommended representation for asexual phylogenies.
 
 Root Representation
@@ -110,7 +113,8 @@ This applies ``alifestd_try_add_ancestor_id_col``,
 as needed.
 
 In working format, ``ancestor_id`` values can be used directly as array
-indices, enabling efficient NumPy and JIT-compiled operations:
+indices.
+This enables efficient NumPy and JIT-compiled operations:
 
 .. code-block:: python
 
@@ -133,8 +137,7 @@ Most phyloframe operations (especially those with ``_asexual`` suffix) target
 this mode.
 
 **Sexual** phylogenies (pedigrees) allow multiple ancestors per organism.
-These rely on the ``ancestor_list`` column (string-based) and have fewer
-optimized operations available.
+In Pandas, these have fewer optimized operations available.
 
 .. code-block:: python
 
@@ -152,7 +155,7 @@ Function Naming Conventions
 Phyloframe function names follow consistent suffix patterns:
 
 - **No suffix** (e.g., ``alifestd_mark_leaves``) --- works with both asexual
-  and sexual phylogenies, using ``ancestor_list`` or auto-detecting mode.
+  and sexual phylogenies in Pandas.
 - **``_asexual``** (e.g., ``alifestd_mark_node_depth_asexual``) --- optimized
   for asexual phylogenies using ``ancestor_id``.
   Raises an error or produces incorrect results if called on sexual
@@ -163,8 +166,6 @@ Phyloframe function names follow consistent suffix patterns:
 
 When both a non-suffixed and ``_asexual`` version exist, prefer the
 ``_asexual`` version for asexual phylogenies --- it will typically be faster.
-When a ``_polars`` version exists and your data is already in Polars format,
-prefer it to avoid conversion overhead.
 
 Validation
 ==========
@@ -223,13 +224,20 @@ To handle this:
    df = pfl.alifestd_drop_topological_sensitivity(df)
    df = pfl.alifestd_collapse_unifurcations(df)
 
-   # Option 2: let the operation drop them automatically
-   # df = pfl.alifestd_collapse_unifurcations(
-   #     df, drop_topological_sensitivity=True,
-   # )
-
    # Recompute as needed
    df = pfl.alifestd_mark_node_depth_asexual(df)
+
+Option 2 lets the operation drop them automatically:
+
+.. code-block:: python
+
+   df = pfl.alifestd_from_newick("((A,B),(C,D));")
+   df = pfl.alifestd_to_working_format(df)
+   df = pfl.alifestd_mark_node_depth_asexual(df)
+
+   df = pfl.alifestd_collapse_unifurcations(
+       df, drop_topological_sensitivity=True,
+   )
 
 Supplemental Data Structures
 =============================

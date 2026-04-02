@@ -168,6 +168,7 @@ The Polars pipe utility:
    ls -1 input.pqt \
      | python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars \
        --op "pfl.alifestd_mark_leaves_polars" \
+       --op "pfl.alifestd_mark_node_depth_asexual_polars" \
        output.pqt
 
 joinem CLI Engine

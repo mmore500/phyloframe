@@ -33,10 +33,7 @@ to their child:
    from phyloframe import legacy as pfl
 
    df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = (
-       df.pipe(pfl.alifestd_to_working_format)
-       .pipe(pfl.alifestd_collapse_unifurcations)
-   )
+   df = df.pipe(pfl.alifestd_collapse_unifurcations)
 
 Splaying Polytomies
 -------------------
@@ -73,7 +70,6 @@ Change the root of a tree to a specified node:
    df_reroot = pfl.alifestd_from_newick(
        "((A,B),(C,D));", create_ancestor_list=True,
    )
-   df_reroot = pfl.alifestd_to_working_format(df_reroot)
    leaf_ids = pfl.alifestd_find_leaf_ids(df_reroot)
    df_reroot = pfl.alifestd_reroot_at_id_asexual(
        df_reroot, int(leaf_ids[0]),
@@ -89,7 +85,6 @@ Reorder children for consistent visual presentation:
    df_ladder = pfl.alifestd_from_newick(
        "((A,B),(C,D));", create_ancestor_list=True,
    )
-   df_ladder = pfl.alifestd_to_working_format(df_ladder)
    df_ladder = pfl.alifestd_ladderize_asexual(df_ladder)
 
 Trunk Operations
@@ -125,9 +120,17 @@ Sort rows by ``origin_time`` for time-based analyses:
 
 .. code-block:: python
 
+   import numpy as np
+
    df_chrono = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")
-   df_chrono = pfl.alifestd_to_working_format(df_chrono)
-   df_chrono["origin_time"] = range(len(df_chrono))
+   # Compute origin_time by accumulating origin_time_delta from root
+   deltas = df_chrono["origin_time_delta"].fillna(0).values
+   ancestor_ids = df_chrono["ancestor_id"].values
+   origin_time = np.empty(len(df_chrono))
+   for i in range(len(df_chrono)):
+       parent = ancestor_ids[i]
+       origin_time[i] = 0.0 if parent == i else origin_time[parent] + deltas[i]
+   df_chrono["origin_time"] = origin_time
    df_chrono = pfl.alifestd_chronological_sort(df_chrono)
 
 Tip Sampling (Mark Functions)
@@ -143,8 +146,7 @@ Uniform Random Sampling
 .. code-block:: python
 
    df_sample = pfl.alifestd_make_balanced_bifurcating(depth=5)
-   df_sample = pfl.alifestd_to_working_format(df_sample)
-   df_sample["origin_time"] = range(len(df_sample))
+   df_sample = df_sample.pipe(pfl.alifestd_to_working_format)
 
    # Mark 10 randomly selected tips
    df_sample = pfl.alifestd_mark_sample_tips_uniform_asexual(
@@ -212,12 +214,11 @@ taxa (default: ``"extant"``):
 .. code-block:: python
 
    df_prune = pfl.alifestd_make_balanced_bifurcating(depth=4)
-   df_prune = pfl.alifestd_to_working_format(df_prune)
-   df_prune["origin_time"] = range(len(df_prune))
+   df_prune = df_prune.pipe(pfl.alifestd_to_working_format)
 
-   # Mark which taxa are extant
+   # Mark which taxa are extant (e.g., those with id >= threshold)
    threshold = len(df_prune) // 2
-   df_prune["extant"] = df_prune["origin_time"] >= threshold
+   df_prune["extant"] = df_prune["id"] >= threshold
 
    # Remove lineages without extant descendants
    df_prune = pfl.alifestd_prune_extinct_lineages_asexual(df_prune)
@@ -227,7 +228,7 @@ You can also use a custom criterion column name:
 .. code-block:: python
 
    df_prune2 = pfl.alifestd_make_balanced_bifurcating(depth=4)
-   df_prune2 = pfl.alifestd_to_working_format(df_prune2)
+   df_prune2 = df_prune2.pipe(pfl.alifestd_to_working_format)
    df_prune2["is_alive"] = True
    df_prune2 = pfl.alifestd_prune_extinct_lineages_asexual(
        df_prune2, criterion="is_alive",
@@ -241,11 +242,8 @@ to maintain tree connectivity:
 
 .. code-block:: python
 
-   df_coarsen = pfl.alifestd_from_newick(
-       "((A,B),(C,D));", create_ancestor_list=True,
-   )
    df_coarsen = (
-       df_coarsen.pipe(pfl.alifestd_to_working_format)
+       pfl.alifestd_from_newick("((A,B),(C,D));", create_ancestor_list=True)
        .pipe(pfl.alifestd_mark_node_depth_asexual)
        .pipe(pfl.alifestd_mark_leaves)
    )
@@ -266,8 +264,6 @@ A complete workflow combining multiple sampling strategies and pruning:
    df = pfl.alifestd_from_newick(
        "((A:1,B:2):3,(C:4,(D:5,E:6):7):8);",
    )
-   df = df.pipe(pfl.alifestd_to_working_format)
-   df["origin_time"] = range(len(df))
 
    # Strategy 1: canopy --- keep the 2 most recent tips
    df = df.pipe(
@@ -296,8 +292,7 @@ mark and prune steps:
 .. code-block:: python
 
    df_ds = pfl.alifestd_make_balanced_bifurcating(depth=5)
-   df_ds = pfl.alifestd_to_working_format(df_ds)
-   df_ds["origin_time"] = range(len(df_ds))
+   df_ds = df_ds.pipe(pfl.alifestd_to_working_format)
 
    # Uniform random downsampling
    df_u = pfl.alifestd_downsample_tips_uniform_asexual(

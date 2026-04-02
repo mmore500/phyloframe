@@ -30,7 +30,6 @@ Use `pandas.read_csv`, `polars.read_parquet`, R's `read.table`, etc. --- librari
 
 **Benefit from modern tabular data formats.**
 Granular deserialization of selected columns (e.g., Parquet), transparent compression configuration (e.g., Parquet), columnar compression for efficient storage, categorical strings, and explicit column typing.
-Options exist for both binary and text formats.
 
 **Benefit from modern high-performance dataframe tooling.**
 Memory-efficient representation, larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).

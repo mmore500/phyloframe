@@ -39,10 +39,12 @@ Use ``mutate=True`` in Pandas-based pipelines to avoid unnecessary copies:
 
 .. code-block:: python
 
-   df = pfl.alifestd_to_working_format(df, mutate=True)
-   df = pfl.alifestd_mark_leaves(df, mutate=True)
-   df = pfl.alifestd_mark_node_depth_asexual(df, mutate=True)
-   df = pfl.alifestd_mark_num_descendants_asexual(df, mutate=True)
+   df = (
+       df.pipe(pfl.alifestd_to_working_format, mutate=True)
+       .pipe(pfl.alifestd_mark_leaves, mutate=True)
+       .pipe(pfl.alifestd_mark_node_depth_asexual, mutate=True)
+       .pipe(pfl.alifestd_mark_num_descendants_asexual, mutate=True)
+   )
 
 JIT Compilation with Numba
 ===========================
