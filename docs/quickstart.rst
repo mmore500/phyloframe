@@ -194,23 +194,15 @@ The original data is preserved; a new column is appended.
 
 .. code-block:: python
 
-   df = pfl.alifestd_from_newick("((A,B),(C,D));")
-   df = pfl.alifestd_to_working_format(df)
-
-   # Leaf detection
-   df = pfl.alifestd_mark_leaves(df)
-
-   # Depth from root (number of edges)
-   df = pfl.alifestd_mark_node_depth_asexual(df)
-
-   # Number of descendants (excluding self)
-   df = pfl.alifestd_mark_num_descendants_asexual(df)
-
-   # Number of direct children
-   df = pfl.alifestd_mark_num_children_asexual(df)
-
-   # Root detection
-   df = pfl.alifestd_mark_roots(df)
+   df = pfl.alifestd_pipe_unary_ops(
+       pfl.alifestd_from_newick("((A,B),(C,D));"),
+       pfl.alifestd_to_working_format,
+       pfl.alifestd_mark_leaves,  # leaf detection
+       pfl.alifestd_mark_node_depth_asexual,  # depth from root
+       pfl.alifestd_mark_num_descendants_asexual,  # descendant count
+       pfl.alifestd_mark_num_children_asexual,  # direct children count
+       pfl.alifestd_mark_roots,  # root detection
+   )
 
    print(df[["id", "ancestor_id", "is_leaf", "node_depth",
              "num_descendants", "num_children", "is_root"]])
