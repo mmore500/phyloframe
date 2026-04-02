@@ -14,7 +14,6 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col,
-    alifestd_try_add_ancestor_id_col_polars,
 )
 
 from ._impl import enforce_dtype_stability_polars
