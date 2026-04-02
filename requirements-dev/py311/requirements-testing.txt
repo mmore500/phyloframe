@@ -166,7 +166,6 @@ packaging==26.0
     #   pytest
     #   statsmodels
     #   tox
-pandas==3.0.2
     # via
     #   phyloframe (pyproject.toml)
     #   alifedata-phyloinformatics-convert

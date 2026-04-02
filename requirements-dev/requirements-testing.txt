@@ -170,7 +170,6 @@ packaging==26.0
     #   pytest
     #   statsmodels
     #   tox
-pandas==2.3.3
     # via
     #   -c /tmp/constraints-root-testing.txt
     #   phyloframe (pyproject.toml)

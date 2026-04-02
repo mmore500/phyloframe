@@ -341,7 +341,6 @@ packaging==26.0
     #   sphinx
     #   statsmodels
     #   tox
-pandas==3.0.1
     # via
     #   -c /tmp/constraints-all-312.txt
     #   phyloframe (pyproject.toml)
