@@ -239,8 +239,9 @@ Tree Transformations
 
 .. code-block:: python
 
+   df = pfl.alifestd_from_newick("((A,B),(C,D));")
    df = pfl.alifestd_pipe_unary_ops(
-       pfl.alifestd_from_newick("((A,B),(C,D));"),
+       df,
        pfl.alifestd_collapse_unifurcations,  # remove single-child nodes
        pfl.alifestd_splay_polytomies,  # expand polytomies into bifurcations
        pfl.alifestd_add_global_root,  # add synthetic root above all roots
