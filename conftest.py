@@ -30,7 +30,7 @@ else:
         "write_parquet",
     ]
 
-    def _evaluate_python_block(example: "sybil.Example") -> None:
+    def _evaluate_python_block(example) -> None:  # noqa: ANN001
         """Execute a Python code block, skipping blocks with external deps."""
         source = example.parsed
         for pattern in _SKIP_PATTERNS:
