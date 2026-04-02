@@ -1,6 +1,6 @@
-======================
-Command-line Interface
-======================
+===============================
+Command-line Interface (Legacy)
+===============================
 
 All dataframe-to-dataframe transforms are available as CLI commands, as well
 as some other operations.
@@ -19,23 +19,27 @@ This prints all available CLI commands, each corresponding to a module in
 Basic Usage
 ===========
 
-Each command takes an input file and an output file as positional arguments.
+Each command takes an output file as a positional argument.
+Input files are provided via stdin, typically using ``ls -1``.
 The data format is inferred from the file extension; use ``--input-filetype``
 and ``--output-filetype`` flags when the type cannot be inferred (e.g., when
-using ``/dev/stdin`` or ``/dev/stdout``).
+piping through ``/dev/stdin`` or ``/dev/stdout``).
 
 .. code-block:: bash
 
    # Read from file, write to file
-   python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv input.csv
-
-   # Read from stdin (must specify input filetype)
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --input-filetype .csv output.csv /dev/stdin < input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv
 
    # With custom arguments
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --mark-as is_tip output.csv input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --mark-as is_tip output.csv
+
+   # With explicit filetype flags (when extension is unavailable)
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --input-filetype .csv --output-filetype .csv /dev/stdout > output.csv
 
 Get help for any command:
 
@@ -48,23 +52,28 @@ Input and Output Formats
 
 The data format is determined by file extension:
 
-- ``.csv`` --- CSV format (input and output)
-- ``.pqt`` or ``.parquet`` --- Parquet format (input and output)
-- ``.json`` --- JSON format (output only)
-- ``.feather`` or ``.ipc`` --- Feather/IPC format (output only)
+- ``.csv`` --- CSV format
+- ``.pqt`` or ``.parquet`` --- Parquet format
+- ``.json`` --- JSON format
+- ``.feather`` or ``.ipc`` --- Feather/IPC format
 
 .. code-block:: bash
 
    # CSV to CSV
-   python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv
 
    # Parquet to Parquet
-   python3 -m phyloframe.legacy._alifestd_mark_leaves output.pqt input.pqt
+   ls -1 input.pqt \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves output.pqt
 
-   # With explicit filetype flags (when extension is unavailable)
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --input-filetype .csv --output-filetype .csv \
-       /dev/stdout /dev/stdin < input.csv > output.csv
+   # CSV to JSON
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves output.json
+
+   # CSV to Feather
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves output.feather
 
 In-place Modification
 ---------------------
@@ -73,8 +82,9 @@ Use ``--eager-read`` when reading and writing the same file:
 
 .. code-block:: bash
 
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --eager-read data.csv data.csv
+   ls -1 data.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --eager-read data.csv
 
 Piping Commands
 ===============
@@ -85,15 +95,13 @@ Use ``/dev/stdout`` and ``/dev/stdin`` with ``--input-filetype`` and
 
 .. code-block:: bash
 
-   python3 -m phyloframe.legacy._alifestd_collapse_unifurcations \
-       --input-filetype .csv --output-filetype .csv \
-       /dev/stdout /dev/stdin < input.csv \
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_collapse_unifurcations \
+       --output-filetype .csv /dev/stdout \
      | python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --input-filetype .csv --output-filetype .csv \
-       /dev/stdout /dev/stdin \
+       --input-filetype .csv --output-filetype .csv /dev/stdout \
      | python3 -m phyloframe.legacy._alifestd_mark_node_depth_asexual \
-       --input-filetype .csv \
-       output.csv /dev/stdin
+       --input-filetype .csv output.csv
 
 Multi-operation Pipe Utility
 ----------------------------
@@ -103,24 +111,30 @@ operations in sequence within a single process:
 
 .. code-block:: bash
 
-   python3 -m phyloframe.legacy._alifestd_pipe_unary_ops \
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_pipe_unary_ops \
        --op "pfl.alifestd_collapse_unifurcations" \
        --op "pfl.alifestd_mark_leaves" \
        --op "pfl.alifestd_mark_node_depth_asexual" \
-       output.csv input.csv
+       output.csv
 
 Available names in ``--op`` expressions: ``pfl`` (phyloframe.legacy),
 ``pf`` (phyloframe), ``pd`` (pandas), ``pl`` (polars), ``np`` (numpy),
 ``opyt`` (opytional).
 
-Use lambda expressions to pass arguments or apply custom transforms:
+Use lambda expressions for multi-step workflows like combining sample
+marks and pruning:
 
 .. code-block:: bash
 
-   python3 -m phyloframe.legacy._alifestd_pipe_unary_ops \
-       --op "lambda df: pfl.alifestd_mark_leaves(df, mark_as='is_tip')" \
-       --op "lambda df: df[df['is_tip']]" \
-       output.csv input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_pipe_unary_ops \
+       --op "pfl.alifestd_to_working_format" \
+       --op "lambda df: pfl.alifestd_mark_sample_tips_canopy_asexual(df, n_sample=5, mark_as='keep_canopy')" \
+       --op "lambda df: pfl.alifestd_mark_sample_tips_lineage_asexual(df, n_sample=5, mark_as='keep_lineage')" \
+       --op "lambda df: df.assign(extant=df['keep_canopy'] | df['keep_lineage'])" \
+       --op "pfl.alifestd_prune_extinct_lineages_asexual" \
+       output.csv
 
 Polars CLI Entrypoints
 ======================
@@ -132,19 +146,21 @@ This avoids Pandas-to-Polars conversion overhead:
 .. code-block:: bash
 
    # Pandas entrypoint (converts internally)
-   python3 -m phyloframe.legacy._alifestd_mark_leaves output.pqt input.pqt
+   ls -1 input.pqt \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves output.pqt
 
    # Polars entrypoint (no conversion, faster)
-   python3 -m phyloframe.legacy._alifestd_mark_leaves_polars \
-       output.pqt input.pqt
+   ls -1 input.pqt \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves_polars output.pqt
 
 The Polars pipe utility:
 
 .. code-block:: bash
 
-   python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars \
+   ls -1 input.pqt \
+     | python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars \
        --op "pfl.alifestd_mark_leaves_polars" \
-       output.pqt input.pqt
+       output.pqt
 
 joinem CLI Engine
 =================
@@ -160,13 +176,15 @@ Use ``--select`` and ``--drop`` to control which columns appear in the output:
 .. code-block:: bash
 
    # Keep only specific columns
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
        --select id --select ancestor_list --select is_leaf \
-       output.csv input.csv
+       output.csv
 
    # Drop unwanted columns
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --drop ancestor_list output.csv input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --drop ancestor_list output.csv
 
 Row Selection
 -------------
@@ -176,12 +194,14 @@ Use ``--head``, ``--tail``, ``--sample``, and ``--shuffle`` to control which row
 .. code-block:: bash
 
    # Keep only the first 100 rows
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --head 100 output.csv input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --head 100 output.csv
 
    # Random sample of 50 rows
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --sample 50 output.csv input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --sample 50 output.csv
 
 Filtering and Computed Columns
 ------------------------------
@@ -191,13 +211,15 @@ Use ``--filter`` to filter rows and ``--with-column`` to add computed columns us
 .. code-block:: bash
 
    # Filter to leaf nodes only
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       --filter "pl.col('is_leaf')" output.csv input.csv
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
+       --filter "pl.col('is_leaf')" output.csv
 
    # Add a computed column
-   python3 -m phyloframe.legacy._alifestd_mark_leaves \
+   ls -1 input.csv \
+     | python3 -m phyloframe.legacy._alifestd_mark_leaves \
        --with-column "pl.col('id').cast(pl.Utf8).alias('id_str')" \
-       output.csv input.csv
+       output.csv
 
 Other joinem Features
 ---------------------
@@ -238,11 +260,11 @@ A containerized release of phyloframe is available:
 .. code-block:: bash
 
    # Via Singularity
-   singularity exec docker://ghcr.io/mmore500/phyloframe:v0.6.1 \
-       python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       output.csv input.csv
+   ls -1 input.csv \
+     | singularity exec docker://ghcr.io/mmore500/phyloframe:v0.6.1 \
+       python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv
 
    # Via Docker
-   docker run --rm -i ghcr.io/mmore500/phyloframe:v0.6.1 \
-       python3 -m phyloframe.legacy._alifestd_mark_leaves \
-       output.csv input.csv
+   ls -1 input.csv \
+     | docker run --rm -i ghcr.io/mmore500/phyloframe:v0.6.1 \
+       python3 -m phyloframe.legacy._alifestd_mark_leaves output.csv

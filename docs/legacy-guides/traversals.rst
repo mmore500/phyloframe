@@ -1,6 +1,6 @@
-==============
-Tree Traversal
-==============
+=======================
+Tree Traversal (Legacy)
+=======================
 
 This guide covers phyloframe's tree traversal operations and the
 supplemental data structures that enable them.

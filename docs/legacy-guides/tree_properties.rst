@@ -1,6 +1,6 @@
-=============================
-Tree Properties and Metrics
-=============================
+======================================
+Tree Properties and Metrics (Legacy)
+======================================
 
 This guide covers phyloframe's operations for marking node properties,
 counting tree features, and computing phylogenetic metrics.

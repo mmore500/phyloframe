@@ -1,6 +1,6 @@
-============
-Performance
-============
+=====================
+Performance (Legacy)
+=====================
 
 This guide covers techniques for getting the best performance out of
 phyloframe: JIT compilation, Polars, working format, and writing custom

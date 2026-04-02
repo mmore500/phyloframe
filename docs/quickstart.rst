@@ -50,8 +50,24 @@ Required Columns
     For asexual phylogenies, this is a single-element list like ``"[0]"``.
     Root nodes use ``"[None]"`` or ``"[none]"``.
 
-Optional Columns
-----------------
+Optional Columns (Official Standard)
+-------------------------------------
+
+``origin_time`` : numeric
+    Time at which this organism originated.
+
+``destruction_time`` : numeric
+    Time at which this organism was destroyed or went extinct.
+
+``taxon_label`` : str
+    Human-readable label or species name for this organism.
+
+See the `alife data standards specification
+<https://alife-data-standards.github.io/alife-data-standards/phylogeny.html>`_
+for the full list of official optional columns.
+
+Unofficial Extension: ``ancestor_id``
+--------------------------------------
 
 ``ancestor_id`` : int
     Direct ancestor ID for asexual phylogenies.
@@ -59,8 +75,19 @@ Optional Columns
     avoids repeated string parsing.
     Root nodes store their own ID as ``ancestor_id``.
 
-Additional columns (e.g., ``origin_time``, ``taxon_label``, trait data) can
-be freely added --- the DataFrame is yours to extend.
+All phyloframe operations on asexual trees support ``ancestor_id`` in place
+of ``ancestor_list``.
+Using ``ancestor_id`` is recommended unless interoperability with other
+alife standard ecosystem tools is needed.
+Use ``alifestd_try_add_ancestor_list_col`` to generate ``ancestor_list``
+on demand when required:
+
+.. code-block:: python
+
+   df = pfl.alifestd_try_add_ancestor_list_col(df)
+
+Additional user-defined columns (e.g., trait data, fitness values) can be
+freely added --- the DataFrame is yours to extend.
 
 Representing Roots
 ------------------
@@ -86,8 +113,8 @@ Example
 This represents::
 
    0 (root)
-   └── 1 (internal)
-       └── 2 (leaf)
+   +-- 1 (internal)
+       +-- 2 (leaf)
 
 Asexual vs. Sexual Phylogenies
 ------------------------------
@@ -348,7 +375,28 @@ Even with ``mutate=True``, always use the return value:
 Piping Operations
 =================
 
-Chain multiple operations using ``alifestd_pipe_unary_ops``:
+Pandas provides ``DataFrame.pipe()`` for chaining operations idiomatically:
+
+.. code-block:: python
+
+   result = (
+       df.pipe(pfl.alifestd_collapse_unifurcations)
+       .pipe(pfl.alifestd_mark_leaves)
+       .pipe(pfl.alifestd_mark_node_depth_asexual)
+   )
+
+Polars DataFrames also support ``.pipe()``:
+
+.. code-block:: python
+
+   import polars as pl
+
+   df_pl = pfl.alifestd_from_newick_polars("((A,B),(C,D));")
+   result_pl = (
+       df_pl.pipe(pfl.alifestd_mark_leaves_polars)
+   )
+
+Alternatively, ``alifestd_pipe_unary_ops`` accepts multiple operations:
 
 .. code-block:: python
 
@@ -375,14 +423,14 @@ Use ``tqdm`` for progress feedback on long pipelines:
 Next Steps
 ==========
 
-- :doc:`guides/concepts` --- Data format, tree data structures, and design
+- :doc:`legacy-guides/concepts` --- Data format, tree data structures, and design
   decisions
-- :doc:`guides/tree_creation` --- Synthetic trees, parsing, and construction
-- :doc:`guides/tree_properties` --- Marking, counting, and metrics
-- :doc:`guides/tree_manipulation` --- Transformations, pruning, and
+- :doc:`legacy-guides/tree_creation` --- Synthetic trees, parsing, and construction
+- :doc:`legacy-guides/tree_properties` --- Marking, counting, and metrics
+- :doc:`legacy-guides/tree_manipulation` --- Transformations, pruning, and
   downsampling
-- :doc:`guides/traversals` --- Tree traversal and supplemental data structures
-- :doc:`guides/io` --- Newick, CSV, and Parquet I/O
-- :doc:`guides/cli` --- Command-line interface and pipe operations
-- :doc:`guides/performance` --- JIT compilation, Polars, and optimization
+- :doc:`legacy-guides/traversals` --- Tree traversal and supplemental data structures
+- :doc:`legacy-guides/io` --- Newick, CSV, and Parquet I/O
+- :doc:`legacy-guides/cli` --- Command-line interface and pipe operations
+- :doc:`legacy-guides/performance` --- JIT compilation, Polars, and optimization
 - :doc:`api` --- Full API reference

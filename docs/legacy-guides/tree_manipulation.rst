@@ -1,6 +1,6 @@
-===============================
-Tree Manipulation and Pruning
-===============================
+========================================
+Tree Manipulation and Pruning (Legacy)
+========================================
 
 This guide covers operations that transform the structure of a phylogeny:
 collapsing, splaying, pruning, downsampling, and masking.

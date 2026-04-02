@@ -1,6 +1,6 @@
-==========================
-Creating Phylogenies
-==========================
+===================================
+Creating Phylogenies (Legacy)
+===================================
 
 This guide covers the different ways to create phylogeny DataFrames in
 phyloframe.

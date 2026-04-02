@@ -186,7 +186,9 @@ To handle this:
    ``alifestd_drop_topological_sensitivity`` or
    ``alifestd_drop_topological_sensitivity_polars``, then recompute them
    afterward.
-2. **Suppress the warning** by passing
+2. **Pass ``drop_topological_sensitivity=True``** to the operation itself,
+   which automatically drops topology-dependent columns as part of the call.
+3. **Suppress the warning** by passing
    ``ignore_topological_sensitivity=True`` to the operation, or by setting
    the ``HSTRAT_ALIFESTD_WARN_TOPOLOGICAL_SENSITIVITY_SUPPRESS``
    environment variable.
@@ -199,9 +201,14 @@ To handle this:
    df = pfl.alifestd_to_working_format(df)
    df = pfl.alifestd_mark_node_depth_asexual(df)
 
-   # Drop topology-dependent columns before a structural change
+   # Option 1: drop topology-dependent columns explicitly
    df = pfl.alifestd_drop_topological_sensitivity(df)
    df = pfl.alifestd_collapse_unifurcations(df)
+
+   # Option 2: let the operation drop them automatically
+   # df = pfl.alifestd_collapse_unifurcations(
+   #     df, drop_topological_sensitivity=True,
+   # )
 
    # Recompute as needed
    df = pfl.alifestd_mark_node_depth_asexual(df)

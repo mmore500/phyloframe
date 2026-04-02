@@ -1,6 +1,6 @@
-================
-Input and Output
-================
+=========================
+Input and Output (Legacy)
+=========================
 
 This guide covers reading, writing, and converting phylogenetic data in
 phyloframe.
