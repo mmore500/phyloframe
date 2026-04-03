@@ -1,3 +1,4 @@
+import itertools
 import typing
 
 import numpy as np
@@ -119,8 +120,10 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         for i, (root, nm, bl) in enumerate(
             zip(
                 is_root,
-                names if names is not None else [None] * n,
-                branch_lengths if branch_lengths is not None else [None] * n,
+                names if names is not None else itertools.repeat(None),
+                branch_lengths
+                if branch_lengths is not None
+                else itertools.repeat(None),
             )
         ):
             node_name = str(nm) if nm is not None else str(i)
