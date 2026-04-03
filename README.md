@@ -21,7 +21,7 @@ Dataframe-based tools for working with phylogenetic trees.
 
 ## Why a DataFrame-based Tree Representation?
 
-The R ecosystem's success with the `ape` data structure demonstrates the value of edge matrix tree representations --- phyloframe pushes this idea further with a fully tabular format hosted within DataFrame objects (e.g., `pd.DataFrame`, `pl.LazyFrame`, `pl.DataFrame`, etc.).
+The R ecosystem's success with the `ape` data structure demonstrates the utility of edge matrix tree representations --- phyloframe pushes this idea further with a fully tabular format hosted within DataFrame objects (e.g., `pd.DataFrame`, `pl.LazyFrame`, `pl.DataFrame`, etc.).
 
 DataFrames are scripting-friendly and end-user extensible, enabling a composable, interoperable, high-performance ecosystem for phylogenetic analysis --- in applications to our work, scalable to billion-tip phylogenies.
 
@@ -40,7 +40,7 @@ Leverage powerful querying and transformation APIs (e.g., Polars expressions, Pa
 
 **Cache-friendly, memory-efficient, flexible data structure.**
 Data occupies contiguous arrays, expediting tree creation and topological order traversals (e.g., parents before children or vice versa).
-Base memory footprint is lightweight (e.g., as little as 32 bits per node), but can be dynamically augmented to expedite traversals and calculations (e.g., child linked lists via DataFrame columns for first child/next sibling indices).
+Base memory footprint is lightweight (e.g., as little as 32 bits per node), but can be dynamically augmented to expedite traversals and calculations (e.g., linked list over children via DataFrame columns for first child/next sibling indices).
 
 **Rich interoperative ecosystem.**
 Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via `reticulate` and Arrow; possible future support for zero-copy Polars DataFrames shared between Rust and Python).
