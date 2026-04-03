@@ -5,12 +5,23 @@ import pytest
 
 iplotx = pytest.importorskip("iplotx")
 
+# Register providers so iplotx.tree() works without entry points
+# (entry points require `pip install -e .` which CI doesn't do).
+from iplotx.ingest import data_providers  # noqa: E402
+
 from phyloframe.legacy import (  # noqa: E402
     AlifestdIplotxShimNumpy,
     AlifestdIplotxShimPandas,
     AlifestdIplotxShimPolars,
     alifestd_to_iplotx_pandas,
     alifestd_to_iplotx_polars,
+)
+
+data_providers["tree"].setdefault(
+    "phyloframe_pandas", AlifestdIplotxShimPandas
+)
+data_providers["tree"].setdefault(
+    "phyloframe_polars", AlifestdIplotxShimPolars
 )
 
 
