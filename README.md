@@ -33,7 +33,7 @@ Fast, full-featured Newick format I/O support.
 Granular deserialization of selected columns (e.g., Parquet), transparent compression configuration (e.g., Parquet), columnar compression for efficient storage, categorical strings, and explicit column typing.
 
 **Benefit from modern high-performance dataframe tooling.**
-Memory-efficient representation, larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
+Lazy query optimization (e.g.  Polars), larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
 
 **Benefit from rich dataframe tools and expressions.**
 Leverage powerful querying and transformation APIs (e.g., Polars expressions, Pandas indexing), enabling flexible filtering, bulk column calculations, grouped aggregations, join/merge operations, and chained transformations directly over tree data without manual loops.​​​​​​​​​​​​​​​​
