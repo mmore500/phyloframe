@@ -215,6 +215,8 @@ from ._alifestd_iplotx_provider import (
     AlifestdIplotxShimNumpy,
     AlifestdIplotxShimPandas,
     AlifestdIplotxShimPolars,
+    alifestd_to_iplotx_pandas,
+    alifestd_to_iplotx_polars,
 )
 from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_is_asexual_polars import alifestd_is_asexual_polars
@@ -741,6 +743,8 @@ __all__ = [
     "AlifestdIplotxShimNumpy",
     "AlifestdIplotxShimPandas",
     "AlifestdIplotxShimPolars",
+    "alifestd_to_iplotx_pandas",
+    "alifestd_to_iplotx_polars",
     "alifestd_is_asexual",
     "alifestd_is_asexual_polars",
     "alifestd_is_chronologically_ordered",

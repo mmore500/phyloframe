@@ -236,6 +236,9 @@ class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
     """
 
     def __init__(self, tree: pd.DataFrame) -> None:
+        if isinstance(tree, AlifestdIplotxShimPandas):
+            self.__dict__.update(tree.__dict__)
+            return
         df = alifestd_try_add_ancestor_id_col(tree.copy())
         if not alifestd_has_contiguous_ids(df):
             raise NotImplementedError(
@@ -278,7 +281,7 @@ class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
 
     @staticmethod
     def tree_type() -> type:
-        return pd.DataFrame
+        return AlifestdIplotxShimPandas
 
 
 class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
@@ -294,6 +297,9 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
     """
 
     def __init__(self, tree: "pl.DataFrame") -> None:  # noqa: F821
+        if isinstance(tree, AlifestdIplotxShimPolars):
+            self.__dict__.update(tree.__dict__)
+            return
         import polars as pl
 
         from ._alifestd_has_contiguous_ids_polars import (
@@ -348,6 +354,44 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
 
     @staticmethod
     def tree_type() -> type:
-        import polars as pl
+        return AlifestdIplotxShimPolars
 
-        return pl.DataFrame
+
+def alifestd_to_iplotx_pandas(
+    phylogeny_df: pd.DataFrame,
+) -> AlifestdIplotxShimPandas:
+    """Wrap a pandas phylogeny DataFrame for use with iplotx.
+
+    Parameters
+    ----------
+    phylogeny_df : pd.DataFrame
+        Asexual phylogeny in alife standard format with contiguous ids
+        and topologically sorted rows.
+
+    Returns
+    -------
+    AlifestdIplotxShimPandas
+        An iplotx-compatible tree provider that can be passed directly
+        to ``iplotx.tree()``.
+    """
+    return AlifestdIplotxShimPandas(phylogeny_df)
+
+
+def alifestd_to_iplotx_polars(
+    phylogeny_df: "pl.DataFrame",  # noqa: F821
+) -> AlifestdIplotxShimPolars:
+    """Wrap a polars phylogeny DataFrame for use with iplotx.
+
+    Parameters
+    ----------
+    phylogeny_df : polars.DataFrame
+        Asexual phylogeny in alife standard format with contiguous ids
+        and topologically sorted rows.
+
+    Returns
+    -------
+    AlifestdIplotxShimPolars
+        An iplotx-compatible tree provider that can be passed directly
+        to ``iplotx.tree()``.
+    """
+    return AlifestdIplotxShimPolars(phylogeny_df)

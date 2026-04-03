@@ -9,6 +9,8 @@ from phyloframe.legacy import (  # noqa: E402
     AlifestdIplotxShimNumpy,
     AlifestdIplotxShimPandas,
     AlifestdIplotxShimPolars,
+    alifestd_to_iplotx_pandas,
+    alifestd_to_iplotx_polars,
 )
 
 
@@ -221,7 +223,7 @@ def test_pandas_check_dependencies():
 
 
 def test_pandas_tree_type():
-    assert AlifestdIplotxShimPandas.tree_type() is pd.DataFrame
+    assert AlifestdIplotxShimPandas.tree_type() is AlifestdIplotxShimPandas
 
 
 def test_pandas_balanced_tree():
@@ -334,7 +336,7 @@ def test_polars_check_dependencies():
 
 
 def test_polars_tree_type():
-    assert AlifestdIplotxShimPolars.tree_type() is pl.DataFrame
+    assert AlifestdIplotxShimPolars.tree_type() is AlifestdIplotxShimPolars
 
 
 def test_polars_balanced_tree():
@@ -511,8 +513,9 @@ def test_iplotx_draw_tree_pandas():
     import matplotlib.pyplot as plt
 
     df = _make_balanced_with_times_pandas()
+    shim = AlifestdIplotxShimPandas(df)
     fig, ax = plt.subplots()
-    artist = iplotx.tree(df, layout="horizontal", ax=ax, show=False)
+    artist = iplotx.tree(shim, layout="horizontal", ax=ax, show=False)
     assert artist is not None
     assert len(ax.get_children()) > 0
     plt.close(fig)
@@ -531,8 +534,9 @@ def test_iplotx_draw_tree_polars():
             "origin_time": [0.0, 1.0, 1.0, 3.0, 3.0, 3.0, 3.0],
         }
     )
+    shim = AlifestdIplotxShimPolars(df)
     fig, ax = plt.subplots()
-    artist = iplotx.tree(df, layout="horizontal", ax=ax, show=False)
+    artist = iplotx.tree(shim, layout="horizontal", ax=ax, show=False)
     assert artist is not None
     assert len(ax.get_children()) > 0
     plt.close(fig)
@@ -546,8 +550,9 @@ def test_iplotx_draw_layouts(layout):
     import matplotlib.pyplot as plt
 
     df = _make_balanced_with_times_pandas()
+    shim = AlifestdIplotxShimPandas(df)
     fig, ax = plt.subplots()
-    artist = iplotx.tree(df, layout=layout, ax=ax, show=False)
+    artist = iplotx.tree(shim, layout=layout, ax=ax, show=False)
     assert artist is not None
     plt.close(fig)
 
@@ -559,9 +564,48 @@ def test_iplotx_draw_with_leaf_labels():
     import matplotlib.pyplot as plt
 
     df = _make_with_taxon_labels_pandas()
+    shim = AlifestdIplotxShimPandas(df)
     fig, ax = plt.subplots()
     artist = iplotx.tree(
-        df, layout="horizontal", leaf_labels=True, ax=ax, show=False
+        shim, layout="horizontal", leaf_labels=True, ax=ax, show=False
+    )
+    assert artist is not None
+    plt.close(fig)
+
+
+# ---- convenience function tests ------------------------------------
+def test_alifestd_to_iplotx_pandas():
+    df = _make_balanced_pandas()
+    result = alifestd_to_iplotx_pandas(df)
+    assert isinstance(result, AlifestdIplotxShimPandas)
+    assert result.get_root()._id == 0
+
+
+def test_alifestd_to_iplotx_polars():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+        }
+    )
+    result = alifestd_to_iplotx_polars(df)
+    assert isinstance(result, AlifestdIplotxShimPolars)
+    assert result.get_root()._id == 0
+
+
+def test_alifestd_to_iplotx_pandas_draw():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    df = _make_balanced_with_times_pandas()
+    fig, ax = plt.subplots()
+    artist = iplotx.tree(
+        alifestd_to_iplotx_pandas(df),
+        layout="horizontal",
+        ax=ax,
+        show=False,
     )
     assert artist is not None
     plt.close(fig)
