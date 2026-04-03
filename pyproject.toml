@@ -75,7 +75,7 @@ testing = [
   "alifedata-phyloinformatics-convert>=0.19.3",
   "contexttimer==0.3.3",
   "coverage>=7.6.1",
-  "iplotx>=0.0.1",
+  "iplotx==1.7.1",
   "iterify==0.1.0",
   "more-itertools>=8.13.0",
   "pytest-xdist==2.5.0",
@@ -98,6 +98,7 @@ release = [
   "wheel==0.45.0",
 ]
 docs = [
+  "iplotx==1.7.1",
   "ipython==8.12.3",
   "ipykernel==6.26.0",
   "nbsphinx==0.9.3",
