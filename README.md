@@ -55,6 +55,8 @@ singularity exec docker://ghcr.io/mmore500/phyloframe:v0.6.1 python3 -m phylofra
 
 ## Quickstart
 
+Phyloframe represents phylogenies as DataFrames in the [**alife standard format**](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html).
+
 ```python3
 from phyloframe import legacy as pfl
 
@@ -72,12 +74,11 @@ print("leaf count:", pfl.alifestd_count_leaf_nodes(df))
 print(df[["id", "ancestor_id", "is_leaf", "node_depth"]].head())
 ```
 
-Phyloframe represents phylogenies as DataFrames in the [**alife standard format**](https://alife-data-standards.github.io/alife-data-standards/phylogeny.html).
 The `legacy` module (`from phyloframe import legacy`) provides all current phyloframe operations.
 The legacy API is stable and will continue to be maintained for backward compatibility.
 A redesigned API will accompany phyloframe v1.0.0.
 
-For the full quickstart covering tree creation, marks, transforms, Polars, CLI, JIT compilation, and more, see the [documentation quickstart](https://phyloframe.readthedocs.io/en/latest/quickstart.html).
+For the full quickstart covering tree representation semantics, tree creation, tree computations, tree transforms, Polars, CLI, JIT compilation, and more, see the [documentation quickstart](https://phyloframe.readthedocs.io/en/latest/quickstart.html).
 
 ## Citing
 
