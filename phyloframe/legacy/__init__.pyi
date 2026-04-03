@@ -211,6 +211,13 @@ from ._alifestd_has_multiple_roots import alifestd_has_multiple_roots
 from ._alifestd_has_multiple_roots_polars import (
     alifestd_has_multiple_roots_polars,
 )
+from ._alifestd_iplotx_provider import (
+    AlifestdIplotxShimNumpy,
+    AlifestdIplotxShimPandas,
+    AlifestdIplotxShimPolars,
+    alifestd_to_iplotx_pandas,
+    alifestd_to_iplotx_polars,
+)
 from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_is_asexual_polars import alifestd_is_asexual_polars
 from ._alifestd_is_chronologically_ordered import (
@@ -733,6 +740,11 @@ __all__ = [
     "alifestd_has_increasing_ids_polars",
     "alifestd_has_multiple_roots",
     "alifestd_has_multiple_roots_polars",
+    "AlifestdIplotxShimNumpy",
+    "AlifestdIplotxShimPandas",
+    "AlifestdIplotxShimPolars",
+    "alifestd_to_iplotx_pandas",
+    "alifestd_to_iplotx_polars",
     "alifestd_is_asexual",
     "alifestd_is_asexual_polars",
     "alifestd_is_chronologically_ordered",
