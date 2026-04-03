@@ -35,7 +35,7 @@ Granular deserialization of selected columns (e.g., Parquet), transparent compre
 **Benefit from modern high-performance dataframe tooling.**
 Lazy query optimization (e.g.  Polars), larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
 
-**Benefit from rich dataframe tools and expressions.**
+**Benefit from rich, expressive dataframe functionality.**
 Leverage powerful querying and transformation APIs (e.g., Polars expressions, Pandas indexing), enabling flexible filtering, bulk column calculations, grouped aggregations, join/merge operations, and chained transformations directly over tree data without manual loops.​​​​​​​​​​​​​​​​
 
 **Cache-friendly, memory-efficient, flexible data structure.**
