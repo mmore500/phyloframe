@@ -119,18 +119,19 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             )
 
         n = len(ancestor_ids)
-        nodes = [
-            _AlifestdNode(
-                i,
-                str(names[i]) if names is not None else str(i),
-                None
-                if branch_lengths is None or np.isnan(branch_lengths[i])
-                else float(branch_lengths[i]),
-            )
-            for i in range(n)
-        ]
-
-        self._nodes = nodes
+        self._nodes = np.array(
+            [
+                _AlifestdNode(
+                    i,
+                    str(names[i]) if names is not None else str(i),
+                    None
+                    if branch_lengths is None or np.isnan(branch_lengths[i])
+                    else float(branch_lengths[i]),
+                )
+                for i in range(n)
+            ],
+            dtype=object,
+        )
         self._ancestor_ids = ancestor_ids
 
         # CSR child storage — append sentinel (n-1) so slicing always works
@@ -175,26 +176,26 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             self._csr_children,
             self._num_children,
         )
-        return [self._nodes[i] for i in order]
+        return self._nodes[order].tolist()
 
     def postorder(self) -> typing.Iterable[_AlifestdNode]:
         order = _alifestd_unfurl_traversal_postorder_asexual_fast_path(
             self._ancestor_ids,
             self._node_depths,
         )
-        return [self._nodes[i] for i in order]
+        return self._nodes[order].tolist()
 
     def levelorder(self) -> typing.Iterable[_AlifestdNode]:
         order = _alifestd_unfurl_traversal_levelorder_asexual_fast_path(
             self._node_depths,
         )
-        return [self._nodes[i] for i in order]
+        return self._nodes[order].tolist()
 
     def _get_leaves(self) -> typing.Sequence[_AlifestdNode]:
         leaf_ids = _alifestd_find_leaf_ids_asexual_fast_path(
             self._ancestor_ids,
         )
-        return [self._nodes[i] for i in leaf_ids]
+        return self._nodes[leaf_ids].tolist()
 
     def get_children(
         self,
@@ -204,7 +205,7 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         children_ids = self._csr_children[
             self._csr_offsets[idx] : self._csr_offsets[idx + 1]
         ]
-        return [self._nodes[c] for c in children_ids]
+        return self._nodes[children_ids].tolist()
 
     @staticmethod
     def get_branch_length(
