@@ -27,7 +27,7 @@ DataFrames are scripting-friendly and end-user extensible, enabling a composable
 
 **Fast and highly portable load/save.**
 Use `pandas.read_csv`, `polars.read_parquet`, R's `read.table`, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
-Fast, full-features mewick format I/O support.
+Fast, full-featured Newick format I/O support.
 
 **Benefit from modern tabular data formats.**
 Granular deserialization of selected columns (e.g., Parquet), transparent compression configuration (e.g., Parquet), columnar compression for efficient storage, categorical strings, and explicit column typing.
