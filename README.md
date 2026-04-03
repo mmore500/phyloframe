@@ -87,7 +87,7 @@ The `legacy` module (`from phyloframe import legacy`) provides all current phylo
 The legacy API is stable and will continue to be maintained for backward compatibility.
 A redesigned API will accompany phyloframe v1.0.0.
 
-For the full quickstart covering tree representation semantics, tree creation, tree computations, tree transforms, Polars, CLI, JIT compilation, and more, see the [full quickstart guide](https://phyloframe.readthedocs.io/en/latest/quickstart.html).
+For a deeper introduction covering tree representation semantics, tree creation, tree computations, tree transforms, Polars, CLI, JIT compilation, and more, see the [full quickstart guide](https://phyloframe.readthedocs.io/en/latest/quickstart.html).
 
 ## Citing
 
