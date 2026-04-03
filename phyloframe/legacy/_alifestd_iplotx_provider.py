@@ -139,7 +139,7 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         )
         self._ancestor_ids = ancestor_ids
 
-        # CSR child storage
+        # CSR child storage — append sentinel (n-1) so slicing always works
         csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
             ancestor_ids,
         )
@@ -147,7 +147,7 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             ancestor_ids,
             csr_offsets,
         )
-        self._csr_offsets = csr_offsets
+        self._csr_offsets = np.append(csr_offsets, n - 1)
 
         # Find and validate root
         root_ids = alifestd_find_root_ids(self._phylogeny_df)
@@ -200,19 +200,10 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         node: _AlifestdNode,
     ) -> typing.Sequence[_AlifestdNode]:
         idx = node._id
-        start = self._csr_offsets[idx]
-        # End is next node's offset, or total non-root count for last node
-        if idx + 1 < len(self._csr_offsets):
-            end = self._csr_offsets[idx + 1]
-        else:
-            n_nonroot = int(
-                np.sum(
-                    self._ancestor_ids != np.arange(len(self._ancestor_ids))
-                )
-            )
-            end = n_nonroot
-        children_ids = self._csr_children[start:end]
-        return [self._nodes[c] for c in children_ids if c >= 0]
+        children_ids = self._csr_children[
+            self._csr_offsets[idx] : self._csr_offsets[idx + 1]
+        ]
+        return [self._nodes[c] for c in children_ids]
 
     @staticmethod
     def get_branch_length(
