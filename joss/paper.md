@@ -91,6 +91,9 @@ All of these libraries represent trees as pointer-linked node objects.
 `phyloframe` takes a fundamentally different approach by storing trees as column-oriented dataframes.
 This design enables direct integration with pandas and Polars analytics workflows, vectorized computation over node attributes, and natural attachment of per-node metadata as additional columns without custom data structures.
 The dataframe representation also facilitates JIT compilation of inner loops via Numba, yielding competitive traversal and parsing performance while retaining Python-level expressiveness.
+\autoref{fig:benchmark} compares throughput and memory efficiency across these libraries on balanced binary trees with up to 30 million tips.
+
+![Benchmark comparison of phylogenetic libraries. Left: throughput (tips processed per second) for each operation across tree sizes. Right: memory efficiency (tips stored per byte of RSS) across tree sizes. Higher is better in both panels.\label{fig:benchmark}](benchmark-panel.png)
 
 # Acknowledgements
 
