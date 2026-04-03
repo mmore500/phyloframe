@@ -264,7 +264,7 @@ def test_pandas_branch_lengths_from_origin_time():
     df = _make_balanced_with_times_pandas()
     shim = AlifestdIplotxShimPandas(df)
     root = shim.get_root()
-    assert shim.get_branch_length(root) is None
+    assert shim.get_branch_length(root) == 0.0
     children = shim.get_children(root)
     for child in children:
         assert shim.get_branch_length(child) == pytest.approx(1.0)
@@ -386,7 +386,7 @@ def test_polars_branch_lengths_from_origin_time():
     )
     shim = AlifestdIplotxShimPolars(df)
     root = shim.get_root()
-    assert shim.get_branch_length(root) is None
+    assert shim.get_branch_length(root) == 0.0
     for child in shim.get_children(root):
         assert shim.get_branch_length(child) == pytest.approx(1.0)
 

@@ -119,9 +119,7 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             node_name = str(names[i]) if names is not None else str(i)
             node_bl = (
                 None
-                if ancestor_ids[i] == i
-                or branch_lengths is None
-                or np.isnan(branch_lengths[i])
+                if branch_lengths is None or np.isnan(branch_lengths[i])
                 else float(branch_lengths[i])
             )
             nodes.append(_AlifestdNode(i, node_name, node_bl))
