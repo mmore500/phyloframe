@@ -609,3 +609,21 @@ def test_alifestd_to_iplotx_pandas_draw():
     )
     assert artist is not None
     plt.close(fig)
+
+
+def test_pandas_shim_rewrap():
+    """Wrapping an existing Pandas shim should copy internal state."""
+    df = _make_balanced_with_times_pandas()
+    shim = AlifestdIplotxShimPandas(df)
+    rewrapped = AlifestdIplotxShimPandas(shim)
+    assert rewrapped.get_root() == shim.get_root()
+    assert list(rewrapped.preorder()) == list(shim.preorder())
+
+
+def test_polars_shim_rewrap():
+    """Wrapping an existing Polars shim should copy internal state."""
+    df = pl.from_pandas(_make_balanced_with_times_pandas())
+    shim = AlifestdIplotxShimPolars(df)
+    rewrapped = AlifestdIplotxShimPolars(shim)
+    assert rewrapped.get_root() == shim.get_root()
+    assert list(rewrapped.preorder()) == list(shim.preorder())
