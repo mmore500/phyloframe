@@ -501,3 +501,67 @@ def test_iplotx_leaf_labels():
     shim = AlifestdIplotxShimPandas(df)
     tree_data = shim(layout="horizontal", leaf_labels=True)
     assert "label" in tree_data["leaf_df"].columns
+
+
+# ---- iplotx drawing integration tests ------------------------------
+def test_iplotx_draw_tree_pandas():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    df = _make_balanced_with_times_pandas()
+    fig, ax = plt.subplots()
+    artist = iplotx.tree(df, layout="horizontal", ax=ax, show=False)
+    assert artist is not None
+    assert len(ax.get_children()) > 0
+    plt.close(fig)
+
+
+def test_iplotx_draw_tree_polars():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6],
+            "ancestor_id": [0, 0, 0, 1, 1, 2, 2],
+            "origin_time": [0.0, 1.0, 1.0, 3.0, 3.0, 3.0, 3.0],
+        }
+    )
+    fig, ax = plt.subplots()
+    artist = iplotx.tree(df, layout="horizontal", ax=ax, show=False)
+    assert artist is not None
+    assert len(ax.get_children()) > 0
+    plt.close(fig)
+
+
+@pytest.mark.parametrize("layout", ["horizontal", "vertical", "radial"])
+def test_iplotx_draw_layouts(layout):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    df = _make_balanced_with_times_pandas()
+    fig, ax = plt.subplots()
+    artist = iplotx.tree(df, layout=layout, ax=ax, show=False)
+    assert artist is not None
+    plt.close(fig)
+
+
+def test_iplotx_draw_with_leaf_labels():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    df = _make_with_taxon_labels_pandas()
+    fig, ax = plt.subplots()
+    artist = iplotx.tree(
+        df, layout="horizontal", leaf_labels=True, ax=ax, show=False
+    )
+    assert artist is not None
+    plt.close(fig)

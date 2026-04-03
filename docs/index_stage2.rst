@@ -16,6 +16,7 @@ Overview
    legacy-guides/tree_manipulation
    legacy-guides/traversals
    legacy-guides/io
+   legacy-guides/visualization
    legacy-guides/cli
    legacy-guides/performance
    api
