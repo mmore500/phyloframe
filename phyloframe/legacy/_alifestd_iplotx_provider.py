@@ -12,7 +12,6 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover
 from ._alifestd_find_leaf_ids import (
     _alifestd_find_leaf_ids_asexual_fast_path,
 )
-from ._alifestd_find_root_ids import alifestd_find_root_ids
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
@@ -26,6 +25,12 @@ from ._alifestd_mark_csr_children_asexual import (
 from ._alifestd_mark_csr_offsets_asexual import (
     _alifestd_mark_csr_offsets_asexual_fast_path,
 )
+from ._alifestd_mark_node_depth_asexual import (
+    _alifestd_calc_node_depth_asexual_contiguous,
+)
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_mark_origin_time_delta_asexual import (
     alifestd_mark_origin_time_delta_asexual,
 )
@@ -36,13 +41,13 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 from ._alifestd_unfurl_traversal_levelorder_asexual import (
-    alifestd_unfurl_traversal_levelorder_asexual,
+    _alifestd_unfurl_traversal_levelorder_asexual_fast_path,
 )
 from ._alifestd_unfurl_traversal_postorder_asexual import (
-    alifestd_unfurl_traversal_postorder_asexual,
+    _alifestd_unfurl_traversal_postorder_asexual_fast_path,
 )
 from ._alifestd_unfurl_traversal_preorder_asexual import (
-    alifestd_unfurl_traversal_preorder_asexual,
+    _alifestd_unfurl_traversal_preorder_asexual_jit,
 )
 
 
@@ -125,12 +130,6 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             nodes.append(_AlifestdNode(i, node_name, node_bl))
 
         self._nodes = nodes
-        self._phylogeny_df = pd.DataFrame(
-            {
-                "id": np.arange(n),
-                "ancestor_id": ancestor_ids,
-            }
-        )
         self._ancestor_ids = ancestor_ids
 
         # CSR child storage — append sentinel (n-1) so slicing always works
@@ -142,14 +141,20 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             csr_offsets,
         )
         self._csr_offsets = np.append(csr_offsets, n - 1)
+        self._num_children = _alifestd_mark_num_children_asexual_fast_path(
+            ancestor_ids,
+        )
+        self._node_depths = _alifestd_calc_node_depth_asexual_contiguous(
+            ancestor_ids,
+        )
 
         # Find and validate root
-        root_ids = alifestd_find_root_ids(self._phylogeny_df)
-        if len(root_ids) != 1:
+        (root_indices,) = np.where(ancestor_ids == np.arange(n))
+        if len(root_indices) != 1:
             raise ValueError(
-                f"Expected exactly 1 root, found {len(root_ids)}."
+                f"Expected exactly 1 root, found {len(root_indices)}."
             )
-        self._root = self._nodes[root_ids[0]]
+        self._root = self._nodes[root_indices[0]]
 
         # Store a reference as ``tree`` for TreeDataProvider protocol.
         self.tree = self
@@ -163,23 +168,24 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         return self._root
 
     def preorder(self) -> typing.Iterable[_AlifestdNode]:
-        order = alifestd_unfurl_traversal_preorder_asexual(
-            self._phylogeny_df,
-            mutate=True,
+        order = _alifestd_unfurl_traversal_preorder_asexual_jit(
+            self._ancestor_ids,
+            self._csr_offsets[:-1],  # without sentinel
+            self._csr_children,
+            self._num_children,
         )
         return [self._nodes[i] for i in order]
 
     def postorder(self) -> typing.Iterable[_AlifestdNode]:
-        order = alifestd_unfurl_traversal_postorder_asexual(
-            self._phylogeny_df,
-            mutate=True,
+        order = _alifestd_unfurl_traversal_postorder_asexual_fast_path(
+            self._ancestor_ids,
+            self._node_depths,
         )
         return [self._nodes[i] for i in order]
 
     def levelorder(self) -> typing.Iterable[_AlifestdNode]:
-        order = alifestd_unfurl_traversal_levelorder_asexual(
-            self._phylogeny_df,
-            mutate=True,
+        order = _alifestd_unfurl_traversal_levelorder_asexual_fast_path(
+            self._node_depths,
         )
         return [self._nodes[i] for i in order]
 
@@ -262,7 +268,6 @@ class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
 
         super().__init__(ancestor_ids, names, branch_lengths)
         self.tree = tree  # type: ignore[assignment]
-        self._phylogeny_df = df[["id", "ancestor_id"]]
 
     @staticmethod
     def check_dependencies() -> bool:
