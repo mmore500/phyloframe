@@ -47,6 +47,19 @@ Multi-language interoperation (e.g., possible future support for zero-copy inter
 Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol).
 Compatibility with existing alife data standards ecosystem.
 
+## Performance
+
+![benchmark results](https://raw.githubusercontent.com/mmore500/phyloframe/6d136f793b8a2c87e2af15661c077e6ef710aaa5/docs/assets/bench-2026-04-01.png)
+*Computational throughput (left) and memory efficiency (right) across tree sizes.
+Higher is better.*
+
+At large tree sizes, phyloframe improves speed and memory-efficiency for most operations.
+
+Notably, newick reads and topological-order tree traversal (i.e., parents before children) are up to 10× faster than existing tools --- including implementations backed by native code.
+Newick writes are up to 2× faster.
+
+Benchmarked operations include tree traversals, newick read/write, and pairwise operations.
+
 ## Install
 
 ```bash
