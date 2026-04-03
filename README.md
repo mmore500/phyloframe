@@ -26,7 +26,7 @@ The R ecosystem's success with the `ape` data structure demonstrates the utility
 DataFrames are scripting-friendly and end-user extensible, enabling a composable, interoperable, high-performance ecosystem for phylogenetic analysis --- in applications to our work, scalable to billion-tip phylogenies.
 
 **Fast and highly portable load/save.**
-Use `pandas.read_csv`, `polars.read_parquet`, R's `read.table`, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
+Use `pandas.read_csv`, `polars.read_parquet`, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
 Fast, full-featured Newick format I/O support.
 
 **Benefit from modern tabular data formats.**
