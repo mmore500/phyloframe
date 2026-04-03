@@ -1,4 +1,3 @@
-import itertools
 import typing
 
 import numpy as np
@@ -115,19 +114,16 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             )
 
         n = len(ancestor_ids)
-        is_root = ancestor_ids == np.arange(n)
         nodes: typing.List[_AlifestdNode] = []
-        for i, (root, nm, bl) in enumerate(
-            zip(
-                is_root,
-                names if names is not None else itertools.repeat(None),
-                branch_lengths
-                if branch_lengths is not None
-                else itertools.repeat(None),
+        for i in range(n):
+            node_name = str(names[i]) if names is not None else str(i)
+            node_bl = (
+                None
+                if ancestor_ids[i] == i
+                or branch_lengths is None
+                or np.isnan(branch_lengths[i])
+                else float(branch_lengths[i])
             )
-        ):
-            node_name = str(nm) if nm is not None else str(i)
-            node_bl = None if root or bl is None or np.isnan(bl) else float(bl)
             nodes.append(_AlifestdNode(i, node_name, node_bl))
 
         self._nodes = nodes
