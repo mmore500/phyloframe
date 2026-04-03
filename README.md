@@ -27,6 +27,7 @@ DataFrames are scripting-friendly and end-user extensible, enabling a composable
 
 **Fast and highly portable load/save.**
 Use `pandas.read_csv`, `polars.read_parquet`, R's `read.table`, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
+Fast, full-features mewick format I/O support.
 
 **Benefit from modern tabular data formats.**
 Granular deserialization of selected columns (e.g., Parquet), transparent compression configuration (e.g., Parquet), columnar compression for efficient storage, categorical strings, and explicit column typing.
@@ -34,9 +35,17 @@ Granular deserialization of selected columns (e.g., Parquet), transparent compre
 **Benefit from modern high-performance dataframe tooling.**
 Memory-efficient representation, larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
 
+**Benefit from rich dataframe tools and expressions.**
+Leverage powerful querying and transformation APIs (e.g., Polars expressions, Pandas indexing), enabling flexible filtering, bulk column calculations, grouped aggregations, join/merge operations, and chained transformations directly over tree data without manual loops.​​​​​​​​​​​​​​​​
+
+**Cache-friendly, memory-efficient, flexible data structure.**
+Data occupies contiguous arrays, expediting tree creation and topological order traversals (e.g., parents before children or vice versa).
+Base memory footprint is lightweight (e.g., as little as 32 bits per node), but can be dynamically augmented to expedite traversals and calculations (e.g., child linked lists via DataFrame columns for first child/next sibling indices).
+
 **Rich interoperative ecosystem.**
 Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via `reticulate` and Arrow; possible future support for zero-copy Polars DataFrames shared between Rust and Python).
 Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol).
+Compatibility with existing alife data standards ecosystem.
 
 ## Install
 
