@@ -48,8 +48,8 @@ def alifestd_mark_sample_tips_lineage_polars(
     n_sample: int,
     seed: typing.Optional[int] = None,
     *,
-    criterion_delta: str = "origin_time",
-    criterion_target: str = "origin_time",
+    criterion_delta: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_target: typing.Union[str, pl.Expr] = "origin_time",
     progress_wrap: typing.Callable = lambda x: x,
     mark_as: str = "alifestd_mark_sample_tips_lineage_polars",
 ) -> pl.DataFrame:
@@ -68,10 +68,12 @@ def alifestd_mark_sample_tips_lineage_polars(
         Number of tips to mark.
     seed : int, optional
         Random seed for reproducible target-leaf selection.
-    criterion_delta : str, default "origin_time"
-        Column name used to compute the off-lineage delta for each leaf.
-    criterion_target : str, default "origin_time"
-        Column name used to select the target leaf.
+    criterion_delta : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to compute the
+        off-lineage delta for each leaf.
+    criterion_target : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to select the target
+        leaf.
     progress_wrap : Callable, optional
         Pass tqdm or equivalent to display a progress bar.
     mark_as : str, default "alifestd_mark_sample_tips_lineage_polars"
@@ -98,10 +100,15 @@ def alifestd_mark_sample_tips_lineage_polars(
     """
     schema_names = phylogeny_df.lazy().collect_schema().names()
     for criterion in (criterion_delta, criterion_target):
-        if criterion not in schema_names:
+        if isinstance(criterion, str) and criterion not in schema_names:
             raise ValueError(
                 f"criterion column {criterion!r} not found in phylogeny_df",
             )
+
+    if isinstance(criterion_delta, str):
+        criterion_delta = pl.col(criterion_delta)
+    if isinstance(criterion_target, str):
+        criterion_target = pl.col(criterion_target)
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(

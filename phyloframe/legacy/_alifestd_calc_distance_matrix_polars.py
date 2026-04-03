@@ -13,6 +13,15 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_csr_children_polars import (
+    alifestd_mark_csr_children_polars,
+)
+from ._alifestd_mark_csr_offsets_polars import (
+    alifestd_mark_csr_offsets_polars,
+)
+from ._alifestd_mark_num_children_polars import (
+    alifestd_mark_num_children_polars,
+)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -21,7 +30,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_calc_distance_matrix_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    criterion: str = "origin_time",
+    criterion: typing.Union[str, pl.Expr] = "origin_time",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> np.ndarray:
     """Calculate pairwise distances between all taxa via their MRCAs.
@@ -46,8 +55,9 @@ def alifestd_calc_distance_matrix_polars(
         topologically sorted with contiguous ids and an ancestor_id
         column, or an ancestor_list column from which ancestor_id can
         be derived).
-    criterion : str, default "origin_time"
-        Column name used to measure distance between taxa and their MRCA.
+    criterion : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to measure distance
+        between taxa and their MRCA.
     progress_wrap : callable, optional
         Wrapper for progress display (e.g., tqdm).
 
@@ -67,6 +77,9 @@ def alifestd_calc_distance_matrix_polars(
     alifestd_find_pair_distance_polars :
         Computes distance for a single pair of taxa.
     """
+    if isinstance(criterion, str):
+        criterion = pl.col(criterion)
+
     logging.info(
         "- alifestd_calc_distance_matrix_polars: " "adding ancestor_id col...",
     )
@@ -90,9 +103,28 @@ def alifestd_calc_distance_matrix_polars(
             "topologically unsorted rows not yet supported",
         )
 
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "num_children" not in schema_names:
+        logging.info(
+            "- alifestd_calc_distance_matrix_polars: "
+            "marking num_children...",
+        )
+        phylogeny_df = alifestd_mark_num_children_polars(phylogeny_df)
+    if "csr_offsets" not in schema_names:
+        logging.info(
+            "- alifestd_calc_distance_matrix_polars: "
+            "marking csr_offsets...",
+        )
+        phylogeny_df = alifestd_mark_csr_offsets_polars(phylogeny_df)
+    if "csr_children" not in schema_names:
+        logging.info(
+            "- alifestd_calc_distance_matrix_polars: "
+            "marking csr_children...",
+        )
+        phylogeny_df = alifestd_mark_csr_children_polars(phylogeny_df)
+
     logging.info(
-        "- alifestd_calc_distance_matrix_polars: "
-        "extracting ancestor ids...",
+        "- alifestd_calc_distance_matrix_polars: " "extracting arrays...",
     )
     ancestor_ids = (
         phylogeny_df.lazy()
@@ -101,50 +133,43 @@ def alifestd_calc_distance_matrix_polars(
         .to_series()
         .to_numpy()
     )
-
-    logging.info(
-        "- alifestd_calc_distance_matrix_polars: "
-        "extracting criterion values...",
-    )
     criterion_values = (
         phylogeny_df.lazy()
-        .select(pl.col(criterion).cast(pl.Float64))
+        .select(criterion.cast(pl.Float64))
         .collect()
         .to_series()
         .to_numpy()
     )
-
-    kwargs = {}
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    if "num_children" in schema_names:
-        kwargs["num_children"] = (
-            phylogeny_df.lazy()
-            .select("num_children")
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    if "csr_offsets" in schema_names:
-        kwargs["csr_offsets"] = (
-            phylogeny_df.lazy()
-            .select(pl.col("csr_offsets").cast(pl.Int64))
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    if "csr_children" in schema_names:
-        kwargs["csr_children"] = (
-            phylogeny_df.lazy()
-            .select(pl.col("csr_children").cast(pl.Int64))
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
+    num_children = (
+        phylogeny_df.lazy()
+        .select("num_children")
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    csr_offsets = (
+        phylogeny_df.lazy()
+        .select(pl.col("csr_offsets").cast(pl.Int64))
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    csr_children = (
+        phylogeny_df.lazy()
+        .select(pl.col("csr_children").cast(pl.Int64))
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
 
     logging.info(
         "- alifestd_calc_distance_matrix_polars: "
         "computing distance matrix...",
     )
     return _alifestd_calc_distance_matrix_asexual_fast_path(
-        ancestor_ids, criterion_values, **kwargs
+        ancestor_ids,
+        criterion_values,
+        csr_offsets=csr_offsets,
+        csr_children=csr_children,
+        num_children=num_children,
     )

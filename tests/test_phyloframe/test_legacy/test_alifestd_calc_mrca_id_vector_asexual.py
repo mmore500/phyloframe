@@ -13,6 +13,7 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import (
     alifestd_is_chronologically_ordered,
+    alifestd_make_empty,
     alifestd_to_working_format,
 )
 
@@ -113,18 +114,8 @@ def test_simple1(mutate: bool):
 @pytest.mark.parametrize(
     "phylogeny_df",
     [
-        pd.DataFrame(
-            {
-                "id": [],
-                "ancestor_list": [],
-            }
-        ),
-        pd.DataFrame(
-            {
-                "id": [],
-                "ancestor_id": [],
-            }
-        ),
+        alifestd_make_empty(),
+        alifestd_make_empty(ancestor_id=True),
         pd.DataFrame(
             {
                 "id": [0],

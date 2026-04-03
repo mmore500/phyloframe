@@ -36,7 +36,7 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 def alifestd_downsample_tips_canopy_polars(
     phylogeny_df: pl.DataFrame,
     n_downsample: typing.Optional[int] = None,
-    criterion: str = "origin_time",
+    criterion: typing.Union[str, pl.Expr] = "origin_time",
 ) -> pl.DataFrame:
     """Retain the `n_downsample` leaves with the largest `criterion` values
     and prune extinct lineages.
@@ -57,10 +57,10 @@ def alifestd_downsample_tips_canopy_polars(
     n_downsample : int, optional
         Number of tips to retain. If ``None``, defaults to the count of
         leaves with the maximum `criterion` value.
-    criterion : str, default "origin_time"
-        Column name used to rank leaves. The `n_downsample` leaves with the
-        largest values in this column are retained. Ties are broken
-        arbitrarily.
+    criterion : str or polars.Expr, default "origin_time"
+        Column name or polars expression used to rank leaves. The
+        `n_downsample` leaves with the largest values are retained.
+        Ties are broken arbitrarily.
 
     Raises
     ------

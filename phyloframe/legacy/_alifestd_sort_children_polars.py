@@ -2,6 +2,7 @@ import argparse
 import functools
 import logging
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -25,7 +26,7 @@ from ._alifestd_mark_node_depth_asexual import (
 
 def alifestd_sort_children_polars(
     phylogeny_df: pl.DataFrame,
-    criterion: str,
+    criterion: typing.Union[str, pl.Expr],
     reverse: bool = False,
 ) -> pl.DataFrame:
     """Reorder rows so children are sorted by the given criterion column,
@@ -49,8 +50,9 @@ def alifestd_sort_children_polars(
         Must represent an asexual phylogeny with contiguous ids and
         topologically sorted rows.
 
-    criterion : str
-        Name of the column to sort children by.
+    criterion : str or polars.Expr
+        Name of the column to sort children by, or a polars expression
+        whose values determine the sort order.
 
     reverse : bool, default False
         If True, sort descending (higher values first).
@@ -74,6 +76,9 @@ def alifestd_sort_children_polars(
     alifestd_assign_contiguous_ids_polars :
         Reassign contiguous ids after reordering.
     """
+
+    if isinstance(criterion, str):
+        criterion = pl.col(criterion)
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
 
@@ -122,7 +127,7 @@ def alifestd_sort_children_polars(
         # Use ordinal rank to reverse criterion without assuming
         # numerical type, matching numpy stable double-argsort behavior.
         phylogeny_df = phylogeny_df.with_columns(
-            __sort_rank=pl.col(criterion).rank(method="ordinal"),
+            __sort_rank=criterion.rank(method="ordinal"),
         )
         result = phylogeny_df.sort(
             by=["node_depth", "ancestor_id", "__sort_rank"],

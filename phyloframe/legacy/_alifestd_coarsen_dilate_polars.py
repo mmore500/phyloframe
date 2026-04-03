@@ -80,7 +80,8 @@ def alifestd_coarsen_dilate_polars(
 
     if criterion in ("id", "ancestor_id"):
         raise ValueError(
-            f"criterion must not be 'id' or 'ancestor_id', got {criterion!r}",
+            f"criterion must not be 'id' or 'ancestor_id', "
+            f"got {criterion!r}",
         )
 
     logging.info(

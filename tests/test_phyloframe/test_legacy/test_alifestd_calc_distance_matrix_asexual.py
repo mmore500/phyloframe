@@ -254,16 +254,16 @@ def test_self_distance_zero():
     [
         pd.DataFrame(
             {
-                "id": [],
-                "ancestor_list": [],
-                "origin_time": [],
+                "id": pd.array([], dtype="int64"),
+                "ancestor_list": pd.array([], dtype="object"),
+                "origin_time": pd.array([], dtype="float64"),
             }
         ),
         pd.DataFrame(
             {
-                "id": [],
-                "ancestor_id": [],
-                "origin_time": [],
+                "id": pd.array([], dtype="int64"),
+                "ancestor_id": pd.array([], dtype="int64"),
+                "origin_time": pd.array([], dtype="float64"),
             }
         ),
         pd.DataFrame(

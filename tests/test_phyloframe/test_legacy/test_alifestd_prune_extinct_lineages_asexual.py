@@ -54,7 +54,7 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
         lambda x: x,
     ],
 )
-def test_alifestd_prune_extinct_lineages_asexual_destruction_time_nop(
+def test_alifestd_prune_extinct_lineages_asexual_extant_col_nop(
     phylogeny_df, apply
 ):
 
@@ -66,6 +66,10 @@ def test_alifestd_prune_extinct_lineages_asexual_destruction_time_nop(
     assert (
         leaf_destruction_times.isna() | np.isinf(leaf_destruction_times)
     ).all()
+    # add extant column based on destruction_time
+    phylogeny_df["extant"] = phylogeny_df[
+        "destruction_time"
+    ].isna() | np.isinf(phylogeny_df["destruction_time"])
     # because the source dataframes are pruned, pruning will be a nop
     phylogeny_df = apply(phylogeny_df.copy()).reset_index(drop=True)
 
@@ -195,12 +199,49 @@ def test_alifestd_prune_extinct_lineages_asexual_independent_trees(
         lambda x: x,
     ],
 )
-def test_alifestd_prune_extinct_lineages_asexual_ambiguous_extant(
+def test_alifestd_prune_extinct_lineages_asexual_missing_criterion(
     phylogeny_df, apply
 ):
     # because the source dataframes are pruned, pruning will be a nop
     phylogeny_df = apply(phylogeny_df.copy())
-    phylogeny_df.drop("destruction_time", axis="columns", inplace=True)
 
     with pytest.raises(ValueError):
         alifestd_prune_extinct_lineages_asexual(phylogeny_df)
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
+    ],
+)
+@pytest.mark.parametrize(
+    "apply",
+    [
+        alifestd_assign_contiguous_ids,
+        alifestd_to_working_format,
+        alifestd_topological_sort,
+        alifestd_try_add_ancestor_id_col,
+        lambda x: x.sample(frac=1, random_state=1),
+        lambda x: x,
+    ],
+)
+def test_alifestd_prune_extinct_lineages_asexual_custom_criterion(
+    phylogeny_df, apply
+):
+    phylogeny_df = apply(phylogeny_df.copy())
+
+    extant_mask = np.random.choice([True, False], size=len(phylogeny_df))
+    phylogeny_df["my_custom_col"] = extant_mask
+
+    pruned_custom = alifestd_prune_extinct_lineages_asexual(
+        phylogeny_df, criterion="my_custom_col"
+    )
+
+    phylogeny_df["extant"] = extant_mask
+    pruned_default = alifestd_prune_extinct_lineages_asexual(phylogeny_df)
+
+    assert len(pruned_custom) == len(pruned_default)
+    assert set(pruned_custom["id"]) == set(pruned_default["id"])
