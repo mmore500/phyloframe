@@ -20,7 +20,7 @@ Quick Start
 .. code-block:: python
 
    import iplotx
-   import matplotlib.pyplot as plt
+   from matplotlib import pyplot as plt
    from phyloframe import legacy as pfl
 
    df = pfl.alifestd_from_newick("((A:1,B:2):3,(C:4,D:5):6);")

@@ -2,6 +2,7 @@ import typing
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 try:
     from iplotx.ingest.typing import TreeDataProvider
@@ -11,12 +12,28 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover
 from ._alifestd_find_leaf_ids import (
     _alifestd_find_leaf_ids_asexual_fast_path,
 )
+from ._alifestd_find_root_ids import alifestd_find_root_ids
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+from ._alifestd_has_contiguous_ids_polars import (
+    alifestd_has_contiguous_ids_polars,
+)
 from ._alifestd_is_topologically_sorted import (
     alifestd_is_topologically_sorted,
 )
+from ._alifestd_mark_csr_children_asexual import (
+    _alifestd_mark_csr_children_asexual_fast_path,
+)
+from ._alifestd_mark_csr_offsets_asexual import (
+    _alifestd_mark_csr_offsets_asexual_fast_path,
+)
+from ._alifestd_mark_origin_time_delta_asexual import (
+    alifestd_mark_origin_time_delta_asexual,
+)
 from ._alifestd_try_add_ancestor_id_col import (
     alifestd_try_add_ancestor_id_col,
+)
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
 )
 from ._alifestd_unfurl_traversal_levelorder_asexual import (
     alifestd_unfurl_traversal_levelorder_asexual,
@@ -36,7 +53,7 @@ class _AlifestdNode:
     dataframe, identified by its integer ``id``.
     """
 
-    __slots__ = ("_id", "name", "branch_length", "_children")
+    __slots__ = ("_id", "name", "branch_length")
 
     def __init__(
         self,
@@ -47,7 +64,6 @@ class _AlifestdNode:
         self._id = id_
         self.name = name
         self.branch_length = branch_length
-        self._children: typing.List["_AlifestdNode"] = []
 
     def __hash__(self) -> int:
         return hash(self._id)
@@ -59,71 +75,6 @@ class _AlifestdNode:
 
     def __repr__(self) -> str:
         return f"_AlifestdNode(id={self._id}, name={self.name!r})"
-
-
-def _build_nodes(
-    ancestor_ids: np.ndarray,
-    names: typing.Optional[np.ndarray] = None,
-    branch_lengths: typing.Optional[np.ndarray] = None,
-) -> typing.List[_AlifestdNode]:
-    """Build node list from contiguous, topologically-sorted arrays.
-
-    Parameters
-    ----------
-    ancestor_ids : np.ndarray
-        Array of ancestor ids; roots have ``ancestor_ids[i] == i``.
-    names : np.ndarray, optional
-        Per-node name strings.  Defaults to ``str(id)``.
-    branch_lengths : np.ndarray, optional
-        Per-node branch lengths (from parent to this node).  ``None``
-        entries are kept as-is for leaves/root.
-
-    Returns
-    -------
-    nodes : list of _AlifestdNode
-    """
-    n = len(ancestor_ids)
-    nodes: typing.List[_AlifestdNode] = []
-    for i in range(n):
-        name = str(names[i]) if names is not None else str(i)
-        bl = (
-            float(branch_lengths[i])
-            if branch_lengths is not None and not np.isnan(branch_lengths[i])
-            else None
-        )
-        nodes.append(_AlifestdNode(i, name, bl))
-
-    for i in range(n):
-        parent = int(ancestor_ids[i])
-        if parent != i:
-            nodes[parent]._children.append(nodes[i])
-
-    return nodes
-
-
-def _extract_branch_lengths(
-    ancestor_ids: np.ndarray,
-    origin_time_delta: typing.Optional[np.ndarray] = None,
-    origin_time: typing.Optional[np.ndarray] = None,
-) -> typing.Optional[np.ndarray]:
-    """Extract branch lengths from numpy arrays.
-
-    Uses ``origin_time_delta`` if present, otherwise computes from
-    ``origin_time`` and ``ancestor_ids``.  Returns ``None`` if neither
-    is available.
-    """
-    if origin_time_delta is not None:
-        return origin_time_delta.astype(float)
-
-    if origin_time is not None:
-        ot = origin_time.astype(float)
-        deltas = ot - ot[ancestor_ids]
-        # Root self-references give 0; mark as NaN so they become None
-        is_root = ancestor_ids == np.arange(len(ancestor_ids))
-        deltas[is_root] = np.nan
-        return deltas
-
-    return None
 
 
 class AlifestdIplotxShimNumpy(TreeDataProvider):
@@ -149,20 +100,60 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         names: typing.Optional[np.ndarray] = None,
         branch_lengths: typing.Optional[np.ndarray] = None,
     ) -> None:
-        self._nodes = _build_nodes(ancestor_ids, names, branch_lengths)
+        if not alifestd_is_topologically_sorted(
+            pd.DataFrame(
+                {
+                    "id": np.arange(len(ancestor_ids)),
+                    "ancestor_id": ancestor_ids,
+                }
+            )
+        ):
+            raise NotImplementedError(
+                "AlifestdIplotxShimNumpy requires topologically "
+                "sorted rows."
+            )
+
+        n = len(ancestor_ids)
+        is_root = ancestor_ids == np.arange(n)
+        nodes: typing.List[_AlifestdNode] = []
+        for i, (root, nm, bl) in enumerate(
+            zip(
+                is_root,
+                names if names is not None else [None] * n,
+                branch_lengths if branch_lengths is not None else [None] * n,
+            )
+        ):
+            node_name = str(nm) if nm is not None else str(i)
+            node_bl = None if root or bl is None or np.isnan(bl) else float(bl)
+            nodes.append(_AlifestdNode(i, node_name, node_bl))
+
+        self._nodes = nodes
         self._phylogeny_df = pd.DataFrame(
             {
-                "id": np.arange(len(ancestor_ids)),
+                "id": np.arange(n),
                 "ancestor_id": ancestor_ids,
             }
         )
         self._ancestor_ids = ancestor_ids
-        # Root is the first node where ancestor_id == id (guaranteed by
-        # contiguous ids + topological sort).
-        (root_indices,) = np.where(
-            ancestor_ids == np.arange(len(ancestor_ids))
+
+        # CSR child storage
+        csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
+            ancestor_ids,
         )
-        self._root = self._nodes[root_indices[0]]
+        self._csr_children = _alifestd_mark_csr_children_asexual_fast_path(
+            ancestor_ids,
+            csr_offsets,
+        )
+        self._csr_offsets = csr_offsets
+
+        # Find and validate root
+        root_ids = alifestd_find_root_ids(self._phylogeny_df)
+        if len(root_ids) != 1:
+            raise ValueError(
+                f"Expected exactly 1 root, found {len(root_ids)}."
+            )
+        self._root = self._nodes[root_ids[0]]
+
         # Store a reference as ``tree`` for TreeDataProvider protocol.
         self.tree = self
 
@@ -201,11 +192,24 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         )
         return [self._nodes[i] for i in leaf_ids]
 
-    @staticmethod
     def get_children(
+        self,
         node: _AlifestdNode,
     ) -> typing.Sequence[_AlifestdNode]:
-        return node._children
+        idx = node._id
+        start = self._csr_offsets[idx]
+        # End is next node's offset, or total non-root count for last node
+        if idx + 1 < len(self._csr_offsets):
+            end = self._csr_offsets[idx + 1]
+        else:
+            n_nonroot = int(
+                np.sum(
+                    self._ancestor_ids != np.arange(len(self._ancestor_ids))
+                )
+            )
+            end = n_nonroot
+        children_ids = self._csr_children[start:end]
+        return [self._nodes[c] for c in children_ids if c >= 0]
 
     @staticmethod
     def get_branch_length(
@@ -233,22 +237,21 @@ class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
     ----------
     tree : pd.DataFrame
         Pandas phylogeny dataframe in alife standard format.
+    mutate : bool, default False
+        If True, allow modification of the input dataframe.
     """
 
-    def __init__(self, tree: pd.DataFrame) -> None:
+    def __init__(self, tree: pd.DataFrame, mutate: bool = False) -> None:
         if isinstance(tree, AlifestdIplotxShimPandas):
             self.__dict__.update(tree.__dict__)
             return
-        df = alifestd_try_add_ancestor_id_col(tree.copy())
+        if not mutate:
+            tree = tree.copy()
+        df = alifestd_try_add_ancestor_id_col(tree, mutate=True)
         if not alifestd_has_contiguous_ids(df):
             raise NotImplementedError(
                 "AlifestdIplotxShimPandas requires contiguous ids "
                 "(id == row index)."
-            )
-        if not alifestd_is_topologically_sorted(df):
-            raise NotImplementedError(
-                "AlifestdIplotxShimPandas requires topologically "
-                "sorted rows."
             )
 
         ancestor_ids = df["ancestor_id"].to_numpy()
@@ -257,18 +260,16 @@ class AlifestdIplotxShimPandas(AlifestdIplotxShimNumpy):
             if "taxon_label" in df.columns
             else None
         )
-        branch_lengths = _extract_branch_lengths(
-            ancestor_ids,
-            origin_time_delta=(
-                df["origin_time_delta"].to_numpy()
-                if "origin_time_delta" in df.columns
-                else None
-            ),
-            origin_time=(
-                df["origin_time"].to_numpy()
-                if "origin_time" in df.columns
-                else None
-            ),
+
+        if (
+            "origin_time_delta" not in df.columns
+            and "origin_time" in df.columns
+        ):
+            df = alifestd_mark_origin_time_delta_asexual(df, mutate=True)
+        branch_lengths = (
+            df["origin_time_delta"].to_numpy()
+            if "origin_time_delta" in df.columns
+            else None
         )
 
         super().__init__(ancestor_ids, names, branch_lengths)
@@ -288,7 +289,7 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
     """Iplotx ``TreeDataProvider`` for *polars* alife-standard dataframes.
 
     The dataframe must be asexual with contiguous ids and topologically
-    sorted rows, and must contain an ``ancestor_id`` column.
+    sorted rows.
 
     Parameters
     ----------
@@ -296,49 +297,36 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
         Polars phylogeny dataframe in alife standard format.
     """
 
-    def __init__(self, tree: "pl.DataFrame") -> None:  # noqa: F821
+    def __init__(self, tree: pl.DataFrame) -> None:
         if isinstance(tree, AlifestdIplotxShimPolars):
             self.__dict__.update(tree.__dict__)
             return
-        import polars as pl
 
-        from ._alifestd_has_contiguous_ids_polars import (
-            alifestd_has_contiguous_ids_polars,
-        )
-        from ._alifestd_is_topologically_sorted_polars import (
-            alifestd_is_topologically_sorted_polars,
-        )
-
-        if not alifestd_has_contiguous_ids_polars(tree):
+        tree_df = alifestd_try_add_ancestor_id_col_polars(tree)
+        if not alifestd_has_contiguous_ids_polars(tree_df):
             raise NotImplementedError(
                 "AlifestdIplotxShimPolars requires contiguous ids "
                 "(id == row index)."
             )
-        if not alifestd_is_topologically_sorted_polars(tree):
-            raise NotImplementedError(
-                "AlifestdIplotxShimPolars requires topologically "
-                "sorted rows."
-            )
 
-        ancestor_ids = tree["ancestor_id"].to_numpy()
+        ancestor_ids = tree_df["ancestor_id"].to_numpy()
 
         names = None
-        if "taxon_label" in tree.columns:
-            names = tree["taxon_label"].cast(pl.Utf8).to_numpy()
+        if "taxon_label" in tree_df.columns:
+            names = tree_df["taxon_label"].cast(pl.Utf8).to_numpy()
 
-        branch_lengths = _extract_branch_lengths(
-            ancestor_ids,
-            origin_time_delta=(
-                tree["origin_time_delta"].to_numpy()
-                if "origin_time_delta" in tree.columns
-                else None
-            ),
-            origin_time=(
-                tree["origin_time"].to_numpy()
-                if "origin_time" in tree.columns
-                else None
-            ),
-        )
+        # Convert to pandas for origin_time_delta calculation
+        if (
+            "origin_time_delta" not in tree_df.columns
+            and "origin_time" in tree_df.columns
+        ):
+            pdf = tree_df.to_pandas()
+            pdf = alifestd_mark_origin_time_delta_asexual(pdf, mutate=True)
+            branch_lengths = pdf["origin_time_delta"].to_numpy()
+        elif "origin_time_delta" in tree_df.columns:
+            branch_lengths = tree_df["origin_time_delta"].to_numpy()
+        else:
+            branch_lengths = None
 
         super().__init__(ancestor_ids, names, branch_lengths)
         self.tree = tree  # type: ignore[assignment]
@@ -359,6 +347,7 @@ class AlifestdIplotxShimPolars(AlifestdIplotxShimNumpy):
 
 def alifestd_to_iplotx_pandas(
     phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
 ) -> AlifestdIplotxShimPandas:
     """Wrap a pandas phylogeny DataFrame for use with iplotx.
 
@@ -367,6 +356,8 @@ def alifestd_to_iplotx_pandas(
     phylogeny_df : pd.DataFrame
         Asexual phylogeny in alife standard format with contiguous ids
         and topologically sorted rows.
+    mutate : bool, default False
+        If True, allow modification of the input dataframe.
 
     Returns
     -------
@@ -374,11 +365,11 @@ def alifestd_to_iplotx_pandas(
         An iplotx-compatible tree provider that can be passed directly
         to ``iplotx.tree()``.
     """
-    return AlifestdIplotxShimPandas(phylogeny_df)
+    return AlifestdIplotxShimPandas(phylogeny_df, mutate=mutate)
 
 
 def alifestd_to_iplotx_polars(
-    phylogeny_df: "pl.DataFrame",  # noqa: F821
+    phylogeny_df: pl.DataFrame,
 ) -> AlifestdIplotxShimPolars:
     """Wrap a polars phylogeny DataFrame for use with iplotx.
 
