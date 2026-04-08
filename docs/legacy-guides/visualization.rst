@@ -36,3 +36,4 @@ Branch lengths are extracted automatically from ``origin_time_delta`` or ``origi
 Taxon labels are read from the ``taxon_label`` column if it exists.
 
 For layout options, styling, leaf labels, and other features, see the `iplotx tree documentation <https://iplotx.readthedocs.io/en/latest/api/tree.html>`_.
+More advanced phyloframe/iplotx examples --- including plots that leverage DataFrame-based Seaborn interoperation --- can be found in the `iplotx gallery <https://iplotx.readthedocs.io/en/latest/gallery/tree/plot_phyloframe_tree.html>`_.
