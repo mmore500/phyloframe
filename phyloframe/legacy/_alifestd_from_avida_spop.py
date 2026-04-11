@@ -68,6 +68,60 @@ def _parse_spop_ancestor_list(
     return "[" + raw_parents + "]"
 
 
+def _parse_spop_text(
+    spop_text: str,
+) -> typing.Tuple[typing.List[str], typing.Dict[str, typing.List[str]]]:
+    """Parse raw spop text into a header and per-field string lists.
+
+    Implementation detail shared by ``alifestd_from_avida_spop`` and
+    ``alifestd_from_avida_spop_polars``.
+
+    Parameters
+    ----------
+    spop_text : str
+        Full text content of an Avida ``.spop`` file.
+
+    Returns
+    -------
+    tuple of (list[str], dict[str, list[str]])
+        ``(header, avida_data)`` where *header* is the ordered list of
+        field names and *avida_data* maps each field name to its list of
+        raw string values (one entry per data row).  Missing trailing
+        fields are filled with ``"NONE"``.
+
+    Raises
+    ------
+    ValueError
+        If the ``#format`` header line is missing from the spop text.
+    """
+    header = None
+    data_lines: typing.List[str] = []
+
+    for line in spop_text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped[0] == "#":
+            if stripped.startswith("#format"):
+                header = _parse_spop_header(stripped)
+            continue
+        data_lines.append(stripped)
+
+    if header is None:
+        raise ValueError(
+            "Failed to find #format header in spop text.",
+        )
+
+    avida_data: typing.Dict[str, typing.List[str]] = {
+        field: [] for field in header
+    }
+    for line in data_lines:
+        parts = line.split(" ")
+        for i, field in enumerate(header):
+            value = parts[i] if i < len(parts) else "NONE"
+            avida_data[field].append(value)
+
+    return header, avida_data
+
+
 def alifestd_from_avida_spop(
     spop_text: str,
     *,
@@ -101,36 +155,14 @@ def alifestd_from_avida_spop(
     ValueError
         If the ``#format`` header is missing from the spop text.
     """
-    header = None
-    data_lines = []
+    header, avida_data = _parse_spop_text(spop_text)
 
-    for line in spop_text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped[0] == "#":
-            if stripped.startswith("#format"):
-                header = _parse_spop_header(stripped)
-            continue
-        data_lines.append(stripped)
-
-    if header is None:
-        raise ValueError(
-            "Failed to find #format header in spop text.",
-        )
-
-    if not data_lines:
+    if not avida_data["id"]:
         columns = {"id": pd.Series(dtype=np.int64)}
         if create_ancestor_list:
             columns["ancestor_list"] = pd.Series(dtype=str)
         columns["origin_time"] = pd.Series(dtype=np.int64)
         return pd.DataFrame(columns)
-
-    # Parse data rows.
-    avida_data: typing.Dict[str, typing.List] = {field: [] for field in header}
-    for line in data_lines:
-        parts = line.split(" ")
-        for i, field in enumerate(header):
-            value = parts[i] if i < len(parts) else "NONE"
-            avida_data[field].append(value)
 
     # Build alife-standard columns.
     result_data: typing.Dict[str, typing.Any] = {}

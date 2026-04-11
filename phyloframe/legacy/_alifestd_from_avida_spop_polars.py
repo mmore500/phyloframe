@@ -1,15 +1,10 @@
-import typing
-
 import polars as pl
 
 from ._alifestd_from_avida_spop import (
     _AVIDA_TO_ALIFE_FIELD,
     _parse_spop_ancestor_list,
-    _parse_spop_header,
+    _parse_spop_text,
 )
-
-# Avida SPOP fields that contain comma-delimited sets.
-_AVIDA_SET_FIELDS = frozenset({"parents", "cells", "gest_offset", "lineage"})
 
 
 def alifestd_from_avida_spop_polars(
@@ -45,41 +40,17 @@ def alifestd_from_avida_spop_polars(
     ValueError
         If the ``#format`` header is missing from the spop text.
     """
-    header = None
-    data_lines: typing.List[str] = []
+    header, avida_data = _parse_spop_text(spop_text)
 
-    for line in spop_text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped[0] == "#":
-            if stripped.startswith("#format"):
-                header = _parse_spop_header(stripped)
-            continue
-        data_lines.append(stripped)
-
-    if header is None:
-        raise ValueError(
-            "Failed to find #format header in spop text.",
-        )
-
-    if not data_lines:
+    if not avida_data["id"]:
         columns = {"id": pl.Series([], dtype=pl.Int64)}
         if create_ancestor_list:
             columns["ancestor_list"] = pl.Series([], dtype=pl.Utf8)
         columns["origin_time"] = pl.Series([], dtype=pl.Int64)
         return pl.DataFrame(columns)
 
-    # Parse data rows.
-    avida_data: typing.Dict[str, typing.List[str]] = {
-        field: [] for field in header
-    }
-    for line in data_lines:
-        parts = line.split(" ")
-        for i, field in enumerate(header):
-            value = parts[i] if i < len(parts) else "NONE"
-            avida_data[field].append(value)
-
     # Build alife-standard columns.
-    result_data: typing.Dict[str, typing.Any] = {}
+    result_data = {}
     result_data["id"] = pl.Series(avida_data["id"]).cast(pl.Int64)
 
     if create_ancestor_list:
