@@ -195,6 +195,8 @@ from ._alifestd_find_pair_mrca_id_polars import (
 )
 from ._alifestd_find_root_ids import alifestd_find_root_ids
 from ._alifestd_find_root_ids_polars import alifestd_find_root_ids_polars
+from ._alifestd_from_avida_spop import alifestd_from_avida_spop
+from ._alifestd_from_avida_spop_polars import alifestd_from_avida_spop_polars
 from ._alifestd_from_newick import alifestd_from_newick
 from ._alifestd_from_newick_polars import alifestd_from_newick_polars
 from ._alifestd_has_compact_ids import alifestd_has_compact_ids
@@ -730,6 +732,8 @@ __all__ = [
     "alifestd_find_pair_mrca_id_polars",
     "alifestd_find_root_ids",
     "alifestd_find_root_ids_polars",
+    "alifestd_from_avida_spop",
+    "alifestd_from_avida_spop_polars",
     "alifestd_from_newick",
     "alifestd_from_newick_polars",
     "alifestd_has_compact_ids",

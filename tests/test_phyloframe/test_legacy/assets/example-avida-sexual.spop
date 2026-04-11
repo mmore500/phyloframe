@@ -1,0 +1,10 @@
+#filetype genotype_data
+#format id src src_args parents num_units total_units length merit gest_time fitness gen_born update_born update_deactivated depth hw_type inst_set sequence cells gest_offset lineage
+# Structured Population Save
+# Test fixture for sexual population
+#  1: ID
+#  2: Source
+100 org:file (none) (none) 1 1 100 100 100 1 0 0 -1 0 0 heads_default aaabbbccc 0 0 0
+200 org:file (none) (none) 1 1 100 100 100 1 0 0 -1 0 0 heads_default dddeeefff 1 0 0
+300 div:sex (none) 100,200 1 1 100 200 200 1 1 100 -1 1 0 heads_default aaaeeefff 2 100 0
+400 div:sex (none) 100,300 1 1 100 200 200 1 2 200 -1 2 0 heads_default aaabbbfff 3 200 0
