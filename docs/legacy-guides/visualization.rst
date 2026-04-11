@@ -9,10 +9,12 @@ Tree Visualization (Legacy)
    compatibility.
    A redesigned API will accompany phyloframe v1.0.0.
 
+For interactive in-browser visualization of trees up to millions of nodes, an `experimental fork of taxonium <https://mmore500.com/taxonium>`_ is available that supports alife standard CSV, TSV, and Parquet files.
+Usage information can be found in `Taxonium's documentation <https://docs.taxonium.org/en/latest/>`_.
 
-Phyloframe integrates with `iplotx <https://iplotx.readthedocs.io/>`_ to visualize phylogenetic trees from DataFrames.
+For programmatic visualizations, phyloframe integrates with `iplotx <https://iplotx.readthedocs.io/>`_ to visualize phylogenetic trees from DataFrames.
 
-Quick Start
+iplotx Quick Start
 ===========
 
 .. skip: next
