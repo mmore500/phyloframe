@@ -123,7 +123,10 @@ def alifestd_from_avida_spop(
     header, avida_data = _parse_spop_text(spop_text)
 
     if len(avida_data["id"]) == 0:
-        return alifestd_make_empty()
+        df = alifestd_make_empty()
+        if not create_ancestor_list:
+            df = df.drop(columns=["ancestor_list"])
+        return df
 
     if dtype_id is None:
         row_count = len(avida_data["id"])

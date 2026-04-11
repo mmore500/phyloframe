@@ -22,6 +22,14 @@ def test_empty_data():
     assert "ancestor_list" in result.columns
 
 
+def test_empty_data_no_ancestor_list():
+    spop = "#filetype genotype_data\n#format id src parents update_born\n"
+    result = alifestd_from_avida_spop(spop, create_ancestor_list=False)
+    assert len(result) == 0
+    assert "id" in result.columns
+    assert "ancestor_list" not in result.columns
+
+
 def test_missing_header():
     spop = "#filetype genotype_data\n# no format line here\n"
     with pytest.raises(ValueError, match="Failed to find #format header"):

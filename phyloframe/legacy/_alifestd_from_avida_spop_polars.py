@@ -51,7 +51,12 @@ def alifestd_from_avida_spop_polars(
     header, avida_data = _parse_spop_text(spop_text)
 
     if len(avida_data["id"]) == 0:
-        return alifestd_make_empty_polars()
+        df = alifestd_make_empty_polars()
+        if create_ancestor_list and "ancestor_list" not in df.columns:
+            df = df.with_columns(
+                pl.Series("ancestor_list", [], dtype=pl.Utf8),
+            )
+        return df
 
     if dtype_id is None:
         row_count = len(avida_data["id"])
