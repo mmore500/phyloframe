@@ -1,6 +1,7 @@
 from ._GetAttrLaunderShim import GetAttrLaunderShim
 from ._RngStateContext import RngStateContext
 from ._add_bool_arg import add_bool_arg
+from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
 from ._coerce_to_pandas import coerce_to_pandas
@@ -41,11 +42,13 @@ from ._unfurl_lineage_with_contiguous_ids import (
 )
 from ._warn_once import warn_once
 from ._with_rng_state_context import with_rng_state_context
+from ._write_text_with_compression import write_text_with_compression
 
 __all__ = [
     "GetAttrLaunderShim",
     "RngStateContext",
     "add_bool_arg",
+    "add_compression_cli_arg",
     "all_unique",
     "begin_prod_logging",
     "coerce_to_pandas",
@@ -82,4 +85,5 @@ __all__ = [
     "unfurl_lineage_with_contiguous_ids",
     "warn_once",
     "with_rng_state_context",
+    "write_text_with_compression",
 ]

@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import pathlib
 import typing
 
 import more_itertools as mit
@@ -11,11 +10,15 @@ import pandas as pd
 import polars as pl
 from tqdm import tqdm
 
+from .._auxlib._add_compression_cli_arg import add_compression_cli_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._write_text_with_compression import (
+    write_text_with_compression,
+)
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_mark_origin_time_delta_asexual import (
     alifestd_mark_origin_time_delta_asexual,
@@ -201,6 +204,7 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Name of column to use as taxon label.",
         required=False,
     )
+    add_compression_cli_arg(parser)
     parser.add_argument(
         "-v",
         "--version",
@@ -251,6 +255,6 @@ if __name__ == "__main__":
         )
 
     logging.info(f"writing Newick-formatted data to {args.output_file}...")
-    pathlib.Path(args.output_file).write_text(newick_str)
+    write_text_with_compression(args.output_file, newick_str, args.compression)
 
     logging.info("done!")
