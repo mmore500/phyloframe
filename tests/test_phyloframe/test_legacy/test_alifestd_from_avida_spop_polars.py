@@ -21,16 +21,16 @@ def test_empty_data():
     result = alifestd_from_avida_spop_polars(spop)
     assert len(result) == 0
     assert "id" in result.columns
-    assert "ancestor_list" not in result.columns
+    assert "ancestor_list" in result.columns
     assert "origin_time" in result.columns
 
 
-def test_empty_data_with_ancestor_list():
+def test_empty_data_no_ancestor_list():
     spop = "#filetype genotype_data\n#format id src parents update_born\n"
-    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=True)
+    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=False)
     assert len(result) == 0
     assert "id" in result.columns
-    assert "ancestor_list" in result.columns
+    assert "ancestor_list" not in result.columns
     assert "origin_time" in result.columns
 
 
@@ -46,7 +46,7 @@ def test_single_root_organism():
         "#format id src parents update_born\n"
         "1 org:file (none) 0\n"
     )
-    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=True)
+    result = alifestd_from_avida_spop_polars(spop)
     assert len(result) == 1
     assert result["id"][0] == 1
     assert result["ancestor_list"][0] == "[none]"
@@ -60,7 +60,7 @@ def test_asexual_parent_child():
         "1 org:file (none) 0\n"
         "2 div:int 1 100\n"
     )
-    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=True)
+    result = alifestd_from_avida_spop_polars(spop)
     assert len(result) == 2
     assert result["ancestor_list"][0] == "[none]"
     assert result["ancestor_list"][1] == "[1]"
@@ -74,7 +74,7 @@ def test_sexual_parents():
         "200 org:file (none) 0\n"
         "300 div:sex 100,200 100\n"
     )
-    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=True)
+    result = alifestd_from_avida_spop_polars(spop)
     assert len(result) == 3
     assert result["ancestor_list"][0] == "[none]"
     assert result["ancestor_list"][1] == "[none]"
@@ -83,7 +83,7 @@ def test_sexual_parents():
 
 def test_asexual_asset():
     spop = _read_asset("example-avida-asexual.spop")
-    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=True)
+    result = alifestd_from_avida_spop_polars(spop)
 
     assert len(result) == 5
     assert "id" in result.columns
@@ -109,7 +109,7 @@ def test_asexual_asset():
 
 def test_sexual_asset():
     spop = _read_asset("example-avida-sexual.spop")
-    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=True)
+    result = alifestd_from_avida_spop_polars(spop)
 
     assert len(result) == 4
 
@@ -139,7 +139,7 @@ def test_extra_columns_preserved():
 
 def test_no_ancestor_list():
     spop = _read_asset("example-avida-asexual.spop")
-    result = alifestd_from_avida_spop_polars(spop)
+    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=False)
     assert "ancestor_list" not in result.columns
     assert "id" in result.columns
     assert "origin_time" in result.columns
@@ -177,7 +177,7 @@ def test_missing_trailing_fields():
 
 def test_column_order():
     spop = _read_asset("example-avida-asexual.spop")
-    result = alifestd_from_avida_spop_polars(spop, create_ancestor_list=True)
+    result = alifestd_from_avida_spop_polars(spop)
 
     cols = list(result.columns)
     assert cols[0] == "id"
@@ -206,10 +206,8 @@ def test_returns_dataframe():
 def test_matches_pandas():
     """Verify polars output matches pandas output."""
     spop = _read_asset("example-avida-asexual.spop")
-    pd_result = alifestd_from_avida_spop(spop, create_ancestor_list=True)
-    pl_result = alifestd_from_avida_spop_polars(
-        spop, create_ancestor_list=True
-    )
+    pd_result = alifestd_from_avida_spop(spop)
+    pl_result = alifestd_from_avida_spop_polars(spop)
 
     assert len(pd_result) == len(pl_result)
 
@@ -220,10 +218,8 @@ def test_matches_pandas():
 def test_matches_pandas_sexual():
     """Verify polars output matches pandas output for sexual data."""
     spop = _read_asset("example-avida-sexual.spop")
-    pd_result = alifestd_from_avida_spop(spop, create_ancestor_list=True)
-    pl_result = alifestd_from_avida_spop_polars(
-        spop, create_ancestor_list=True
-    )
+    pd_result = alifestd_from_avida_spop(spop)
+    pl_result = alifestd_from_avida_spop_polars(spop)
 
     assert len(pd_result) == len(pl_result)
 

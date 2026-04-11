@@ -13,7 +13,7 @@ from ._alifestd_from_avida_spop import (
 def alifestd_from_avida_spop_polars(
     spop_text: str,
     *,
-    create_ancestor_list: bool = False,
+    create_ancestor_list: bool = True,
     dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
 ) -> pl.DataFrame:
     """Convert Avida ``.spop`` population snapshot text to a phylogeny
@@ -26,7 +26,7 @@ def alifestd_from_avida_spop_polars(
     ----------
     spop_text : str
         Full text content of an Avida ``.spop`` file.
-    create_ancestor_list : bool, default False
+    create_ancestor_list : bool, default True
         If True, include an ``ancestor_list`` column in the result.
     dtype_id : pl.DataType or None, default pl.Int64
         Polars dtype for the ``id`` column. If None, the smallest signed
