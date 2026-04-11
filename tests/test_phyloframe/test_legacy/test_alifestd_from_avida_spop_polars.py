@@ -38,6 +38,23 @@ def test_missing_header():
         alifestd_from_avida_spop_polars(spop)
 
 
+def test_missing_required_column():
+    spop = "#filetype genotype_data\n" "#format id src\n" "1 org:file\n"
+    with pytest.raises(ValueError, match="Required column"):
+        alifestd_from_avida_spop_polars(spop)
+
+
+def test_duplicate_ids():
+    spop = (
+        "#filetype genotype_data\n"
+        "#format id src parents update_born\n"
+        "1 org:file (none) 0\n"
+        "1 div:int (none) 100\n"
+    )
+    with pytest.raises(ValueError, match="IDs must be unique"):
+        alifestd_from_avida_spop_polars(spop)
+
+
 def test_single_root_organism():
     spop = (
         "#filetype genotype_data\n"

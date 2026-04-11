@@ -79,6 +79,16 @@ def _parse_spop_text(
             value = parts[i] if i < len(parts) else "NONE"
             avida_data[field].append(value)
 
+    if data_lines:
+        for required in ("id", "parents"):
+            if required not in avida_data:
+                raise ValueError(
+                    f"Required column {required!r} missing from "
+                    f"#format header.",
+                )
+        if len(set(avida_data["id"])) != len(avida_data["id"]):
+            raise ValueError("Avida organism IDs must be unique.")
+
     return header, avida_data
 
 
