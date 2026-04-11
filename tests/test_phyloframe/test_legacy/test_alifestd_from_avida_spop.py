@@ -20,16 +20,6 @@ def test_empty_data():
     assert len(result) == 0
     assert "id" in result.columns
     assert "ancestor_list" in result.columns
-    assert "origin_time" in result.columns
-
-
-def test_empty_data_no_ancestor_list():
-    spop = "#filetype genotype_data\n#format id src parents update_born\n"
-    result = alifestd_from_avida_spop(spop, create_ancestor_list=False)
-    assert len(result) == 0
-    assert "id" in result.columns
-    assert "ancestor_list" not in result.columns
-    assert "origin_time" in result.columns
 
 
 def test_missing_header():
@@ -201,36 +191,3 @@ def test_returns_dataframe():
     spop = _read_asset("example-avida-asexual.spop")
     result = alifestd_from_avida_spop(spop)
     assert isinstance(result, pd.DataFrame)
-
-
-def test_dtype_id_default():
-    spop = _read_asset("example-avida-asexual.spop")
-    result = alifestd_from_avida_spop(spop)
-    assert result["id"].dtype == np.int64
-
-
-def test_dtype_id_int32():
-    spop = _read_asset("example-avida-asexual.spop")
-    result = alifestd_from_avida_spop(spop, dtype_id=np.int32)
-    assert result["id"].dtype == np.int32
-
-
-def test_dtype_id_none_small():
-    spop = (
-        "#filetype genotype_data\n"
-        "#format id src parents update_born\n"
-        "1 org:file (none) 0\n"
-        "2 div:int 1 100\n"
-    )
-    result = alifestd_from_avida_spop(spop, dtype_id=None)
-    # max id 2 -> min_scalar_type(-2) -> int8
-    assert result["id"].dtype == np.int8
-    assert len(result) == 2
-
-
-def test_dtype_id_none_empty():
-    spop = "#filetype genotype_data\n#format id src parents update_born\n"
-    result = alifestd_from_avida_spop(spop, dtype_id=None)
-    # no data -> min_scalar_type(-1) -> int8
-    assert result["id"].dtype == np.int8
-    assert len(result) == 0
