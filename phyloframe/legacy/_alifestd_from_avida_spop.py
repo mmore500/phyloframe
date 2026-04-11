@@ -71,9 +71,7 @@ def _parse_spop_text(
             "Failed to find #format header in spop text.",
         )
 
-    avida_data: typing.Dict[str, typing.List[str]] = {
-        field: [] for field in header
-    }
+    avida_data = {field: [] for field in header}
     for line in data_lines:
         parts = line.split(" ")
         for i, field in enumerate(header):
