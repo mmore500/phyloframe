@@ -6,40 +6,12 @@ import typing
 
 import numpy as np
 import pandas as pd
-import polars as pl
 
 from .._auxlib._configure_prod_logging import configure_prod_logging
 from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-
-# Avida SPOP fields that contain comma-delimited sets.
-_AVIDA_SET_FIELDS = frozenset({"parents", "cells", "gest_offset", "lineage"})
-
-# Mapping from Avida field names to alife standard column names.
-_AVIDA_TO_ALIFE_FIELD = {
-    "id": "id",
-    "parents": "ancestor_list",
-    "update_born": "origin_time",
-    "src": "src",
-    "src_args": "src_args",
-    "num_units": "num_units",
-    "total_units": "total_units",
-    "length": "length",
-    "merit": "merit",
-    "gest_time": "gest_time",
-    "fitness": "fitness",
-    "gen_born": "gen_born",
-    "update_deactivated": "update_deactivated",
-    "depth": "depth",
-    "hw_type": "hw_type",
-    "inst_set": "inst_set",
-    "sequence": "sequence",
-    "cells": "cells",
-    "gest_offset": "gest_offset",
-    "lineage": "lineage",
-}
 
 
 def _parse_spop_header(line: str) -> typing.List[str]:
@@ -181,15 +153,10 @@ def alifestd_from_avida_spop(
         dtype=np.int64,
     )
 
-    # Add remaining Avida fields with standard names.
-    skip_avida = {"id", "parents", "update_born"}
-    for avida_field, alife_field in _AVIDA_TO_ALIFE_FIELD.items():
-        if (
-            avida_field in avida_data
-            and avida_field not in skip_avida
-            and alife_field not in result_data
-        ):
-            result_data[alife_field] = avida_data[avida_field]
+    # Add remaining Avida fields under their original names.
+    for field in header:
+        if field not in ("id", "parents", "update_born"):
+            result_data[field] = avida_data[field]
 
     return pd.DataFrame(result_data)
 
@@ -256,6 +223,8 @@ def _create_parser() -> argparse.ArgumentParser:
 
 
 if __name__ == "__main__":
+    import polars as pl
+
     configure_prod_logging()
 
     parser = _create_parser()

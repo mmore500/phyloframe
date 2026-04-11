@@ -4,7 +4,6 @@ import polars as pl
 
 from .._auxlib._min_scalar_type_polars import min_scalar_type_polars
 from ._alifestd_from_avida_spop import (
-    _AVIDA_TO_ALIFE_FIELD,
     _parse_spop_ancestor_list,
     _parse_spop_text,
 )
@@ -80,16 +79,11 @@ def alifestd_from_avida_spop_polars(
         avida_data["update_born"],
     ).cast(pl.Int64)
 
-    # Add remaining Avida fields with standard names.
-    skip_avida = {"id", "parents", "update_born"}
-    for avida_field, alife_field in _AVIDA_TO_ALIFE_FIELD.items():
-        if (
-            avida_field in avida_data
-            and avida_field not in skip_avida
-            and alife_field not in result_data
-        ):
-            result_data[alife_field] = pl.Series(
-                avida_data[avida_field],
+    # Add remaining Avida fields under their original names.
+    for field in header:
+        if field not in ("id", "parents", "update_born"):
+            result_data[field] = pl.Series(
+                avida_data[field],
                 dtype=pl.Utf8,
             )
 
