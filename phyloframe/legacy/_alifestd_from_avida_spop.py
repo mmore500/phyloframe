@@ -32,10 +32,12 @@ _AVIDA_TO_ALIFE_FIELD = {
 
 
 def _parse_spop_header(line: str) -> typing.List[str]:
+    """Extract field names from the ``#format`` header line."""
     return line.replace("#format", "").strip().split()
 
 
 def _parse_spop_ancestor_list(raw_parents: str) -> str:
+    """Convert Avida parents field to alife-standard ancestor_list string."""
     if raw_parents == "(none)":
         return "[none]"
     return "[" + raw_parents + "]"
@@ -44,6 +46,29 @@ def _parse_spop_ancestor_list(raw_parents: str) -> str:
 def _parse_spop_text(
     spop_text: str,
 ) -> typing.Tuple[typing.List[str], typing.Dict[str, typing.List[str]]]:
+    """Parse raw spop text into a header and per-field string lists.
+
+    Implementation detail shared by ``alifestd_from_avida_spop`` and
+    ``alifestd_from_avida_spop_polars``.
+
+    Parameters
+    ----------
+    spop_text : str
+        Full text content of an Avida ``.spop`` file.
+
+    Returns
+    -------
+    tuple of (list[str], dict[str, list[str]])
+        ``(header, avida_data)`` where *header* is the ordered list of
+        field names and *avida_data* maps each field name to its list of
+        raw string values (one entry per data row).  Missing trailing
+        fields are filled with ``"NONE"``.
+
+    Raises
+    ------
+    ValueError
+        If the ``#format`` header line is missing from the spop text.
+    """
     header = None
     data_lines: typing.List[str] = []
 
