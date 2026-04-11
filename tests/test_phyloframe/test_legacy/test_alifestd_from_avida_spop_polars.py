@@ -214,3 +214,28 @@ def test_matches_pandas_sexual():
 
     for col in ["id", "ancestor_list", "origin_time"]:
         assert list(pd_result[col]) == pl_result[col].to_list()
+
+
+def test_dtype_id_default():
+    spop = _read_asset("example-avida-asexual.spop")
+    result = alifestd_from_avida_spop_polars(spop)
+    assert result["id"].dtype == pl.Int64
+
+
+def test_dtype_id_int32():
+    spop = _read_asset("example-avida-asexual.spop")
+    result = alifestd_from_avida_spop_polars(spop, dtype_id=pl.Int32)
+    assert result["id"].dtype == pl.Int32
+
+
+def test_dtype_id_none_small():
+    spop = (
+        "#filetype genotype_data\n"
+        "#format id src parents update_born\n"
+        "1 org:file (none) 0\n"
+        "2 div:int 1 100\n"
+    )
+    result = alifestd_from_avida_spop_polars(spop, dtype_id=None)
+    # 2 rows -> min_scalar_type(-2) -> Int8
+    assert result["id"].dtype == pl.Int8
+    assert len(result) == 2
