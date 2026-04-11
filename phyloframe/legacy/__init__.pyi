@@ -19,6 +19,7 @@ from ._alifestd_aggregate_phylogenies_polars import (
 )
 from ._alifestd_as_newick_asexual import alifestd_as_newick_asexual
 from ._alifestd_as_newick_polars import alifestd_as_newick_polars
+from ._alifestd_as_taxonium_jsonl import alifestd_as_taxonium_jsonl
 from ._alifestd_assign_contiguous_ids import alifestd_assign_contiguous_ids
 from ._alifestd_assign_contiguous_ids_polars import (
     alifestd_assign_contiguous_ids_polars,
@@ -197,6 +198,7 @@ from ._alifestd_find_root_ids import alifestd_find_root_ids
 from ._alifestd_find_root_ids_polars import alifestd_find_root_ids_polars
 from ._alifestd_from_newick import alifestd_from_newick
 from ._alifestd_from_newick_polars import alifestd_from_newick_polars
+from ._alifestd_from_taxonium_jsonl import alifestd_from_taxonium_jsonl
 from ._alifestd_has_compact_ids import alifestd_has_compact_ids
 from ._alifestd_has_compact_ids_polars import alifestd_has_compact_ids_polars
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
