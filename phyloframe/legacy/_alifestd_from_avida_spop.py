@@ -62,6 +62,9 @@ def _parse_spop_text(
     Implementation detail shared by ``alifestd_from_avida_spop`` and
     ``alifestd_from_avida_spop_polars``.
 
+    Adapted from
+    https://github.com/alife-data-standards/converters-avida
+
     Parameters
     ----------
     spop_text : str
