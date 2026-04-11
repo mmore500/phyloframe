@@ -80,11 +80,10 @@ def alifestd_from_avida_spop_polars(
     ).cast(pl.Int64)
 
     # Add remaining Avida fields under their original names.
-    for field in header:
-        if field not in ("id", "parents", "update_born"):
-            result_data[field] = pl.Series(
-                avida_data[field],
-                dtype=pl.Utf8,
-            )
+    for field in set(header) - {"id", "parents", "update_born"}:
+        result_data[field] = pl.Series(
+            avida_data[field],
+            dtype=pl.Utf8,
+        )
 
     return pl.DataFrame(result_data)

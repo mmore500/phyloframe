@@ -152,9 +152,8 @@ def alifestd_from_avida_spop(
     )
 
     # Add remaining Avida fields under their original names.
-    for field in header:
-        if field not in ("id", "parents", "update_born"):
-            result_data[field] = avida_data[field]
+    for field in set(header) - {"id", "parents", "update_born"}:
+        result_data[field] = avida_data[field]
 
     return pd.DataFrame(result_data)
 
