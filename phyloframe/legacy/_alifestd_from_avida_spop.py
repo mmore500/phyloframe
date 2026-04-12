@@ -63,7 +63,7 @@ def _parse_spop_text(
     for line in spop_text.splitlines():
         stripped = line.strip()
         if not stripped or stripped[0] == "#":
-            if stripped.startswith("#format"):
+            if header is None and stripped.startswith("#format"):
                 header = _parse_spop_header(stripped)
             continue
         data_lines.append(stripped)

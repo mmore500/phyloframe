@@ -42,6 +42,21 @@ def test_missing_required_column():
         alifestd_from_avida_spop(spop)
 
 
+def test_only_first_format_header_used():
+    # Second #format line should be ignored; first one (with 4 fields) wins.
+    spop = (
+        "#filetype genotype_data\n"
+        "#format id src parents update_born\n"
+        "#format id src\n"
+        "1 org:file (none) 0\n"
+    )
+    result = alifestd_from_avida_spop(spop)
+    assert len(result) == 1
+    assert result["id"].iloc[0] == 1
+    assert result["ancestor_list"].iloc[0] == "[none]"
+    assert result["origin_time"].iloc[0] == 0
+
+
 def test_duplicate_ids():
     spop = (
         "#filetype genotype_data\n"
