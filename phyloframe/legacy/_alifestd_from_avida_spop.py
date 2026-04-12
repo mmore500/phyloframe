@@ -7,6 +7,7 @@ import typing
 import numpy as np
 import pandas as pd
 
+from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._configure_prod_logging import configure_prod_logging
 from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._format_cli_description import format_cli_description
@@ -84,7 +85,7 @@ def _parse_spop_text(
             if required not in avida_data:
                 raise ValueError(
                     f"Required column {required!r} missing from "
-                    f"#format header.",
+                    "#format header.",
                 )
         if len(set(avida_data["id"])) != len(avida_data["id"]):
             raise ValueError("Avida organism IDs must be unique.")
@@ -197,11 +198,11 @@ def _create_parser() -> argparse.ArgumentParser:
         default="pandas",
         help="DataFrame engine to use for writing the output file. Defaults to 'pandas'.",
     )
-    parser.add_argument(
-        "--no-ancestor-list",
-        action="store_true",
-        default=False,
-        help="Exclude the ancestor_list column from the output.",
+    add_bool_arg(
+        parser,
+        "ancestor-list",
+        default=True,
+        help="Include an ancestor_list column in the output.",
     )
     parser.add_argument(
         "--output-kwarg",
@@ -243,7 +244,7 @@ if __name__ == "__main__":
         logging.info("converting from Avida .spop format...")
         phylogeny_df = alifestd_from_avida_spop(
             spop_str,
-            create_ancestor_list=not args.no_ancestor_list,
+            create_ancestor_list=args.ancestor_list,
         )
 
     output_ext = os.path.splitext(args.output_file)[1]
