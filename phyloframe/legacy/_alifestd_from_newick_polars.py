@@ -8,6 +8,7 @@ import numpy as np
 import polars as pl
 import pyarrow as pa
 
+from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._configure_prod_logging import configure_prod_logging
 from .._auxlib._eval_kwargs import eval_kwargs
 from .._auxlib._find_equivalent_numpy_dtype_polars import (
@@ -196,9 +197,9 @@ def _create_parser() -> argparse.ArgumentParser:
         default="float",
         help="Dtype for branch length values. Defaults to 'float'.",
     )
-    parser.add_argument(
-        "--create-ancestor-list",
-        action="store_true",
+    add_bool_arg(
+        parser,
+        "create-ancestor-list",
         default=False,
         help="Include an ancestor_list column in the output.",
     )
