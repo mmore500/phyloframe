@@ -274,6 +274,8 @@ from ._alifestd_make_comb import alifestd_make_comb
 from ._alifestd_make_comb_polars import alifestd_make_comb_polars
 from ._alifestd_make_empty import alifestd_make_empty
 from ._alifestd_make_empty_polars import alifestd_make_empty_polars
+from ._alifestd_make_star import alifestd_make_star
+from ._alifestd_make_star_polars import alifestd_make_star_polars
 from ._alifestd_mark_ancestor_origin_time_asexual import (
     alifestd_mark_ancestor_origin_time_asexual,
 )
@@ -777,6 +779,8 @@ __all__ = [
     "alifestd_make_comb_polars",
     "alifestd_make_empty",
     "alifestd_make_empty_polars",
+    "alifestd_make_star",
+    "alifestd_make_star_polars",
     "alifestd_mark_ancestor_origin_time_asexual",
     "alifestd_mark_ancestor_origin_time_polars",
     "alifestd_mark_clade_duration_asexual",
