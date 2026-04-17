@@ -17,8 +17,9 @@ def _make_edge_split_fast_path(n_leaves: int):
     if n_leaves == 1:
         return ids, ancestor_ids
 
+    # numba's np.random.randint does not broadcast over array-valued high
     victims = 1 + (
-        np.random.random(n_leaves - 2) * (2 + 2 * np.arange(n_leaves - 2))
+        np.random.random(size=n_leaves - 2) * (2 + 2 * np.arange(n_leaves - 2))
     ).astype(np.int64)
 
     for i, victim in enumerate(victims):

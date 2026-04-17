@@ -18,9 +18,10 @@ def _make_leaf_split_fast_path(n_leaves: int):
         return ids, ancestor_ids
 
     leaves = np.zeros(n_leaves, dtype=np.int64)
-    victims = (np.random.random(n_leaves - 1) * np.arange(1, n_leaves)).astype(
-        np.int64
-    )
+    # numba's np.random.randint does not broadcast over array-valued high
+    victims = (
+        np.random.random(size=n_leaves - 1) * np.arange(1, n_leaves)
+    ).astype(np.int64)
 
     for i, victim in enumerate(victims):
         left = 1 + 2 * i
