@@ -7,6 +7,14 @@ from ._alifestd_make_star import _make_star_fast_path
 def alifestd_make_star_polars(n_leaves: int) -> pl.DataFrame:
     r"""Build a star tree with `n_leaves` leaves.
 
+    Structure (e.g., n_leaves=4)::
+
+              0
+            / | \ \
+           1  2  3 4
+
+    The root (id 0) has every leaf as a direct child.
+
     Parameters
     ----------
     n_leaves : int
