@@ -3,6 +3,7 @@ import typing
 import numpy as np
 import pandas as pd
 
+from .._auxlib._build_children_csr import build_children_csr
 from .._auxlib._jit import jit
 from .._auxlib._with_rng_state_context import with_rng_state_context
 from ._alifestd_make_empty import alifestd_make_empty
@@ -29,7 +30,34 @@ def _make_edge_split_fast_path(n_leaves: int):
         ancestor_ids[victim] = new_internal
         ancestor_ids[new_leaf] = new_internal
 
-    return ids, ancestor_ids
+    # relabel via BFS from root so that parent ids precede child ids
+    num_children = np.zeros(n_nodes, dtype=np.int64)
+    for i in range(1, n_nodes):
+        num_children[ancestor_ids[i]] += 1
+    child_start, csr_children = build_children_csr(ancestor_ids, num_children)
+
+    old_to_new = np.empty(n_nodes, dtype=np.int64)
+    old_to_new[0] = 0
+    queue = np.empty(n_nodes, dtype=np.int64)
+    queue[0] = 0
+    head = 0
+    tail = 1
+    next_id = 1
+    while head < tail:
+        old = queue[head]
+        head += 1
+        for k in range(child_start[old], child_start[old + 1]):
+            child_old = csr_children[k]
+            old_to_new[child_old] = next_id
+            queue[tail] = child_old
+            tail += 1
+            next_id += 1
+
+    new_ancestor_ids = np.empty(n_nodes, dtype=np.int64)
+    for old in range(n_nodes):
+        new_ancestor_ids[old_to_new[old]] = old_to_new[ancestor_ids[old]]
+
+    return ids, new_ancestor_ids
 
 
 def alifestd_make_edge_split(
