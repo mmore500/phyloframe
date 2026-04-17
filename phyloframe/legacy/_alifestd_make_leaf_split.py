@@ -1,0 +1,73 @@
+import numpy as np
+import pandas as pd
+
+from .._auxlib._jit import jit
+from ._alifestd_make_empty import alifestd_make_empty
+
+
+@jit(nopython=True)
+def _make_leaf_split_fast_path(n_leaves: int, seed: int):
+    """Build id and ancestor_id arrays for a leaf-split (Yule) tree."""
+    np.random.seed(seed)
+    n_nodes = 2 * n_leaves - 1
+    ids = np.arange(n_nodes, dtype=np.int64)
+    ancestor_ids = np.empty(n_nodes, dtype=np.int64)
+    ancestor_ids[0] = 0
+    if n_leaves == 1:
+        return ids, ancestor_ids
+
+    leaves = np.empty(n_leaves, dtype=np.int64)
+    leaves[0] = 0
+    n_current_leaves = 1
+
+    next_id = 1
+    for _ in range(n_leaves - 1):
+        idx = np.random.randint(0, n_current_leaves)
+        parent = leaves[idx]
+        left = next_id
+        right = next_id + 1
+        next_id += 2
+        ancestor_ids[left] = parent
+        ancestor_ids[right] = parent
+        leaves[idx] = left
+        leaves[n_current_leaves] = right
+        n_current_leaves += 1
+
+    return ids, ancestor_ids
+
+
+def alifestd_make_leaf_split(n_leaves: int, seed: int) -> pd.DataFrame:
+    """Build a random bifurcating tree via leaf-split (Yule) sampling.
+
+    At each step, a uniformly chosen leaf is replaced by an internal node
+    with two new leaf children. This produces samples from the Yule (pure-
+    birth) distribution over rooted bifurcating tree shapes.
+
+    Parameters
+    ----------
+    n_leaves : int
+        Number of leaf nodes in the resulting tree.
+    seed : int
+        Integer seed for deterministic behavior.
+
+    Returns
+    -------
+    pd.DataFrame
+        Alife-standard phylogeny dataframe with 'id' and 'ancestor_list'
+        columns.
+
+    Raises
+    ------
+    ValueError
+        If n_leaves is negative.
+    """
+    if n_leaves < 0:
+        raise ValueError("n_leaves must be non-negative")
+    elif n_leaves == 0:
+        return alifestd_make_empty()
+
+    ids, ancestor_ids = _make_leaf_split_fast_path(n_leaves, seed)
+    ancestor_lists = [
+        "[None]" if i == a else f"[{a}]" for i, a in zip(ids, ancestor_ids)
+    ]
+    return pd.DataFrame({"id": ids, "ancestor_list": ancestor_lists})
