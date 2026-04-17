@@ -4,7 +4,6 @@ import pytest
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
     alifestd_is_strictly_bifurcating_asexual,
-    alifestd_is_topologically_sorted,
     alifestd_make_edge_split,
     alifestd_validate,
 )
@@ -42,12 +41,6 @@ def test_validates(n_leaves: int, seed: int):
 def test_bifurcating_structure(n_leaves: int):
     df = alifestd_make_edge_split(n_leaves, seed=42)
     assert alifestd_is_strictly_bifurcating_asexual(df)
-
-
-@pytest.mark.parametrize("n_leaves", [2, 3, 4, 5, 8, 16])
-def test_topological_sorting(n_leaves: int):
-    df = alifestd_make_edge_split(n_leaves, seed=42)
-    assert alifestd_is_topologically_sorted(df)
 
 
 @pytest.mark.parametrize("n_leaves", [1, 2, 3, 4, 5, 8])

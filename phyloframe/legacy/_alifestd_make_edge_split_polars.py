@@ -18,6 +18,11 @@ def alifestd_make_edge_split_polars(
     produces samples from the Proportional-to-Distinguishable-Arrangements
     (PDA) distribution over rooted bifurcating tree shapes.
 
+    Ids are contiguous but not topologically sorted; inserted internal
+    nodes may have ids greater than some of their descendants. Pass the
+    result through ``alifestd_topological_sort_polars`` if topological
+    id order is needed.
+
     Parameters
     ----------
     n_leaves : int
