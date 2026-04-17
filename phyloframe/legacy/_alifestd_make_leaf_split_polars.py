@@ -1,12 +1,15 @@
+import typing
+
 import polars as pl
 
+from .._auxlib._with_rng_state_context import with_rng_state_context
 from ._alifestd_make_empty_polars import alifestd_make_empty_polars
 from ._alifestd_make_leaf_split import _make_leaf_split_fast_path
 
 
 def alifestd_make_leaf_split_polars(
     n_leaves: int,
-    seed: int,
+    seed: typing.Optional[int] = None,
 ) -> pl.DataFrame:
     """Build a random bifurcating tree via leaf-split (Yule) sampling.
 
@@ -18,7 +21,7 @@ def alifestd_make_leaf_split_polars(
     ----------
     n_leaves : int
         Number of leaf nodes in the resulting tree.
-    seed : int
+    seed : int, optional
         Integer seed for deterministic behavior.
 
     Returns
@@ -31,5 +34,11 @@ def alifestd_make_leaf_split_polars(
     elif n_leaves == 0:
         return alifestd_make_empty_polars(ancestor_id=True)
 
-    ids, ancestor_ids = _make_leaf_split_fast_path(n_leaves, seed)
+    impl = (
+        with_rng_state_context(seed)(_make_leaf_split_fast_path)
+        if seed is not None
+        else _make_leaf_split_fast_path
+    )
+
+    ids, ancestor_ids = impl(n_leaves)
     return pl.DataFrame({"id": ids, "ancestor_id": ancestor_ids})

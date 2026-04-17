@@ -38,6 +38,12 @@ def test_make_edge_split_polars_deterministic(n_leaves: int, seed: int):
     assert a.equals(b)
 
 
+@pytest.mark.parametrize("n_leaves", [5, 8, 16])
+def test_make_edge_split_polars_no_seed(n_leaves: int):
+    result = alifestd_make_edge_split_polars(n_leaves)
+    assert len(result) == 2 * n_leaves - 1
+
+
 def test_make_edge_split_polars_negative():
     with pytest.raises(ValueError):
         alifestd_make_edge_split_polars(-1, seed=0)

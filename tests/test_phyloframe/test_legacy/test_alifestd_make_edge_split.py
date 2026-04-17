@@ -71,6 +71,31 @@ def test_different_seeds_differ(n_leaves: int):
     assert not a.equals(b)
 
 
+@pytest.mark.parametrize("n_leaves", [5, 8, 16])
+def test_no_seed(n_leaves: int):
+    """Omitting seed should still produce a valid tree."""
+    df = alifestd_make_edge_split(n_leaves)
+    assert len(df) == 2 * n_leaves - 1
+
+
+def test_seed_does_not_leak_rng_state():
+    """Using a seed should not perturb outer RNG state."""
+    import random
+
+    import numpy as np
+
+    random.seed(0)
+    np.random.seed(0)
+    expected_py = random.random()
+    expected_np = np.random.random()
+
+    random.seed(0)
+    np.random.seed(0)
+    alifestd_make_edge_split(16, seed=42)
+    assert random.random() == expected_py
+    assert np.random.random() == expected_np
+
+
 def test_zero_leaves():
     df = alifestd_make_edge_split(0, seed=0)
     assert len(df) == 0
