@@ -13,17 +13,17 @@ def _make_edge_split_fast_path(n_leaves: int):
     """Build id and ancestor_id arrays for an edge-split (PDA) tree."""
     n_nodes = 2 * n_leaves - 1
     ids = np.arange(n_nodes, dtype=np.int64)
-    ancestor_ids = np.empty(n_nodes, dtype=np.int64)
-    ancestor_ids[0] = 0
+    ancestor_ids = np.zeros(n_nodes, dtype=np.int64)
     if n_leaves == 1:
         return ids, ancestor_ids
 
-    ancestor_ids[1] = 0
-    ancestor_ids[2] = 0
+    victims = 1 + (
+        np.random.random(n_leaves - 2) * (2 + 2 * np.arange(n_leaves - 2))
+    ).astype(np.int64)
 
-    for new_internal in range(3, n_nodes, 2):
-        victim = np.random.randint(1, new_internal)
+    for i, new_internal in enumerate(range(3, n_nodes, 2)):
         new_leaf = new_internal + 1
+        victim = victims[i]
         ancestor_ids[new_internal] = ancestor_ids[victim]
         ancestor_ids[victim] = new_internal
         ancestor_ids[new_leaf] = new_internal

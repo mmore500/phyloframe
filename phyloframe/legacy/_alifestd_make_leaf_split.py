@@ -13,23 +13,23 @@ def _make_leaf_split_fast_path(n_leaves: int):
     """Build id and ancestor_id arrays for a leaf-split (Yule) tree."""
     n_nodes = 2 * n_leaves - 1
     ids = np.arange(n_nodes, dtype=np.int64)
-    ancestor_ids = np.empty(n_nodes, dtype=np.int64)
-    ancestor_ids[0] = 0
+    ancestor_ids = np.zeros(n_nodes, dtype=np.int64)
     if n_leaves == 1:
         return ids, ancestor_ids
 
-    leaves = np.empty(n_leaves, dtype=np.int64)
-    leaves[0] = 0
+    leaves = np.zeros(n_leaves, dtype=np.int64)
+    random_indices = (
+        np.random.random(n_leaves - 1) * np.arange(1, n_leaves)
+    ).astype(np.int64)
 
-    for left in range(1, n_nodes, 2):
-        n_current_leaves = (left + 1) // 2
-        idx = np.random.randint(0, n_current_leaves)
-        parent = leaves[idx]
+    for i, left in enumerate(range(1, n_nodes, 2)):
         right = left + 1
+        idx = random_indices[i]
+        parent = leaves[idx]
         ancestor_ids[left] = parent
         ancestor_ids[right] = parent
         leaves[idx] = left
-        leaves[n_current_leaves] = right
+        leaves[i + 1] = right
 
     return ids, ancestor_ids
 
