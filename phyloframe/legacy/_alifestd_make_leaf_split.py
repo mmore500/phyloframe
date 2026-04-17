@@ -20,20 +20,16 @@ def _make_leaf_split_fast_path(n_leaves: int):
 
     leaves = np.empty(n_leaves, dtype=np.int64)
     leaves[0] = 0
-    n_current_leaves = 1
 
-    next_id = 1
-    for _ in range(n_leaves - 1):
+    for left in range(1, n_nodes, 2):
+        n_current_leaves = (left + 1) // 2
         idx = np.random.randint(0, n_current_leaves)
         parent = leaves[idx]
-        left = next_id
-        right = next_id + 1
-        next_id += 2
+        right = left + 1
         ancestor_ids[left] = parent
         ancestor_ids[right] = parent
         leaves[idx] = left
         leaves[n_current_leaves] = right
-        n_current_leaves += 1
 
     return ids, ancestor_ids
 
