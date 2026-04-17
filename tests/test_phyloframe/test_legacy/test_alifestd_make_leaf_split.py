@@ -3,6 +3,8 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
+    alifestd_is_strictly_bifurcating_asexual,
+    alifestd_is_topologically_sorted,
     alifestd_make_leaf_split,
     alifestd_validate,
 )
@@ -37,25 +39,14 @@ def test_validates(n_leaves: int, seed: int):
 
 @pytest.mark.parametrize("n_leaves", [2, 3, 4, 5, 8, 16])
 def test_bifurcating_structure(n_leaves: int):
-    """Every internal node should have exactly 2 children."""
     df = alifestd_make_leaf_split(n_leaves, seed=42)
-    leaf_ids = set(alifestd_find_leaf_ids(df))
-    for _, row in df.iterrows():
-        if row["id"] not in leaf_ids:
-            children = df[df["ancestor_list"] == f"[{row['id']}]"]
-            assert len(children) == 2
+    assert alifestd_is_strictly_bifurcating_asexual(df)
 
 
 @pytest.mark.parametrize("n_leaves", [2, 3, 4, 5, 8, 16])
 def test_topological_sorting(n_leaves: int):
-    """Parents should appear before children (topologically sorted)."""
     df = alifestd_make_leaf_split(n_leaves, seed=42)
-    seen = set()
-    for _, row in df.iterrows():
-        if row["ancestor_list"] != "[None]":
-            parent_id = int(row["ancestor_list"].strip("[]"))
-            assert parent_id in seen
-        seen.add(row["id"])
+    assert alifestd_is_topologically_sorted(df)
 
 
 @pytest.mark.parametrize("n_leaves", [1, 2, 3, 4, 5, 8])

@@ -3,6 +3,7 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_leaf_ids,
+    alifestd_is_strictly_bifurcating_asexual,
     alifestd_make_edge_split,
     alifestd_validate,
 )
@@ -38,13 +39,8 @@ def test_validates(n_leaves: int, seed: int):
 
 @pytest.mark.parametrize("n_leaves", [2, 3, 4, 5, 8, 16])
 def test_bifurcating_structure(n_leaves: int):
-    """Every internal node should have exactly 2 children."""
     df = alifestd_make_edge_split(n_leaves, seed=42)
-    leaf_ids = set(alifestd_find_leaf_ids(df))
-    for _, row in df.iterrows():
-        if row["id"] not in leaf_ids:
-            children = df[df["ancestor_list"] == f"[{row['id']}]"]
-            assert len(children) == 2
+    assert alifestd_is_strictly_bifurcating_asexual(df)
 
 
 @pytest.mark.parametrize("n_leaves", [1, 2, 3, 4, 5, 8])
