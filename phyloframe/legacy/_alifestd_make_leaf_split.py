@@ -18,17 +18,17 @@ def _make_leaf_split_fast_path(n_leaves: int):
         return ids, ancestor_ids
 
     leaves = np.zeros(n_leaves, dtype=np.int64)
-    random_indices = (
-        np.random.random(n_leaves - 1) * np.arange(1, n_leaves)
-    ).astype(np.int64)
+    victims = (np.random.random(n_leaves - 1) * np.arange(1, n_leaves)).astype(
+        np.int64
+    )
 
-    for i, left in enumerate(range(1, n_nodes, 2)):
+    for i, victim in enumerate(victims):
+        left = 1 + 2 * i
         right = left + 1
-        idx = random_indices[i]
-        parent = leaves[idx]
+        parent = leaves[victim]
         ancestor_ids[left] = parent
         ancestor_ids[right] = parent
-        leaves[idx] = left
+        leaves[victim] = left
         leaves[i + 1] = right
 
     return ids, ancestor_ids

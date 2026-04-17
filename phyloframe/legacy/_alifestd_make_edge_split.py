@@ -21,9 +21,9 @@ def _make_edge_split_fast_path(n_leaves: int):
         np.random.random(n_leaves - 2) * (2 + 2 * np.arange(n_leaves - 2))
     ).astype(np.int64)
 
-    for i, new_internal in enumerate(range(3, n_nodes, 2)):
+    for i, victim in enumerate(victims):
+        new_internal = 3 + 2 * i
         new_leaf = new_internal + 1
-        victim = victims[i]
         ancestor_ids[new_internal] = ancestor_ids[victim]
         ancestor_ids[victim] = new_internal
         ancestor_ids[new_leaf] = new_internal
