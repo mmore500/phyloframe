@@ -22,6 +22,9 @@ from ._alifestd_is_topologically_sorted import (
 from ._alifestd_mark_csr_children_asexual import (
     _alifestd_mark_csr_children_asexual_fast_path,
 )
+from ._alifestd_mask_descendants_asexual import (
+    _alifestd_mask_descendants_asexual_fast_path,
+)
 from ._alifestd_mark_csr_offsets_asexual import (
     _alifestd_mark_csr_offsets_asexual_fast_path,
 )
@@ -203,21 +206,17 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
     ) -> typing.Sequence[_AlifestdNode]:
         # Override the protocol default, which constructs a sub-provider
         # via ``self.__class__(node)`` — that path is incompatible with our
-        # DataFrame-based constructors. Walk the CSR structure instead.
+        # DataFrame-based constructors.
         if node is None:
             return self._get_leaves()
-        leaves = []
-        stack = [node._id]
-        while stack:
-            idx = stack.pop()
-            c_start = self._csr_offsets[idx]
-            c_end = self._csr_offsets[idx + 1]
-            if c_start == c_end:
-                leaves.append(self._nodes[idx])
-            else:
-                for ci in range(c_end - 1, c_start - 1, -1):
-                    stack.append(self._csr_children[ci])
-        return leaves
+        seed_mask = np.zeros(len(self._ancestor_ids), dtype=bool)
+        seed_mask[node._id] = True
+        descendant_mask = _alifestd_mask_descendants_asexual_fast_path(
+            self._ancestor_ids,
+            seed_mask,
+        )
+        leaf_mask = descendant_mask & (self._num_children == 0)
+        return self._nodes[leaf_mask].tolist()
 
     def get_subtree(self, node: _AlifestdNode) -> "AlifestdIplotxShimNumpy":
         raise NotImplementedError(
