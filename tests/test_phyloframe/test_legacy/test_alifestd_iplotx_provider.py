@@ -638,3 +638,102 @@ def test_polars_shim_rewrap():
     rewrapped = AlifestdIplotxShimPolars(shim)
     assert rewrapped.get_root() == shim.get_root()
     assert list(rewrapped.preorder()) == list(shim.preorder())
+
+
+# ---- get_leaves(node) / get_subtree tests --------------------------
+def test_get_leaves_none_returns_all_leaves():
+    ancestor_ids = np.array([0, 0, 0, 1, 1, 2, 2])
+    shim = AlifestdIplotxShimNumpy(ancestor_ids)
+    leaf_ids = sorted(n._id for n in shim.get_leaves())
+    assert leaf_ids == [3, 4, 5, 6]
+
+
+def test_get_leaves_internal_node_returns_subtree_leaves():
+    ancestor_ids = np.array([0, 0, 0, 1, 1, 2, 2])
+    shim = AlifestdIplotxShimNumpy(ancestor_ids)
+    children = shim.get_children(shim.get_root())
+    assert sorted(n._id for n in shim.get_leaves(children[0])) == [3, 4]
+    assert sorted(n._id for n in shim.get_leaves(children[1])) == [5, 6]
+
+
+def test_get_leaves_of_leaf_returns_self():
+    ancestor_ids = np.array([0, 0, 0, 1, 1, 2, 2])
+    shim = AlifestdIplotxShimNumpy(ancestor_ids)
+    leaves = shim._get_leaves()
+    assert [n._id for n in shim.get_leaves(leaves[0])] == [leaves[0]._id]
+
+
+def test_get_leaves_of_root_matches_all_leaves():
+    ancestor_ids = np.array([0, 0, 0, 1, 1, 2, 2])
+    shim = AlifestdIplotxShimNumpy(ancestor_ids)
+    assert sorted(n._id for n in shim.get_leaves(shim.get_root())) == [
+        3,
+        4,
+        5,
+        6,
+    ]
+
+
+def test_get_subtree_raises():
+    ancestor_ids = np.array([0, 0, 0])
+    shim = AlifestdIplotxShimNumpy(ancestor_ids)
+    with pytest.raises(NotImplementedError, match="subtree"):
+        shim.get_subtree(shim.get_root())
+
+
+def test_pandas_get_leaves_internal_node():
+    df = _make_balanced_pandas()
+    shim = AlifestdIplotxShimPandas(df)
+    children = shim.get_children(shim.get_root())
+    assert sorted(n._id for n in shim.get_leaves(children[0])) == [3, 4]
+
+
+def test_iplotx_daylight_layout_uses_subtree_leaves():
+    df = _make_balanced_with_times_pandas()
+    shim = AlifestdIplotxShimPandas(df)
+    tree_data = shim(layout="daylight")
+    assert tree_data["layout_name"] == "daylight"
+
+
+def test_iplotx_equalangle_layout_uses_subtree_leaves():
+    df = _make_balanced_with_times_pandas()
+    shim = AlifestdIplotxShimPandas(df)
+    tree_data = shim(layout="equalangle")
+    assert tree_data["layout_name"] == "equalangle"
+
+
+def test_get_lca_via_subtree_default():
+    df = _make_balanced_pandas()
+    shim = AlifestdIplotxShimPandas(df)
+    leaves = shim._get_leaves()
+    leaves_by_id = {n._id: n for n in leaves}
+    lca = shim.get_lca([leaves_by_id[3], leaves_by_id[4]])
+    assert lca._id == 1
+
+
+def test_postorder_leaf_order_matches_preorder():
+    # iplotx rooted layouts (horizontal/vertical/radial) assign leaf
+    # y-coordinates in postorder traversal order; for the layout to be
+    # consistent with preorder (the conventional left-to-right order),
+    # the postorder leaf sequence must match the preorder leaf sequence.
+    ancestor_ids = np.array([0, 0, 0, 1, 1, 2, 2])
+    shim = AlifestdIplotxShimNumpy(ancestor_ids)
+    pre_leaves = [
+        n._id for n in shim.preorder() if shim._num_children[n._id] == 0
+    ]
+    post_leaves = [
+        n._id for n in shim.postorder() if shim._num_children[n._id] == 0
+    ]
+    assert pre_leaves == post_leaves
+
+
+def test_postorder_visits_children_before_parents():
+    ancestor_ids = np.array([0, 0, 0, 1, 1, 2, 2])
+    shim = AlifestdIplotxShimNumpy(ancestor_ids)
+    seen = set()
+    for n in shim.postorder():
+        for child_id in range(len(ancestor_ids)):
+            if ancestor_ids[child_id] == n._id and child_id != n._id:
+                assert child_id in seen
+        seen.add(n._id)
+    assert seen == set(range(len(ancestor_ids)))

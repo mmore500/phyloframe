@@ -34,6 +34,9 @@ from ._alifestd_mark_num_children_asexual import (
 from ._alifestd_mark_origin_time_delta_asexual import (
     alifestd_mark_origin_time_delta_asexual,
 )
+from ._alifestd_mask_descendants_asexual import (
+    _alifestd_mask_descendants_asexual_fast_path,
+)
 from ._alifestd_try_add_ancestor_id_col import (
     alifestd_try_add_ancestor_id_col,
 )
@@ -42,9 +45,6 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 from ._alifestd_unfurl_traversal_levelorder_asexual import (
     _alifestd_unfurl_traversal_levelorder_asexual_fast_path,
-)
-from ._alifestd_unfurl_traversal_postorder_asexual import (
-    _alifestd_unfurl_traversal_postorder_asexual_fast_path,
 )
 from ._alifestd_unfurl_traversal_preorder_asexual import (
     _alifestd_unfurl_traversal_preorder_asexual_jit,
@@ -124,9 +124,12 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
                 _AlifestdNode(
                     i,
                     str(names[i]) if names is not None else str(i),
-                    None
-                    if branch_lengths is None or np.isnan(branch_lengths[i])
-                    else float(branch_lengths[i]),
+                    (
+                        None
+                        if branch_lengths is None
+                        or np.isnan(branch_lengths[i])
+                        else float(branch_lengths[i])
+                    ),
                 )
                 for i in range(n)
             ],
@@ -134,7 +137,7 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         )
         self._ancestor_ids = ancestor_ids
 
-        # CSR child storage — append sentinel (n-1) so slicing always works
+        # CSR child storage - append sentinel (n-1) so slicing always works
         csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
             ancestor_ids,
         )
@@ -176,26 +179,63 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
             self._csr_children,
             self._num_children,
         )
-        return self._nodes[order].tolist()
+        yield from self._nodes[order]
 
     def postorder(self) -> typing.Iterable[_AlifestdNode]:
-        order = _alifestd_unfurl_traversal_postorder_asexual_fast_path(
-            self._ancestor_ids,
-            self._node_depths,
-        )
-        return self._nodes[order].tolist()
+        # Walk DFS postorder with children visited smallest-id first so the
+        # leaf order matches preorder; the existing JIT helpers visit
+        # siblings in the opposite direction, which produces mirrored leaf
+        # y-coordinates in iplotx rooted layouts.
+        stack = [(int(self._root._id), False)]
+        result = []
+        while stack:
+            node, expanded = stack.pop()
+            if expanded:
+                result.append(node)
+                continue
+            stack.append((node, True))
+            c_start = self._csr_offsets[node]
+            c_end = self._csr_offsets[node + 1]
+            for ci in range(c_end - 1, c_start - 1, -1):
+                stack.append((int(self._csr_children[ci]), False))
+        yield from self._nodes[result]
 
     def levelorder(self) -> typing.Iterable[_AlifestdNode]:
         order = _alifestd_unfurl_traversal_levelorder_asexual_fast_path(
             self._node_depths,
         )
-        return self._nodes[order].tolist()
+        yield from self._nodes[order]
 
     def _get_leaves(self) -> typing.Sequence[_AlifestdNode]:
         leaf_ids = _alifestd_find_leaf_ids_asexual_fast_path(
             self._ancestor_ids,
         )
         return self._nodes[leaf_ids].tolist()
+
+    def get_leaves(
+        self,
+        node: typing.Optional[_AlifestdNode] = None,
+    ) -> typing.Sequence[_AlifestdNode]:
+        # Override the protocol default, which constructs a sub-provider
+        # via ``self.__class__(node)`` - that path is incompatible with our
+        # DataFrame-based constructors.
+        if node is None:
+            return self._get_leaves()
+        seed_mask = np.zeros(len(self._ancestor_ids), dtype=bool)
+        seed_mask[node._id] = True
+        descendant_mask = _alifestd_mask_descendants_asexual_fast_path(
+            self._ancestor_ids,
+            seed_mask,
+        )
+        leaf_mask = descendant_mask & (self._num_children == 0)
+        return self._nodes[leaf_mask].tolist()
+
+    def get_subtree(self, node: _AlifestdNode) -> "AlifestdIplotxShimNumpy":
+        raise NotImplementedError(
+            "AlifestdIplotxShimNumpy does not support extracting a "
+            "subtree as a new provider; use get_leaves(node) or walk "
+            "via get_children() instead.",
+        )
 
     def get_children(
         self,
