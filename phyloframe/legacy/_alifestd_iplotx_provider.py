@@ -197,6 +197,35 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         )
         return self._nodes[leaf_ids].tolist()
 
+    def get_leaves(
+        self,
+        node: typing.Optional[_AlifestdNode] = None,
+    ) -> typing.Sequence[_AlifestdNode]:
+        # Override the protocol default, which constructs a sub-provider
+        # via ``self.__class__(node)`` — that path is incompatible with our
+        # DataFrame-based constructors. Walk the CSR structure instead.
+        if node is None:
+            return self._get_leaves()
+        leaves = []
+        stack = [node._id]
+        while stack:
+            idx = stack.pop()
+            c_start = self._csr_offsets[idx]
+            c_end = self._csr_offsets[idx + 1]
+            if c_start == c_end:
+                leaves.append(self._nodes[idx])
+            else:
+                for ci in range(c_end - 1, c_start - 1, -1):
+                    stack.append(self._csr_children[ci])
+        return leaves
+
+    def get_subtree(self, node: _AlifestdNode) -> "AlifestdIplotxShimNumpy":
+        raise NotImplementedError(
+            "AlifestdIplotxShimNumpy does not support extracting a "
+            "subtree as a new provider; use get_leaves(node) or walk "
+            "via get_children() instead.",
+        )
+
     def get_children(
         self,
         node: _AlifestdNode,
