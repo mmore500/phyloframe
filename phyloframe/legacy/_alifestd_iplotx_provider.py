@@ -46,6 +46,9 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 from ._alifestd_unfurl_traversal_levelorder_asexual import (
     _alifestd_unfurl_traversal_levelorder_asexual_fast_path,
 )
+from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
+    _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit,
+)
 from ._alifestd_unfurl_traversal_preorder_asexual import (
     _alifestd_unfurl_traversal_preorder_asexual_jit,
 )
@@ -183,22 +186,18 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
 
     def postorder(self) -> typing.Iterable[_AlifestdNode]:
         # Walk DFS postorder with children visited smallest-id first so the
-        # leaf order matches preorder; the existing JIT helpers visit
+        # leaf order matches preorder; the default JIT helper visits
         # siblings in the opposite direction, which produces mirrored leaf
         # y-coordinates in iplotx rooted layouts.
-        stack = [(int(self._root._id), False)]
-        result = []
-        while stack:
-            node, expanded = stack.pop()
-            if expanded:
-                result.append(node)
-                continue
-            stack.append((node, True))
-            c_start = self._csr_offsets[node]
-            c_end = self._csr_offsets[node + 1]
-            for ci in range(c_end - 1, c_start - 1, -1):
-                stack.append((int(self._csr_children[ci]), False))
-        yield from self._nodes[result]
+        order = (
+            _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
+                self._ancestor_ids,
+                self._csr_offsets[:-1],  # without sentinel
+                self._csr_children,
+                self._num_children,
+            )
+        )
+        yield from self._nodes[order]
 
     def levelorder(self) -> typing.Iterable[_AlifestdNode]:
         order = _alifestd_unfurl_traversal_levelorder_asexual_fast_path(
