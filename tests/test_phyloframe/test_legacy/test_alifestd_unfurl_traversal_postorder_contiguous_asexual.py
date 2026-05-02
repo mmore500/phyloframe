@@ -350,3 +350,194 @@ def test_sibling_fast_path_matches_baseline(phylogeny_csv: str):
     )
 
     assert result_base.tolist() == result_sib.tolist()
+
+
+@_prep_params
+@pytest.mark.parametrize("child_order", [None, "asc", "desc"])
+def test_child_order_chain(apply: typing.Callable, child_order):
+    """Linear chains have no sibling ordering choice."""
+    df = _make_contiguous_df(np.array([0, 0, 1]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order=child_order,
+    )
+    assert result.tolist() == [2, 1, 0]
+
+
+@_prep_params
+def test_child_order_asc_simple_branching(apply: typing.Callable):
+    """Tree: 0 -> {1, 2}, 1 -> {3}.
+
+    With ``child_order='asc'`` the smallest-id child is visited first,
+    so the subtree of 1 (which contains 3) is processed before 2.
+    Result: [3, 1, 2, 0]
+    """
+    df = _make_contiguous_df(np.array([0, 0, 0, 1]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order="asc",
+    )
+    assert result.tolist() == [3, 1, 2, 0]
+
+
+@_prep_params
+def test_child_order_desc_simple_branching(apply: typing.Callable):
+    """Tree: 0 -> {1, 2}, 1 -> {3}.
+
+    With ``child_order='desc'`` the largest-id child is visited first,
+    matching the existing default behavior.
+    """
+    df = _make_contiguous_df(np.array([0, 0, 0, 1]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order="desc",
+    )
+    assert result.tolist() == [2, 3, 1, 0]
+
+
+@_prep_params
+def test_child_order_asc_star(apply: typing.Callable):
+    """Star graph: root 0 with children 1, 2, 3, 4."""
+    df = _make_contiguous_df(np.array([0, 0, 0, 0, 0]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order="asc",
+    )
+    assert result.tolist() == [1, 2, 3, 4, 0]
+
+
+@_prep_params
+def test_child_order_desc_star(apply: typing.Callable):
+    """Star graph: root 0 with children 1, 2, 3, 4."""
+    df = _make_contiguous_df(np.array([0, 0, 0, 0, 0]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order="desc",
+    )
+    assert result.tolist() == [4, 3, 2, 1, 0]
+
+
+@_prep_params
+def test_child_order_asc_subtree_contiguity(apply: typing.Callable):
+    """Verify ascending traversal: smallest-id sibling first.
+
+    Tree: 0 -> {1, 2}, 1 -> {3, 4}, 2 -> {5}.
+    Result: [3, 4, 1, 5, 2, 0]
+    """
+    df = _make_contiguous_df(np.array([0, 0, 0, 1, 1, 2]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order="asc",
+    )
+    assert result.tolist() == [3, 4, 1, 5, 2, 0]
+
+
+@_prep_params
+def test_child_order_none_matches_default(apply: typing.Callable):
+    """``child_order=None`` should match the default (no kwarg)."""
+    df = _make_contiguous_df(np.array([0, 0, 0, 1, 1, 2]))
+    default = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
+    none_result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order=None,
+    )
+    assert default.tolist() == none_result.tolist()
+
+
+def test_child_order_invalid():
+    """Invalid ``child_order`` values must raise ``ValueError``."""
+    df = _make_contiguous_df(np.array([0, 0, 1]))
+    with pytest.raises(ValueError):
+        alifestd_unfurl_traversal_postorder_contiguous_asexual(
+            df,
+            child_order="bogus",
+        )
+
+
+@pytest.mark.parametrize(
+    "phylogeny_csv",
+    [
+        "example-standard-toy-asexual-phylogeny.csv",
+        "nk_ecoeaselection.csv",
+        "nk_lexicaseselection.csv",
+        "nk_tournamentselection.csv",
+    ],
+)
+@pytest.mark.parametrize("child_order", ["asc", "desc"])
+@_prep_params
+def test_child_order_valid_postorder(
+    phylogeny_csv: str,
+    child_order: str,
+    apply: typing.Callable,
+):
+    """Both ``child_order`` modes must produce a valid postorder."""
+    from phyloframe.legacy import alifestd_try_add_ancestor_id_col
+
+    phylogeny_df = pd.read_csv(f"{assets_path}/{phylogeny_csv}")
+    phylogeny_df = phylogeny_df.sort_values("id").reset_index(drop=True)
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
+    ids = phylogeny_df["id"].to_numpy()
+    id_map = {int(old): new for new, old in enumerate(ids)}
+    ancestor_ids = np.array(
+        [id_map[int(a)] for a in phylogeny_df["ancestor_id"].to_numpy()],
+        dtype=np.int64,
+    )
+    df = _make_contiguous_df(ancestor_ids)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        apply(df),
+        child_order=child_order,
+    )
+
+    n = len(ancestor_ids)
+    assert len(result) == n
+    assert set(result) == set(range(n))
+
+    pos = {node: i for i, node in enumerate(result)}
+    for child in range(n):
+        parent = ancestor_ids[child]
+        if child != parent:
+            assert pos[child] < pos[parent]
+
+
+@pytest.mark.parametrize(
+    "phylogeny_csv",
+    [
+        "example-standard-toy-asexual-phylogeny.csv",
+        "nk_ecoeaselection.csv",
+        "nk_lexicaseselection.csv",
+        "nk_tournamentselection.csv",
+    ],
+)
+def test_child_order_asc_csr_matches_sibling(phylogeny_csv: str):
+    """CSR and sibling fast paths must agree for ``child_order='asc'``."""
+    from phyloframe.legacy import (
+        alifestd_mark_first_child_id_asexual,
+        alifestd_mark_next_sibling_id_asexual,
+        alifestd_try_add_ancestor_id_col,
+    )
+
+    phylogeny_df = pd.read_csv(f"{assets_path}/{phylogeny_csv}")
+    phylogeny_df = phylogeny_df.sort_values("id").reset_index(drop=True)
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
+    ids = phylogeny_df["id"].to_numpy()
+    id_map = {int(old): new for new, old in enumerate(ids)}
+    ancestor_ids = np.array(
+        [id_map[int(a)] for a in phylogeny_df["ancestor_id"].to_numpy()],
+        dtype=np.int64,
+    )
+    df_base = _make_contiguous_df(ancestor_ids)
+
+    result_csr = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        df_base,
+        child_order="asc",
+    )
+
+    df_sib = df_base.copy()
+    df_sib = alifestd_mark_first_child_id_asexual(df_sib, mutate=True)
+    df_sib = alifestd_mark_next_sibling_id_asexual(df_sib, mutate=True)
+    result_sib = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        df_sib,
+        child_order="asc",
+    )
+
+    assert result_csr.tolist() == result_sib.tolist()
