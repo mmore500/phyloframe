@@ -40,7 +40,7 @@ def _alifestd_downsample_tips_lineage_select_target_id(
     """Select the target leaf id (largest target value, ties broken by RNG).
 
     Uses numpy's global RNG for tie-breaking.  Callers should wrap with
-    ``RngStateContext`` when deterministic behaviour is required.
+    ``RngStateContext`` when deterministic behavior is required.
 
     Parameters
     ----------

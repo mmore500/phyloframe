@@ -79,7 +79,7 @@ def alifestd_mark_num_preceding_leaves_asexual(
     *,
     mark_as: str = "num_preceding_leaves",
 ) -> pd.DataFrame:
-    """Add column `num_preceding_leaves` with count of all leaves occuring
+    """Add column `num_preceding_leaves` with count of all leaves occurring
     before the present node in an inorder traversal.
 
     The output column name can be changed via the ``mark_as`` parameter.
