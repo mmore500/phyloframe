@@ -164,7 +164,7 @@ The Polars pipe utility:
 joinem CLI Engine
 =================
 
-Phyloframe's CLI is built on `joinem <https://github.com/mmore500/joinem>`_, a CLI tool backed by the Polars data processing library for fast and flexible tabular data operations.
+Phyloframe's CLI is built on `joinem <https://github.com/mmore500/joinem>`_, a CLI tool built on the Polars data processing library for fast and flexible tabular data operations.
 All joinem features are available in phyloframe CLI commands.
 
 Column Selection
