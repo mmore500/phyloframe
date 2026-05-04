@@ -1,6 +1,6 @@
-==========================
+===========================
 Tree Visualization (Legacy)
-==========================
+===========================
 
 .. note::
 
@@ -15,7 +15,7 @@ Usage information can be found in `Taxonium's documentation <https://docs.taxoni
 For programmatic visualizations, phyloframe integrates with `iplotx <https://iplotx.readthedocs.io/>`_ to visualize phylogenetic trees from DataFrames.
 
 iplotx Quick Start
-===========
+==================
 
 .. skip: next
 

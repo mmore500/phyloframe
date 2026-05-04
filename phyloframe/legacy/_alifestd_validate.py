@@ -133,5 +133,5 @@ def alifestd_validate(
     try:
         return _alifestd_validate(phylogeny_df, mutate, warn)
     except Exception as exception:
-        warn(f"alifestd_validate: {exception=} occured")
+        warn(f"alifestd_validate: {exception=} occurred")
         return False

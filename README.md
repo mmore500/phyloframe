@@ -33,10 +33,10 @@ Fast, full-featured Newick format I/O support.
 Granular deserialization of selected columns (e.g., Parquet), transparent compression configuration (e.g., Parquet), columnar compression for efficient storage, categorical strings, and explicit column typing.
 
 **Benefit from modern high-performance dataframe tooling.**
-Lazy query optimization (e.g.  Polars), larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
+Lazy query optimization (e.g., Polars), larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
 
 **Benefit from rich, expressive dataframe functionality.**
-Leverage powerful querying and transformation APIs (e.g., Polars expressions, Pandas indexing), enabling flexible filtering, bulk column calculations, grouped aggregations, join/merge operations, and chained transformations directly over tree data without manual loops.​​​​​​​​​​​​​​​​
+Leverage powerful querying and transformation APIs (e.g., Polars expressions, Pandas indexing), enabling flexible filtering, bulk column calculations, grouped aggregations, join/merge operations, and chained transformations directly over tree data without manual loops.
 
 **Cache-friendly, memory-efficient, flexible data structure.**
 Data occupies contiguous arrays, expediting tree creation and topological order traversals (e.g., parents before children or vice versa).
@@ -67,7 +67,7 @@ python3 -m pip install "phyloframe[jit]==0.8.1"
 ```
 
 The `[jit]` extra installs [Numba](https://numba.pydata.org/) for just-in-time compilation, providing native-level performance for many operations.
-Jit dependency is strongly recommended.
+JIT dependency is strongly recommended.
 
 A containerized release of `phyloframe` is available via [ghcr.io](https://ghcr.io/mmore500/phyloframe)
 
