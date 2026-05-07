@@ -1114,6 +1114,78 @@ class ScikitBioBench:
         return self._tree
 
 
+class SuchTreeBench:
+    name = "suchtree"
+
+    def __init__(self, newick):
+        self._newick = newick
+        self._tree = None
+
+    def warmup(self):
+        from SuchTree import SuchTree  # noqa: F401
+
+    def parse_newick(self):
+        from SuchTree import SuchTree
+
+        self._tree = SuchTree(self._newick)
+
+    def make_newick(self):
+        t = self._ensure_tree()
+        t.to_newick()
+
+    def preorder(self):
+        t = self._ensure_tree()
+        for _ in t.traverse_preorder():
+            pass
+
+    def postorder(self):
+        t = self._ensure_tree()
+        for _ in t.traverse_postorder():
+            pass
+
+    def inorder(self):
+        t = self._ensure_tree()
+        for _ in t.traverse_inorder():
+            pass
+
+    def levelorder(self):
+        t = self._ensure_tree()
+        for _ in t.traverse_levelorder():
+            pass
+
+    def topological_order(self):
+        raise NotImplementedError("topological_order not available in SuchTree")
+
+    def mrca_allpairs(self):
+        t = self._ensure_tree()
+        leaf_ids = list(t.leaves.values())
+        for i, a in enumerate(leaf_ids):
+            for b in leaf_ids[i + 1 :]:
+                t.common_ancestor(a, b)
+
+    def pairwise_dist(self):
+        t = self._ensure_tree()
+        leaf_ids = list(t.leaves.values())
+        t.pairwise_distances(leaf_ids)
+
+    def memory_bytes(self):
+        newick = self._newick
+
+        def _load():
+            from SuchTree import SuchTree
+
+            return SuchTree(newick)
+
+        return _measure_memory(_load)
+
+    def _ensure_tree(self):
+        if self._tree is None:
+            from SuchTree import SuchTree
+
+            self._tree = SuchTree(self._newick)
+        return self._tree
+
+
 LIBRARIES = [
     PhyloframeInMemoryBench,
     PhyloframeStreamingInt32Bench,
@@ -1121,6 +1193,7 @@ LIBRARIES = [
     PhyloframeStreamingInt32CsrBench,
     CompactTreeBench,
     ScikitBioBench,
+    SuchTreeBench,
     TreeswiftBench,
     BiopythonBench,
     DendropyBench,

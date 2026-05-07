@@ -104,6 +104,7 @@ Biopython [@cock2009biopython] includes a `Bio.Phylo` module supporting multiple
 ETE [@huertacepas2016ete3] combines tree analysis with visualization capabilities.
 CompactTree [@moshiri2025compacttree] achieves minimal memory footprint through a header-only C++ implementation with a Python wrapper.
 scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit including tree data structures and ecological diversity analyses.
+SuchTree [@ryneches2018suchtree] uses a Cython-compiled array representation optimized for fast pairwise distance queries and co-phylogenetic analyses.
 
 All of these libraries represent trees as pointer-linked node objects.
 `phyloframe` takes a fundamentally different approach by storing trees as column-oriented dataframes.
