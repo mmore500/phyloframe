@@ -1154,7 +1154,9 @@ class SuchTreeBench:
             pass
 
     def topological_order(self):
-        raise NotImplementedError("topological_order not available in SuchTree")
+        raise NotImplementedError(
+            "topological_order not available in SuchTree"
+        )
 
     def mrca_allpairs(self):
         t = self._ensure_tree()
