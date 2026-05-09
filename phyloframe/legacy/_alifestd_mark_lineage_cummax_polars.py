@@ -21,48 +21,33 @@ from ._alifestd_is_asexual_polars import alifestd_is_asexual_polars
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_lineage_cumsum_asexual import (
-    _alifestd_mark_lineage_cumsum_asexual_fast_path,
+from ._alifestd_mark_lineage_cummax_asexual import (
+    _alifestd_mark_lineage_cummax_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 
 
-def alifestd_mark_lineage_cumsum_polars(
+def alifestd_mark_lineage_cummax_polars(
     phylogeny_df: pl.DataFrame,
     values: typing.Union[str, pl.Expr],
     *,
-    mark_as: str = "lineage_cumsum",
+    mark_as: str = "lineage_cummax",
     reverse: bool = False,
     skipna: bool = True,
 ) -> pl.DataFrame:
-    """Add column with cumulative sum of ``values`` along each lineage.
+    """Add column with maximum of ``values`` along each lineage.
 
     With ``reverse=False`` (default), the result at each node is the
-    sum of ``values`` along the path from the root to that node,
+    maximum of ``values`` along the path from the root to that node,
     inclusive. With ``reverse=True``, the result at each node is the
-    sum of ``values`` over the entire clade rooted at that node,
+    maximum of ``values`` over the entire clade rooted at that node,
     inclusive.
-
-    Parameters
-    ----------
-    phylogeny_df : polars.DataFrame or polars.LazyFrame
-        The phylogeny as a dataframe in alife standard format.
-
-        Must represent an asexual phylogeny.
-    values : str or polars.Expr
-        Column name or polars expression providing per-node values.
-    mark_as : str, default "lineage_cumsum"
-        Output column name.
-    reverse : bool, default False
-        If True, aggregate over clade rooted at each node.
-    skipna : bool, default True
-        If True, NaN values are treated as identity (0); else propagate.
 
     See Also
     --------
-    alifestd_mark_lineage_cumsum_asexual :
+    alifestd_mark_lineage_cummax_asexual :
         Pandas-based implementation.
     """
     if isinstance(values, str):
@@ -81,7 +66,7 @@ def alifestd_mark_lineage_cumsum_polars(
         phylogeny_df,
     ):
         raise NotImplementedError(
-            "alifestd_mark_lineage_cumsum_polars only supports asexual "
+            "alifestd_mark_lineage_cummax_polars only supports asexual "
             "phylogenies.",
         )
 
@@ -116,9 +101,9 @@ def alifestd_mark_lineage_cumsum_polars(
         .to_numpy()
     )
     if skipna and np.issubdtype(values_arr.dtype, np.floating):
-        values_arr = np.where(np.isnan(values_arr), 0, values_arr)
+        values_arr = np.where(np.isnan(values_arr), -np.inf, values_arr)
 
-    result = _alifestd_mark_lineage_cumsum_asexual_fast_path(
+    result = _alifestd_mark_lineage_cummax_asexual_fast_path(
         ancestor_ids,
         values_arr,
         reverse,
@@ -133,7 +118,7 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column with cumulative sum of `values` along each lineage.
+Add column with maximum of `values` along each lineage.
 
 Data is assumed to be in alife standard format.
 
@@ -145,7 +130,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_mark_lineage_cumsum_asexual :
+phyloframe.legacy._alifestd_mark_lineage_cummax_asexual :
     CLI entrypoint for Pandas-based implementation.
 """
 
@@ -159,7 +144,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_mark_lineage_cumsum_polars",
+        dfcli_module="phyloframe.legacy._alifestd_mark_lineage_cummax_polars",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
@@ -170,9 +155,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mark-as",
-        default="lineage_cumsum",
+        default="lineage_cummax",
         type=str,
-        help="output column name (default: lineage_cumsum)",
+        help="output column name (default: lineage_cummax)",
     )
     add_bool_arg(
         parser,
@@ -199,13 +184,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_lineage_cumsum_polars",
+            "phyloframe.legacy._alifestd_mark_lineage_cummax_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_mark_lineage_cumsum_polars,
+                    alifestd_mark_lineage_cummax_polars,
                     values=args.values,
                     mark_as=args.mark_as,
                     reverse=args.reverse,

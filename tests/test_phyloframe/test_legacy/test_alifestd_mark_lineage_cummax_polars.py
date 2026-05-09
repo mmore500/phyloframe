@@ -3,7 +3,7 @@ import typing
 import polars as pl
 import pytest
 
-from phyloframe.legacy import alifestd_mark_lineage_max_polars
+from phyloframe.legacy import alifestd_mark_lineage_cummax_polars
 
 
 @pytest.mark.parametrize(
@@ -23,8 +23,8 @@ def test_simple_tree(apply: typing.Callable):
             }
         ),
     )
-    res = alifestd_mark_lineage_max_polars(df_pl, "v").lazy().collect()
-    assert res["lineage_max"].to_list() == [10.0, 10.0, 20.0, 10.0, 10.0]
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert res["lineage_cummax"].to_list() == [10.0, 10.0, 20.0, 10.0, 10.0]
 
 
 @pytest.mark.parametrize(
@@ -45,11 +45,11 @@ def test_reverse(apply: typing.Callable):
         ),
     )
     res = (
-        alifestd_mark_lineage_max_polars(df_pl, "v", reverse=True)
+        alifestd_mark_lineage_cummax_polars(df_pl, "v", reverse=True)
         .lazy()
         .collect()
     )
-    assert res["lineage_max"].to_list() == [20.0, 8.0, 20.0, 8.0, 1.0]
+    assert res["lineage_cummax"].to_list() == [20.0, 8.0, 20.0, 8.0, 1.0]
 
 
 @pytest.mark.parametrize(
@@ -63,8 +63,8 @@ def test_singleton(apply: typing.Callable):
     df_pl = apply(
         pl.DataFrame({"id": [0], "ancestor_id": [0], "v": [9.0]}),
     )
-    res = alifestd_mark_lineage_max_polars(df_pl, "v").lazy().collect()
-    assert res["lineage_max"].to_list() == [9.0]
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert res["lineage_cummax"].to_list() == [9.0]
 
 
 @pytest.mark.parametrize(
@@ -85,8 +85,8 @@ def test_empty(apply: typing.Callable):
             },
         ),
     )
-    res = alifestd_mark_lineage_max_polars(df_pl, "v").lazy().collect()
-    assert "lineage_max" in res.columns
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert "lineage_cummax" in res.columns
     assert res.is_empty()
 
 
@@ -107,5 +107,5 @@ def test_forest(apply: typing.Callable):
             }
         ),
     )
-    res = alifestd_mark_lineage_max_polars(df_pl, "v").lazy().collect()
-    assert res["lineage_max"].to_list() == [10.0, 20.0, 10.0, 30.0]
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert res["lineage_cummax"].to_list() == [10.0, 20.0, 10.0, 30.0]

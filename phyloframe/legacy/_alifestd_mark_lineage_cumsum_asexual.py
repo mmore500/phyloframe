@@ -8,6 +8,7 @@ from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import pandas as pd
 
+from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._delegate_polars_implementation import (
     delegate_polars_implementation,
@@ -21,145 +22,25 @@ from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
-# Op codes used by the shared jitted helper.
-_OP_SUM = 0
-_OP_PROD = 1
-_OP_MIN = 2
-_OP_MAX = 3
-
 
 @jit(nopython=True)
-def _alifestd_mark_lineage_op_asexual_fast_path(
+def _alifestd_mark_lineage_cumsum_asexual_fast_path(
     ancestor_ids: np.ndarray,
     values: np.ndarray,
-    op_code: int,
     reverse: bool,
-    skipna: bool,
 ) -> np.ndarray:
-    """Compute lineage cumulative aggregation along contiguous-id, sorted ids.
-
-    Parameters
-    ----------
-    ancestor_ids
-        Ancestor id for each row, indexed by contiguous id.
-    values
-        Per-node values to aggregate; cast to float64 by caller.
-    op_code
-        0 sum, 1 prod, 2 min, 3 max.
-    reverse
-        If False, propagate from root to descendants (lineage prefix
-        aggregate from root inclusive). If True, propagate from
-        descendants to ancestors (clade-rooted aggregate inclusive).
-    skipna
-        If True, NaN entries in ``values`` are treated as the
-        identity element for ``op_code``. If False, NaN propagates.
-    """
+    """Implementation detail for `alifestd_mark_lineage_cumsum_asexual`."""
     n = ancestor_ids.shape[0]
-    result = np.empty(n, dtype=np.float64)
-
-    # initialize with own values, replacing NaN with identity if skipna
-    for i in range(n):
-        v = values[i]
-        if skipna and np.isnan(v):
-            if op_code == _OP_SUM:
-                v = 0.0
-            elif op_code == _OP_PROD:
-                v = 1.0
-            elif op_code == _OP_MIN:
-                v = np.inf
-            else:
-                v = -np.inf
-        result[i] = v
-
-    if not reverse:
-        # forward: result[i] combines result[ancestor] with own value
-        for i in range(n):
-            anc = ancestor_ids[i]
-            if anc == i:
-                continue
-            a = result[anc]
-            v = result[i]
-            if op_code == _OP_SUM:
-                result[i] = a + v
-            elif op_code == _OP_PROD:
-                result[i] = a * v
-            elif op_code == _OP_MIN:
-                if a < v:
-                    result[i] = a
-            else:
-                if a > v:
-                    result[i] = a
-    else:
-        # reverse: each ancestor aggregates over its subtree
-        for j in range(n - 1, -1, -1):
-            anc = ancestor_ids[j]
-            if anc == j:
-                continue
-            a = result[anc]
-            v = result[j]
-            if op_code == _OP_SUM:
-                result[anc] = a + v
-            elif op_code == _OP_PROD:
-                result[anc] = a * v
-            elif op_code == _OP_MIN:
-                if v < a:
-                    result[anc] = v
-            else:
-                if v > a:
-                    result[anc] = v
-
+    result = np.copy(values)
+    for k in range(n - 1, -1, -1) if reverse else range(n):
+        anc = ancestor_ids[k]
+        if anc == k:
+            continue
+        if reverse:
+            result[anc] = result[anc] + result[k]
+        else:
+            result[k] = result[k] + result[anc]
     return result
-
-
-def _alifestd_mark_lineage_op_asexual(
-    phylogeny_df: pd.DataFrame,
-    values: str,
-    op_code: int,
-    *,
-    mutate: bool,
-    mark_as: str,
-    reverse: bool,
-    skipna: bool,
-) -> pd.DataFrame:
-    """Shared implementation for all lineage op marks."""
-    if not mutate:
-        phylogeny_df = phylogeny_df.copy()
-
-    if not alifestd_is_asexual(phylogeny_df):
-        raise NotImplementedError(
-            "alifestd_mark_lineage_*_asexual only supports asexual "
-            "phylogenies.",
-        )
-
-    if values not in phylogeny_df.columns:
-        raise ValueError(
-            f"values column {values!r} not found in phylogeny_df",
-        )
-
-    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
-
-    if phylogeny_df.empty:
-        phylogeny_df[mark_as] = np.empty(0, dtype=np.float64)
-        return phylogeny_df
-
-    if not alifestd_has_contiguous_ids(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not supported",
-        )
-
-    if not alifestd_is_topologically_sorted(phylogeny_df):
-        raise NotImplementedError(
-            "non-topologically-sorted data not supported",
-        )
-
-    phylogeny_df[mark_as] = _alifestd_mark_lineage_op_asexual_fast_path(
-        phylogeny_df["ancestor_id"].to_numpy(dtype=np.uint64),
-        phylogeny_df[values].to_numpy(dtype=np.float64),
-        op_code,
-        reverse,
-        skipna,
-    )
-    return phylogeny_df
 
 
 def alifestd_mark_lineage_cumsum_asexual(
@@ -189,15 +70,46 @@ def alifestd_mark_lineage_cumsum_asexual(
     is set True. If mutate set True, operation does not occur in place;
     still use return value to get transformed phylogeny dataframe.
     """
-    return _alifestd_mark_lineage_op_asexual(
-        phylogeny_df,
-        values,
-        _OP_SUM,
-        mutate=mutate,
-        mark_as=mark_as,
-        reverse=reverse,
-        skipna=skipna,
+    if not mutate:
+        phylogeny_df = phylogeny_df.copy()
+
+    if not alifestd_is_asexual(phylogeny_df):
+        raise NotImplementedError(
+            "alifestd_mark_lineage_cumsum_asexual only supports asexual "
+            "phylogenies.",
+        )
+
+    if values not in phylogeny_df.columns:
+        raise ValueError(
+            f"values column {values!r} not found in phylogeny_df",
+        )
+
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+
+    if phylogeny_df.empty:
+        phylogeny_df[mark_as] = phylogeny_df[values].copy()
+        return phylogeny_df
+
+    if not alifestd_has_contiguous_ids(phylogeny_df):
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
+
+    if not alifestd_is_topologically_sorted(phylogeny_df):
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
+        )
+
+    values_arr = phylogeny_df[values].to_numpy()
+    if skipna and np.issubdtype(values_arr.dtype, np.floating):
+        values_arr = np.where(np.isnan(values_arr), 0, values_arr)
+
+    phylogeny_df[mark_as] = _alifestd_mark_lineage_cumsum_asexual_fast_path(
+        phylogeny_df["ancestor_id"].to_numpy(dtype=np.uint64),
+        values_arr,
+        reverse,
     )
+    return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
@@ -238,16 +150,19 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         help="output column name (default: lineage_cumsum)",
     )
-    parser.add_argument(
-        "--reverse",
-        action="store_true",
+    add_bool_arg(
+        parser,
+        "reverse",
+        default=False,
         help="aggregate over clade rooted at each node "
         "instead of along lineage from root",
     )
-    parser.add_argument(
-        "--no-skipna",
-        action="store_true",
-        help="propagate NaN values rather than treating as identity",
+    add_bool_arg(
+        parser,
+        "skipna",
+        default=True,
+        help="treat NaN values as identity; "
+        "use --no-skipna to propagate NaN instead",
     )
     return parser
 
@@ -269,7 +184,7 @@ if __name__ == "__main__":
                     values=args.values,
                     mark_as=args.mark_as,
                     reverse=args.reverse,
-                    skipna=not args.no_skipna,
+                    skipna=args.skipna,
                 ),
             ),
         )

@@ -406,6 +406,18 @@ from ._alifestd_mark_leaves import alifestd_mark_leaves
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_mark_left_child_asexual import alifestd_mark_left_child_asexual
 from ._alifestd_mark_left_child_polars import alifestd_mark_left_child_polars
+from ._alifestd_mark_lineage_cummax_asexual import (
+    alifestd_mark_lineage_cummax_asexual,
+)
+from ._alifestd_mark_lineage_cummax_polars import (
+    alifestd_mark_lineage_cummax_polars,
+)
+from ._alifestd_mark_lineage_cummin_asexual import (
+    alifestd_mark_lineage_cummin_asexual,
+)
+from ._alifestd_mark_lineage_cummin_polars import (
+    alifestd_mark_lineage_cummin_polars,
+)
 from ._alifestd_mark_lineage_cumprod_asexual import (
     alifestd_mark_lineage_cumprod_asexual,
 )
@@ -418,14 +430,6 @@ from ._alifestd_mark_lineage_cumsum_asexual import (
 from ._alifestd_mark_lineage_cumsum_polars import (
     alifestd_mark_lineage_cumsum_polars,
 )
-from ._alifestd_mark_lineage_max_asexual import (
-    alifestd_mark_lineage_max_asexual,
-)
-from ._alifestd_mark_lineage_max_polars import alifestd_mark_lineage_max_polars
-from ._alifestd_mark_lineage_min_asexual import (
-    alifestd_mark_lineage_min_asexual,
-)
-from ._alifestd_mark_lineage_min_polars import alifestd_mark_lineage_min_polars
 from ._alifestd_mark_max_descendant_origin_time_asexual import (
     alifestd_mark_max_descendant_origin_time_asexual,
 )
@@ -859,14 +863,14 @@ __all__ = [
     "alifestd_mark_leaves_polars",
     "alifestd_mark_left_child_asexual",
     "alifestd_mark_left_child_polars",
+    "alifestd_mark_lineage_cummax_asexual",
+    "alifestd_mark_lineage_cummax_polars",
+    "alifestd_mark_lineage_cummin_asexual",
+    "alifestd_mark_lineage_cummin_polars",
     "alifestd_mark_lineage_cumprod_asexual",
     "alifestd_mark_lineage_cumprod_polars",
     "alifestd_mark_lineage_cumsum_asexual",
     "alifestd_mark_lineage_cumsum_polars",
-    "alifestd_mark_lineage_max_asexual",
-    "alifestd_mark_lineage_max_polars",
-    "alifestd_mark_lineage_min_asexual",
-    "alifestd_mark_lineage_min_polars",
     "alifestd_mark_max_descendant_origin_time_asexual",
     "alifestd_mark_max_descendant_origin_time_polars",
     "alifestd_mark_next_sibling_id_asexual",

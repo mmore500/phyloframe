@@ -6,15 +6,26 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import polars as pl
 
+from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_mark_lineage_cumsum_asexual import _OP_PROD
-from ._alifestd_mark_lineage_cumsum_polars import (
-    _alifestd_mark_lineage_op_polars,
+from ._alifestd_has_contiguous_ids_polars import (
+    alifestd_has_contiguous_ids_polars,
+)
+from ._alifestd_is_asexual_polars import alifestd_is_asexual_polars
+from ._alifestd_is_topologically_sorted_polars import (
+    alifestd_is_topologically_sorted_polars,
+)
+from ._alifestd_mark_lineage_cumprod_asexual import (
+    _alifestd_mark_lineage_cumprod_asexual_fast_path,
+)
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
 )
 
 
@@ -39,13 +50,67 @@ def alifestd_mark_lineage_cumprod_polars(
     alifestd_mark_lineage_cumprod_asexual :
         Pandas-based implementation.
     """
-    return _alifestd_mark_lineage_op_polars(
+    if isinstance(values, str):
+        schema_names = phylogeny_df.lazy().collect_schema().names()
+        if values not in schema_names:
+            raise ValueError(
+                f"values column {values!r} not found in phylogeny_df",
+            )
+        values_expr = pl.col(values)
+    else:
+        values_expr = values
+
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "ancestor_id" not in schema_names or not alifestd_is_asexual_polars(
         phylogeny_df,
-        values,
-        _OP_PROD,
-        mark_as=mark_as,
-        reverse=reverse,
-        skipna=skipna,
+    ):
+        raise NotImplementedError(
+            "alifestd_mark_lineage_cumprod_polars only supports asexual "
+            "phylogenies.",
+        )
+
+    if phylogeny_df.lazy().limit(1).collect().is_empty():
+        return phylogeny_df.with_columns(
+            values_expr.alias(mark_as),
+        )
+
+    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+        raise NotImplementedError(
+            "non-contiguous ids not supported",
+        )
+
+    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
+        )
+
+    ancestor_ids = (
+        phylogeny_df.lazy()
+        .select("ancestor_id")
+        .collect()
+        .to_series()
+        .to_numpy()
+        .astype(np.uint64)
+    )
+    values_arr = (
+        phylogeny_df.lazy()
+        .select(values_expr.alias("__values__"))
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    if skipna and np.issubdtype(values_arr.dtype, np.floating):
+        values_arr = np.where(np.isnan(values_arr), 1, values_arr)
+
+    result = _alifestd_mark_lineage_cumprod_asexual_fast_path(
+        ancestor_ids,
+        values_arr,
+        reverse,
+    )
+
+    return phylogeny_df.with_columns(
+        pl.Series(name=mark_as, values=result),
     )
 
 
@@ -94,16 +159,19 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         help="output column name (default: lineage_cumprod)",
     )
-    parser.add_argument(
-        "--reverse",
-        action="store_true",
+    add_bool_arg(
+        parser,
+        "reverse",
+        default=False,
         help="aggregate over clade rooted at each node "
         "instead of along lineage from root",
     )
-    parser.add_argument(
-        "--no-skipna",
-        action="store_true",
-        help="propagate NaN values rather than treating as identity",
+    add_bool_arg(
+        parser,
+        "skipna",
+        default=True,
+        help="treat NaN values as identity; "
+        "use --no-skipna to propagate NaN instead",
     )
     return parser
 
@@ -126,7 +194,7 @@ if __name__ == "__main__":
                     values=args.values,
                     mark_as=args.mark_as,
                     reverse=args.reverse,
-                    skipna=not args.no_skipna,
+                    skipna=args.skipna,
                 ),
             )
     except NotImplementedError as e:

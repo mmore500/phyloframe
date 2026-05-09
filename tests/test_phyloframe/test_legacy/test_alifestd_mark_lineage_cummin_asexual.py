@@ -4,15 +4,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_lineage_min_asexual,
+    alifestd_mark_lineage_cummin_asexual,
 )
 
 
 def test_empty():
     mt = alifestd_make_empty()
     mt["v"] = pd.Series(dtype=float)
-    res = alifestd_mark_lineage_min_asexual(mt, "v")
-    assert "lineage_min" in res.columns
+    res = alifestd_mark_lineage_cummin_asexual(mt, "v")
+    assert "lineage_cummin" in res.columns
     assert len(res) == 0
 
 
@@ -24,8 +24,8 @@ def test_singleton():
             "v": [7.0],
         }
     )
-    res = alifestd_mark_lineage_min_asexual(df, "v")
-    assert res["lineage_min"].tolist() == [7.0]
+    res = alifestd_mark_lineage_cummin_asexual(df, "v")
+    assert res["lineage_cummin"].tolist() == [7.0]
 
 
 @pytest.mark.parametrize("mutate", [True, False])
@@ -38,8 +38,8 @@ def test_simple_tree(mutate: bool):
         }
     )
     original = df.copy()
-    res = alifestd_mark_lineage_min_asexual(df, "v", mutate=mutate)
-    assert res.set_index("id")["lineage_min"].to_dict() == {
+    res = alifestd_mark_lineage_cummin_asexual(df, "v", mutate=mutate)
+    assert res.set_index("id")["lineage_cummin"].to_dict() == {
         0: 10.0,
         1: 5.0,
         2: 10.0,
@@ -58,8 +58,8 @@ def test_reverse_clade_min():
             "v": [10.0, 5.0, 20.0, 8.0, 1.0],
         }
     )
-    res = alifestd_mark_lineage_min_asexual(df, "v", reverse=True)
-    assert res.set_index("id")["lineage_min"].to_dict() == {
+    res = alifestd_mark_lineage_cummin_asexual(df, "v", reverse=True)
+    assert res.set_index("id")["lineage_cummin"].to_dict() == {
         0: 1.0,
         1: 1.0,
         2: 20.0,
@@ -76,8 +76,8 @@ def test_forest():
             "v": [10.0, 20.0, 5.0, 30.0],
         }
     )
-    res = alifestd_mark_lineage_min_asexual(df, "v")
-    assert res.set_index("id")["lineage_min"].to_dict() == {
+    res = alifestd_mark_lineage_cummin_asexual(df, "v")
+    assert res.set_index("id")["lineage_cummin"].to_dict() == {
         0: 10.0,
         1: 20.0,
         2: 5.0,
@@ -93,8 +93,8 @@ def test_skipna():
             "v": [3.0, np.nan, 1.0],
         }
     )
-    res = alifestd_mark_lineage_min_asexual(df, "v", skipna=True)
-    assert res["lineage_min"].tolist() == [3.0, 3.0, 1.0]
+    res = alifestd_mark_lineage_cummin_asexual(df, "v", skipna=True)
+    assert res["lineage_cummin"].tolist() == [3.0, 3.0, 1.0]
 
 
 def test_not_asexual():
@@ -106,4 +106,4 @@ def test_not_asexual():
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_lineage_min_asexual(df, "v")
+        alifestd_mark_lineage_cummin_asexual(df, "v")

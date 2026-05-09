@@ -4,15 +4,15 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_make_empty,
-    alifestd_mark_lineage_max_asexual,
+    alifestd_mark_lineage_cummax_asexual,
 )
 
 
 def test_empty():
     mt = alifestd_make_empty()
     mt["v"] = pd.Series(dtype=float)
-    res = alifestd_mark_lineage_max_asexual(mt, "v")
-    assert "lineage_max" in res.columns
+    res = alifestd_mark_lineage_cummax_asexual(mt, "v")
+    assert "lineage_cummax" in res.columns
     assert len(res) == 0
 
 
@@ -24,8 +24,8 @@ def test_singleton():
             "v": [7.0],
         }
     )
-    res = alifestd_mark_lineage_max_asexual(df, "v")
-    assert res["lineage_max"].tolist() == [7.0]
+    res = alifestd_mark_lineage_cummax_asexual(df, "v")
+    assert res["lineage_cummax"].tolist() == [7.0]
 
 
 @pytest.mark.parametrize("mutate", [True, False])
@@ -38,8 +38,8 @@ def test_simple_tree(mutate: bool):
         }
     )
     original = df.copy()
-    res = alifestd_mark_lineage_max_asexual(df, "v", mutate=mutate)
-    assert res.set_index("id")["lineage_max"].to_dict() == {
+    res = alifestd_mark_lineage_cummax_asexual(df, "v", mutate=mutate)
+    assert res.set_index("id")["lineage_cummax"].to_dict() == {
         0: 10.0,
         1: 10.0,
         2: 20.0,
@@ -58,8 +58,8 @@ def test_reverse_clade_max():
             "v": [10.0, 5.0, 20.0, 8.0, 1.0],
         }
     )
-    res = alifestd_mark_lineage_max_asexual(df, "v", reverse=True)
-    assert res.set_index("id")["lineage_max"].to_dict() == {
+    res = alifestd_mark_lineage_cummax_asexual(df, "v", reverse=True)
+    assert res.set_index("id")["lineage_cummax"].to_dict() == {
         0: 20.0,
         1: 8.0,
         2: 20.0,
@@ -76,8 +76,8 @@ def test_forest():
             "v": [10.0, 20.0, 5.0, 30.0],
         }
     )
-    res = alifestd_mark_lineage_max_asexual(df, "v")
-    assert res.set_index("id")["lineage_max"].to_dict() == {
+    res = alifestd_mark_lineage_cummax_asexual(df, "v")
+    assert res.set_index("id")["lineage_cummax"].to_dict() == {
         0: 10.0,
         1: 20.0,
         2: 10.0,
@@ -93,8 +93,8 @@ def test_skipna():
             "v": [3.0, np.nan, 5.0],
         }
     )
-    res = alifestd_mark_lineage_max_asexual(df, "v", skipna=True)
-    assert res["lineage_max"].tolist() == [3.0, 3.0, 5.0]
+    res = alifestd_mark_lineage_cummax_asexual(df, "v", skipna=True)
+    assert res["lineage_cummax"].tolist() == [3.0, 3.0, 5.0]
 
 
 def test_not_asexual():
@@ -106,4 +106,4 @@ def test_not_asexual():
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mark_lineage_max_asexual(df, "v")
+        alifestd_mark_lineage_cummax_asexual(df, "v")

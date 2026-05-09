@@ -6,7 +6,7 @@ import pandas as pd
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
-MODULE = "phyloframe.legacy._alifestd_mark_lineage_max_asexual"
+MODULE = "phyloframe.legacy._alifestd_mark_lineage_cummax_polars"
 
 
 def test_cli_help():
@@ -25,7 +25,7 @@ def test_cli_version():
 
 def test_cli_csv():
     output_file = (
-        "/tmp/phyloframe_alifestd_mark_lineage_max_asexual.csv"  # nosec B108
+        "/tmp/phyloframe_alifestd_mark_lineage_cummax_polars.csv"  # nosec B108
     )
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
@@ -35,6 +35,7 @@ def test_cli_csv():
             MODULE,
             "--values",
             "origin_time",
+            "--eager-write",
             output_file,
         ],
         check=True,
@@ -43,11 +44,11 @@ def test_cli_csv():
     assert os.path.exists(output_file)
     result_df = pd.read_csv(output_file)
     assert len(result_df) > 0
-    assert "lineage_max" in result_df.columns
+    assert "lineage_cummax" in result_df.columns
 
 
 def test_cli_mark_as():
-    output_file = "/tmp/phyloframe_alifestd_mark_lineage_max_asexual_mark_as.csv"  # nosec B108
+    output_file = "/tmp/phyloframe_alifestd_mark_lineage_cummax_polars_mark_as.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [
@@ -59,6 +60,7 @@ def test_cli_mark_as():
             "--mark-as",
             "custom_col_name",
             "--reverse",
+            "--eager-write",
             output_file,
         ],
         check=True,
