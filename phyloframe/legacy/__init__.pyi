@@ -246,6 +246,8 @@ from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_is_ultrametric import alifestd_is_ultrametric
+from ._alifestd_is_ultrametric_polars import alifestd_is_ultrametric_polars
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
@@ -587,6 +589,8 @@ from ._alifestd_try_add_ancestor_list_col import (
 from ._alifestd_try_add_ancestor_list_col_polars import (
     alifestd_try_add_ancestor_list_col_polars,
 )
+from ._alifestd_ultrametricize import alifestd_ultrametricize
+from ._alifestd_ultrametricize_polars import alifestd_ultrametricize_polars
 from ._alifestd_unfurl_lineage_asexual import alifestd_unfurl_lineage_asexual
 from ._alifestd_unfurl_traversal_inorder_asexual import (
     alifestd_unfurl_traversal_inorder_asexual,
@@ -767,6 +771,8 @@ __all__ = [
     "alifestd_is_strictly_bifurcating_polars",
     "alifestd_is_topologically_sorted",
     "alifestd_is_topologically_sorted_polars",
+    "alifestd_is_ultrametric",
+    "alifestd_is_ultrametric_polars",
     "alifestd_is_working_format_asexual",
     "alifestd_is_working_format_polars",
     "alifestd_join_roots",
@@ -900,6 +906,8 @@ __all__ = [
     "alifestd_try_add_ancestor_id_col_polars",
     "alifestd_try_add_ancestor_list_col",
     "alifestd_try_add_ancestor_list_col_polars",
+    "alifestd_ultrametricize",
+    "alifestd_ultrametricize_polars",
     "alifestd_unfurl_lineage_asexual",
     "alifestd_unfurl_traversal_inorder_asexual",
     "alifestd_unfurl_traversal_inorder_polars",
