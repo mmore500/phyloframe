@@ -99,6 +99,46 @@ For programmatic visualizations, phyloframe integrates with iplotx [@zanini2025i
 `phyloframe` originated from phylogeny-tracking components developed for the `hstrat` hereditary stratigraphy library [@moreno2022hstrat], which enables phylogenetic inference over distributed digital evolution populations.
 The alifestd operations now in `phyloframe` provide the core tree analysis and manipulation layer used by `hstrat` and downstream digital evolution experiments.
 
+# Demonstration
+
+A brief demonstration showing several tree transforms using a pipeline pattern.
+Note that complex tree manipulations, including custom operations, can be succinctly performed with no raw loops or recursion.
+
+```python3
+import numpy as np
+from pandas import DataFrame
+from phyloframe import legacy as pfl
+
+df_raw: DataFrame = pfl.alifestd_from_newick("(((r:1)c:2,(x:2,y:1)e:1.5)s:2)a;")
+df_res: DataFrame = (
+    df_raw.drop(columns=["branch_length", "origin_time_delta"])
+    .pipe(
+        pfl.alifestd_reroot_at_id_asexual,
+        new_root_id=df_raw.query("taxon_label == 'r'")["id"].item(),
+    )
+    .pipe(  # update branch lengths after reroot
+        lambda df: df.assign(
+            branch_length=np.where(
+                df_raw.loc[df["id"], "ancestor_id"] == df["ancestor_id"],
+                df_raw.loc[df["id"], "branch_length"],
+                df_raw.loc[df["ancestor_id"], "branch_length"],
+            ),
+        ),
+    )
+    .pipe(pfl.alifestd_to_working_format)  # reassign id values
+    .pipe(  # accumulate branch lengths to mark origin times
+        pfl.alifestd_mark_lineage_cumsum_asexual,
+        mark_as="origin_time",
+        values="branch_length",
+    )
+    .pipe(pfl.alifestd_sort_children_asexual, criterion="taxon_label")
+    .pipe(pfl.alifestd_to_working_format)  # reassign id values
+    .pipe(pfl.alifestd_ultrametricize, method="extend")
+)
+```
+
+![Before and after tree plots, created through integration with iplotx [@zanini2025iplotx]. \label{fig:demo}](demo.png)
+
 # Related Software
 
 Several established Python libraries provide phylogenetic tree functionality.
