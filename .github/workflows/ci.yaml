@@ -307,6 +307,7 @@ jobs:
           path: joss/paper.pdf
 
   benchmark:
+    if: github.event_name == 'workflow_dispatch'
     name: "benchmark ${{ matrix.n_leaves }} leaves"
     runs-on: ubuntu-24.04
     strategy:
