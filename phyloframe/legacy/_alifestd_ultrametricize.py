@@ -52,7 +52,7 @@ def alifestd_ultrametricize(
     if phylogeny_df.empty:
         return phylogeny_df
 
-    latest_origin_time = phylogeny_df["origin_time"].max()
+    latest_origin_time = phylogeny_df["origin_time"].max(skipna=True)
 
     if "is_leaf" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_leaves(phylogeny_df, mutate=True)
