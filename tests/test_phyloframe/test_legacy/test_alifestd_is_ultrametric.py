@@ -90,7 +90,8 @@ def test_atol():
     assert alifestd_is_ultrametric(phylogeny_df, atol=1.0)
 
 
-def test_inputs_not_mutated():
+@pytest.mark.parametrize("mutate", [True, False])
+def test_inputs_not_mutated(mutate: bool):
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -99,8 +100,13 @@ def test_inputs_not_mutated():
         }
     )
     original = phylogeny_df.copy()
-    alifestd_is_ultrametric(phylogeny_df)
-    assert original.equals(phylogeny_df)
+    alifestd_is_ultrametric(phylogeny_df, mutate=mutate)
+    if not mutate:
+        assert original.equals(phylogeny_df)
+    # input columns are unchanged in either case
+    assert list(original.columns) == list(
+        phylogeny_df.columns[: len(original.columns)]
+    )
 
 
 def test_forest():
