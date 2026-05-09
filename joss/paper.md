@@ -90,6 +90,10 @@ All I/O and traversal operations support both Polars and pandas, with automatic 
 **Command-line interface.**
 Each public function is also accessible as a CLI command, facilitating use in shell pipelines.
 
+**Visualization.**
+For interactive in-browser visualization of trees up to millions of nodes, an experimental fork of taxonium [@sanderson2022taxonium] is available that supports alife standard CSV, TSV, and Parquet files.
+For programmatic visualizations, phyloframe integrates with iplotx [@zanini2025iplotx] to visualize phylogenetic trees from DataFrames.
+
 # Projects Using the Software
 
 `phyloframe` originated from phylogeny-tracking components developed for the `hstrat` hereditary stratigraphy library [@moreno2022hstrat], which enables phylogenetic inference over distributed digital evolution populations.
