@@ -44,8 +44,8 @@ Base memory footprint is lightweight (e.g., as little as 32 bits per node), but 
 
 **Rich interoperative ecosystem.**
 Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via `reticulate` and Arrow; possible future support for zero-copy Polars DataFrames shared between Rust and Python).
-Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol).
-Compatibility with existing alife data standards ecosystem.
+Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; [Python dataframe protocol](https://data-apis.org/dataframe-protocol)).
+Compatibility with existing [alife data standards](https://alife-data-standards.github.io/alife-data-standards) ecosystem.
 
 ## Performance
 
