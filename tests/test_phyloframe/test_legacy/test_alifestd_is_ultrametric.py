@@ -172,6 +172,65 @@ def test_preexisting_is_leaf_column():
     assert alifestd_is_ultrametric(phylogeny_df)
 
 
+def test_noncontiguous_ids():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [10, 20, 30, 40],
+            "ancestor_list": ["[None]", "[10]", "[10]", "[20]"],
+            "origin_time": [0.0, 1.0, 5.0, 5.0],
+        }
+    )
+    assert alifestd_is_ultrametric(phylogeny_df)
+
+    phylogeny_df.loc[3, "origin_time"] = 4.0
+    assert not alifestd_is_ultrametric(phylogeny_df)
+
+
+def test_ancestor_id_only():
+    # ancestor_id is provided in lieu of ancestor_list
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "origin_time": [0.0, 1.0, 5.0, 5.0],
+        }
+    )
+    assert alifestd_is_ultrametric(phylogeny_df)
+
+    phylogeny_df.loc[3, "origin_time"] = 4.0
+    assert not alifestd_is_ultrametric(phylogeny_df)
+
+
+def test_ancestor_id_and_ancestor_list():
+    # Both ancestor_id and ancestor_list are present
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "ancestor_list": ["[None]", "[0]", "[0]", "[1]"],
+            "origin_time": [0.0, 1.0, 5.0, 5.0],
+        }
+    )
+    assert alifestd_is_ultrametric(phylogeny_df)
+
+    phylogeny_df.loc[3, "origin_time"] = 4.0
+    assert not alifestd_is_ultrametric(phylogeny_df)
+
+
+def test_noncontiguous_ids_ancestor_id_only():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [10, 20, 30, 40],
+            "ancestor_id": [10, 10, 10, 20],
+            "origin_time": [0.0, 1.0, 5.0, 5.0],
+        }
+    )
+    assert alifestd_is_ultrametric(phylogeny_df)
+
+    phylogeny_df.loc[3, "origin_time"] = 4.0
+    assert not alifestd_is_ultrametric(phylogeny_df)
+
+
 @pytest.mark.parametrize(
     "phylogeny_df",
     [

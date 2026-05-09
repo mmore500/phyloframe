@@ -2,6 +2,7 @@ import argparse
 import functools
 import logging
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -21,7 +22,7 @@ def alifestd_ultrametricize(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    method: str = "extend",
+    method: typing.Literal["extend"] = "extend",
 ) -> pd.DataFrame:
     """Adjust tip `origin_time` values so all tips share the same time.
 
@@ -55,8 +56,8 @@ def alifestd_ultrametricize(
         phylogeny_df = alifestd_mark_leaves(phylogeny_df, mutate=True)
 
     leaf_mask = phylogeny_df["is_leaf"].to_numpy()
-    target_origin_time = phylogeny_df.loc[leaf_mask, "origin_time"].max()
-    phylogeny_df.loc[leaf_mask, "origin_time"] = target_origin_time
+    latest_origin_time = phylogeny_df.loc[leaf_mask, "origin_time"].max()
+    phylogeny_df.loc[leaf_mask, "origin_time"] = latest_origin_time
 
     return phylogeny_df
 

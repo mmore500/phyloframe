@@ -2,6 +2,7 @@ import argparse
 import functools
 import logging
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -17,7 +18,7 @@ from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 def alifestd_ultrametricize_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    method: str = "extend",
+    method: typing.Literal["extend"] = "extend",
 ) -> pl.DataFrame:
     """Adjust tip `origin_time` values so all tips share the same time.
 
@@ -25,7 +26,8 @@ def alifestd_ultrametricize_polars(
     maximum ``origin_time`` among tips. Internal node times are not
     modified.
 
-    Empty phylogenies are returned unchanged.
+    Empty phylogenies are returned unchanged. Must represent an asexual
+    phylogeny (when ``is_leaf`` is not already present).
 
     See Also
     --------
@@ -37,8 +39,8 @@ def alifestd_ultrametricize_polars(
             f"alifestd_ultrametricize_polars: unknown method {method!r}",
         )
 
-    schema = phylogeny_df.lazy().collect_schema()
-    if "origin_time" not in schema:
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "origin_time" not in schema_names:
         raise ValueError(
             "alifestd_ultrametricize_polars requires 'origin_time' column",
         )
@@ -46,11 +48,10 @@ def alifestd_ultrametricize_polars(
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df
 
-    if "is_leaf" not in schema:
+    if "is_leaf" not in schema_names:
         phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
 
-    origin_time_dtype = schema["origin_time"]
-    target_origin_time = (
+    latest_origin_time = (
         phylogeny_df.lazy()
         .filter(pl.col("is_leaf"))
         .select(pl.col("origin_time").max())
@@ -60,7 +61,7 @@ def alifestd_ultrametricize_polars(
 
     return phylogeny_df.with_columns(
         pl.when(pl.col("is_leaf"))
-        .then(pl.lit(target_origin_time).cast(origin_time_dtype))
+        .then(pl.lit(latest_origin_time))
         .otherwise(pl.col("origin_time"))
         .alias("origin_time"),
     )

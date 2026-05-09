@@ -158,6 +158,8 @@ $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_id_col
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_id_col_polars
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col_polars
+$ python3 -m phyloframe.legacy._alifestd_ultrametricize
+$ python3 -m phyloframe.legacy._alifestd_ultrametricize_polars
 
 For information on a command, invoke it with the --help flag.
 """,

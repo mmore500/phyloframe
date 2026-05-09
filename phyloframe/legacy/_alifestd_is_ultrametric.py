@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from ._alifestd_mark_leaves import alifestd_mark_leaves
@@ -28,7 +29,5 @@ def alifestd_is_ultrametric(
 
     leaf_origin_times = phylogeny_df.loc[
         phylogeny_df["is_leaf"].to_numpy(), "origin_time"
-    ]
-    return bool(
-        leaf_origin_times.max() - leaf_origin_times.min() <= atol,
-    )
+    ].to_numpy()
+    return bool(np.ptp(leaf_origin_times) <= atol)

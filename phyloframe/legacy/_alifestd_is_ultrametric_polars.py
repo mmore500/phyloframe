@@ -11,7 +11,9 @@ def alifestd_is_ultrametric_polars(
     """Do all tips share the same `origin_time` (within ``atol``)?
 
     Tests the peak-to-peak (``ptp``) range of ``origin_time`` among tips
-    against ``atol``. Returns ``True`` for empty phylogenies.
+    against ``atol``. Returns ``True`` for empty phylogenies. Must
+    represent an asexual phylogeny (when ``is_leaf`` is not already
+    present).
     """
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "origin_time" not in schema_names:
@@ -28,11 +30,7 @@ def alifestd_is_ultrametric_polars(
     leaf_ot = (
         phylogeny_df.lazy()
         .filter(pl.col("is_leaf"))
-        .select(
-            (pl.col("origin_time").max() - pl.col("origin_time").min()).alias(
-                "ptp",
-            ),
-        )
+        .select(pl.col("origin_time").max() - pl.col("origin_time").min())
         .collect()
         .item()
     )

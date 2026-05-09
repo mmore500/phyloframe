@@ -228,20 +228,26 @@ def test_polars_matches_pandas(
     assert (expected_ot == actual_ot).all()
 
 
-def test_sexual_phylogeny():
-    # Sexual phylogeny: 2 has two parents (0,1). polars version uses
-    # num_children, which is computed from ancestor_id only. Build with
-    # an ancestor_id column populated as one of the parents per row, but
-    # we still want to demonstrate that the function works on multi-root
-    # / sexual-shaped data. Use ancestor_list-based mark by relying on
-    # the polars find_leaf path.
-    df_pl = pl.DataFrame(
-        {
-            "id": [0, 1, 2, 3, 4],
-            "ancestor_id": [0, 1, 0, 2, 2],
-            "origin_time": [0.0, 0.0, 1.0, 3.0, 5.0],
-        }
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_noncontiguous_ids_with_preexisting_is_leaf(apply: typing.Callable):
+    # The polars implementation falls back on alifestd_mark_leaves_polars,
+    # which requires contiguous ids. To exercise non-contiguous ids we
+    # provide is_leaf upfront so leaf detection is skipped.
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [10, 20, 30, 40],
+                "ancestor_id": [10, 10, 20, 20],
+                "origin_time": [0.0, 1.0, 2.0, 5.0],
+                "is_leaf": [False, False, True, True],
+            }
+        ),
     )
     result = alifestd_ultrametricize_polars(df_pl).lazy().collect()
-    # With this ancestor_id encoding, leaves are 1, 3, 4. max=5 -> all set to 5
-    assert result["origin_time"].to_list() == [0.0, 5.0, 1.0, 5.0, 5.0]
+    assert result["origin_time"].to_list() == [0.0, 1.0, 5.0, 5.0]

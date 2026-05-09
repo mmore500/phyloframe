@@ -177,6 +177,82 @@ def test_preexisting_is_leaf_column():
     assert result.loc[2, "origin_time"] == 2.0
 
 
+def test_noncontiguous_ids():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [10, 20, 30, 40],
+            "ancestor_list": ["[None]", "[10]", "[10]", "[20]"],
+            "origin_time": [0.0, 1.0, 2.0, 5.0],
+        }
+    )
+    original = phylogeny_df.copy()
+    result = alifestd_ultrametricize(phylogeny_df)
+    result.index = result["id"]
+
+    # leaves are 30 and 40; both -> 5.0
+    assert result.loc[30, "origin_time"] == 5.0
+    assert result.loc[40, "origin_time"] == 5.0
+    # inner unchanged
+    assert result.loc[10, "origin_time"] == 0.0
+    assert result.loc[20, "origin_time"] == 1.0
+
+    assert original.equals(phylogeny_df)
+
+
+def test_ancestor_id_only():
+    # ancestor_id is provided in lieu of ancestor_list
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "origin_time": [0.0, 1.0, 2.0, 5.0],
+        }
+    )
+    original = phylogeny_df.copy()
+    result = alifestd_ultrametricize(phylogeny_df)
+    result.index = result["id"]
+    # leaves: 2, 3 -> 5.0
+    assert result.loc[2, "origin_time"] == 5.0
+    assert result.loc[3, "origin_time"] == 5.0
+
+    assert original.equals(phylogeny_df)
+
+
+def test_ancestor_id_and_ancestor_list():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "ancestor_list": ["[None]", "[0]", "[0]", "[1]"],
+            "origin_time": [0.0, 1.0, 2.0, 5.0],
+        }
+    )
+    original = phylogeny_df.copy()
+    result = alifestd_ultrametricize(phylogeny_df)
+    result.index = result["id"]
+    assert result.loc[2, "origin_time"] == 5.0
+    assert result.loc[3, "origin_time"] == 5.0
+
+    assert original.equals(phylogeny_df)
+
+
+def test_noncontiguous_ids_ancestor_id_only():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [10, 20, 30, 40],
+            "ancestor_id": [10, 10, 10, 20],
+            "origin_time": [0.0, 1.0, 2.0, 5.0],
+        }
+    )
+    original = phylogeny_df.copy()
+    result = alifestd_ultrametricize(phylogeny_df)
+    result.index = result["id"]
+    assert result.loc[30, "origin_time"] == 5.0
+    assert result.loc[40, "origin_time"] == 5.0
+
+    assert original.equals(phylogeny_df)
+
+
 def test_already_ultrametric():
     phylogeny_df = pd.DataFrame(
         {

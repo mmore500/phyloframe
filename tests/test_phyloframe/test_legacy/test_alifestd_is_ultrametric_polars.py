@@ -176,20 +176,21 @@ def test_forest(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
-def test_sexual_phylogeny(apply: typing.Callable):
-    # Sexual layout encoded with ancestor_id pointing at one of the parents.
-    # Ultrametric => leaves share origin_time.
+def test_noncontiguous_ids_with_preexisting_is_leaf(apply: typing.Callable):
+    # The polars implementation falls back on alifestd_mark_leaves_polars,
+    # which requires contiguous ids. To exercise non-contiguous ids we
+    # provide is_leaf upfront so leaf detection is skipped.
     df_pl = apply(
         pl.DataFrame(
             {
-                "id": [0, 1, 2, 3, 4],
-                "ancestor_id": [0, 1, 0, 2, 2],
-                "origin_time": [0.0, 0.0, 1.0, 5.0, 3.0],
+                "id": [10, 20, 30, 40, 50],
+                "ancestor_id": [10, 10, 20, 30, 30],
+                "origin_time": [0.0, 1.0, 2.0, 5.0, 3.0],
+                "is_leaf": [False, False, True, True, True],
             }
         ),
     )
     assert not alifestd_is_ultrametric_polars(df_pl)
-
     res = alifestd_ultrametricize_polars(df_pl)
     assert alifestd_is_ultrametric_polars(res)
 
