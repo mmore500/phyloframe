@@ -33,8 +33,6 @@ def _alifestd_mark_lineage_cummin_asexual_fast_path(
     result = np.copy(values)
     for k in range(n - 1, -1, -1) if reverse else range(n):
         anc = ancestor_ids[k]
-        if anc == k:
-            continue
         target = anc if reverse else k
         result[target] = min(result[anc], result[k])
     return result
