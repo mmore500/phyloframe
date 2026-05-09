@@ -91,7 +91,7 @@ def alifestd_mark_lineage_cumprod_polars(
     )
     values_arr = (
         phylogeny_df.lazy()
-        .select(values_expr.alias("__values__"))
+        .select(values_expr)
         .collect()
         .to_series()
         .to_numpy()
