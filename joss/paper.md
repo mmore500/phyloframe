@@ -110,6 +110,9 @@ CompactTree [@moshiri2025compacttree] achieves minimal memory footprint through 
 scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit including tree data structures and ecological diversity analyses.
 SuchTree [@ryneches2018suchtree] uses a Cython-compiled array representation optimized for fast pairwise distance queries and co-phylogenetic analyses.
 
+In the Julia [@bezanson2017julia] ecosystem, PhyloNetworks [@solislemus2017phylonetworks] provides a comprehensive framework for phylogenetic network analysis.
+<!-- TODO: expand Julia ecosystem comparison -->
+
 All of these libraries represent trees as pointer-linked node objects.
 `phyloframe` takes a fundamentally different approach by storing trees as column-oriented dataframes.
 This design enables direct integration with pandas and Polars analytics workflows, vectorized computation over node attributes, and natural attachment of per-node metadata as additional columns without custom data structures.
