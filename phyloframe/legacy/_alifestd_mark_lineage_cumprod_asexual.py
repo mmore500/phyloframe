@@ -18,7 +18,6 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
-from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
@@ -73,18 +72,17 @@ def alifestd_mark_lineage_cumprod_asexual(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    if not alifestd_is_asexual(phylogeny_df):
-        raise NotImplementedError(
-            "alifestd_mark_lineage_cumprod_asexual only supports asexual "
-            "phylogenies.",
-        )
-
     if values not in phylogeny_df.columns:
         raise ValueError(
             f"values column {values!r} not found in phylogeny_df",
         )
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+    if "ancestor_id" not in phylogeny_df.columns:
+        raise NotImplementedError(
+            "alifestd_mark_lineage_cumprod_asexual only supports asexual "
+            "phylogenies.",
+        )
 
     if phylogeny_df.empty:
         phylogeny_df[mark_as] = phylogeny_df[values].copy()

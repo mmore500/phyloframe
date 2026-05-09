@@ -17,7 +17,6 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
-from ._alifestd_is_asexual_polars import alifestd_is_asexual_polars
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
@@ -62,9 +61,7 @@ def alifestd_mark_lineage_cumprod_polars(
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    if "ancestor_id" not in schema_names or not alifestd_is_asexual_polars(
-        phylogeny_df,
-    ):
+    if "ancestor_id" not in schema_names:
         raise NotImplementedError(
             "alifestd_mark_lineage_cumprod_polars only supports asexual "
             "phylogenies.",
