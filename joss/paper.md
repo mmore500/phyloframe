@@ -163,8 +163,6 @@ The dataframe representation also facilitates JIT compilation of inner loops via
 
 # Acknowledgements
 
-Computational resources were provided by the MSU Institute for Cyber-Enabled Research and from PSC Neocortex via the ByteBoost training program.
-Thank you also to Mathias Jacquelin and Leighton Wilson at Cerebras Systems.
 This material is based upon work supported by the Eric and Wendy Schmidt AI in Science Postdoctoral Fellowship, a Schmidt Sciences program.
 This material is based upon work supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research (ASCR), under Award Number DE-SC0025634.
 This report was prepared as an account of work sponsored by an agency of the United States Government.
