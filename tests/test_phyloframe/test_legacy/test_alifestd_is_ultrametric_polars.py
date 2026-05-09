@@ -176,6 +176,69 @@ def test_forest(apply: typing.Callable):
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
+def test_nan_leaf_origin_time_raises(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 0],
+                "origin_time": [0.0, float("nan"), 5.0],
+            }
+        ),
+    )
+    with pytest.raises(ValueError):
+        alifestd_is_ultrametric_polars(df_pl)
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_null_leaf_origin_time_raises(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 0],
+                "origin_time": [0.0, None, 5.0],
+            }
+        ),
+    )
+    with pytest.raises(ValueError):
+        alifestd_is_ultrametric_polars(df_pl)
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_nan_internal_origin_time_does_not_raise(apply: typing.Callable):
+    # only leaf NaN/null should trigger the error
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 0],
+                "origin_time": [float("nan"), 5.0, 5.0],
+            }
+        ),
+    )
+    assert alifestd_is_ultrametric_polars(df_pl)
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
 def test_noncontiguous_ids_with_preexisting_is_leaf(apply: typing.Callable):
     # The polars implementation falls back on alifestd_mark_leaves_polars,
     # which requires contiguous ids. To exercise non-contiguous ids we

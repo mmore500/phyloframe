@@ -12,7 +12,8 @@ def alifestd_is_ultrametric(
     """Do all tips share the same `origin_time` (within ``atol``)?
 
     Tests the peak-to-peak (``ptp``) range of ``origin_time`` among tips
-    against ``atol``. Returns ``True`` for empty phylogenies.
+    against ``atol``. Returns ``True`` for empty phylogenies. Raises
+    ``ValueError`` if any tip's ``origin_time`` is null/NaN.
 
     Input dataframe is not mutated by this operation.
     """
@@ -30,4 +31,8 @@ def alifestd_is_ultrametric(
     leaf_origin_times = phylogeny_df.loc[
         phylogeny_df["is_leaf"].to_numpy(), "origin_time"
     ].to_numpy()
+    if pd.isna(leaf_origin_times).any():
+        raise ValueError(
+            "alifestd_is_ultrametric: tip 'origin_time' contains null/NaN",
+        )
     return bool(np.ptp(leaf_origin_times) <= atol)

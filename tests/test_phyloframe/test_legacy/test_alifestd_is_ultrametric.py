@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -169,6 +170,42 @@ def test_preexisting_is_leaf_column():
         }
     )
     # the only "leaf" is id 0; trivially ultrametric
+    assert alifestd_is_ultrametric(phylogeny_df)
+
+
+def test_nan_leaf_origin_time_raises():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[None]", "[0]", "[0]"],
+            "origin_time": [0.0, np.nan, 5.0],
+        }
+    )
+    with pytest.raises(ValueError):
+        alifestd_is_ultrametric(phylogeny_df)
+
+
+def test_null_leaf_origin_time_raises():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[None]", "[0]", "[0]"],
+            "origin_time": pd.array([0.0, None, 5.0], dtype="Float64"),
+        }
+    )
+    with pytest.raises(ValueError):
+        alifestd_is_ultrametric(phylogeny_df)
+
+
+def test_nan_internal_origin_time_does_not_raise():
+    # only leaf NaN/null should trigger the error
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[None]", "[0]", "[0]"],
+            "origin_time": [np.nan, 5.0, 5.0],
+        }
+    )
     assert alifestd_is_ultrametric(phylogeny_df)
 
 
