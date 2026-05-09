@@ -88,7 +88,6 @@ def alifestd_mark_lineage_cummax_polars(
         .collect()
         .to_series()
         .to_numpy()
-        .astype(np.uint64)
     )
     values_arr = (
         phylogeny_df.lazy()
@@ -97,8 +96,13 @@ def alifestd_mark_lineage_cummax_polars(
         .to_series()
         .to_numpy()
     )
-    if skipna and np.issubdtype(values_arr.dtype, np.floating):
-        values_arr = np.where(np.isnan(values_arr), -np.inf, values_arr)
+    if skipna:
+        values_arr = np.nan_to_num(
+            values_arr,
+            nan=-np.inf,
+            posinf=np.inf,
+            neginf=-np.inf,
+        )
 
     result = _alifestd_mark_lineage_cummax_asexual_fast_path(
         ancestor_ids,

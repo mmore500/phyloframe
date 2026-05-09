@@ -109,3 +109,11 @@ def test_forest(apply: typing.Callable):
     )
     res = alifestd_mark_lineage_cumprod_polars(df_pl, "v").lazy().collect()
     assert res["lineage_cumprod"].to_list() == [2.0, 3.0, 8.0, 15.0]
+
+
+def test_missing_values_column():
+    df_pl = pl.DataFrame(
+        {"id": [0, 1], "ancestor_id": [0, 0], "v": [1.0, 2.0]}
+    )
+    with pytest.raises(ValueError):
+        alifestd_mark_lineage_cumprod_polars(df_pl, "no_such_col")

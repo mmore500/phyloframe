@@ -35,10 +35,8 @@ def _alifestd_mark_lineage_cumsum_asexual_fast_path(
         anc = ancestor_ids[k]
         if anc == k:
             continue
-        if reverse:
-            result[anc] = result[anc] + result[k]
-        else:
-            result[k] = result[k] + result[anc]
+        target = anc if reverse else k
+        result[target] = result[anc] + result[k]
     return result
 
 
@@ -99,11 +97,16 @@ def alifestd_mark_lineage_cumsum_asexual(
         )
 
     values_arr = phylogeny_df[values].to_numpy()
-    if skipna and np.issubdtype(values_arr.dtype, np.floating):
-        values_arr = np.where(np.isnan(values_arr), 0, values_arr)
+    if skipna:
+        values_arr = np.nan_to_num(
+            values_arr,
+            nan=0,
+            posinf=np.inf,
+            neginf=-np.inf,
+        )
 
     phylogeny_df[mark_as] = _alifestd_mark_lineage_cumsum_asexual_fast_path(
-        phylogeny_df["ancestor_id"].to_numpy(dtype=np.uint64),
+        phylogeny_df["ancestor_id"].to_numpy(),
         values_arr,
         reverse,
     )

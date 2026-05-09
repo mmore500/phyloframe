@@ -226,3 +226,11 @@ def test_matches_pandas(apply: typing.Callable):
     assert (
         res_pd["lineage_cumsum"].tolist() == res_pl["lineage_cumsum"].to_list()
     )
+
+
+def test_missing_values_column():
+    df_pl = pl.DataFrame(
+        {"id": [0, 1], "ancestor_id": [0, 0], "v": [1.0, 2.0]}
+    )
+    with pytest.raises(ValueError):
+        alifestd_mark_lineage_cumsum_polars(df_pl, "no_such_col")

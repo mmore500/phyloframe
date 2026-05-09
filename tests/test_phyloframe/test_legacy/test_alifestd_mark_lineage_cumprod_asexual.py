@@ -106,3 +106,41 @@ def test_not_asexual():
     )
     with pytest.raises(NotImplementedError):
         alifestd_mark_lineage_cumprod_asexual(df, "v")
+
+
+def test_non_contiguous_ids():
+    df = pd.DataFrame(
+        {
+            "id": [0, 2, 5],
+            "ancestor_id": [0, 0, 2],
+            "ancestor_list": ["[None]", "[0]", "[2]"],
+            "v": [1.0, 2.0, 3.0],
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_lineage_cumprod_asexual(df, "v")
+
+
+def test_unsorted():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 2, 0],
+            "ancestor_list": ["[None]", "[2]", "[0]"],
+            "v": [1.0, 2.0, 3.0],
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_lineage_cumprod_asexual(df, "v")
+
+
+def test_missing_values_column():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_list": ["[None]", "[0]"],
+            "v": [0.0, 1.0],
+        }
+    )
+    with pytest.raises(ValueError):
+        alifestd_mark_lineage_cumprod_asexual(df, "no_such_col")

@@ -35,15 +35,8 @@ def _alifestd_mark_lineage_cummin_asexual_fast_path(
         anc = ancestor_ids[k]
         if anc == k:
             continue
-        # NaN propagation: NaN != NaN is True, < returns False for NaN
-        if reverse:
-            s = result[k]
-            if s != s or s < result[anc]:
-                result[anc] = s
-        else:
-            s = result[anc]
-            if s != s or s < result[k]:
-                result[k] = s
+        target = anc if reverse else k
+        result[target] = min(result[anc], result[k])
     return result
 
 
@@ -105,11 +98,16 @@ def alifestd_mark_lineage_cummin_asexual(
         )
 
     values_arr = phylogeny_df[values].to_numpy()
-    if skipna and np.issubdtype(values_arr.dtype, np.floating):
-        values_arr = np.where(np.isnan(values_arr), np.inf, values_arr)
+    if skipna:
+        values_arr = np.nan_to_num(
+            values_arr,
+            nan=np.inf,
+            posinf=np.inf,
+            neginf=-np.inf,
+        )
 
     phylogeny_df[mark_as] = _alifestd_mark_lineage_cummin_asexual_fast_path(
-        phylogeny_df["ancestor_id"].to_numpy(dtype=np.uint64),
+        phylogeny_df["ancestor_id"].to_numpy(),
         values_arr,
         reverse,
     )
