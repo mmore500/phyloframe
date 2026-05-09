@@ -23,8 +23,8 @@ def alifestd_ultrametricize_polars(
     """Adjust tip `origin_time` values so all tips share the same time.
 
     With ``method="extend"``, each tip's ``origin_time`` is set to the
-    maximum ``origin_time`` among tips. Internal node times are not
-    modified.
+    maximum ``origin_time`` across all nodes. Internal node times are
+    not modified.
 
     Empty phylogenies are returned unchanged. Must represent an asexual
     phylogeny (when ``is_leaf`` is not already present).
@@ -48,16 +48,15 @@ def alifestd_ultrametricize_polars(
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df
 
-    if "is_leaf" not in schema_names:
-        phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
-
     latest_origin_time = (
         phylogeny_df.lazy()
-        .filter(pl.col("is_leaf"))
         .select(pl.col("origin_time").max())
         .collect()
         .item()
     )
+
+    if "is_leaf" not in schema_names:
+        phylogeny_df = alifestd_mark_leaves_polars(phylogeny_df)
 
     return phylogeny_df.with_columns(
         pl.when(pl.col("is_leaf"))
@@ -74,7 +73,7 @@ _raw_description = f"""\
 Adjust tip `origin_time` values so all tips share the same time.
 
 With method "extend", each tip's `origin_time` is set to the maximum
-`origin_time` among tips. Internal node times are not modified.
+`origin_time` across all nodes. Internal node times are not modified.
 
 Data is assumed to be in alife standard format.
 

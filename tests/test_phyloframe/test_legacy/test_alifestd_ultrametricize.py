@@ -161,7 +161,9 @@ def test_sexual_phylogeny():
 
 
 def test_preexisting_is_leaf_column():
-    # is_leaf is misleadingly set; alifestd_ultrametricize should respect it
+    # is_leaf is misleadingly set; alifestd_ultrametricize should respect
+    # it for which rows to touch, while pulling the target time from the
+    # max across all rows.
     phylogeny_df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -172,8 +174,9 @@ def test_preexisting_is_leaf_column():
     )
     result = alifestd_ultrametricize(phylogeny_df)
     result.index = result["id"]
-    # only the row marked is_leaf is touched; max over those rows is 1.0
-    assert result.loc[1, "origin_time"] == 1.0
+    # only is_leaf row is touched, and is set to max-over-all = 2.0
+    assert result.loc[0, "origin_time"] == 0.0
+    assert result.loc[1, "origin_time"] == 2.0
     assert result.loc[2, "origin_time"] == 2.0
 
 
@@ -286,6 +289,6 @@ def test_fuzz(phylogeny_df: pd.DataFrame):
     from phyloframe.legacy import alifestd_find_leaf_ids
 
     leaf_ids = list(alifestd_find_leaf_ids(phylogeny_df))
-    target = phylogeny_df.set_index("id").loc[leaf_ids, "origin_time"].max()
+    target = phylogeny_df["origin_time"].max()
     leaf_ots = result.set_index("id").loc[leaf_ids, "origin_time"]
     np.testing.assert_array_equal(leaf_ots.to_numpy(), target)

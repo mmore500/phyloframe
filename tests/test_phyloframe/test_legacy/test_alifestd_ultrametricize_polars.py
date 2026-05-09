@@ -191,7 +191,8 @@ def test_preexisting_is_leaf_column(apply: typing.Callable):
         ),
     )
     result = alifestd_ultrametricize_polars(df_pl).lazy().collect()
-    assert result["origin_time"].to_list() == [0.0, 1.0, 2.0]
+    # only is_leaf row is touched, and is set to max-over-all = 2.0
+    assert result["origin_time"].to_list() == [0.0, 2.0, 2.0]
 
 
 @pytest.mark.parametrize(

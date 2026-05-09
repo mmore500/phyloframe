@@ -27,8 +27,8 @@ def alifestd_ultrametricize(
     """Adjust tip `origin_time` values so all tips share the same time.
 
     With ``method="extend"``, each tip's ``origin_time`` is set to the
-    maximum ``origin_time`` among tips. Internal node times are not
-    modified.
+    maximum ``origin_time`` across all nodes. Internal node times are
+    not modified.
 
     Empty phylogenies are returned unchanged.
 
@@ -52,11 +52,12 @@ def alifestd_ultrametricize(
     if phylogeny_df.empty:
         return phylogeny_df
 
+    latest_origin_time = phylogeny_df["origin_time"].max()
+
     if "is_leaf" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_leaves(phylogeny_df, mutate=True)
 
     leaf_mask = phylogeny_df["is_leaf"].to_numpy()
-    latest_origin_time = phylogeny_df.loc[leaf_mask, "origin_time"].max()
     phylogeny_df.loc[leaf_mask, "origin_time"] = latest_origin_time
 
     return phylogeny_df
@@ -67,7 +68,7 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 Adjust tip `origin_time` values so all tips share the same time.
 
 With method "extend", each tip's `origin_time` is set to the maximum
-`origin_time` among tips. Internal node times are not modified.
+`origin_time` across all nodes. Internal node times are not modified.
 
 Data is assumed to be in alife standard format.
 
