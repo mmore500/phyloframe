@@ -1,0 +1,119 @@
+import typing
+
+import polars as pl
+import pytest
+
+from phyloframe.legacy import alifestd_mark_lineage_cummax_polars
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_simple_tree(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4],
+                "ancestor_id": [0, 0, 0, 1, 1],
+                "v": [10.0, 5.0, 20.0, 8.0, 1.0],
+            }
+        ),
+    )
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert res["lineage_cummax"].to_list() == [10.0, 10.0, 20.0, 10.0, 10.0]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_reverse(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4],
+                "ancestor_id": [0, 0, 0, 1, 1],
+                "v": [10.0, 5.0, 20.0, 8.0, 1.0],
+            }
+        ),
+    )
+    res = (
+        alifestd_mark_lineage_cummax_polars(df_pl, "v", reverse=True)
+        .lazy()
+        .collect()
+    )
+    assert res["lineage_cummax"].to_list() == [20.0, 8.0, 20.0, 8.0, 1.0]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_singleton(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame({"id": [0], "ancestor_id": [0], "v": [9.0]}),
+    )
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert res["lineage_cummax"].to_list() == [9.0]
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_empty(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame(
+            {"id": [], "ancestor_id": [], "v": []},
+            schema={
+                "id": pl.Int64,
+                "ancestor_id": pl.Int64,
+                "v": pl.Float64,
+            },
+        ),
+    )
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert "lineage_cummax" in res.columns
+    assert res.is_empty()
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_forest(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3],
+                "ancestor_id": [0, 1, 0, 1],
+                "v": [10.0, 20.0, 5.0, 30.0],
+            }
+        ),
+    )
+    res = alifestd_mark_lineage_cummax_polars(df_pl, "v").lazy().collect()
+    assert res["lineage_cummax"].to_list() == [10.0, 20.0, 10.0, 30.0]
+
+
+def test_missing_values_column():
+    df_pl = pl.DataFrame(
+        {"id": [0, 1], "ancestor_id": [0, 0], "v": [1.0, 2.0]}
+    )
+    with pytest.raises(ValueError):
+        alifestd_mark_lineage_cummax_polars(df_pl, "no_such_col")
