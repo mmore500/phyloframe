@@ -61,6 +61,11 @@ Phylogenetic analysis is integral to much of evolution research, whether conduct
 Most existing Python tree libraries represent phylogenies as pointer-linked node objects, which limits interoperability with the broader data science ecosystem and incurs per-node Python object overhead at large scale.
 PhyloFrame addresses this gap by storing phylogenies as column-oriented dataframes, enabling vectorized computation, zero-copy interoperation with analytics tools, and natural integration of metadata as additional columns.
 
+The dataframe representation also facilitates JIT compilation of inner loops via Numba, yielding competitive traversal and parsing performance while retaining Python-level expressiveness.
+\autoref{fig:benchmark} compares throughput and memory efficiency across these libraries on balanced binary trees with up to 30 million tips.
+
+![Benchmark comparison of phylogenetic libraries. Left: throughput (tips processed per second) for each operation across tree sizes. Right: memory efficiency (tips stored per byte of RSS) across tree sizes. Higher is better in both panels.\label{fig:benchmark}](benchmark-panel.png)
+
 # Why a DataFrame-based Tree Representation?
 
 The R ecosystem's success with the ape data structure demonstrates the value of edge matrix tree representations [@paradis2018ape] --- PhyloFrame pushes this idea further with a fully tabular format hosted within DataFrame objects (e.g., pd.DataFrame, pl.LazyFrame, pl.DataFrame, etc.).
@@ -227,10 +232,6 @@ Another approach for working with large-scale phylogeny data is a graph database
 All of these libraries represent trees as pointer-linked node objects.
 PhyloFrame takes a fundamentally different approach by storing trees as column-oriented dataframes.
 This design enables direct integration with pandas and Polars analytics workflows, vectorized computation over node attributes, and natural attachment of per-node metadata as additional columns without custom data structures.
-The dataframe representation also facilitates JIT compilation of inner loops via Numba, yielding competitive traversal and parsing performance while retaining Python-level expressiveness.
-\autoref{fig:benchmark} compares throughput and memory efficiency across these libraries on balanced binary trees with up to 30 million tips.
-
-![Benchmark comparison of phylogenetic libraries. Left: throughput (tips processed per second) for each operation across tree sizes. Right: memory efficiency (tips stored per byte of RSS) across tree sizes. Higher is better in both panels.\label{fig:benchmark}](benchmark-panel.png)
 
 Besides the common name, the PhyloFrame library presented here is unrelated to the recent machine learning methodology to counteract ancestral bias in precision medicine [@smith2025equitable].
 
