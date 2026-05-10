@@ -35,22 +35,30 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def _walk_leaves_isomorphic(
     ancestor_ids1: np.ndarray,
     ancestor_ids2: np.ndarray,
-    id_map: np.ndarray,
-    id_map_set: np.ndarray,
+    leaf_ids1: np.ndarray,
+    leaf_ids2: np.ndarray,
 ) -> jit_numpy_bool_t:
     """Walk ids backward and propagate the leaf-induced id mapping toward the
     roots, returning False if any node's ancestor mapping is inconsistent.
 
     Both phylogenies are assumed to be topologically sorted with contiguous
-    ids. ``id_map`` should be initialized so that ``id_map[id1] = id2`` for
-    every leaf in df1 with matching taxon label in df2; ``id_map_set`` is a
-    parallel boolean mask indicating which entries of ``id_map`` are valid.
+    ids. ``leaf_ids1[i]`` and ``leaf_ids2[i]`` give the corresponding ids in
+    df1 and df2, respectively, for the ``i``th matched leaf.
     """
+    n = len(ancestor_ids1)
+    id_map = np.zeros(n, dtype=jit_numpy_int64_t)
+    id_map_set = np.zeros(n, dtype=jit_numpy_bool_t)
+    id_map[leaf_ids1] = leaf_ids2
+    id_map_set[leaf_ids1] = True
+
+    # All leaves were mapped above; every inner node will have its mapping
+    # propagated up by some descendant before we process it (after
+    # collapse_unifurcations there are no leaf-less subtrees), so the walk
+    # below need not re-verify ``id_map_set[id1]`` per iteration.
+
     # iterate over ids from back to front
     for id1_r, ancestor_id1 in enumerate(ancestor_ids1[::-1]):
-        id1 = jit_numpy_int64_t(len(ancestor_ids1) - 1 - id1_r)
-        if not id_map_set[id1]:
-            return False
+        id1 = jit_numpy_int64_t(n - 1 - id1_r)
         id2 = id_map[id1]
         ancestor_id2 = ancestor_ids2[id2]
         if id_map_set[ancestor_id1]:
@@ -122,32 +130,37 @@ def alifestd_test_leaves_isomorphic_polars(
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: marking leaves...",
     )
-    df1 = alifestd_mark_leaves_polars(df1)
-    df2 = alifestd_mark_leaves_polars(df2)
-
-    if taxon_label == "id":
-        df1 = df1.with_columns(taxon_label=pl.col("id"))
-        df2 = df2.with_columns(taxon_label=pl.col("id"))
-        taxon_label = "taxon_label"
+    # use namespaced internal column names to avoid clobbering user data
+    is_leaf_col = "_phyloframe_test_leaves_isomorphic_polars_is_leaf"
+    label_col = "_phyloframe_test_leaves_isomorphic_polars_label"
+    df1 = alifestd_mark_leaves_polars(df1, mark_as=is_leaf_col)
+    df2 = alifestd_mark_leaves_polars(df2, mark_as=is_leaf_col)
 
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: collecting leaf ids...",
     )
     leaves1 = (
-        df1.filter(pl.col("is_leaf")).select(["id", taxon_label]).collect()
+        df1.filter(pl.col(is_leaf_col))
+        .select([pl.col("id"), pl.col(taxon_label).alias(label_col)])
+        .collect()
     )
     leaves2 = (
-        df2.filter(pl.col("is_leaf"))
-        .select([pl.col("id").alias("id2"), pl.col(taxon_label)])
+        df2.filter(pl.col(is_leaf_col))
+        .select(
+            [
+                pl.col("id").alias("id2"),
+                pl.col(taxon_label).alias(label_col),
+            ]
+        )
         .collect()
     )
 
-    if leaves1[taxon_label].n_unique() != leaves1.height:
+    if leaves1[label_col].n_unique() != leaves1.height:
         raise ValueError("taxon labels in df1 must be unique among leaves")
-    if leaves2[taxon_label].n_unique() != leaves2.height:
+    if leaves2[label_col].n_unique() != leaves2.height:
         raise ValueError("taxon labels in df2 must be unique among leaves")
 
-    leaf_pairs = leaves1.join(leaves2, on=taxon_label, how="inner")
+    leaf_pairs = leaves1.join(leaves2, on=label_col, how="inner")
     if leaf_pairs.height != leaves1.height or leaves1.height != leaves2.height:
         return False
 
@@ -159,20 +172,12 @@ def alifestd_test_leaves_isomorphic_polars(
     if len(ancestor_ids1) != len(ancestor_ids2):
         return False
 
-    n = len(ancestor_ids1)
-    id_map = np.zeros(n, dtype=np.int64)
-    id_map_set = np.zeros(n, dtype=np.bool_)
-    leaf_ids1 = leaf_pairs["id"].to_numpy()
-    leaf_ids2 = leaf_pairs["id2"].to_numpy()
-    id_map[leaf_ids1] = leaf_ids2
-    id_map_set[leaf_ids1] = True
-
     return bool(
         _walk_leaves_isomorphic(
             ancestor_ids1.astype(np.int64, copy=True),
             ancestor_ids2.astype(np.int64, copy=True),
-            id_map,
-            id_map_set,
+            leaf_pairs["id"].to_numpy().astype(np.int64),
+            leaf_pairs["id2"].to_numpy().astype(np.int64),
         ),
     )
 
