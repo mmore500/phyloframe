@@ -61,9 +61,8 @@ def _walk_leaves_isomorphic(
         ancestor_id1 = ancestor_ids1[id1]
         id2 = id_map[id1]
         ancestor_id2 = ancestor_ids2[id2]
-        if id_map_set[ancestor_id1]:
-            if id_map[ancestor_id1] != ancestor_id2:
-                return False
+        if id_map_set[ancestor_id1] and id_map[ancestor_id1] != ancestor_id2:
+            return False
         else:
             id_map[ancestor_id1] = ancestor_id2
             id_map_set[ancestor_id1] = True
