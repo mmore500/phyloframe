@@ -122,7 +122,7 @@ For multi-step pipelines, ``_alifestd_pipe_unary_ops`` applies several operation
 
 Available names in ``--op`` expressions: ``pfl`` (phyloframe.legacy), ``pf`` (phyloframe), ``pd`` (pandas), ``pl`` (polars), ``np`` (numpy), ``opyt`` (opytional).
 
-Use lambda expressions for multi-step workflows like combining sample marks and pruning:
+Use lambda expressions to provide additional arguments, like this example combining sample masks and pruning:
 
 .. code-block:: bash
 
