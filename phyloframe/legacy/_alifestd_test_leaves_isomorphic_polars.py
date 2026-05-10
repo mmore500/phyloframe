@@ -129,22 +129,23 @@ def alifestd_test_leaves_isomorphic_polars(
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: marking leaves...",
     )
-    # use namespaced internal column names to avoid clobbering user data
-    is_leaf_col = "_phyloframe_test_leaves_isomorphic_polars_is_leaf"
-    label_col = "_phyloframe_test_leaves_isomorphic_polars_label"
-    df1 = alifestd_mark_leaves_polars(df1, mark_as=is_leaf_col)
-    df2 = alifestd_mark_leaves_polars(df2, mark_as=is_leaf_col)
+    if "is_leaf" not in df1.collect_schema().names():
+        df1 = alifestd_mark_leaves_polars(df1)
+    if "is_leaf" not in df2.collect_schema().names():
+        df2 = alifestd_mark_leaves_polars(df2)
 
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: collecting leaf ids...",
     )
+    # namespaced label alias avoids colliding with any user-supplied column
+    label_col = "_phyloframe_test_leaves_isomorphic_polars_label"
     leaves1 = (
-        df1.filter(pl.col(is_leaf_col))
+        df1.filter(pl.col("is_leaf"))
         .select([pl.col("id"), pl.col(taxon_label).alias(label_col)])
         .collect()
     )
     leaves2 = (
-        df2.filter(pl.col(is_leaf_col))
+        df2.filter(pl.col("is_leaf"))
         .select(
             [
                 pl.col("id").alias("id2"),
