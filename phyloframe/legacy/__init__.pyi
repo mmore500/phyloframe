@@ -601,6 +601,9 @@ from ._alifestd_sum_origin_time_deltas_polars import (
 from ._alifestd_test_leaves_isomorphic_asexual import (
     alifestd_test_leaves_isomorphic_asexual,
 )
+from ._alifestd_test_leaves_isomorphic_polars import (
+    alifestd_test_leaves_isomorphic_polars,
+)
 from ._alifestd_to_working_format import alifestd_to_working_format
 from ._alifestd_to_working_format_polars import (
     alifestd_to_working_format_polars,
@@ -944,6 +947,7 @@ __all__ = [
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_sum_origin_time_deltas_polars",
     "alifestd_test_leaves_isomorphic_asexual",
+    "alifestd_test_leaves_isomorphic_polars",
     "alifestd_to_working_format",
     "alifestd_to_working_format_polars",
     "alifestd_topological_sensitivity_warned",
