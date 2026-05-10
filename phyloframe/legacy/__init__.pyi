@@ -60,8 +60,17 @@ from ._alifestd_calc_polytomic_index import alifestd_calc_polytomic_index
 from ._alifestd_calc_polytomic_index_polars import (
     alifestd_calc_polytomic_index_polars,
 )
+from ._alifestd_calc_quartet_distance_asexual import (
+    alifestd_calc_quartet_distance_asexual,
+)
+from ._alifestd_calc_quartet_distance_polars import (
+    alifestd_calc_quartet_distance_polars,
+)
 from ._alifestd_calc_triplet_distance_asexual import (
     alifestd_calc_triplet_distance_asexual,
+)
+from ._alifestd_calc_triplet_distance_polars import (
+    alifestd_calc_triplet_distance_polars,
 )
 from ._alifestd_categorize_triplet_asexual import (
     alifestd_categorize_triplet_asexual,
@@ -693,7 +702,10 @@ __all__ = [
     "alifestd_calc_mrca_id_vector_asexual_polars",
     "alifestd_calc_polytomic_index",
     "alifestd_calc_polytomic_index_polars",
+    "alifestd_calc_quartet_distance_asexual",
+    "alifestd_calc_quartet_distance_polars",
     "alifestd_calc_triplet_distance_asexual",
+    "alifestd_calc_triplet_distance_polars",
     "alifestd_categorize_triplet_asexual",
     "alifestd_check_topological_sensitivity",
     "alifestd_check_topological_sensitivity_polars",
