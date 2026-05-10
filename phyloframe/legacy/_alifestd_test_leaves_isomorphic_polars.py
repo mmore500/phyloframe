@@ -46,12 +46,11 @@ def _walk_leaves_isomorphic(
     every leaf in df1 with matching taxon label in df2; ``id_map_set`` is a
     parallel boolean mask indicating which entries of ``id_map`` are valid.
     """
-    n = jit_numpy_int64_t(len(ancestor_ids1))
-    for offset in range(n):
-        id1 = n - 1 - offset
+    # iterate over ids from back to front
+    for id1_r, ancestor_id1 in enumerate(ancestor_ids1[::-1]):
+        id1 = jit_numpy_int64_t(len(ancestor_ids1) - 1 - id1_r)
         if not id_map_set[id1]:
             return False
-        ancestor_id1 = ancestor_ids1[id1]
         id2 = id_map[id1]
         ancestor_id2 = ancestor_ids2[id2]
         if id_map_set[ancestor_id1]:
