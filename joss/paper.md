@@ -191,9 +191,9 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 # Command-line Interface
 
 ```bash
-ls -1 "input.csv" \  # input path, in alife standard format
-| singularity exec docker://ghcr.io/mmore500/PhyloFrame:v0.9.0 \  # container
-  python3 -m PhyloFrame.legacy._alifestd_pipe_unary_ops \  # apply ops in turn
+ls -1 "input.csv" `# input path, in alife standard format` \
+| singularity exec docker://ghcr.io/mmore500/PhyloFrame:v0.9.0 `# container` \
+  python3 -m PhyloFrame.legacy._alifestd_pipe_unary_ops `# apply ops in turn` \
   --op "lambda df: pfl.alifestd_mark_sample_tips_canopy_asexual(" \
                          "df, n_sample=5, mark_as='keep_canopy')" \
   --op "lambda df: pfl.alifestd_mark_sample_tips_lineage_asexual(" \
