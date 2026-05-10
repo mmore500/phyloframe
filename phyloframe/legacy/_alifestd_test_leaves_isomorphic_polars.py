@@ -164,7 +164,7 @@ def alifestd_test_leaves_isomorphic_polars(
     )
 
     if leaves1_sorted[taxon_label].n_unique() != n_leaves1:
-        raise ValueError("taxon labels in df1 must be unique among leaves")
+        raise ValueError("taxon labels must be unique among leaves")
     if not leaves1_sorted[taxon_label].equals(leaves2_sorted[taxon_label]):
         return False
 
