@@ -1,7 +1,7 @@
 import polars as pl
 import tqdist
 
-from ._alifestd_make_distance_newicks_polars import (
+from ._alifestd_calc_triplet_distance_polars import (
     _alifestd_make_distance_newicks_polars,
 )
 
@@ -23,6 +23,5 @@ def alifestd_calc_quartet_distance_polars(
         ref,
         cmp,
         taxon_label_key,
-        caller_name=alifestd_calc_quartet_distance_polars.__name__,
     )
     return tqdist.quartet_distance(ref_newick, cmp_newick)

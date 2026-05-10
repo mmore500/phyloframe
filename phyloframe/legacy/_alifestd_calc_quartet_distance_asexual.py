@@ -1,7 +1,7 @@
 import pandas as pd
 import tqdist
 
-from ._alifestd_make_distance_newicks_asexual import (
+from ._alifestd_calc_triplet_distance_asexual import (
     _alifestd_make_distance_newicks_asexual,
 )
 
@@ -17,6 +17,5 @@ def alifestd_calc_quartet_distance_asexual(
         ref,
         cmp,
         taxon_label_key,
-        caller_name=alifestd_calc_quartet_distance_asexual.__name__,
     )
     return tqdist.quartet_distance(ref_newick, cmp_newick)
