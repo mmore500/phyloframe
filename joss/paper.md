@@ -124,7 +124,7 @@ PhyloFrame originated from phylogeny-tracking components developed for the hstra
 The alifestd operations now in PhyloFrame provide the core tree analysis and manipulation layer used by `hstrat` and downstream digital evolution experiments.
 Underlying software has contributed substantially to a number of publications [@moreno2025ecology;@singhvi2025scalable;@moreno2025testing;@moreno2024trackable;@moreno2022hereditary].
 
-# Python API Demonstration
+# Demo: Tree Manipulation Pipeline
 
 A brief demonstration showing several tree transforms using a pipeline pattern.
 Note that complex tree manipulations, including custom operations, can be succinctly performed with no raw loops or recursion.
@@ -151,7 +151,7 @@ df_res: DataFrame = df_raw.drop(columns=["branch_length", "origin_time_delta"],
 
 ![Before and after tree plots, rendered integration with iplotx. \label{fig:demo1}](demo1.png)
 
-# Custom JIT Demonstration
+# Demo: End-user JIT Compilation and Tidy Plotting
 
 ```python
 import numpy as np; import polars as pl; import seaborn as sns
@@ -188,7 +188,7 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 ![Trait simulation visualization \label{fig:demo2}](demo2.png)
 
 
-# Command-line Interface
+# Demo: Compound Downsampling via Command-Line Interface
 
 ```bash
 ls -1 "input.csv" `# input path, in alife standard format` \
