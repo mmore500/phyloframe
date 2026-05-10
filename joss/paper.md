@@ -129,7 +129,7 @@ Underlying software has contributed substantially to a number of publications [@
 A brief demonstration showing several tree transforms using a pipeline pattern.
 Note that complex tree manipulations, including custom operations, can be succinctly performed with no raw loops or recursion.
 
-```python3
+```python
 import numpy as np; from pandas import DataFrame
 from phyloframe import legacy as pfl
 
@@ -153,7 +153,7 @@ df_res: DataFrame = df_raw.drop(columns=["branch_length", "origin_time_delta"],
 
 # Custom JIT Demonstration
 
-```python3
+```python
 import numpy as np; import polars as pl; import seaborn as sns
 from phyloframe import _auxlib as pfa
 from phyloframe import legacy as pfl
@@ -191,14 +191,16 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 # Command-line Interface
 
 ```bash
-ls -1 "input.csv" \  # path to input data
-| singularity exec docker://ghcr.io/mmore500/PhyloFrame:v0.9.0 \  # containerized release
-  python3 -m PhyloFrame.legacy._alifestd_pipe_unary_ops \  # sequentially apply ops...
-  --op "lambda df: pfl.alifestd_mark_sample_tips_canopy_asexual(df, n_sample=5, mark_as='keep_canopy')" \
-  --op "lambda df: pfl.alifestd_mark_sample_tips_lineage_asexual(df, n_sample=5, mark_as='keep_lineage')" \
+ls -1 "input.csv" \  # input path, in alife standard format
+| singularity exec docker://ghcr.io/mmore500/PhyloFrame:v0.9.0 \  # container
+  python3 -m PhyloFrame.legacy._alifestd_pipe_unary_ops \  # apply ops in turn
+  --op "lambda df: pfl.alifestd_mark_sample_tips_canopy_asexual(" \
+                         "df, n_sample=5, mark_as='keep_canopy')" \
+  --op "lambda df: pfl.alifestd_mark_sample_tips_lineage_asexual(" \
+                         "df, n_sample=5, mark_as='keep_lineage')" \
   --op "lambda df: df.assign(extant=df['keep_canopy'] | df['keep_lineage'])" \
   --op "pfl.alifestd_prune_extinct_lineages_asexual" \
-  "output.csv"  # output path
+  "output.parquet"  # output path
 ```
 
 # Related Software
