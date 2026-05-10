@@ -60,22 +60,19 @@ def _alifestd_make_distance_newicks_polars(
     )
 
     ref_leaf_labels = (
-        ref.lazy()
-        .filter(pl.col("is_leaf"))
-        .select(pl.col(label_col).alias("label"))
-        .unique()
+        ref.lazy().filter(pl.col("is_leaf")).select(label_col).unique()
     )
     cmp_leaf_labels = (
-        cmp.lazy()
-        .filter(pl.col("is_leaf"))
-        .select(pl.col(label_col).alias("label"))
-        .unique()
+        cmp.lazy().filter(pl.col("is_leaf")).select(label_col).unique()
     )
     if (
         not ref_leaf_labels.join(
-            cmp_leaf_labels, on="label", how="full", coalesce=False
+            cmp_leaf_labels, on=label_col, how="full", coalesce=False
         )
-        .filter(pl.col("label").is_null() | pl.col("label_right").is_null())
+        .filter(
+            pl.col(label_col).is_null()
+            | pl.col(f"{label_col}_right").is_null()
+        )
         .limit(1)
         .collect()
         .is_empty()
@@ -83,7 +80,7 @@ def _alifestd_make_distance_newicks_polars(
         raise ValueError("Taxon labels must match between trees")
 
     empty_labels = ref_leaf_labels.filter(
-        pl.col("label").str.strip_chars().str.len_chars() == 0,
+        pl.col(label_col).str.strip_chars().str.len_chars() == 0,
     )
     if not empty_labels.limit(1).collect().is_empty():
         raise ValueError("Cannot have empty taxon labels")
