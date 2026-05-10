@@ -37,29 +37,25 @@ def _alifestd_make_distance_newicks_polars(
 
     label_col = "_alifestd_distance_taxon_label"
     ref = (
-        ref.with_columns(
-            pl.col(taxon_label_key).cast(pl.String).alias(label_col),
-        )
+        ref.with_columns(pl.col(taxon_label_key).alias(label_col))
         .pipe(alifestd_collapse_unifurcations_polars)
         .pipe(alifestd_assign_contiguous_ids_polars)
         .pipe(alifestd_mark_leaves_polars)
         .with_columns(
             pl.when(pl.col("is_leaf"))
-            .then(pl.col(label_col))
+            .then(pl.col(label_col).cast(pl.String))
             .otherwise(pl.lit(""))
             .alias(label_col),
         )
     )
     cmp = (
-        cmp.with_columns(
-            pl.col(taxon_label_key).cast(pl.String).alias(label_col),
-        )
+        cmp.with_columns(pl.col(taxon_label_key).alias(label_col))
         .pipe(alifestd_collapse_unifurcations_polars)
         .pipe(alifestd_assign_contiguous_ids_polars)
         .pipe(alifestd_mark_leaves_polars)
         .with_columns(
             pl.when(pl.col("is_leaf"))
-            .then(pl.col(label_col))
+            .then(pl.col(label_col).cast(pl.String))
             .otherwise(pl.lit(""))
             .alias(label_col),
         )
