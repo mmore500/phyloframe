@@ -115,7 +115,6 @@ def alifestd_test_leaves_isomorphic_polars(
             drop_topological_sensitivity=True,
         )
         .pipe(alifestd_assign_contiguous_ids_polars)
-        .lazy()
     )
     df2 = (
         df2.select(pl.exclude("ancestor_list"))
@@ -124,7 +123,6 @@ def alifestd_test_leaves_isomorphic_polars(
             drop_topological_sensitivity=True,
         )
         .pipe(alifestd_assign_contiguous_ids_polars)
-        .lazy()
     )
 
     if "is_leaf" not in df1.collect_schema().names():
@@ -151,13 +149,15 @@ def alifestd_test_leaves_isomorphic_polars(
         for c in {"id", taxon_label}
     ]
     leaves1_sorted = (
-        df1.filter(pl.col("is_leaf"))
+        df1.lazy()
+        .filter(pl.col("is_leaf"))
         .sort(taxon_label)
         .select(leaf_cols)
         .collect()
     )
     leaves2_sorted = (
-        df2.filter(pl.col("is_leaf"))
+        df2.lazy()
+        .filter(pl.col("is_leaf"))
         .sort(taxon_label)
         .select(leaf_cols)
         .collect()
@@ -172,13 +172,15 @@ def alifestd_test_leaves_isomorphic_polars(
         "- alifestd_test_leaves_isomorphic_polars: collecting ancestor ids...",
     )
     ancestor_ids1 = (
-        df1.select(pl.col("ancestor_id").cast(pl.Int64))
+        df1.lazy()
+        .select(pl.col("ancestor_id").cast(pl.Int64))
         .collect()
         .to_series()
         .to_numpy()
     )
     ancestor_ids2 = (
-        df2.select(pl.col("ancestor_id").cast(pl.Int64))
+        df2.lazy()
+        .select(pl.col("ancestor_id").cast(pl.Int64))
         .collect()
         .to_series()
         .to_numpy()
