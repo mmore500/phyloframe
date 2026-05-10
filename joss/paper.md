@@ -71,8 +71,9 @@ DataFrames are scripting-friendly and end-user extensible, enabling a composable
 Use pandas.read_csv, polars.read_parquet, R's read.table, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
 Contiguous allocations support fast deserialization from other sources (e.g., Newick)
 
-**Benefit from modern tabular data formats.**
+**Benefit from modern tabular file formats.**
 Granular deserialization of selected columns, columnar compression for efficient storage, categorical strings, and explicit column typing with first-class null representation (e.g., Parquet [@vohra2016parquet]).
+Data layout optimization for fast load/save (e.g., Feather [@wickham2016feather]).
 
 **Benefit from modern high-performance dataframe tooling.**
 Memory-efficient representation, larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask [@rocklin2015dask]), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
