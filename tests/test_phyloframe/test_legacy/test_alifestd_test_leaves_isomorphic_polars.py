@@ -23,8 +23,16 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
 
 def _prepare_pl(phylogeny_df: pd.DataFrame) -> pl.DataFrame:
-    """Pre-canonicalize a pandas phylogeny and convert to polars."""
-    return pl.from_pandas(alifestd_to_working_format(phylogeny_df))
+    """Pre-canonicalize a pandas phylogeny and convert to polars.
+
+    The polars implementation requires ``ancestor_id`` and rejects
+    ``ancestor_list`` (matching the convention of other polars functions
+    in the library), so we drop the latter here.
+    """
+    prepared = alifestd_to_working_format(phylogeny_df)
+    if "ancestor_list" in prepared.columns:
+        prepared = prepared.drop(columns=["ancestor_list"])
+    return pl.from_pandas(prepared)
 
 
 @pytest.mark.parametrize(
@@ -286,6 +294,33 @@ def test_raises_on_non_contiguous_ids():
         {
             "id": [0, 2, 4],
             "ancestor_id": [0, 0, 2],
+            "taxon_label": ["a", "b", "c"],
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_test_leaves_isomorphic_polars(df, df, "taxon_label")
+
+
+def test_raises_on_missing_ancestor_id():
+    """Missing ancestor_id column should raise NotImplementedError."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[none]", "[0]", "[0]"],
+            "taxon_label": ["a", "b", "c"],
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_test_leaves_isomorphic_polars(df, df, "taxon_label")
+
+
+def test_raises_on_ancestor_list_present():
+    """Presence of ancestor_list column should raise NotImplementedError."""
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "ancestor_list": ["[none]", "[0]", "[0]"],
             "taxon_label": ["a", "b", "c"],
         }
     )

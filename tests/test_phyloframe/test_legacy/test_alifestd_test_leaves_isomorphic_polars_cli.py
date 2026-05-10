@@ -10,8 +10,14 @@ assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
 def _prep_csv(src: str, tmp_path) -> str:
-    """Convert ``src`` CSV to working format and write under ``tmp_path``."""
+    """Convert ``src`` CSV to working format and write under ``tmp_path``.
+
+    Drops ``ancestor_list`` because the polars implementation rejects it
+    (matching other polars functions in the library).
+    """
     df = alifestd_to_working_format(pd.read_csv(src))
+    if "ancestor_list" in df.columns:
+        df = df.drop(columns=["ancestor_list"])
     out = str(tmp_path / os.path.basename(src))
     df.to_csv(out, index=False)
     return out

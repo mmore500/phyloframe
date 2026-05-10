@@ -93,10 +93,10 @@ def alifestd_test_leaves_isomorphic_polars(
     if "ancestor_id" not in schema1 or "ancestor_id" not in schema2:
         raise NotImplementedError("ancestor_id column required")
 
-    if "ancestor_list" in schema1:
-        df1 = df1.drop("ancestor_list")
-    if "ancestor_list" in schema2:
-        df2 = df2.drop("ancestor_list")
+    if "ancestor_list" in schema1 or "ancestor_list" in schema2:
+        raise NotImplementedError(
+            "ancestor_list column not supported, drop it first",
+        )
 
     if not alifestd_is_topologically_sorted_polars(
         df1
