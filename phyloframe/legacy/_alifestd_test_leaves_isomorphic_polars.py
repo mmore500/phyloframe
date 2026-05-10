@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 import sys
-import typing
 
 import numpy as np
 import polars as pl
@@ -27,7 +26,6 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
-from ._alifestd_topological_sort_polars import alifestd_topological_sort_polars
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
@@ -65,27 +63,9 @@ def _walk_leaves_isomorphic(
     return True
 
 
-def _to_working_format_polars(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
-    """Re-encode ``phylogeny_df`` so that it is topologically sorted, has
-    contiguous ids, and contains an ``ancestor_id`` column.
-
-    ``ancestor_list`` is dropped because the downstream polars utilities used
-    here only operate on ``ancestor_id``.
-    """
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-    if "ancestor_list" in phylogeny_df.collect_schema().names():
-        phylogeny_df = phylogeny_df.drop("ancestor_list")
-    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
-    return phylogeny_df
-
-
 def alifestd_test_leaves_isomorphic_polars(
-    df1: typing.Union[pl.DataFrame, pl.LazyFrame],
-    df2: typing.Union[pl.DataFrame, pl.LazyFrame],
+    df1: pl.DataFrame,
+    df2: pl.DataFrame,
     taxon_label: str,
 ) -> bool:
     """Test if phylogenetic relationships between leaf nodes are topologically
@@ -96,17 +76,29 @@ def alifestd_test_leaves_isomorphic_polars(
     alifestd_test_leaves_isomorphic_asexual :
         Pandas-based implementation.
     """
-    if isinstance(df1, pl.LazyFrame):
-        df1 = df1.collect()
-    if isinstance(df2, pl.LazyFrame):
-        df2 = df2.collect()
+    df1 = df1.lazy()
+    df2 = df2.lazy()
 
-    logging.info(
-        "- alifestd_test_leaves_isomorphic_polars: "
-        "preparing working format...",
-    )
-    df1 = _to_working_format_polars(df1)
-    df2 = _to_working_format_polars(df2)
+    if df1.limit(1).collect().is_empty() and df2.limit(1).collect().is_empty():
+        return True
+
+    df1 = alifestd_try_add_ancestor_id_col_polars(df1)
+    df2 = alifestd_try_add_ancestor_id_col_polars(df2)
+
+    if "ancestor_list" in df1.collect_schema().names():
+        df1 = df1.drop("ancestor_list")
+    if "ancestor_list" in df2.collect_schema().names():
+        df2 = df2.drop("ancestor_list")
+
+    if not alifestd_is_topologically_sorted_polars(
+        df1
+    ) or not alifestd_is_topologically_sorted_polars(df2):
+        raise NotImplementedError("topological sort not yet supported")
+
+    if not alifestd_has_contiguous_ids_polars(
+        df1
+    ) or not alifestd_has_contiguous_ids_polars(df2):
+        raise NotImplementedError("non-contiguous ids not yet supported")
 
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: "
@@ -123,8 +115,10 @@ def alifestd_test_leaves_isomorphic_polars(
         drop_topological_sensitivity=False,
     )
 
-    df1 = _to_working_format_polars(df1)
-    df2 = _to_working_format_polars(df2)
+    # collapse_unifurcations leaves gapped ids; recompact so the jit walk
+    # below can index by id.
+    df1 = alifestd_assign_contiguous_ids_polars(df1).lazy()
+    df2 = alifestd_assign_contiguous_ids_polars(df2).lazy()
 
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: marking leaves...",
@@ -132,38 +126,41 @@ def alifestd_test_leaves_isomorphic_polars(
     df1 = alifestd_mark_leaves_polars(df1)
     df2 = alifestd_mark_leaves_polars(df2)
 
-    if df1.height != df2.height:
-        return False
-
     if taxon_label == "id":
         df1 = df1.with_columns(taxon_label=pl.col("id"))
         df2 = df2.with_columns(taxon_label=pl.col("id"))
         taxon_label = "taxon_label"
 
-    leaves1 = df1.filter(pl.col("is_leaf")).select(["id", taxon_label])
-    leaves2 = df2.filter(pl.col("is_leaf")).select(["id", taxon_label])
+    logging.info(
+        "- alifestd_test_leaves_isomorphic_polars: collecting leaf ids...",
+    )
+    leaves1 = (
+        df1.filter(pl.col("is_leaf")).select(["id", taxon_label]).collect()
+    )
+    leaves2 = (
+        df2.filter(pl.col("is_leaf"))
+        .select([pl.col("id").alias("id2"), pl.col(taxon_label)])
+        .collect()
+    )
 
-    labels1 = leaves1[taxon_label]
-    labels2 = leaves2[taxon_label]
-    if labels1.n_unique() != len(labels1):
+    if leaves1[taxon_label].n_unique() != leaves1.height:
         raise ValueError("taxon labels in df1 must be unique among leaves")
-    if labels2.n_unique() != len(labels2):
+    if leaves2[taxon_label].n_unique() != leaves2.height:
         raise ValueError("taxon labels in df2 must be unique among leaves")
-    if set(labels1.to_list()) != set(labels2.to_list()):
+
+    leaf_pairs = leaves1.join(leaves2, on=taxon_label, how="inner")
+    if leaf_pairs.height != leaves1.height or leaves1.height != leaves2.height:
         return False
 
     logging.info(
-        "- alifestd_test_leaves_isomorphic_polars: building id map...",
+        "- alifestd_test_leaves_isomorphic_polars: collecting ancestor ids...",
     )
-    leaf_pairs = leaves1.join(
-        leaves2.rename({"id": "id2"}),
-        on=taxon_label,
-        how="inner",
-    )
-    if leaf_pairs.height != leaves1.height:
+    ancestor_ids1 = df1.select("ancestor_id").collect().to_series().to_numpy()
+    ancestor_ids2 = df2.select("ancestor_id").collect().to_series().to_numpy()
+    if len(ancestor_ids1) != len(ancestor_ids2):
         return False
 
-    n = df1.height
+    n = len(ancestor_ids1)
     id_map = np.zeros(n, dtype=np.int64)
     id_map_set = np.zeros(n, dtype=np.bool_)
     leaf_ids1 = leaf_pairs["id"].to_numpy()
@@ -171,17 +168,10 @@ def alifestd_test_leaves_isomorphic_polars(
     id_map[leaf_ids1] = leaf_ids2
     id_map_set[leaf_ids1] = True
 
-    ancestor_ids1 = (
-        df1.select("ancestor_id").to_series().to_numpy().astype(np.int64)
-    )
-    ancestor_ids2 = (
-        df2.select("ancestor_id").to_series().to_numpy().astype(np.int64)
-    )
-
     return bool(
         _walk_leaves_isomorphic(
-            ancestor_ids1.copy(),
-            ancestor_ids2.copy(),
+            ancestor_ids1.astype(np.int64, copy=True),
+            ancestor_ids2.astype(np.int64, copy=True),
             id_map,
             id_map_set,
         ),
