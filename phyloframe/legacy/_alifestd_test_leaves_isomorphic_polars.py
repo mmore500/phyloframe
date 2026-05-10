@@ -57,8 +57,8 @@ def _walk_leaves_isomorphic(
     # below need not re-verify ``id_map_set[id1]`` per iteration.
 
     # iterate over ids from back to front
-    for id1_r, ancestor_id1 in enumerate(ancestor_ids1[::-1]):
-        id1 = jit_numpy_int64_t(n - 1 - id1_r)
+    for id1 in range(n - 1, -1, -1):
+        ancestor_id1 = ancestor_ids1[id1]
         id2 = id_map[id1]
         ancestor_id2 = ancestor_ids2[id2]
         if id_map_set[ancestor_id1]:
