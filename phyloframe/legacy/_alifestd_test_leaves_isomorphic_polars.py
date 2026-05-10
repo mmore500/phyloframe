@@ -1,0 +1,275 @@
+import argparse
+import logging
+import os
+import sys
+import typing
+
+import numpy as np
+import polars as pl
+
+from .._auxlib._begin_prod_logging import begin_prod_logging
+from .._auxlib._format_cli_description import format_cli_description
+from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._jit import jit
+from .._auxlib._jit_numpy_bool_t import jit_numpy_bool_t
+from .._auxlib._jit_numpy_int64_t import jit_numpy_int64_t
+from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
+from ._alifestd_collapse_unifurcations_polars import (
+    alifestd_collapse_unifurcations_polars,
+)
+from ._alifestd_has_contiguous_ids_polars import (
+    alifestd_has_contiguous_ids_polars,
+)
+from ._alifestd_is_topologically_sorted_polars import (
+    alifestd_is_topologically_sorted_polars,
+)
+from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
+from ._alifestd_topological_sort_polars import alifestd_topological_sort_polars
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
+
+
+@jit(nopython=True)
+def _walk_leaves_isomorphic(
+    ancestor_ids1: np.ndarray,
+    ancestor_ids2: np.ndarray,
+    id_map: np.ndarray,
+    id_map_set: np.ndarray,
+) -> jit_numpy_bool_t:
+    """Walk ids backward and propagate the leaf-induced id mapping toward the
+    roots, returning False if any node's ancestor mapping is inconsistent.
+
+    Both phylogenies are assumed to be topologically sorted with contiguous
+    ids. ``id_map`` should be initialized so that ``id_map[id1] = id2`` for
+    every leaf in df1 with matching taxon label in df2; ``id_map_set`` is a
+    parallel boolean mask indicating which entries of ``id_map`` are valid.
+    """
+    n = jit_numpy_int64_t(len(ancestor_ids1))
+    for offset in range(n):
+        id1 = n - 1 - offset
+        if not id_map_set[id1]:
+            return False
+        ancestor_id1 = ancestor_ids1[id1]
+        id2 = id_map[id1]
+        ancestor_id2 = ancestor_ids2[id2]
+        if id_map_set[ancestor_id1]:
+            if id_map[ancestor_id1] != ancestor_id2:
+                return False
+        else:
+            id_map[ancestor_id1] = ancestor_id2
+            id_map_set[ancestor_id1] = True
+    return True
+
+
+def _to_working_format_polars(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
+    """Re-encode ``phylogeny_df`` so that it is topologically sorted, has
+    contiguous ids, and contains an ``ancestor_id`` column.
+
+    ``ancestor_list`` is dropped because the downstream polars utilities used
+    here only operate on ``ancestor_id``.
+    """
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+    if "ancestor_list" in phylogeny_df.collect_schema().names():
+        phylogeny_df = phylogeny_df.drop("ancestor_list")
+    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+    return phylogeny_df
+
+
+def alifestd_test_leaves_isomorphic_polars(
+    df1: typing.Union[pl.DataFrame, pl.LazyFrame],
+    df2: typing.Union[pl.DataFrame, pl.LazyFrame],
+    taxon_label: str,
+) -> bool:
+    """Test if phylogenetic relationships between leaf nodes are topologically
+    isomorphic between two phylogenies.
+
+    See Also
+    --------
+    alifestd_test_leaves_isomorphic_asexual :
+        Pandas-based implementation.
+    """
+    if isinstance(df1, pl.LazyFrame):
+        df1 = df1.collect()
+    if isinstance(df2, pl.LazyFrame):
+        df2 = df2.collect()
+
+    logging.info(
+        "- alifestd_test_leaves_isomorphic_polars: "
+        "preparing working format...",
+    )
+    df1 = _to_working_format_polars(df1)
+    df2 = _to_working_format_polars(df2)
+
+    logging.info(
+        "- alifestd_test_leaves_isomorphic_polars: "
+        "collapsing unifurcations...",
+    )
+    df1 = alifestd_collapse_unifurcations_polars(
+        df1,
+        ignore_topological_sensitivity=True,
+        drop_topological_sensitivity=False,
+    )
+    df2 = alifestd_collapse_unifurcations_polars(
+        df2,
+        ignore_topological_sensitivity=True,
+        drop_topological_sensitivity=False,
+    )
+
+    df1 = _to_working_format_polars(df1)
+    df2 = _to_working_format_polars(df2)
+
+    logging.info(
+        "- alifestd_test_leaves_isomorphic_polars: marking leaves...",
+    )
+    df1 = alifestd_mark_leaves_polars(df1)
+    df2 = alifestd_mark_leaves_polars(df2)
+
+    if df1.height != df2.height:
+        return False
+
+    if taxon_label == "id":
+        df1 = df1.with_columns(taxon_label=pl.col("id"))
+        df2 = df2.with_columns(taxon_label=pl.col("id"))
+        taxon_label = "taxon_label"
+
+    leaves1 = df1.filter(pl.col("is_leaf")).select(["id", taxon_label])
+    leaves2 = df2.filter(pl.col("is_leaf")).select(["id", taxon_label])
+
+    labels1 = leaves1[taxon_label]
+    labels2 = leaves2[taxon_label]
+    if labels1.n_unique() != len(labels1):
+        raise ValueError("taxon labels in df1 must be unique among leaves")
+    if labels2.n_unique() != len(labels2):
+        raise ValueError("taxon labels in df2 must be unique among leaves")
+    if set(labels1.to_list()) != set(labels2.to_list()):
+        return False
+
+    logging.info(
+        "- alifestd_test_leaves_isomorphic_polars: building id map...",
+    )
+    leaf_pairs = leaves1.join(
+        leaves2.rename({"id": "id2"}),
+        on=taxon_label,
+        how="inner",
+    )
+    if leaf_pairs.height != leaves1.height:
+        return False
+
+    n = df1.height
+    id_map = np.zeros(n, dtype=np.int64)
+    id_map_set = np.zeros(n, dtype=np.bool_)
+    leaf_ids1 = leaf_pairs["id"].to_numpy()
+    leaf_ids2 = leaf_pairs["id2"].to_numpy()
+    id_map[leaf_ids1] = leaf_ids2
+    id_map_set[leaf_ids1] = True
+
+    ancestor_ids1 = (
+        df1.select("ancestor_id").to_series().to_numpy().astype(np.int64)
+    )
+    ancestor_ids2 = (
+        df2.select("ancestor_id").to_series().to_numpy().astype(np.int64)
+    )
+
+    return bool(
+        _walk_leaves_isomorphic(
+            ancestor_ids1.copy(),
+            ancestor_ids2.copy(),
+            id_map,
+            id_map_set,
+        ),
+    )
+
+
+_raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()})
+
+Test if phylogenetic relationships between leaf nodes are topologically
+isomorphic between two phylogenies.
+
+Return code 0 indicates isomorphism; 1 indicates non-isomorphism.
+
+Note that this CLI entrypoint is experimental and may be subject to change.
+
+See Also
+========
+phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual :
+    CLI entrypoint for Pandas-based implementation.
+"""
+
+
+def _read_phylogeny(path: str) -> pl.DataFrame:
+    ext = os.path.splitext(path.replace("csv.gz", "csvgz"))[1]
+    return {
+        ".csv": pl.read_csv,
+        ".csvgz": pl.read_csv,
+        ".fea": pl.read_ipc,
+        ".feather": pl.read_ipc,
+        ".pqt": pl.read_parquet,
+        ".parquet": pl.read_parquet,
+    }[ext](path)
+
+
+def _create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=format_cli_description(_raw_description),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "first_phylogeny",
+        type=str,
+        help="Path to first alife-standard phylogeny file",
+    )
+    parser.add_argument(
+        "second_phylogeny",
+        type=str,
+        help="Path to second alife-standard phylogeny file",
+    )
+    parser.add_argument(
+        "-l",
+        "--taxon-label",
+        type=str,
+        help="Name of column to use as taxon label.",
+        required=True,
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=get_phyloframe_version(),
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    begin_prod_logging()
+
+    parser = _create_parser()
+    args = parser.parse_args()
+
+    logging.info(f"reading first phylogeny from {args.first_phylogeny}...")
+    first_df = _read_phylogeny(args.first_phylogeny)
+
+    logging.info(f"reading second phylogeny from {args.second_phylogeny}...")
+    second_df = _read_phylogeny(args.second_phylogeny)
+
+    with log_context_duration(
+        "phyloframe.legacy._alifestd_test_leaves_isomorphic_polars",
+        logging.info,
+    ):
+        result = alifestd_test_leaves_isomorphic_polars(
+            first_df,
+            second_df,
+            taxon_label=args.taxon_label,
+        )
+
+    exit_code = [1, 0][result]
+
+    logging.info(f"exiting with return code {exit_code} for result {result}")
+    sys.exit(exit_code)
