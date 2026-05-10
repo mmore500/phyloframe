@@ -107,9 +107,7 @@ def alifestd_test_leaves_isomorphic_polars(
         raise NotImplementedError("non-contiguous ids not yet supported")
 
     # collapse_unifurcations_polars and assign_contiguous_ids_polars reject
-    # the ancestor_list column; drop it inline (no-op if absent). Casting
-    # ``id``/``ancestor_id`` to Int64 here lets us avoid copy-converting the
-    # numpy arrays before handing them to the jit kernel.
+    # the ancestor_list column; drop it inline (no-op if absent).
     df1 = (
         df1.select(pl.exclude("ancestor_list"))
         .pipe(
@@ -118,10 +116,6 @@ def alifestd_test_leaves_isomorphic_polars(
         )
         .pipe(alifestd_assign_contiguous_ids_polars)
         .lazy()
-        .with_columns(
-            pl.col("id").cast(pl.Int64),
-            pl.col("ancestor_id").cast(pl.Int64),
-        )
     )
     df2 = (
         df2.select(pl.exclude("ancestor_list"))
@@ -131,10 +125,6 @@ def alifestd_test_leaves_isomorphic_polars(
         )
         .pipe(alifestd_assign_contiguous_ids_polars)
         .lazy()
-        .with_columns(
-            pl.col("id").cast(pl.Int64),
-            pl.col("ancestor_id").cast(pl.Int64),
-        )
     )
 
     if "is_leaf" not in df1.collect_schema().names():
@@ -154,7 +144,12 @@ def alifestd_test_leaves_isomorphic_polars(
     # element-wise, side-stepping a join (and the column-aliasing it would
     # require to disambiguate "id" between the two frames). Use a set so
     # ``taxon_label == "id"`` doesn't produce a duplicate-projection error.
-    leaf_cols = list({"id", taxon_label})
+    # cast ``id`` to Int64 lazily in the same chain so the numpy array we
+    # hand to the jit kernel doesn't need a follow-up ``.astype`` copy.
+    leaf_cols = [
+        pl.col(c).cast(pl.Int64) if c == "id" else pl.col(c)
+        for c in {"id", taxon_label}
+    ]
     leaves1_sorted = (
         df1.filter(pl.col("is_leaf"))
         .sort(taxon_label)
@@ -176,8 +171,18 @@ def alifestd_test_leaves_isomorphic_polars(
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: collecting ancestor ids...",
     )
-    ancestor_ids1 = df1.select("ancestor_id").collect().to_series().to_numpy()
-    ancestor_ids2 = df2.select("ancestor_id").collect().to_series().to_numpy()
+    ancestor_ids1 = (
+        df1.select(pl.col("ancestor_id").cast(pl.Int64))
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
+    ancestor_ids2 = (
+        df2.select(pl.col("ancestor_id").cast(pl.Int64))
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
     if len(ancestor_ids1) != len(ancestor_ids2):
         return False
 
