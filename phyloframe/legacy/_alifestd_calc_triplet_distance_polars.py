@@ -73,11 +73,11 @@ def _alifestd_make_distance_newicks_polars(
         .select(pl.col(label_col).alias("label"))
         .unique()
     )
-    ref_count = ref_leaf_labels.select(pl.len()).collect().item()
-    cmp_count = cmp_leaf_labels.select(pl.len()).collect().item()
     if (
-        ref_count != cmp_count
-        or not ref_leaf_labels.join(cmp_leaf_labels, on="label", how="anti")
+        not ref_leaf_labels.join(
+            cmp_leaf_labels, on="label", how="full", coalesce=False
+        )
+        .filter(pl.col("label").is_null() | pl.col("label_right").is_null())
         .limit(1)
         .collect()
         .is_empty()
