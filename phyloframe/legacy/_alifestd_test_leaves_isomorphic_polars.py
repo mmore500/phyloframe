@@ -19,6 +19,9 @@ from ._alifestd_assign_contiguous_ids_polars import (
 from ._alifestd_collapse_unifurcations_polars import (
     alifestd_collapse_unifurcations_polars,
 )
+from ._alifestd_count_leaf_nodes_polars import (
+    alifestd_count_leaf_nodes_polars,
+)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -26,9 +29,6 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
-from ._alifestd_try_add_ancestor_id_col_polars import (
-    alifestd_try_add_ancestor_id_col_polars,
-)
 
 
 @jit(nopython=True)
@@ -88,12 +88,14 @@ def alifestd_test_leaves_isomorphic_polars(
     if df1.limit(1).collect().is_empty() and df2.limit(1).collect().is_empty():
         return True
 
-    df1 = alifestd_try_add_ancestor_id_col_polars(df1)
-    df2 = alifestd_try_add_ancestor_id_col_polars(df2)
+    schema1 = df1.collect_schema().names()
+    schema2 = df2.collect_schema().names()
+    if "ancestor_id" not in schema1 or "ancestor_id" not in schema2:
+        raise NotImplementedError("ancestor_id column required")
 
-    if "ancestor_list" in df1.collect_schema().names():
+    if "ancestor_list" in schema1:
         df1 = df1.drop("ancestor_list")
-    if "ancestor_list" in df2.collect_schema().names():
+    if "ancestor_list" in schema2:
         df2 = df2.drop("ancestor_list")
 
     if not alifestd_is_topologically_sorted_polars(
@@ -134,34 +136,34 @@ def alifestd_test_leaves_isomorphic_polars(
     if "is_leaf" not in df2.collect_schema().names():
         df2 = alifestd_mark_leaves_polars(df2)
 
+    n_leaves1 = alifestd_count_leaf_nodes_polars(df1)
+    n_leaves2 = alifestd_count_leaf_nodes_polars(df2)
+    if n_leaves1 != n_leaves2:
+        return False
+
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: collecting leaf ids...",
     )
-    # namespaced label alias avoids colliding with any user-supplied column
-    label_col = "_phyloframe_test_leaves_isomorphic_polars_label"
-    leaves1 = (
+    # sorting both leaf sets by taxon label aligns matching leaves
+    # element-wise, side-stepping a join (and the column-aliasing it would
+    # require to disambiguate "id" between the two frames).
+    leaf_cols = ["id"] if taxon_label == "id" else ["id", taxon_label]
+    leaves1_sorted = (
         df1.filter(pl.col("is_leaf"))
-        .select([pl.col("id"), pl.col(taxon_label).alias(label_col)])
+        .sort(taxon_label)
+        .select(leaf_cols)
         .collect()
     )
-    leaves2 = (
+    leaves2_sorted = (
         df2.filter(pl.col("is_leaf"))
-        .select(
-            [
-                pl.col("id").alias("id2"),
-                pl.col(taxon_label).alias(label_col),
-            ]
-        )
+        .sort(taxon_label)
+        .select(leaf_cols)
         .collect()
     )
 
-    if leaves1[label_col].n_unique() != leaves1.height:
+    if leaves1_sorted[taxon_label].n_unique() != n_leaves1:
         raise ValueError("taxon labels in df1 must be unique among leaves")
-    if leaves2[label_col].n_unique() != leaves2.height:
-        raise ValueError("taxon labels in df2 must be unique among leaves")
-
-    leaf_pairs = leaves1.join(leaves2, on=label_col, how="inner")
-    if leaf_pairs.height != leaves1.height or leaves1.height != leaves2.height:
+    if not leaves1_sorted[taxon_label].equals(leaves2_sorted[taxon_label]):
         return False
 
     logging.info(
@@ -176,8 +178,8 @@ def alifestd_test_leaves_isomorphic_polars(
         _walk_leaves_isomorphic(
             ancestor_ids1.astype(np.int64, copy=True),
             ancestor_ids2.astype(np.int64, copy=True),
-            leaf_pairs["id"].to_numpy().astype(np.int64),
-            leaf_pairs["id2"].to_numpy().astype(np.int64),
+            leaves1_sorted["id"].to_numpy().astype(np.int64),
+            leaves2_sorted["id"].to_numpy().astype(np.int64),
         ),
     )
 
