@@ -77,13 +77,16 @@ def _alifestd_make_distance_newicks_polars(
         .select(pl.col(label_col).alias("label"))
         .unique()
     )
-    label_mismatch = pl.concat(
-        [
-            ref_leaf_labels.join(cmp_leaf_labels, on="label", how="anti"),
-            cmp_leaf_labels.join(ref_leaf_labels, on="label", how="anti"),
-        ],
-    )
-    if not label_mismatch.limit(1).collect().is_empty():
+    if (
+        not ref_leaf_labels.join(cmp_leaf_labels, on="label", how="anti")
+        .limit(1)
+        .collect()
+        .is_empty()
+        or not cmp_leaf_labels.join(ref_leaf_labels, on="label", how="anti")
+        .limit(1)
+        .collect()
+        .is_empty()
+    ):
         raise ValueError("Taxon labels must match between trees")
 
     empty_labels = ref_leaf_labels.filter(
