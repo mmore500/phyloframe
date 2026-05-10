@@ -130,36 +130,23 @@ A brief demonstration showing several tree transforms using a pipeline pattern.
 Note that complex tree manipulations, including custom operations, can be succinctly performed with no raw loops or recursion.
 
 ```python3
-import numpy as np
-from pandas import DataFrame
+import numpy as np; from pandas import DataFrame
 from phyloframe import legacy as pfl
 
 df_raw: DataFrame = pfl.alifestd_from_newick("(((r:1)c:2,(x:2,y:1)e:1.5)s:2)a;")
-df_res: DataFrame = (
-    df_raw.drop(columns=["branch_length", "origin_time_delta"])
-    .pipe(
-        pfl.alifestd_reroot_at_id_asexual,
-        new_root_id=df_raw.query("taxon_label == 'r'")["id"].item(),
-    )
-    .pipe(  # update branch lengths after reroot
-        lambda df: df.assign(
-            branch_length=np.where(
-                df_raw.loc[df["id"], "ancestor_id"] == df["ancestor_id"],
-                df_raw.loc[df["id"], "branch_length"],
-                df_raw.loc[df["ancestor_id"], "branch_length"],
-            ),
-        ),
-    )
-    .pipe(pfl.alifestd_to_working_format)  # reassign id values
-    .pipe(  # accumulate branch lengths to mark origin times
-        pfl.alifestd_mark_lineage_cumsum_asexual,
-        mark_as="origin_time",
-        values="branch_length",
-    )
-    .pipe(pfl.alifestd_sort_children_asexual, criterion="taxon_label")
-    .pipe(pfl.alifestd_to_working_format)  # reassign id values
-    .pipe(pfl.alifestd_ultrametricize, method="extend")
-)
+df_res: DataFrame = df_raw.drop(columns=["branch_length", "origin_time_delta"],
+    ).pipe(pfl.alifestd_reroot_at_id_asexual,  # reroot at node "r"
+      new_root_id=df_raw.query("taxon_label == 'r'")["id"].item(),
+    ).pipe(lambda df: df.assign(branch_length=np.where(  # flip rerooted lengths
+      df_raw.loc[df["id"], "ancestor_id"] != df["ancestor_id"],  # where flipped
+      df_raw.loc[df["ancestor_id"], "branch_length"],  # take ancestor's value
+      df_raw.loc[df["id"], "branch_length"],  # ...otherwise keep own
+    ))).pipe(pfl.alifestd_to_working_format,  # reassign id values
+    ).pipe(pfl.alifestd_mark_lineage_cumsum_asexual,  # accumulate branch length
+      mark_as="origin_time", values="branch_length",  # ...to mark origin time
+    ).pipe(pfl.alifestd_sort_children_asexual, criterion="taxon_label",
+    ).pipe(pfl.alifestd_to_working_format,  # reassign id values
+    ).pipe(pfl.alifestd_ultrametricize, method="extend")  # align tip times
 ```
 
 ![Before and after tree plots, created through integration with iplotx [@zanini2025iplotx;@hunter2007matplotlib]. \label{fig:demo1}](demo1.png)
@@ -167,52 +154,35 @@ df_res: DataFrame = (
 # Custom JIT Demonstration
 
 ```python3
-from matplotlib import pyplot as plt
-import polars as pl
+import numpy as np; import polars as pl; import seaborn as sns
 from phyloframe import _auxlib as pfa
 from phyloframe import legacy as pfl
-import seaborn as sns
 
-@pfa.jit(nopython=True)
+@pfa.jit(cache=False, nopython=True)  # JIT compile via Numba
 def simulate_trait(ancestor_ids: np.ndarray) -> np.ndarray:
-    trait = np.zeros_like(ancestor_ids, dtype=float)
+    trait = np.zeros(ancestor_ids.size, dtype=float)
     for id_, anc_id in enumerate(ancestor_ids):
-        if id_ != anc_id:  # skip root
-            trait[id_] = trait[anc_id] + np.random.normal()
+        if id_ == anc_id: continue  # exclude root
+        trait[id_] = trait[anc_id] + np.random.normal()
     return trait
 
-def plot_trait(df_gen: pl.DataFrame) -> plt.Axes:
-    ax = sns.scatterplot(
-        df_gen,
-        x="node_depth",
-        y="trait",
-        hue="is_leaf",
-        legend=False,
-        palette={False: "gray", True: "steelblue"},
-        s=15,
-    )
-    cols = ["node_depth", "ancestor_id", "trait"]
-    ndepth, anc, trait = df_gen[cols]
-    ax.plot(
-        *[[ndepth, ndepth[anc]], [trait, trait[anc]]],
-        color=(0.8, 0.8, 0.8, 0.8),
-        zorder=-2,
-    )
-    ax.figure.set_size_inches(5, 1.5)
-    sns.despine(ax=ax)
-    return ax
+def plot_trait(data: pl.DataFrame) -> None:
+    selectors = dict(x="node_depth", y="trait", hue="is_leaf")
+    style = dict(legend=False, palette=["gray", "steelblue"], s=15)
+    ax = sns.scatterplot(data, **selectors, **style)
 
-(
-    pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42)
-    .pipe(pfl.alifestd_topological_sort_polars)
-    .pipe(pfl.alifestd_assign_contiguous_ids_polars)
-    .pipe(pfl.alifestd_mark_node_depth_polars)
-    .pipe(pfl.alifestd_mark_leaves_polars)
-    .with_columns(
-        trait=pl.col("ancestor_id").map_batches(simulate_trait),
-    )
-    .pipe(plot_trait)
-)
+    depth, ancestor, trait = data[["node_depth", "ancestor_id", "trait"]]
+    segments = [[depth, depth[ancestor]], [trait, trait[ancestor]]]
+    ax.plot(*segments, color="#CCCCCCCC", zorder=-2)  # link parent/child
+
+pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
+    ).pipe(pfl.alifestd_topological_sort_polars,  # parents before children
+    ).pipe(pfl.alifestd_assign_contiguous_ids_polars,  # reassign ids
+    ).pipe(pfl.alifestd_mark_node_depth_polars,  # add node_depth col
+    ).pipe(pfl.alifestd_mark_leaves_polars,  # add is_leaf col
+    ).with_columns(trait=pl.col("ancestor_id").map_batches(  # add trait col
+        lambda x: simulate_trait(x.to_numpy()), return_dtype=float,
+    )).pipe(plot_trait)  # draw tree
 ```
 
 ![Trait simulation visualization \label{fig:demo2}](demo2.png)
@@ -221,14 +191,14 @@ def plot_trait(df_gen: pl.DataFrame) -> plt.Axes:
 # Command-line Interface
 
 ```bash
-ls -1 "input.csv" \
-| singularity exec docker://ghcr.io/mmore500/PhyloFrame:v0.9.0 \
-  python3 -m PhyloFrame.legacy._alifestd_pipe_unary_ops \
+ls -1 "input.csv" \  # path to input data
+| singularity exec docker://ghcr.io/mmore500/PhyloFrame:v0.9.0 \  # containerized release
+  python3 -m PhyloFrame.legacy._alifestd_pipe_unary_ops \  # sequentially apply ops...
   --op "lambda df: pfl.alifestd_mark_sample_tips_canopy_asexual(df, n_sample=5, mark_as='keep_canopy')" \
   --op "lambda df: pfl.alifestd_mark_sample_tips_lineage_asexual(df, n_sample=5, mark_as='keep_lineage')" \
   --op "lambda df: df.assign(extant=df['keep_canopy'] | df['keep_lineage'])" \
   --op "pfl.alifestd_prune_extinct_lineages_asexual" \
-  "output.csv"
+  "output.csv"  # output path
 ```
 
 # Related Software
