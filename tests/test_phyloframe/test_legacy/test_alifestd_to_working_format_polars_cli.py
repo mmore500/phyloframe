@@ -88,11 +88,31 @@ def test_alifestd_to_working_format_polars_cli_keep_ancestor_list():
             output_file,
         ],
         check=True,
-        input=f"{assets}/trunktestphylo.csv".encode(),
+        input=f"{assets}/example-standard-toy-asexual-phylogeny.csv".encode(),
     )
     assert os.path.exists(output_file)
     result_df = pd.read_csv(output_file)
     assert "ancestor_list" in result_df.columns
+    assert "ancestor_id" in result_df.columns
+
+
+def test_alifestd_to_working_format_polars_cli_drops_ancestor_list():
+    output_file = "/tmp/phyloframe_alifestd_to_working_format_polars_drop.csv"  # nosec B108
+    pathlib.Path(output_file).unlink(missing_ok=True)
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            "phyloframe.legacy._alifestd_to_working_format_polars",
+            "--eager-write",
+            output_file,
+        ],
+        check=True,
+        input=f"{assets}/example-standard-toy-asexual-phylogeny.csv".encode(),
+    )
+    assert os.path.exists(output_file)
+    result_df = pd.read_csv(output_file)
+    assert "ancestor_list" not in result_df.columns
     assert "ancestor_id" in result_df.columns
 
 

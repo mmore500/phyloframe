@@ -219,6 +219,38 @@ def test_alifestd_to_working_format_polars_drops_ancestor_list(
         pytest.param(lambda x: x.lazy(), id="LazyFrame"),
     ],
 )
+def test_alifestd_to_working_format_polars_keep_ancestor_list_absent(
+    apply: typing.Callable,
+):
+    """keep_ancestor_list=True is a no-op when input had no ancestor_list."""
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [10, 20, 30, 40, 50],
+                "ancestor_id": [10, 10, 10, 20, 20],
+            }
+        ),
+    )
+
+    result = (
+        alifestd_to_working_format_polars(df_pl, keep_ancestor_list=True)
+        .lazy()
+        .collect()
+    )
+
+    assert "ancestor_list" not in result.columns
+    assert "ancestor_id" in result.columns
+    assert alifestd_has_contiguous_ids_polars(result)
+    assert alifestd_is_topologically_sorted_polars(result)
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
 def test_alifestd_to_working_format_polars_keep_ancestor_list(
     apply: typing.Callable,
 ):

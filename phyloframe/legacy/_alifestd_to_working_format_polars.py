@@ -49,8 +49,10 @@ def alifestd_to_working_format_polars(
     phylogeny_df : polars.DataFrame
         The phylogeny as a dataframe in alife standard format.
     keep_ancestor_list : bool, default False
-        If True, regenerate the `ancestor_list` column from the (reassigned)
-        `ancestor_id` column. If False, the `ancestor_list` column is dropped.
+        If True and `ancestor_list` was present in the input, regenerate the
+        `ancestor_list` column from the (reassigned) `ancestor_id` column. The
+        column is dropped during processing in all cases; it is only restored
+        when this flag is set and the input already had it.
 
     See Also
     --------
@@ -59,17 +61,21 @@ def alifestd_to_working_format_polars(
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
-    if "ancestor_list" in phylogeny_df.lazy().collect_schema().names():
+    had_ancestor_list = (
+        "ancestor_list" in phylogeny_df.lazy().collect_schema().names()
+    )
+    if had_ancestor_list:
         phylogeny_df = phylogeny_df.drop("ancestor_list")
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+        phylogeny_df = phylogeny_df.pipe(alifestd_assign_contiguous_ids_polars)
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        phylogeny_df = alifestd_topological_sort_polars(phylogeny_df)
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(phylogeny_df)
+        phylogeny_df = phylogeny_df.pipe(
+            alifestd_topological_sort_polars,
+        ).pipe(alifestd_assign_contiguous_ids_polars)
 
-    if keep_ancestor_list:
+    if keep_ancestor_list and had_ancestor_list:
         phylogeny_df = phylogeny_df.with_columns(
             ancestor_list=alifestd_make_ancestor_list_col_polars(
                 phylogeny_df.lazy().select("id").collect().to_series(),
