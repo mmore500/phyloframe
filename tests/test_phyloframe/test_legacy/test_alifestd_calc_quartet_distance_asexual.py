@@ -173,3 +173,26 @@ def test_differing_polytomy_asymmetrical():
         )
         < 1
     )
+
+
+def test_id_as_taxon_label():
+    adf = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            "ancestor_id": [0, 0, 1, 2, 2, 1, 5, 5, 4, 4],
+        },
+    )
+    adf["ancestor_list"] = alifestd_make_ancestor_list_col(
+        adf["id"], adf["ancestor_id"]
+    )
+    bdf = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            "ancestor_id": [0, 0, 1, 5, 2, 1, 2, 5, 4, 4],
+        },
+    )
+    bdf["ancestor_list"] = alifestd_make_ancestor_list_col(
+        bdf["id"], bdf["ancestor_id"]
+    )
+    assert alifestd_calc_quartet_distance_asexual(adf, adf, "id") == 0
+    assert 0 < alifestd_calc_quartet_distance_asexual(adf, bdf, "id") < 1

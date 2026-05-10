@@ -35,6 +35,14 @@ def _alifestd_make_distance_newicks_polars(
             "Cannot have disjunct trees in distance calculation",
         )
 
+    label_col = "_alifestd_distance_taxon_label"
+    ref = ref.with_columns(
+        pl.col(taxon_label_key).cast(pl.String).alias(label_col),
+    )
+    cmp = cmp.with_columns(
+        pl.col(taxon_label_key).cast(pl.String).alias(label_col),
+    )
+
     ref = alifestd_mark_leaves_polars(
         alifestd_assign_contiguous_ids_polars(
             alifestd_collapse_unifurcations_polars(ref),
@@ -48,27 +56,27 @@ def _alifestd_make_distance_newicks_polars(
 
     ref = ref.with_columns(
         pl.when(pl.col("is_leaf"))
-        .then(pl.col(taxon_label_key).cast(pl.String))
+        .then(pl.col(label_col))
         .otherwise(pl.lit(""))
-        .alias(taxon_label_key),
+        .alias(label_col),
     )
     cmp = cmp.with_columns(
         pl.when(pl.col("is_leaf"))
-        .then(pl.col(taxon_label_key).cast(pl.String))
+        .then(pl.col(label_col))
         .otherwise(pl.lit(""))
-        .alias(taxon_label_key),
+        .alias(label_col),
     )
 
     ref_leaf_labels = (
         ref.lazy()
         .filter(pl.col("is_leaf"))
-        .select(pl.col(taxon_label_key).alias("label"))
+        .select(pl.col(label_col).alias("label"))
         .unique()
     )
     cmp_leaf_labels = (
         cmp.lazy()
         .filter(pl.col("is_leaf"))
-        .select(pl.col(taxon_label_key).alias("label"))
+        .select(pl.col(label_col).alias("label"))
         .unique()
     )
     label_mismatch = pl.concat(
@@ -87,12 +95,12 @@ def _alifestd_make_distance_newicks_polars(
         raise ValueError("Cannot have empty taxon labels")
 
     ref_newick = (
-        alifestd_as_newick_polars(ref, taxon_label=taxon_label_key)
+        alifestd_as_newick_polars(ref, taxon_label=label_col)
         .removeprefix("[&R]")
         .strip()
     )
     cmp_newick = (
-        alifestd_as_newick_polars(cmp, taxon_label=taxon_label_key)
+        alifestd_as_newick_polars(cmp, taxon_label=label_col)
         .removeprefix("[&R]")
         .strip()
     )

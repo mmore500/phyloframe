@@ -28,8 +28,12 @@ def _alifestd_make_distance_newicks_asexual(
             "Cannot have disjunct trees in distance calculation",
         )
 
+    label_col = "_alifestd_distance_taxon_label"
     ref = ref.copy()
     cmp = cmp.copy()
+    ref[label_col] = ref[taxon_label_key].astype(str)
+    cmp[label_col] = cmp[taxon_label_key].astype(str)
+
     ref = alifestd_mark_leaves(
         alifestd_collapse_unifurcations(ref, mutate=True),
         mutate=True,
@@ -39,27 +43,25 @@ def _alifestd_make_distance_newicks_asexual(
         mutate=True,
     )
 
-    ref = ref.astype({taxon_label_key: str})
-    cmp = cmp.astype({taxon_label_key: str})
-    ref.loc[~ref["is_leaf"], taxon_label_key] = ""
-    cmp.loc[~cmp["is_leaf"], taxon_label_key] = ""
+    ref.loc[~ref["is_leaf"], label_col] = ""
+    cmp.loc[~cmp["is_leaf"], label_col] = ""
 
-    ref_labels = {*ref[taxon_label_key][ref["is_leaf"]]}
-    cmp_labels = {*cmp[taxon_label_key][cmp["is_leaf"]]}
+    ref_labels = {*ref[label_col][ref["is_leaf"]]}
+    cmp_labels = {*cmp[label_col][cmp["is_leaf"]]}
 
     if ref_labels != cmp_labels:
         raise ValueError("Taxon labels must match between trees")
     for taxon_label in ref_labels:
-        if isinstance(taxon_label, str) and not taxon_label.strip():
+        if not taxon_label.strip():
             raise ValueError("Cannot have empty taxon labels")
 
     ref_newick = (
-        alifestd_as_newick_asexual(ref, taxon_label=taxon_label_key)
+        alifestd_as_newick_asexual(ref, taxon_label=label_col)
         .removeprefix("[&R]")
         .strip()
     )
     cmp_newick = (
-        alifestd_as_newick_asexual(cmp, taxon_label=taxon_label_key)
+        alifestd_as_newick_asexual(cmp, taxon_label=label_col)
         .removeprefix("[&R]")
         .strip()
     )

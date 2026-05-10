@@ -200,3 +200,31 @@ def test_differing_polytomy_asymmetrical_strict(apply: typing.Callable):
         )
         < 1
     )
+
+
+def test_id_as_taxon_label(apply: typing.Callable):
+    adf = _prepare(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                "ancestor_id": [0, 0, 1, 2, 2, 1, 5, 5, 4, 4],
+            },
+        ),
+    )
+    bdf = _prepare(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                "ancestor_id": [0, 0, 1, 5, 2, 1, 2, 5, 4, 4],
+            },
+        ),
+    )
+    assert (
+        alifestd_calc_triplet_distance_polars(apply(adf), apply(adf), "id")
+        == 0
+    )
+    assert (
+        0
+        < alifestd_calc_triplet_distance_polars(apply(adf), apply(bdf), "id")
+        < 1
+    )
