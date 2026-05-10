@@ -253,6 +253,11 @@ Neither the United States Government nor any agency thereof, nor any of their em
 Reference herein to any specific commercial product, process, or service by trade name, trademark, manufacturer, or otherwise does not necessarily constitute or imply its endorsement, recommendation, or favoring by the United States Government or any agency thereof.
 The views and opinions of authors expressed herein do not necessarily state or reflect those of the United States Government or any agency thereof.
 
+**AI Declaration:**
+During the preparation of this work, the author(s) used Claude Code to assemble manuscript boilerplate and draft benchmarking scripts.
+Closely supervised agentic software development is used for refactoring code, drafting documentation, and scoped library feature development.
+Such contributions are tracked via commit co-authorship.
+
 # References
 
 <div id="refs"></div>
