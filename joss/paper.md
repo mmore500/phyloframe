@@ -36,7 +36,6 @@ bibliography: paper.bib
 
 # Summary
 
-
 PhyloFrame is a Python library for DataFrame-based phylogenetic tree analysis and manipulation.
 Trees are stored in the Artificial Life Data Standard tabular format [@lalejini2019alife], where each row corresponds to a node and columns record node identifiers, ancestor relationships, branch lengths, and arbitrary user-defined attributes.
 PhyloFrame provides a wide variety of functions in Pandas [@mckinney2010pandas] and Polars [@vink2024polars], with particular emphasis on downsampling and CLI operations.
@@ -64,6 +63,9 @@ PhyloFrame addresses this gap by storing phylogenies as column-oriented datafram
 The dataframe representation also facilitates JIT compilation of inner loops via Numba, yielding competitive traversal and parsing performance while retaining Python-level expressiveness.
 \autoref{fig:benchmark} compares throughput and memory efficiency across these libraries on balanced binary trees with up to 30 million tips.
 
+Most operations support both Polars and Pandas.
+Most public functions are available as a CLI command, facilitating integration in shell pipelines.
+
 ![Benchmark comparison of phylogenetic libraries. Left: throughput (tips processed per second) for each operation across tree sizes. Right: memory efficiency (tips stored per byte of RSS) across tree sizes. Higher is better in both panels.\label{fig:benchmark}](benchmark-panel.png)
 
 # Why a DataFrame-based Tree Representation?
@@ -90,46 +92,28 @@ Leverage powerful querying and transformation APIs (e.g., Polars expressions, Pa
 Data occupies contiguous arrays, expediting tree creation and topological order traversals (e.g., parents before children or vice versa).
 Base memory footprint is lightweight (e.g., as little as 32 bits per node), but can be dynamically augmented to expedite traversals and calculations (e.g., child linked lists via DataFrame columns for first child/next sibling indices).
 
-**Rich interoperative ecosystem.**
+**Data Structure Interoperation.**
 Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via reticulate and Arrow [@reticulate;@arrow], possible future support for zero-copy Polars DataFrames shared between Rust and Python).
 Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol [@meurer2023python]).
 Interoperation with broader Python DataFrame ecosystem [@vallat2018pingouin;@vanderplas2018altair;@waskom2021seaborn;@rapids;@skrub])
+
+**API Integrations and Data Format Interoperation.**
+For programmatic visualizations, PhyloFrame integrates with iplotx [@zanini2025iplotx] to visualize phylogenetic trees from DataFrames.
+[@vanderplas2018altair;@waskom2021seaborn].
+For interactive in-browser visualization of trees up to millions of nodes, an experimental fork of taxonium [@sanderson2022taxonium] is available at <https://mmore500.github.io/taxonium> that supports alife standard CSV, TSV, and Parquet files.
 Compatibility with existing alife data standards ecosystem [@lalejini2019alife].
 
 # Features
 
-**Tree construction and I/O.**
-PhyloFrame reads and writes Newick strings via `alifestd_from_newick_polars` and `alifestd_as_newick_polars`, with a JIT-compiled parser that handles trees with millions of tips.
-Synthetic trees can be generated for testing and benchmarking.
+- tree input/output: Newick and ALife Data Standard formats
+- synthetic tree generation: structured (e.g., comb, balanced, star) and random (e.g., edge-adding, node-adding)
+- MRCA and patristic distance calculation: pairwise and all-pairs
+- tree traversals: preorder, postorder, inorder, levelorder, semiorder, and topological
+- topology metrics: Colless imbalance, Sackin index, and Faith's phylogenetic diversity
+- tree manipulation: collapsing unifurcations, tree pruning, tree downsampling, rerooting, and ladderizing
+- tree comparison: triplet/quartet distance [@sand2014tqdist] and topological isomorphism
 
-**Traversals.**
-Preorder, postorder, inorder, levelorder, and semiorder traversals are available, returning node index arrays suitable for downstream vectorized operations.
-
-**Topology metrics.**
-The library computes Colless imbalance, Sackin index, Faith's phylogenetic diversity, mean pairwise distance, and polytomic index, among others.
-
-**Tree manipulation.**
-Operations include collapsing unifurcations, pruning extinct lineages, downsampling tips by lineage or canopy strategies, rerooting, ladderizing, and coarsening.
-
-**All-pairs MRCA.**
-A most-recent common ancestor matrix can be computed for all tip pairs, enabling downstream comparative analyses.
-
-**Dual dataframe backends.**
-Most operations support both Polars and Pandas.
-
-**Command-line interface.**
-Most public functions are available as a CLI command, facilitating integration in shell pipelines.
-
-**Visualization.**
-For interactive in-browser visualization of trees up to millions of nodes, an experimental fork of taxonium [@sanderson2022taxonium] is available at <https://mmore500.github.io/taxonium> that supports alife standard CSV, TSV, and Parquet files.
-For programmatic visualizations, PhyloFrame integrates with iplotx [@zanini2025iplotx] to visualize phylogenetic trees from DataFrames.
-[@vanderplas2018altair;@waskom2021seaborn].
-
-# Projects Using the Software
-
-PhyloFrame originated from phylogeny-tracking components developed for the hstrat library [@moreno2022hstrat], which enables phylogenetic inference over distributed digital evolution populations.
-The alifestd operations now in PhyloFrame provide the core tree analysis and manipulation layer used by `hstrat` and downstream digital evolution experiments.
-Underlying software has contributed substantially to a number of publications [@moreno2025ecology;@singhvi2025scalable;@moreno2025testing;@moreno2024trackable;@moreno2022hereditary].
+A full API listing is included in [PhyloFrame documentation](https://phyloframe.readthedocs.io).
 
 # Demo: Tree Manipulation Pipeline
 
@@ -238,7 +222,13 @@ This design enables direct integration with pandas and Polars analytics workflow
 
 Besides the common name, the PhyloFrame library presented here is unrelated to the recent machine learning methodology to counteract ancestral bias in precision medicine [@smith2025equitable].
 
-# Future Work
+# Projects Using the Software
+
+PhyloFrame originated from phylogeny-tracking components developed for the hstrat library [@moreno2022hstrat], which enables phylogenetic inference over distributed digital evolution populations.
+The alifestd operations now in PhyloFrame provide the core tree analysis and manipulation layer used by `hstrat` and downstream digital evolution experiments.
+Underlying software has contributed substantially to a number of publications [@moreno2025ecology;@singhvi2025scalable;@moreno2025testing;@moreno2024trackable;@moreno2022hereditary].
+
+# Deveopment Roadmap
 
 Much future work remains in development of the PhyloFrame library.
 
