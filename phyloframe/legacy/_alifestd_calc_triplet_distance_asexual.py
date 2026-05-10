@@ -29,20 +29,18 @@ def _alifestd_make_distance_newicks_asexual(
         )
 
     label_col = "_alifestd_distance_taxon_label"
-    ref = (
-        ref.copy()
-        .assign(**{label_col: lambda d: d[taxon_label_key].astype(str)})
-        .pipe(alifestd_collapse_unifurcations, mutate=True)
-        .pipe(alifestd_mark_leaves, mutate=True)
-        .assign(**{label_col: lambda d: d[label_col].where(d["is_leaf"], "")})
+    ref = ref.copy()
+    cmp = cmp.copy()
+    ref[label_col] = ref[taxon_label_key].astype(str)
+    cmp[label_col] = cmp[taxon_label_key].astype(str)
+    ref = ref.pipe(alifestd_collapse_unifurcations, mutate=True).pipe(
+        alifestd_mark_leaves, mutate=True
     )
-    cmp = (
-        cmp.copy()
-        .assign(**{label_col: lambda d: d[taxon_label_key].astype(str)})
-        .pipe(alifestd_collapse_unifurcations, mutate=True)
-        .pipe(alifestd_mark_leaves, mutate=True)
-        .assign(**{label_col: lambda d: d[label_col].where(d["is_leaf"], "")})
+    cmp = cmp.pipe(alifestd_collapse_unifurcations, mutate=True).pipe(
+        alifestd_mark_leaves, mutate=True
     )
+    ref.loc[~ref["is_leaf"], label_col] = ""
+    cmp.loc[~cmp["is_leaf"], label_col] = ""
 
     ref_labels = {*ref[label_col][ref["is_leaf"]]}
     cmp_labels = {*cmp[label_col][cmp["is_leaf"]]}
