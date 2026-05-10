@@ -61,11 +61,8 @@ def alifestd_to_working_format_polars(
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
 
-    had_ancestor_list = (
-        "ancestor_list" in phylogeny_df.lazy().collect_schema().names()
-    )
-    if had_ancestor_list:
-        phylogeny_df = phylogeny_df.drop("ancestor_list")
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    phylogeny_df = phylogeny_df.select(pl.exclude("ancestor_list"))
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         phylogeny_df = phylogeny_df.pipe(alifestd_assign_contiguous_ids_polars)
@@ -75,7 +72,7 @@ def alifestd_to_working_format_polars(
             alifestd_topological_sort_polars,
         ).pipe(alifestd_assign_contiguous_ids_polars)
 
-    if keep_ancestor_list and had_ancestor_list:
+    if keep_ancestor_list and "ancestor_list" in schema_names:
         phylogeny_df = phylogeny_df.with_columns(
             ancestor_list=alifestd_make_ancestor_list_col_polars(
                 phylogeny_df.lazy().select("id").collect().to_series(),
