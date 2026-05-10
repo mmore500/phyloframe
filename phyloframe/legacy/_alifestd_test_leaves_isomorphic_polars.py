@@ -51,12 +51,9 @@ def _walk_leaves_isomorphic(
     id_map[leaf_ids1] = leaf_ids2
     id_map_set[leaf_ids1] = True
 
-    # All leaves were mapped above; every inner node will have its mapping
-    # propagated up by some descendant before we process it (after
-    # collapse_unifurcations there are no leaf-less subtrees), so the walk
-    # below need not re-verify ``id_map_set[id1]`` per iteration.
-
-    # iterate over ids from back to front
+    # iterate over ids from back to front; after collapse_unifurcations every
+    # inner node has a leaf descendant that populates its mapping before the
+    # walk reaches it.
     for id1 in range(n - 1, -1, -1):
         ancestor_id1 = ancestor_ids1[id1]
         id2 = id_map[id1]
@@ -93,11 +90,6 @@ def alifestd_test_leaves_isomorphic_polars(
     if "ancestor_id" not in schema1 or "ancestor_id" not in schema2:
         raise NotImplementedError("ancestor_id column required")
 
-    if "ancestor_list" in schema1 or "ancestor_list" in schema2:
-        raise NotImplementedError(
-            "ancestor_list column not supported, drop it first",
-        )
-
     if not alifestd_is_topologically_sorted_polars(
         df1
     ) or not alifestd_is_topologically_sorted_polars(df2):
@@ -107,6 +99,11 @@ def alifestd_test_leaves_isomorphic_polars(
         df1
     ) or not alifestd_has_contiguous_ids_polars(df2):
         raise NotImplementedError("non-contiguous ids not yet supported")
+
+    # collapse_unifurcations_polars and assign_contiguous_ids_polars reject
+    # the ancestor_list column; drop it inline (no-op if absent).
+    df1 = df1.select(pl.exclude("ancestor_list"))
+    df2 = df2.select(pl.exclude("ancestor_list"))
 
     logging.info(
         "- alifestd_test_leaves_isomorphic_polars: "
