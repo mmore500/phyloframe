@@ -88,8 +88,8 @@ def alifestd_test_leaves_isomorphic_polars(
     ):
         return True
 
-    df1 = alifestd_try_add_ancestor_id_col_polars(df1.lazy())
-    df2 = alifestd_try_add_ancestor_id_col_polars(df2.lazy())
+    df1 = alifestd_try_add_ancestor_id_col_polars(df1)
+    df2 = alifestd_try_add_ancestor_id_col_polars(df2)
     if (
         "ancestor_id" not in df1.collect_schema().names()
         or "ancestor_id" not in df2.collect_schema().names()
