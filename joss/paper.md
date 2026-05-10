@@ -56,7 +56,7 @@ Specialized operations over or to create phylogenetic trees.
 
 This unmet need has prompted development of several performance-first libraries [@moshiri2020treeswift;@moshiri2025compacttree;@ryneches2018suchtree].
 
-Phylogenetic analysis is integral to much of evolution research, whether conducted \textit{in vivo} or \textit{in silico} \cite{faithConservationEvaluationPhylogenetic1992, STAMATAKIS2005phylogenetics,frenchHostPhylogenyShapes2023,kim2006discovery,lewinsohnStatedependentEvolutionaryModels2023a,lenski2003evolutionary,nozoe2017inferring}.
+Phylogenetic analysis is integral to much of evolution research, whether conducted \textit{in vivo} or \textit{in silico} [@faithConservationEvaluationPhylogenetic1992;@STAMATAKIS2005phylogenetics;@frenchHostPhylogenyShapes2023;@kim2006discovery;@lewinsohnStatedependentEvolutionaryModels2023a;@lenski2003evolutionary;@nozoe2017inferring].
 
 Most existing Python tree libraries represent phylogenies as pointer-linked node objects, which limits interoperability with the broader data science ecosystem and incurs per-node Python object overhead at large scale.
 PhyloFrame addresses this gap by storing phylogenies as column-oriented dataframes, enabling vectorized computation, zero-copy interoperation with analytics tools, and natural integration of metadata as additional columns.
