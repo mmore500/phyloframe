@@ -73,8 +73,8 @@ The R ecosystem's success with the ape data structure demonstrates the value of 
 DataFrames are scripting-friendly and end-user extensible, enabling a composable, interoperable, high-performance ecosystem for phylogenetic analysis.
 
 **Fast and highly portable load/save.**
-Use pandas.read_csv, polars.read_parquet, R's read.table, etc. --- libraries transparently fetch from URLs, cloud providers (S3, Google Cloud, etc.).
-Contiguous allocations support fast deserialization from other sources (e.g., Newick)
+Use pandas.read_csv, polars.read_parquet, R's read.table, etc. --- libraries transparently fetch from URLs, cloud providers (e.g., AWS S3, Google Cloud, etc.), and online repositories [@foster2017open;@singh2011figshare].
+Contiguous allocations support fast deserialization from other sources (e.g., Newick).
 
 **Benefit from modern tabular file formats.**
 Granular deserialization of selected columns, columnar compression for efficient storage, categorical strings, and explicit column typing with first-class null representation (e.g., Parquet [@vohra2016parquet]).
@@ -93,14 +93,14 @@ Base memory footprint is lightweight (e.g., as little as 32 bits per node), but 
 **Rich interoperative ecosystem.**
 Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via reticulate and Arrow [@reticulate;@arrow], possible future support for zero-copy Polars DataFrames shared between Rust and Python).
 Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol [@meurer2023python]).
-Interoperation with Python DataFrame ecosystem [@vallat2018pingouin;@vanderplas2018altair;@waskom2021seaborn;@rapids;@skrub])
+Interoperation with broader Python DataFrame ecosystem [@vallat2018pingouin;@vanderplas2018altair;@waskom2021seaborn;@rapids;@skrub])
 Compatibility with existing alife data standards ecosystem [@lalejini2019alife].
 
 # Features
 
 **Tree construction and I/O.**
 PhyloFrame reads and writes Newick strings via `alifestd_from_newick_polars` and `alifestd_as_newick_polars`, with a JIT-compiled parser that handles trees with millions of tips.
-Synthetic trees (balanced bifurcating, comb) can be generated for testing and benchmarking.
+Synthetic trees can be generated for testing and benchmarking.
 
 **Traversals.**
 Preorder, postorder, inorder, levelorder, and semiorder traversals are available, returning node index arrays suitable for downstream vectorized operations.
@@ -115,14 +115,15 @@ Operations include collapsing unifurcations, pruning extinct lineages, downsampl
 A most-recent common ancestor matrix can be computed for all tip pairs, enabling downstream comparative analyses.
 
 **Dual dataframe backends.**
-All I/O and traversal operations support both Polars and pandas, with automatic delegation to the faster Polars path when available.
+Most operations support both Polars and Pandas.
 
 **Command-line interface.**
-Each public function is also accessible as a CLI command, facilitating use in shell pipelines.
+Most public functions are available as a CLI command, facilitating integration in shell pipelines.
 
 **Visualization.**
 For interactive in-browser visualization of trees up to millions of nodes, an experimental fork of taxonium [@sanderson2022taxonium] is available at <https://mmore500.github.io/taxonium> that supports alife standard CSV, TSV, and Parquet files.
 For programmatic visualizations, PhyloFrame integrates with iplotx [@zanini2025iplotx] to visualize phylogenetic trees from DataFrames.
+[@vanderplas2018altair;@waskom2021seaborn].
 
 # Projects Using the Software
 
@@ -195,6 +196,8 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 
 
 # Demo: Compound Downsampling via Command-Line Interface
+
+[@moreno2024joinem]
 
 ```bash
 ls -1 "input.csv" `# input path, in alife standard format` \
