@@ -222,7 +222,7 @@ Several established Python libraries provide phylogenetic tree functionality.
 - ETE [@huertacepas2016ete3] combines tree analysis with visualization capabilities.
 - CompactTree [@moshiri2025compacttree] achieves minimal memory footprint through a header-only C++ implementation with a Python wrapper.
 - scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit including tree data structures and ecological diversity analyses.
-- SuchTree [@ryneches2018suchtree] uses a Cython-compiled array representation optimized for fast pairwise distance queries and co-phylogenetic analyses.
+- SuchTree [@ryneches2018suchtree] uses a Cython-based array data structure, focusing on fast pairwise distance queries and co-phylogenetic analyses; operations release the Python GIL (Global Interpreter Lock) to allow multithread parallelism.
 - ToyTree [@eaton2019toytree] is an object-oriented phylogeny, focusing on integrated visualization functionality.
 - PhyloTrack [@dolson2024phylotrack] focuses on tree representations for recording lineage histories in agent-based models of evolution, with suppoort for on-the-fly extinction pruning and metric calculations.
 
