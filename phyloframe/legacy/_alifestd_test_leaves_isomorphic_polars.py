@@ -29,6 +29,9 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
+)
 
 
 @jit(nopython=True)
@@ -66,6 +69,34 @@ def _walk_leaves_isomorphic(
     return True
 
 
+def _canonicalize(df: pl.LazyFrame) -> pl.LazyFrame:
+    """Validate preconditions and prepare ``df`` for the leaf-isomorphism walk.
+
+    Adds ``ancestor_id`` (if absent and derivable from ``ancestor_list``),
+    drops ``ancestor_list``, collapses unifurcations, recompacts ids so
+    the jit walk can index by id, and ensures ``is_leaf`` is present.
+    """
+    df = alifestd_try_add_ancestor_id_col_polars(df)
+    if "ancestor_id" not in df.collect_schema().names():
+        raise NotImplementedError("ancestor_id column required")
+    if not alifestd_is_topologically_sorted_polars(df):
+        raise NotImplementedError("topological sort not yet supported")
+    if not alifestd_has_contiguous_ids_polars(df):
+        raise NotImplementedError("non-contiguous ids not yet supported")
+    df = (
+        df.select(pl.exclude("ancestor_list"))
+        .pipe(
+            alifestd_collapse_unifurcations_polars,
+            drop_topological_sensitivity=True,
+        )
+        .pipe(alifestd_assign_contiguous_ids_polars)
+        .lazy()
+    )
+    if "is_leaf" not in df.collect_schema().names():
+        df = alifestd_mark_leaves_polars(df)
+    return df
+
+
 def alifestd_test_leaves_isomorphic_polars(
     df1: pl.DataFrame,
     df2: pl.DataFrame,
@@ -79,59 +110,14 @@ def alifestd_test_leaves_isomorphic_polars(
     alifestd_test_leaves_isomorphic_asexual :
         Pandas-based implementation.
     """
-    df1 = df1.lazy()
-    df2 = df2.lazy()
-
-    if df1.limit(1).collect().is_empty() and df2.limit(1).collect().is_empty():
+    if (
+        df1.lazy().limit(1).collect().is_empty()
+        and df2.lazy().limit(1).collect().is_empty()
+    ):
         return True
 
-    schema1 = df1.collect_schema().names()
-    schema2 = df2.collect_schema().names()
-    if "ancestor_id" not in schema1 or "ancestor_id" not in schema2:
-        raise NotImplementedError("ancestor_id column required")
-
-    if not alifestd_is_topologically_sorted_polars(
-        df1
-    ) or not alifestd_is_topologically_sorted_polars(df2):
-        raise NotImplementedError("topological sort not yet supported")
-
-    if not alifestd_has_contiguous_ids_polars(
-        df1
-    ) or not alifestd_has_contiguous_ids_polars(df2):
-        raise NotImplementedError("non-contiguous ids not yet supported")
-
-    # collapse_unifurcations_polars and assign_contiguous_ids_polars reject
-    # the ancestor_list column; drop it inline (no-op if absent).
-    df1 = df1.select(pl.exclude("ancestor_list"))
-    df2 = df2.select(pl.exclude("ancestor_list"))
-
-    logging.info(
-        "- alifestd_test_leaves_isomorphic_polars: "
-        "collapsing unifurcations...",
-    )
-    df1 = alifestd_collapse_unifurcations_polars(
-        df1,
-        ignore_topological_sensitivity=True,
-        drop_topological_sensitivity=False,
-    )
-    df2 = alifestd_collapse_unifurcations_polars(
-        df2,
-        ignore_topological_sensitivity=True,
-        drop_topological_sensitivity=False,
-    )
-
-    # collapse_unifurcations leaves gapped ids; recompact so the jit walk
-    # below can index by id.
-    df1 = alifestd_assign_contiguous_ids_polars(df1).lazy()
-    df2 = alifestd_assign_contiguous_ids_polars(df2).lazy()
-
-    logging.info(
-        "- alifestd_test_leaves_isomorphic_polars: marking leaves...",
-    )
-    if "is_leaf" not in df1.collect_schema().names():
-        df1 = alifestd_mark_leaves_polars(df1)
-    if "is_leaf" not in df2.collect_schema().names():
-        df2 = alifestd_mark_leaves_polars(df2)
+    df1 = df1.lazy().pipe(_canonicalize)
+    df2 = df2.lazy().pipe(_canonicalize)
 
     n_leaves1 = alifestd_count_leaf_nodes_polars(df1)
     n_leaves2 = alifestd_count_leaf_nodes_polars(df2)

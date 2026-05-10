@@ -293,8 +293,8 @@ def test_raises_on_non_contiguous_ids():
         alifestd_test_leaves_isomorphic_polars(df, df, "taxon_label")
 
 
-def test_raises_on_missing_ancestor_id():
-    """Missing ancestor_id column should raise NotImplementedError."""
+def test_ancestor_id_derived_from_ancestor_list():
+    """If only ``ancestor_list`` is present, ancestor_id should be derived."""
     df = pl.DataFrame(
         {
             "id": [0, 1, 2],
@@ -302,8 +302,7 @@ def test_raises_on_missing_ancestor_id():
             "taxon_label": ["a", "b", "c"],
         }
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_test_leaves_isomorphic_polars(df, df, "taxon_label")
+    assert alifestd_test_leaves_isomorphic_polars(df, df, "taxon_label")
 
 
 def test_ancestor_list_silently_dropped():
