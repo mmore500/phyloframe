@@ -69,34 +69,6 @@ def _walk_leaves_isomorphic(
     return True
 
 
-def _canonicalize(df: pl.LazyFrame) -> pl.LazyFrame:
-    """Validate preconditions and prepare ``df`` for the leaf-isomorphism walk.
-
-    Adds ``ancestor_id`` (if absent and derivable from ``ancestor_list``),
-    drops ``ancestor_list``, collapses unifurcations, recompacts ids so
-    the jit walk can index by id, and ensures ``is_leaf`` is present.
-    """
-    df = alifestd_try_add_ancestor_id_col_polars(df)
-    if "ancestor_id" not in df.collect_schema().names():
-        raise NotImplementedError("ancestor_id column required")
-    if not alifestd_is_topologically_sorted_polars(df):
-        raise NotImplementedError("topological sort not yet supported")
-    if not alifestd_has_contiguous_ids_polars(df):
-        raise NotImplementedError("non-contiguous ids not yet supported")
-    df = (
-        df.select(pl.exclude("ancestor_list"))
-        .pipe(
-            alifestd_collapse_unifurcations_polars,
-            drop_topological_sensitivity=True,
-        )
-        .pipe(alifestd_assign_contiguous_ids_polars)
-        .lazy()
-    )
-    if "is_leaf" not in df.collect_schema().names():
-        df = alifestd_mark_leaves_polars(df)
-    return df
-
-
 def alifestd_test_leaves_isomorphic_polars(
     df1: pl.DataFrame,
     df2: pl.DataFrame,
@@ -116,8 +88,59 @@ def alifestd_test_leaves_isomorphic_polars(
     ):
         return True
 
-    df1 = df1.lazy().pipe(_canonicalize)
-    df2 = df2.lazy().pipe(_canonicalize)
+    df1 = alifestd_try_add_ancestor_id_col_polars(df1.lazy())
+    df2 = alifestd_try_add_ancestor_id_col_polars(df2.lazy())
+    if (
+        "ancestor_id" not in df1.collect_schema().names()
+        or "ancestor_id" not in df2.collect_schema().names()
+    ):
+        raise NotImplementedError("ancestor_id column required")
+
+    if not alifestd_is_topologically_sorted_polars(
+        df1
+    ) or not alifestd_is_topologically_sorted_polars(df2):
+        raise NotImplementedError("topological sort not yet supported")
+
+    if not alifestd_has_contiguous_ids_polars(
+        df1
+    ) or not alifestd_has_contiguous_ids_polars(df2):
+        raise NotImplementedError("non-contiguous ids not yet supported")
+
+    # collapse_unifurcations_polars and assign_contiguous_ids_polars reject
+    # the ancestor_list column; drop it inline (no-op if absent). Casting
+    # ``id``/``ancestor_id`` to Int64 here lets us avoid copy-converting the
+    # numpy arrays before handing them to the jit kernel.
+    df1 = (
+        df1.select(pl.exclude("ancestor_list"))
+        .pipe(
+            alifestd_collapse_unifurcations_polars,
+            drop_topological_sensitivity=True,
+        )
+        .pipe(alifestd_assign_contiguous_ids_polars)
+        .lazy()
+        .with_columns(
+            pl.col("id").cast(pl.Int64),
+            pl.col("ancestor_id").cast(pl.Int64),
+        )
+    )
+    df2 = (
+        df2.select(pl.exclude("ancestor_list"))
+        .pipe(
+            alifestd_collapse_unifurcations_polars,
+            drop_topological_sensitivity=True,
+        )
+        .pipe(alifestd_assign_contiguous_ids_polars)
+        .lazy()
+        .with_columns(
+            pl.col("id").cast(pl.Int64),
+            pl.col("ancestor_id").cast(pl.Int64),
+        )
+    )
+
+    if "is_leaf" not in df1.collect_schema().names():
+        df1 = alifestd_mark_leaves_polars(df1)
+    if "is_leaf" not in df2.collect_schema().names():
+        df2 = alifestd_mark_leaves_polars(df2)
 
     n_leaves1 = alifestd_count_leaf_nodes_polars(df1)
     n_leaves2 = alifestd_count_leaf_nodes_polars(df2)
@@ -129,8 +152,9 @@ def alifestd_test_leaves_isomorphic_polars(
     )
     # sorting both leaf sets by taxon label aligns matching leaves
     # element-wise, side-stepping a join (and the column-aliasing it would
-    # require to disambiguate "id" between the two frames).
-    leaf_cols = ["id"] if taxon_label == "id" else ["id", taxon_label]
+    # require to disambiguate "id" between the two frames). Use a set so
+    # ``taxon_label == "id"`` doesn't produce a duplicate-projection error.
+    leaf_cols = list({"id", taxon_label})
     leaves1_sorted = (
         df1.filter(pl.col("is_leaf"))
         .sort(taxon_label)
@@ -159,10 +183,10 @@ def alifestd_test_leaves_isomorphic_polars(
 
     return bool(
         _walk_leaves_isomorphic(
-            ancestor_ids1.astype(np.int64, copy=True),
-            ancestor_ids2.astype(np.int64, copy=True),
-            leaves1_sorted["id"].to_numpy().astype(np.int64),
-            leaves2_sorted["id"].to_numpy().astype(np.int64),
+            ancestor_ids1,
+            ancestor_ids2,
+            leaves1_sorted["id"].to_numpy(),
+            leaves2_sorted["id"].to_numpy(),
         ),
     )
 
