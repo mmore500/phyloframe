@@ -149,7 +149,7 @@ df_res: DataFrame = df_raw.drop(columns=["branch_length", "origin_time_delta"],
     ).pipe(pfl.alifestd_ultrametricize, method="extend")  # align tip times
 ```
 
-![Before and after tree plots, created through integration with iplotx [@zanini2025iplotx;@hunter2007matplotlib]. \label{fig:demo1}](demo1.png)
+![Before and after tree plots, rendered integration with iplotx. \label{fig:demo1}](demo1.png)
 
 # Custom JIT Demonstration
 
@@ -206,6 +206,7 @@ ls -1 "input.csv" `# input path, in alife standard format` \
 # Related Software
 
 Several established Python libraries provide phylogenetic tree functionality.
+
 - TreeSwift [@moshiri2020treeswift] is a high-performance library using compact linked-node structures, designed to scale to very large trees.
 - DendroPy [@moreno2024dendropy] offers a comprehensive object-oriented framework for phylogenetic simulation and analysis.
 - Biopython [@cock2009biopython] includes a `Bio.Phylo` module supporting multiple tree formats with a focus on interoperability.
