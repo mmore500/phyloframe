@@ -689,9 +689,7 @@ class BiopythonBench:
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._Phylo.read(
-                io.StringIO(self._newick), "newick"
-            )
+            self._tree = self._Phylo.read(io.StringIO(self._newick), "newick")
         return self._tree
 
 
