@@ -16,7 +16,7 @@ from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
 from ._alifestd_mark_num_descendants_asexual import (
-    _alifestd_mark_num_descendants_asexual_fast_path
+    _alifestd_mark_num_descendants_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 

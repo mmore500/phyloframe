@@ -121,8 +121,8 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
                 .to_numpy()
             )
         else:
-            num_descendants = (
-                _alifestd_mark_num_descendants_asexual_fast_path(ancestor_ids)
+            num_descendants = _alifestd_mark_num_descendants_asexual_fast_path(
+                ancestor_ids
             )
         return _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
             ancestor_ids,
