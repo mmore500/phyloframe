@@ -21,7 +21,6 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import iplotx as ipx
-    import marimo as mo
     from matplotlib import pyplot as plt
     import numpy as np
     import pandas as pd
