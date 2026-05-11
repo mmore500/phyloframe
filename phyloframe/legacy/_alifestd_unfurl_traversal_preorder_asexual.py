@@ -150,11 +150,11 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
             if n_child == 0:
                 continue
 
-            # Push children in reverse order so smallest id is on top
             c_start = csr_offsets[node]
-            children = csr_children[c_start: c_start + n_child][::-1]
+            children = csr_children[c_start: c_start + n_child]
  
-            stack[stack_top: stack_top + n_child] = children
+            # Push children in reverse order so smallest id is on top
+            stack[stack_top: stack_top + n_child] = children[::-1]
             stack_top += n_child
 
             result[result_pos: result_pos + n_child] = children
