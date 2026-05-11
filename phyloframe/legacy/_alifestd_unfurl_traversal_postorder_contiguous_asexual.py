@@ -210,6 +210,7 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
             ancestor_offset = offset[ancestor]
             result[ancestor_offset] = node
             offset[ancestor] += num_descendants[node] + 1
+            offset[node] = ancestor_offset + 1
 
     return result
 
