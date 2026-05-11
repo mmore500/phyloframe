@@ -14,9 +14,11 @@ so import/warmup overhead never pollutes the measured time.
 
 import csv
 import gc
+import gzip
 import io
 import multiprocessing
 import sys
+import tempfile
 import time
 
 # Use forkserver so each subprocess starts clean — avoids deadlocks from
@@ -357,9 +359,7 @@ class PhyloframeBench:
         self._df = None
 
     def warmup(self):
-        import gzip
         import os
-        import tempfile
 
         for key, val in self._env_overrides.items():
             os.environ[key] = val
@@ -368,71 +368,38 @@ class PhyloframeBench:
 
         pl.Config.set_engine_affinity(self.engine_affinity)
 
-        from phyloframe import legacy
-        from phyloframe.legacy import (
-            alifestd_as_newick_polars,
-            alifestd_calc_distance_matrix_polars,
-            alifestd_calc_mrca_id_matrix_asexual_polars,
-            alifestd_from_newick_polars,
-            alifestd_mark_csr_children_polars,
-            alifestd_mark_csr_offsets_polars,
-            alifestd_mark_first_child_id_polars,
-            alifestd_mark_next_sibling_id_polars,
-            alifestd_mark_num_children_polars,
-            alifestd_mark_ot_mrca_polars,
-            alifestd_unfurl_traversal_inorder_polars,
-            alifestd_unfurl_traversal_levelorder_polars,
-            alifestd_unfurl_traversal_postorder_contiguous_polars,
-            alifestd_unfurl_traversal_preorder_polars,
-            alifestd_unfurl_traversal_topological_polars,
-        )
+        from phyloframe import legacy as pfl
 
-        # Bind names so timed operation methods do not run imports.
         self._pl = pl
-        self._gzip = gzip
-        self._tempfile = tempfile
-        self._from_newick_fn = alifestd_from_newick_polars
-        self._as_newick_fn = alifestd_as_newick_polars
-        self._mrca_fn = alifestd_calc_mrca_id_matrix_asexual_polars
-        self._dist_fn = alifestd_calc_distance_matrix_polars
-        self._preorder_fn = alifestd_unfurl_traversal_preorder_polars
-        self._postorder_fn = (
-            alifestd_unfurl_traversal_postorder_contiguous_polars
-        )
-        self._inorder_fn = alifestd_unfurl_traversal_inorder_polars
-        self._levelorder_fn = alifestd_unfurl_traversal_levelorder_polars
-        self._topological_fn = alifestd_unfurl_traversal_topological_polars
-        self._mark_fns_after_load = tuple(
-            getattr(legacy, name) for name in self._mark_after_load
-        )
+        self._pfl = pfl
 
         tiny = _balanced_newick(8)
-        pldf = alifestd_from_newick_polars(tiny)
-        alifestd_mark_first_child_id_polars(pldf)
-        alifestd_mark_next_sibling_id_polars(pldf)
-        alifestd_mark_num_children_polars(pldf)
-        pldf_csr = alifestd_mark_csr_offsets_polars(pldf)
-        alifestd_mark_csr_children_polars(pldf_csr)
-        alifestd_unfurl_traversal_postorder_contiguous_polars(pldf)
-        alifestd_unfurl_traversal_preorder_polars(pldf)
-        alifestd_unfurl_traversal_levelorder_polars(pldf)
-        alifestd_unfurl_traversal_inorder_polars(pldf)
-        alifestd_unfurl_traversal_topological_polars(pldf)
+        pldf = pfl.alifestd_from_newick_polars(tiny)
+        pfl.alifestd_mark_first_child_id_polars(pldf)
+        pfl.alifestd_mark_next_sibling_id_polars(pldf)
+        pfl.alifestd_mark_num_children_polars(pldf)
+        pldf_csr = pfl.alifestd_mark_csr_offsets_polars(pldf)
+        pfl.alifestd_mark_csr_children_polars(pldf_csr)
+        pfl.alifestd_unfurl_traversal_postorder_contiguous_polars(pldf)
+        pfl.alifestd_unfurl_traversal_preorder_polars(pldf)
+        pfl.alifestd_unfurl_traversal_levelorder_polars(pldf)
+        pfl.alifestd_unfurl_traversal_inorder_polars(pldf)
+        pfl.alifestd_unfurl_traversal_topological_polars(pldf)
         pldf_with_ot = pldf.with_columns(
             pl.col("origin_time_delta").cum_sum().alias("origin_time"),
         )
-        alifestd_mark_ot_mrca_polars(pldf_with_ot)
-        alifestd_calc_mrca_id_matrix_asexual_polars(pldf)
-        alifestd_calc_distance_matrix_polars(pldf_with_ot)
+        pfl.alifestd_mark_ot_mrca_polars(pldf_with_ot)
+        pfl.alifestd_calc_mrca_id_matrix_asexual_polars(pldf)
+        pfl.alifestd_calc_distance_matrix_polars(pldf_with_ot)
 
     def _do_from_newick(self, newick):
         """Load newick and apply any post-load mark operations."""
         kwargs = {}
         if self._from_newick_dtype_id is not None:
             kwargs["dtype_id"] = self._from_newick_dtype_id
-        df = self._from_newick_fn(newick, **kwargs)
-        for mark_fn in self._mark_fns_after_load:
-            df = mark_fn(df)
+        df = self._pfl.alifestd_from_newick_polars(newick, **kwargs)
+        for mark_fn_name in self._mark_after_load:
+            df = getattr(self._pfl, mark_fn_name)(df)
         return df
 
     def _get_export_df(self):
@@ -446,26 +413,23 @@ class PhyloframeBench:
 
     def make_newick(self):
         df = self._ensure_df()
-        self._as_newick_fn(df)
+        self._pfl.alifestd_as_newick_polars(df)
 
     def save_csv(self):
         df = self._get_export_df()
-        path = self._tempfile.mktemp(suffix=".csv")
-        df.write_csv(path)
+        df.write_csv(tempfile.mktemp(suffix=".csv"))
 
     def save_feather(self):
         df = self._get_export_df()
-        path = self._tempfile.mktemp(suffix=".feather")
-        df.write_ipc(path)
+        df.write_ipc(tempfile.mktemp(suffix=".feather"))
 
     def save_parquet(self):
         df = self._get_export_df()
-        path = self._tempfile.mktemp(suffix=".parquet")
-        df.write_parquet(path)
+        df.write_parquet(tempfile.mktemp(suffix=".parquet"))
 
     def setup_load_csv(self):
         df = self._get_export_df()
-        self._csv_path = self._tempfile.mktemp(suffix=".csv")
+        self._csv_path = tempfile.mktemp(suffix=".csv")
         df.write_csv(self._csv_path)
 
     def load_csv(self):
@@ -473,7 +437,7 @@ class PhyloframeBench:
 
     def setup_load_feather(self):
         df = self._get_export_df()
-        self._feather_path = self._tempfile.mktemp(suffix=".feather")
+        self._feather_path = tempfile.mktemp(suffix=".feather")
         df.write_ipc(self._feather_path)
 
     def load_feather(self):
@@ -481,7 +445,7 @@ class PhyloframeBench:
 
     def setup_load_parquet(self):
         df = self._get_export_df()
-        self._parquet_path = self._tempfile.mktemp(suffix=".parquet")
+        self._parquet_path = tempfile.mktemp(suffix=".parquet")
         df.write_parquet(self._parquet_path)
 
     def load_parquet(self):
@@ -489,27 +453,27 @@ class PhyloframeBench:
 
     def preorder(self):
         df = self._ensure_df()
-        self._preorder_fn(df)
+        self._pfl.alifestd_unfurl_traversal_preorder_polars(df)
 
     def postorder(self):
         df = self._ensure_df()
-        self._postorder_fn(df)
+        self._pfl.alifestd_unfurl_traversal_postorder_contiguous_polars(df)
 
     def inorder(self):
         df = self._ensure_df()
-        self._inorder_fn(df)
+        self._pfl.alifestd_unfurl_traversal_inorder_polars(df)
 
     def levelorder(self):
         df = self._ensure_df()
-        self._levelorder_fn(df)
+        self._pfl.alifestd_unfurl_traversal_levelorder_polars(df)
 
     def topological_order(self):
         df = self._ensure_df()
-        self._topological_fn(df)
+        self._pfl.alifestd_unfurl_traversal_topological_polars(df)
 
     def mrca_allpairs(self):
         df = self._ensure_df()
-        self._mrca_fn(df)
+        self._pfl.alifestd_calc_mrca_id_matrix_asexual_polars(df)
 
     def pairwise_dist(self):
         df = self._ensure_df()
@@ -519,7 +483,7 @@ class PhyloframeBench:
                 .cum_sum()
                 .alias("origin_time"),
             )
-        self._dist_fn(df)
+        self._pfl.alifestd_calc_distance_matrix_polars(df)
 
     def memory_bytes(self):
         newick = self._newick
@@ -529,13 +493,13 @@ class PhyloframeBench:
 
     def newick_bytes(self):
         df = self._ensure_df()
-        nwk = self._as_newick_fn(df)
+        nwk = self._pfl.alifestd_as_newick_polars(df)
         return len(nwk.encode("utf-8"))
 
     def newick_gzip_bytes(self):
         df = self._ensure_df()
-        nwk = self._as_newick_fn(df)
-        return len(self._gzip.compress(nwk.encode("utf-8")))
+        nwk = self._pfl.alifestd_as_newick_polars(df)
+        return len(gzip.compress(nwk.encode("utf-8")))
 
     def csv_bytes(self):
         df = self._get_export_df()
@@ -543,7 +507,7 @@ class PhyloframeBench:
 
     def csv_gzip_bytes(self):
         df = self._get_export_df()
-        return len(self._gzip.compress(df.write_csv().encode("utf-8")))
+        return len(gzip.compress(df.write_csv().encode("utf-8")))
 
     def parquet_bytes(self):
         df = self._get_export_df()
@@ -604,10 +568,10 @@ class TreeswiftBench:
     def warmup(self):
         import treeswift
 
-        self._read_newick_fn = treeswift.read_tree_newick
+        self._treeswift = treeswift
 
     def parse_newick(self):
-        self._tree = self._read_newick_fn(self._newick)
+        self._tree = self._treeswift.read_tree_newick(self._newick)
 
     def make_newick(self):
         t = self._ensure_tree()
@@ -651,12 +615,12 @@ class TreeswiftBench:
 
     def memory_bytes(self):
         newick = self._newick
-        read_fn = self._read_newick_fn
-        return _measure_memory(lambda: read_fn(newick))
+        treeswift = self._treeswift
+        return _measure_memory(lambda: treeswift.read_tree_newick(newick))
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._read_newick_fn(self._newick)
+            self._tree = self._treeswift.read_tree_newick(self._newick)
         return self._tree
 
 
@@ -676,9 +640,8 @@ class BiopythonBench:
         self._tree = self._Phylo.read(io.StringIO(self._newick), "newick")
 
     def make_newick(self):
-        t = self._ensure_tree()
         buf = io.StringIO()
-        self._Phylo.write(t, buf, "newick")
+        self._Phylo.write(self._ensure_tree(), buf, "newick")
 
     def preorder(self):
         t = self._ensure_tree()
@@ -742,10 +705,12 @@ class DendropyBench:
     def warmup(self):
         import dendropy
 
-        self._Tree = dendropy.Tree
+        self._dendropy = dendropy
 
     def parse_newick(self):
-        self._tree = self._Tree.get(data=self._newick, schema="newick")
+        self._tree = self._dendropy.Tree.get(
+            data=self._newick, schema="newick"
+        )
 
     def make_newick(self):
         t = self._ensure_tree()
@@ -795,14 +760,16 @@ class DendropyBench:
 
     def memory_bytes(self):
         newick = self._newick
-        Tree = self._Tree
+        dendropy = self._dendropy
         return _measure_memory(
-            lambda: Tree.get(data=newick, schema="newick"),
+            lambda: dendropy.Tree.get(data=newick, schema="newick"),
         )
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._Tree.get(data=self._newick, schema="newick")
+            self._tree = self._dendropy.Tree.get(
+                data=self._newick, schema="newick"
+            )
         return self._tree
 
 
@@ -814,12 +781,12 @@ class EteBench:
         self._tree = None
 
     def warmup(self):
-        from ete3 import Tree
+        import ete3
 
-        self._Tree = Tree
+        self._ete3 = ete3
 
     def parse_newick(self):
-        self._tree = self._Tree(self._newick)
+        self._tree = self._ete3.Tree(self._newick)
 
     def make_newick(self):
         t = self._ensure_tree()
@@ -862,12 +829,12 @@ class EteBench:
 
     def memory_bytes(self):
         newick = self._newick
-        Tree = self._Tree
-        return _measure_memory(lambda: Tree(newick))
+        ete3 = self._ete3
+        return _measure_memory(lambda: ete3.Tree(newick))
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._Tree(self._newick)
+            self._tree = self._ete3.Tree(self._newick)
         return self._tree
 
 
@@ -875,8 +842,6 @@ class CompactTreeBench:
     name = "compacttree"
 
     def __init__(self, newick):
-        import tempfile
-
         tmpfile = tempfile.NamedTemporaryFile(
             mode="w", suffix=".nwk", delete=False
         )
@@ -886,22 +851,12 @@ class CompactTreeBench:
         self._tree = None
 
     def warmup(self):
-        from CompactTree import (
-            compact_tree,
-            traverse_leaves,
-            traverse_levelorder,
-            traverse_postorder,
-            traverse_preorder,
-        )
+        import CompactTree
 
-        self._compact_tree = compact_tree
-        self._traverse_preorder = traverse_preorder
-        self._traverse_postorder = traverse_postorder
-        self._traverse_levelorder = traverse_levelorder
-        self._traverse_leaves = traverse_leaves
+        self._ct = CompactTree
 
     def parse_newick(self):
-        self._tree = self._compact_tree(self._tmppath)
+        self._tree = self._ct.compact_tree(self._tmppath)
 
     def make_newick(self):
         t = self._ensure_tree()
@@ -909,12 +864,12 @@ class CompactTreeBench:
 
     def preorder(self):
         t = self._ensure_tree()
-        for _ in self._traverse_preorder(t):
+        for _ in self._ct.traverse_preorder(t):
             pass
 
     def postorder(self):
         t = self._ensure_tree()
-        for _ in self._traverse_postorder(t):
+        for _ in self._ct.traverse_postorder(t):
             pass
 
     def inorder(self):
@@ -922,7 +877,7 @@ class CompactTreeBench:
 
     def levelorder(self):
         t = self._ensure_tree()
-        for _ in self._traverse_levelorder(t):
+        for _ in self._ct.traverse_levelorder(t):
             pass
 
     def topological_order(self):
@@ -932,7 +887,7 @@ class CompactTreeBench:
 
     def mrca_allpairs(self):
         t = self._ensure_tree()
-        leaves = list(self._traverse_leaves(t))
+        leaves = list(self._ct.traverse_leaves(t))
 
         def _mrca(a, b):
             ancestors_a = set()
@@ -954,12 +909,12 @@ class CompactTreeBench:
 
     def memory_bytes(self):
         tmpname = self._tmppath
-        compact_tree = self._compact_tree
-        return _measure_memory(lambda: compact_tree(tmpname))
+        ct = self._ct
+        return _measure_memory(lambda: ct.compact_tree(tmpname))
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._compact_tree(self._tmppath)
+            self._tree = self._ct.compact_tree(self._tmppath)
         return self._tree
 
 
@@ -971,14 +926,14 @@ class ScikitBioBench:
         self._tree = None
 
     def warmup(self):
-        from skbio import TreeNode
+        import skbio
 
-        self._TreeNode = TreeNode
+        self._skbio = skbio
         tiny = _balanced_newick(8)
-        TreeNode.read(io.StringIO(tiny), format="newick")
+        skbio.TreeNode.read(io.StringIO(tiny), format="newick")
 
     def parse_newick(self):
-        self._tree = self._TreeNode.read(
+        self._tree = self._skbio.TreeNode.read(
             io.StringIO(self._newick), format="newick"
         )
 
@@ -1023,14 +978,14 @@ class ScikitBioBench:
 
     def memory_bytes(self):
         newick = self._newick
-        TreeNode = self._TreeNode
+        skbio = self._skbio
         return _measure_memory(
-            lambda: TreeNode.read(io.StringIO(newick), format="newick"),
+            lambda: skbio.TreeNode.read(io.StringIO(newick), format="newick"),
         )
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._TreeNode.read(
+            self._tree = self._skbio.TreeNode.read(
                 io.StringIO(self._newick), format="newick"
             )
         return self._tree
@@ -1044,12 +999,12 @@ class SuchTreeBench:
         self._tree = None
 
     def warmup(self):
-        from SuchTree import SuchTree
+        import SuchTree
 
-        self._SuchTree = SuchTree
+        self._st = SuchTree
 
     def parse_newick(self):
-        self._tree = self._SuchTree(self._newick)
+        self._tree = self._st.SuchTree(self._newick)
 
     def make_newick(self):
         t = self._ensure_tree()
@@ -1094,12 +1049,12 @@ class SuchTreeBench:
 
     def memory_bytes(self):
         newick = self._newick
-        SuchTree = self._SuchTree
-        return _measure_memory(lambda: SuchTree(newick))
+        st = self._st
+        return _measure_memory(lambda: st.SuchTree(newick))
 
     def _ensure_tree(self):
         if self._tree is None:
-            self._tree = self._SuchTree(self._newick)
+            self._tree = self._st.SuchTree(self._newick)
         return self._tree
 
 
