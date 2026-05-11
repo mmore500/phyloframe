@@ -145,7 +145,7 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
 
         while stack_top:
             stack_top -= 1
-            node = stack[stack_top] 
+            node = stack[stack_top]
             n_child = num_children[node]
             if n_child == 0:
                 continue
@@ -157,7 +157,7 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
             stack[stack_top: stack_top + n_child] = children
             stack_top += n_child
 
-            result[result_pos] = children
+            result[result_pos: result_pos + n_child] = children
             result_pos += n_child
 
     return result
