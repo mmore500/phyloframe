@@ -21,13 +21,13 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import iplotx as ipx
-    import marimo as mo
     from matplotlib import pyplot as plt
     import numpy as np
     import pandas as pd
-    from phyloframe import legacy as pfl
     import seaborn as sns
     from teeplot import teeplot as tp
+
+    from phyloframe import legacy as pfl
 
     return ipx, np, pd, pfl, plt, sns, tp
 
