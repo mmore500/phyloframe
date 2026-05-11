@@ -259,7 +259,7 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
 
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
 
-    if child_order == "asc":
+    if child_order != "desc":
         if "num_descendants" in phylogeny_df.columns:
             num_descendants = phylogeny_df["num_descendants"].to_numpy()
         else:
