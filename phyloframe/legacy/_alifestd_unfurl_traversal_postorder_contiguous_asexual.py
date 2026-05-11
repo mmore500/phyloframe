@@ -195,23 +195,18 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
         return np.empty(0, dtype=dtype)
 
     result = np.empty(n, dtype=dtype)
-    offset = np.empty(n, dtype=int)
+    offset = np.arange(n, dtype=int)
 
-    for root in range(n):
-        if ancestor_ids[root] != root:
-            continue
+    for node, ancestor in enumerate(ancestor_ids):
+        num_descendants = num_descendants[node]
 
-        result[root + num_descendants[root]] = root
-        offset[root] = root
+        ancestor_offset = offset[ancestor]
+        node_pos = ancestor_offset + num_descendants[node]
+        result[node_pos] = node
+        offset[node] = ancestor_offset
 
-        for node in range(num_descendants[root]):
-            node += root + 1
-            ancestor = ancestor_ids[node]
-            ancestor_offset = offset[ancestor]
-            node_pos = ancestor_offset + num_descendants[node]
-            result[node_pos] = node
-            offset[ancestor] += num_descendants[node] + 1
-            offset[node] = node_pos + 1
+        not_root = ancestor != node
+        offset[ancestor] += (num_descendants[node] + 1) * not_root
 
     return result
 
