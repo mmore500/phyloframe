@@ -194,17 +194,18 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
     offset = np.empty(n, dtype=np.int64)
     root_pos = 0
 
-    for node in range(n):
-        ancestor = ancestor_ids[node]
-        nd = num_descendants[node]
-        if ancestor == node:
-            start = root_pos
-            root_pos += nd + 1
-        else:
-            start = offset[ancestor]
-            offset[ancestor] = start + nd + 1
-        offset[node] = start
-        result[start + nd] = node
+    for node, ancestor in enumerate(ancestor_ids):
+        offset[node] = root_pos
+
+        ancestor_offset = offset[ancestor]
+        node_pos = ancestor_offset + num_descendants[node]
+        result[node_pos] = node
+        offset[node] = ancestor_offset
+
+        not_root = ancestor != node
+        is_root = 1 - not_root
+        root_pos += (num_descendants[node] + 1) * is_root
+        offset[ancestor] += (num_descendants[node] + 1) * not_root
 
     return result
 
@@ -275,6 +276,7 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
         "first_child_id" in phylogeny_df.columns
         and "next_sibling_id" in phylogeny_df.columns
     ):
+        assert child_order == "desc"
         first_child_ids = phylogeny_df["first_child_id"].to_numpy()
         next_sibling_ids = phylogeny_df["next_sibling_id"].to_numpy()
         return _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit(
@@ -302,6 +304,7 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
             ancestor_ids,
             csr_offsets,
         )
+    assert child_order == "desc"
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
         csr_offsets,
