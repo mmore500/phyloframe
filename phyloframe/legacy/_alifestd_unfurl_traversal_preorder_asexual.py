@@ -127,7 +127,6 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
     if n == 0:
         return np.empty(0, dtype=dtype)
 
-    # Iterative DFS preorder traversal
     result = np.empty(n, dtype=dtype)
     result_pos = 0
 
@@ -141,20 +140,21 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
         stack[0] = root
         stack_top = 1
 
-        while stack_top > 0:
+        while stack_top:
             stack_top -= 1
             node = stack[stack_top]
 
-            # Emit node immediately (preorder)
+            # Visit node immediately
             result[result_pos] = node
             result_pos += 1
 
             # Push children in reverse order so smallest id is on top
             c_start = csr_offsets[node]
-            c_end = c_start + num_children[node]
-            for ci in range(c_end - 1, c_start - 1, -1):
-                stack[stack_top] = csr_children[ci]
-                stack_top += 1
+            n_child = num_children[node]
+            stack[stack_top: stack_top + n_child] = (
+                csr_children[c_start: c_start + n_child][::-1]
+            )
+            stack_top += n_child
 
     return result
 
