@@ -478,7 +478,7 @@ class PhyloframeBench:
     def pairwise_dist(self):
         df = self._ensure_df()
         if "origin_time" not in df.columns:
-            df = df.with_columns(
+            df = df.with_columns(  # incorrect, but ok for benchmark
                 self._pl.col("origin_time_delta")
                 .cum_sum()
                 .alias("origin_time"),
