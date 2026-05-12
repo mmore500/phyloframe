@@ -4,14 +4,8 @@ import pandas as pd
 from .._auxlib._jit import jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
-from ._alifestd_mark_csr_children_asexual import (
-    _alifestd_mark_csr_children_asexual_fast_path,
-)
-from ._alifestd_mark_csr_offsets_asexual import (
-    _alifestd_mark_csr_offsets_asexual_fast_path,
-)
-from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
+from ._alifestd_mark_num_descendants_asexual import (
+    _alifestd_mark_num_descendants_asexual_fast_path,
 )
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
@@ -96,26 +90,21 @@ def _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
 @jit(nopython=True)
 def _alifestd_unfurl_traversal_preorder_asexual_jit(
     ancestor_ids: np.ndarray,
-    csr_offsets: np.ndarray,
-    csr_children: np.ndarray,
-    num_children: np.ndarray,
+    num_descendants: np.ndarray,
 ) -> np.ndarray:
     """Return DFS preorder traversal indices for contiguous, sorted phylogeny.
 
-    Uses iterative depth-first search so that each subtree's nodes are
-    contiguous in the result.
+    Uses subtree-size offsets to write each node directly to its final
+    position in a single forward sweep, yielding contiguous subtrees.
+    Siblings are visited in ascending id order (smallest-id child first).
 
     Parameters
     ----------
     ancestor_ids : np.ndarray
         Array of ancestor IDs, assumed contiguous (ids == row indices)
         and topologically sorted.
-    csr_offsets : np.ndarray
-        CSR offset array of length n.
-    csr_children : np.ndarray
-        Flat array of child ids, grouped by parent.
-    num_children : np.ndarray
-        Array of child counts per node.
+    num_descendants : np.ndarray
+        Number of descendants (excluding self) for each node.
 
     Returns
     -------
@@ -128,37 +117,20 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
         return np.empty(0, dtype=dtype)
 
     result = np.empty(n, dtype=dtype)
-    result_pos = 0
+    offset = np.empty(n, dtype=np.int64)
+    root_pos = 0
 
-    stack = np.empty(n, dtype=dtype)
-    stack_top = 0
-
-    for root in range(n):
-        if ancestor_ids[root] != root:
-            continue
-
-        stack[0] = root
-        stack_top = 1
-
-        result[result_pos] = root
-        result_pos += 1
-
-        while stack_top:
-            stack_top -= 1
-            node = stack[stack_top]
-            n_child = num_children[node]
-            if n_child == 0:
-                continue
-
-            c_start = csr_offsets[node]
-            children = csr_children[c_start: c_start + n_child]
- 
-            # Push children in reverse order so smallest id is on top
-            stack[stack_top: stack_top + n_child] = children[::-1]
-            stack_top += n_child
-
-            result[result_pos: result_pos + n_child] = children
-            result_pos += n_child
+    for node in range(n):
+        ancestor = ancestor_ids[node]
+        nd = num_descendants[node]
+        if ancestor == node:
+            start = root_pos
+            root_pos += nd + 1
+        else:
+            start = offset[ancestor]
+            offset[ancestor] = start + nd + 1
+        result[start] = node
+        offset[node] = start + 1
 
     return result
 
@@ -225,41 +197,15 @@ def alifestd_unfurl_traversal_preorder_asexual(
         phylogeny_df,
     ) and alifestd_is_topologically_sorted(phylogeny_df):
         ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-        has_sibling_cols = (
-            "first_child_id" in phylogeny_df.columns
-            and "next_sibling_id" in phylogeny_df.columns
-        )
-        # Prefer CSR-based JIT; fall back to sibling when CSR absent
-        if not has_sibling_cols:
-            if "num_children" not in phylogeny_df.columns:
-                num_children = _alifestd_mark_num_children_asexual_fast_path(
-                    ancestor_ids,
-                )
-            else:
-                num_children = phylogeny_df["num_children"].to_numpy()
-            if "csr_offsets" in phylogeny_df.columns:
-                csr_offsets = phylogeny_df["csr_offsets"].to_numpy()
-            else:
-                csr_offsets = _alifestd_mark_csr_offsets_asexual_fast_path(
-                    ancestor_ids,
-                )
-            if "csr_children" in phylogeny_df.columns:
-                csr_children = phylogeny_df["csr_children"].to_numpy()
-            else:
-                csr_children = _alifestd_mark_csr_children_asexual_fast_path(
-                    ancestor_ids,
-                    csr_offsets,
-                )
-            return _alifestd_unfurl_traversal_preorder_asexual_jit(
+        if "num_descendants" in phylogeny_df.columns:
+            num_descendants = phylogeny_df["num_descendants"].to_numpy()
+        else:
+            num_descendants = _alifestd_mark_num_descendants_asexual_fast_path(
                 ancestor_ids,
-                csr_offsets,
-                csr_children,
-                num_children,
             )
-        return _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
+        return _alifestd_unfurl_traversal_preorder_asexual_jit(
             ancestor_ids,
-            phylogeny_df["first_child_id"].to_numpy(),
-            phylogeny_df["next_sibling_id"].to_numpy(),
+            num_descendants,
         )
     else:
         return _alifestd_unfurl_traversal_preorder_asexual_slow_path(
