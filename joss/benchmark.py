@@ -531,6 +531,8 @@ class PhyloframeInMemoryBench(PhyloframeBench):
     name = "phyloframe (in-memory)"
     engine_affinity = "in-memory"
 
+class PhyloframeInMemoryBenchWarmup(PhyloframeInMemoryBench):
+    pass
 
 class PhyloframeStreamingInt32Bench(PhyloframeBench):
     name = "phyloframe (streaming+i32)"
@@ -1057,7 +1059,7 @@ class SuchTreeBench:
 
 
 LIBRARIES = [
-    PhyloframeInMemoryBench,
+    PhyloframeInMemoryBenchWarmup,
     PhyloframeInMemoryBench,
     PhyloframeStreamingInt32Bench,
     PhyloframeStreamingInt32ChildSibBench,
