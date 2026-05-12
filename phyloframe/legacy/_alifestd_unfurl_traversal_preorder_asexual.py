@@ -47,6 +47,8 @@ def _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
     result = np.empty(n, dtype=dtype)
     result_pos = 0
 
+    # Stack stores the *next* sibling to visit at each open level (cursor).
+    # Cursor equal to its own id signals "no more siblings" — pop on entry.
     stack = np.empty(n, dtype=dtype)
     stack_top = 0
 
@@ -54,35 +56,25 @@ def _alifestd_unfurl_traversal_preorder_asexual_sibling_jit(
         if ancestor_ids[root] != root:
             continue
 
-        stack[0] = root
-        stack_top = 1
-
-        while stack_top > 0:
-            stack_top -= 1
-            node = stack[stack_top]
-
-            result[result_pos] = node
-            result_pos += 1
-
-            # Push siblings in reverse order (last sibling first onto stack)
-            # so that first child ends up on top
-            first_child = first_child_ids[node]
-            if first_child != node:  # has children
-                # Collect siblings to push in reverse
-                sibs_top = 0
-                sib = first_child
-                while True:
-                    stack[stack_top + sibs_top] = sib
-                    sibs_top += 1
-                    nxt = next_sibling_ids[sib]
-                    if nxt == sib:
-                        break
-                    sib = nxt
-                # Reverse so first child is on top of stack
-                stack[stack_top : stack_top + sibs_top] = stack[
-                    stack_top : stack_top + sibs_top
-                ][::-1]
-                stack_top += sibs_top
+        result[result_pos] = root
+        result_pos += 1
+        first_child = first_child_ids[root]
+        if first_child != root:
+            stack[0] = first_child
+            stack_top = 1
+            while stack_top > 0:
+                node = stack[stack_top - 1]
+                nxt = next_sibling_ids[node]
+                if nxt == node:
+                    stack_top -= 1  # no more siblings at this level
+                else:
+                    stack[stack_top - 1] = nxt
+                result[result_pos] = node
+                result_pos += 1
+                fc = first_child_ids[node]
+                if fc != node:
+                    stack[stack_top] = fc
+                    stack_top += 1
 
     return result
 
