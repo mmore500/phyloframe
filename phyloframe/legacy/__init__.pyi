@@ -60,8 +60,17 @@ from ._alifestd_calc_polytomic_index import alifestd_calc_polytomic_index
 from ._alifestd_calc_polytomic_index_polars import (
     alifestd_calc_polytomic_index_polars,
 )
+from ._alifestd_calc_quartet_distance_asexual import (
+    alifestd_calc_quartet_distance_asexual,
+)
+from ._alifestd_calc_quartet_distance_polars import (
+    alifestd_calc_quartet_distance_polars,
+)
 from ._alifestd_calc_triplet_distance_asexual import (
     alifestd_calc_triplet_distance_asexual,
+)
+from ._alifestd_calc_triplet_distance_polars import (
+    alifestd_calc_triplet_distance_polars,
 )
 from ._alifestd_categorize_triplet_asexual import (
     alifestd_categorize_triplet_asexual,
@@ -592,7 +601,13 @@ from ._alifestd_sum_origin_time_deltas_polars import (
 from ._alifestd_test_leaves_isomorphic_asexual import (
     alifestd_test_leaves_isomorphic_asexual,
 )
+from ._alifestd_test_leaves_isomorphic_polars import (
+    alifestd_test_leaves_isomorphic_polars,
+)
 from ._alifestd_to_working_format import alifestd_to_working_format
+from ._alifestd_to_working_format_polars import (
+    alifestd_to_working_format_polars,
+)
 from ._alifestd_topological_sensitivity_warned import (
     alifestd_topological_sensitivity_warned,
 )
@@ -693,7 +708,10 @@ __all__ = [
     "alifestd_calc_mrca_id_vector_asexual_polars",
     "alifestd_calc_polytomic_index",
     "alifestd_calc_polytomic_index_polars",
+    "alifestd_calc_quartet_distance_asexual",
+    "alifestd_calc_quartet_distance_polars",
     "alifestd_calc_triplet_distance_asexual",
+    "alifestd_calc_triplet_distance_polars",
     "alifestd_categorize_triplet_asexual",
     "alifestd_check_topological_sensitivity",
     "alifestd_check_topological_sensitivity_polars",
@@ -929,7 +947,9 @@ __all__ = [
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_sum_origin_time_deltas_polars",
     "alifestd_test_leaves_isomorphic_asexual",
+    "alifestd_test_leaves_isomorphic_polars",
     "alifestd_to_working_format",
+    "alifestd_to_working_format_polars",
     "alifestd_topological_sensitivity_warned",
     "alifestd_topological_sensitivity_warned_polars",
     "alifestd_topological_sort",

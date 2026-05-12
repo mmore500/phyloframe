@@ -122,7 +122,7 @@ For multi-step pipelines, ``_alifestd_pipe_unary_ops`` applies several operation
 
 Available names in ``--op`` expressions: ``pfl`` (phyloframe.legacy), ``pf`` (phyloframe), ``pd`` (pandas), ``pl`` (polars), ``np`` (numpy), ``opyt`` (opytional).
 
-Use lambda expressions for multi-step workflows like combining sample marks and pruning:
+Use lambda expressions to provide additional arguments, like this example combining sample masks and pruning:
 
 .. code-block:: bash
 
@@ -260,10 +260,10 @@ A containerized release of phyloframe is available:
 
    # Via Singularity
    ls -1 "input.csv" \
-     | singularity exec docker://ghcr.io/mmore500/phyloframe:v0.9.0 \
+     | singularity exec docker://ghcr.io/mmore500/phyloframe:v0.10.0 \
        python3 -m phyloframe.legacy._alifestd_mark_leaves "output.csv"
 
    # Via Docker
    ls -1 "input.csv" \
-     | docker run --rm -i ghcr.io/mmore500/phyloframe:v0.9.0 \
+     | docker run --rm -i ghcr.io/mmore500/phyloframe:v0.10.0 \
        python3 -m phyloframe.legacy._alifestd_mark_leaves "output.csv"
