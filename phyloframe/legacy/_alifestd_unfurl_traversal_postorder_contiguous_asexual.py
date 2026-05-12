@@ -190,9 +190,12 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
     if n == 0:
         return np.empty(0, dtype=dtype)
 
+    # Offset array uses the input id dtype: narrower dtypes (e.g., int32)
+    # halve bandwidth on the random-access offset array vs int64, while
+    # still safely indexing positions in [0, n).
     result = np.empty(n, dtype=dtype)
-    offset = np.empty(n, dtype=np.int64)
-    root_pos = 0
+    offset = np.empty(n, dtype=dtype)
+    root_pos = dtype.type(0)
     for node in range(n):
         ancestor = ancestor_ids[node]
         nd = num_descendants[node]
