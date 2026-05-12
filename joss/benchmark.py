@@ -531,6 +531,7 @@ class PhyloframeInMemoryBench(PhyloframeBench):
     name = "phyloframe (in-memory)"
     engine_affinity = "in-memory"
 
+
 class PhyloframeInMemoryBenchWarmup(PhyloframeInMemoryBench):
     name = "phyloframe (in-memory warmup)"
 
