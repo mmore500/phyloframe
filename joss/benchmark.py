@@ -531,8 +531,75 @@ class PhyloframeInMemoryBench(PhyloframeBench):
     name = "phyloframe (in-memory)"
     engine_affinity = "in-memory"
 
+
 class PhyloframeInMemoryBenchWarmup(PhyloframeInMemoryBench):
     name = "phyloframe (in-memory warmup)"
+
+
+class PhyloframeInMemoryChildSibBench(PhyloframeInMemoryBench):
+    name = "phyloframe (in-memory+child/sib)"
+    _mark_after_load = (
+        "alifestd_mark_first_child_id_polars",
+        "alifestd_mark_next_sibling_id_polars",
+    )
+
+
+class PhyloframeInMemoryCsrBench(PhyloframeInMemoryBench):
+    name = "phyloframe (in-memory+csr)"
+    _mark_after_load = (
+        "alifestd_mark_num_children_polars",
+        "alifestd_mark_csr_offsets_polars",
+        "alifestd_mark_csr_children_polars",
+    )
+
+
+class PhyloframeInMemoryInt32Bench(PhyloframeBench):
+    name = "phyloframe (in-memory+i32)"
+    engine_affinity = "in-memory"
+
+    def warmup(self):
+        super().warmup()
+        self._from_newick_dtype_id = self._pl.Int32
+
+
+class PhyloframeInMemoryInt32ChildSibBench(PhyloframeInMemoryInt32Bench):
+    name = "phyloframe (in-memory+i32+child/sib)"
+    _mark_after_load = (
+        "alifestd_mark_first_child_id_polars",
+        "alifestd_mark_next_sibling_id_polars",
+    )
+
+
+class PhyloframeInMemoryInt32CsrBench(PhyloframeInMemoryInt32Bench):
+    name = "phyloframe (in-memory+i32+csr)"
+    _mark_after_load = (
+        "alifestd_mark_num_children_polars",
+        "alifestd_mark_csr_offsets_polars",
+        "alifestd_mark_csr_children_polars",
+    )
+
+
+class PhyloframeStreamingBench(PhyloframeBench):
+    name = "phyloframe (streaming)"
+    engine_affinity = "streaming"
+
+
+class PhyloframeStreamingChildSibBench(PhyloframeStreamingBench):
+    name = "phyloframe (streaming+child/sib)"
+    _mark_after_load = (
+        "alifestd_mark_first_child_id_polars",
+        "alifestd_mark_next_sibling_id_polars",
+    )
+
+
+class PhyloframeStreamingCsrBench(PhyloframeStreamingBench):
+    name = "phyloframe (streaming+csr)"
+    _mark_after_load = (
+        "alifestd_mark_num_children_polars",
+        "alifestd_mark_csr_offsets_polars",
+        "alifestd_mark_csr_children_polars",
+    )
+
 
 class PhyloframeStreamingInt32Bench(PhyloframeBench):
     name = "phyloframe (streaming+i32)"
@@ -1060,10 +1127,18 @@ class SuchTreeBench:
 
 LIBRARIES = [
     PhyloframeInMemoryBenchWarmup,
-    PhyloframeInMemoryBench,
+    # PhyloframeInMemoryBench,
+    # PhyloframeInMemoryChildSibBench,
+    # PhyloframeInMemoryCsrBench,
+    PhyloframeInMemoryInt32Bench,
+    PhyloframeInMemoryInt32ChildSibBench,
+    PhyloframeInMemoryInt32CsrBench,
+    # PhyloframeStreamingBench,
+    # PhyloframeStreamingChildSibBench,
+    # PhyloframeStreamingCsrBench,
     PhyloframeStreamingInt32Bench,
-    PhyloframeStreamingInt32ChildSibBench,
-    PhyloframeStreamingInt32CsrBench,
+    # PhyloframeStreamingInt32ChildSibBench,
+    # PhyloframeStreamingInt32CsrBench,
     CompactTreeBench,
     ScikitBioBench,
     SuchTreeBench,
