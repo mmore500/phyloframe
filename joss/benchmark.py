@@ -532,7 +532,7 @@ class PhyloframeInMemoryBench(PhyloframeBench):
     engine_affinity = "in-memory"
 
 class PhyloframeInMemoryBenchWarmup(PhyloframeInMemoryBench):
-    pass
+    name = "phyloframe (in-memory warmup)"
 
 class PhyloframeStreamingInt32Bench(PhyloframeBench):
     name = "phyloframe (streaming+i32)"
