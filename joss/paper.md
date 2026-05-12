@@ -255,8 +255,9 @@ Underlying software (earlier, a submodule of [@moreno2022hstrat]) has contribute
 
 Much future work remains in development of the PhyloFrame library.
 cache contiguous id and topologicla order checks,, or explicitly eschew them, would benefit the library.
-The legacy module (from phyloframe import legacy) provides all current phyloframe operations. The legacy API is stable and will continue to be maintained for backward compatibility.
-A redesigned API will accompany phyloframe v1.0.0.
+The legacy module (from phyloframe import legacy) provides all current PhyloFrame operations.
+The legacy API is stable and will continue to be maintained for backward compatibility.
+A redesigned API will accompany PhyloFrame v1.0.0.
 
 Known limitations iwth the current API include lack of automatic cleanup of generated columns after mutable operations, potentially creating out-of-date data.
 It would ideally be good to have standardized column naming schemes for additional topological and structural columns, and a way for users to define their own columns as topologically or chronologically sensitive.
