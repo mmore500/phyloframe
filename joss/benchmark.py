@@ -1058,6 +1058,7 @@ class SuchTreeBench:
 
 LIBRARIES = [
     PhyloframeInMemoryBench,
+    PhyloframeInMemoryBench,
     PhyloframeStreamingInt32Bench,
     PhyloframeStreamingInt32ChildSibBench,
     PhyloframeStreamingInt32CsrBench,
