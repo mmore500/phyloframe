@@ -46,26 +46,24 @@ def test_chain():
 def test_simple_branching():
     """Tree: 0 -> {1, 2}, 1 -> {3}.
 
-    DFS visits children in ascending id order (highest-id on top of stack,
-    processed first). So children of 0 are visited 2 first, then subtree
-    of 1 (which includes 3).
-
-    Result: [2, 3, 1, 0]
+    Default visits children in ascending id order (smallest-id first).
+    Subtree of 1 (which contains 3) is processed before 2.
+    Result: [3, 1, 2, 0]
     """
     df = _make_contiguous_df(np.array([0, 0, 0, 1]))
     result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
-    assert result.tolist() == [2, 3, 1, 0]
+    assert result.tolist() == [3, 1, 2, 0]
 
 
 def test_simple4():
     """Tree: 0 -> {1, 2, 4}, 1 -> {3}.
 
-    Children of 0 visited as: 4, 2, then subtree of 1 (3, 1).
-    Result: [4, 2, 3, 1, 0]
+    Default ascending: subtree of 1 (3, 1), then 2, then 4, then 0.
+    Result: [3, 1, 2, 4, 0]
     """
     df = _make_contiguous_df(np.array([0, 0, 0, 1, 0]))
     result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
-    assert result.tolist() == [4, 2, 3, 1, 0]
+    assert result.tolist() == [3, 1, 2, 4, 0]
 
 
 def test_multi_root():
@@ -80,8 +78,8 @@ def test_star():
     """Star graph: root 0 with children 1, 2, 3, 4."""
     df = _make_contiguous_df(np.array([0, 0, 0, 0, 0]))
     result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
-    # Highest-id child on top of stack, processed first
-    assert result.tolist() == [4, 3, 2, 1, 0]
+    # Default ascending: smallest-id child first
+    assert result.tolist() == [1, 2, 3, 4, 0]
 
 
 def test_deep_tree():
@@ -233,13 +231,22 @@ def test_non_topologically_sorted():
         alifestd_unfurl_traversal_postorder_contiguous_polars(df)
 
 
+def test_with_num_descendants_col():
+    """Test that pre-existing num_descendants column is reused."""
+    ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
+    df = _make_contiguous_df(ancestor_ids)
+    df = df.with_columns(num_descendants=pl.Series([3, 1, 0, 0]))
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    assert result.tolist() == [3, 1, 2, 0]
+
+
 def test_with_num_children_col():
-    """Test that pre-existing num_children column is reused."""
+    """Test that pre-existing num_children column does not break things."""
     ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
     df = _make_contiguous_df(ancestor_ids)
     df = df.with_columns(num_children=pl.Series([2, 1, 0, 0]))
     result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
-    assert result.tolist() == [2, 3, 1, 0]
+    assert result.tolist() == [3, 1, 2, 0]
 
 
 @pytest.mark.parametrize(
@@ -276,19 +283,25 @@ def _add_sibling_cols(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def test_with_sibling_cols():
-    """Test that sibling columns trigger the sibling JIT path."""
+    """Sibling cols + child_order='desc' triggers the sibling JIT path."""
     ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
     df = _add_sibling_cols(_make_contiguous_df(ancestor_ids))
-    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(
+        df,
+        child_order="desc",
+    )
     assert result.tolist() == [2, 3, 1, 0]
 
 
 def test_with_sibling_cols_star():
-    """Test sibling JIT path with star graph."""
+    """Test sibling JIT path with star graph and child_order='desc'."""
     df = _add_sibling_cols(
         _make_contiguous_df(np.array([0, 0, 0, 0, 0], dtype=np.int64)),
     )
-    result = alifestd_unfurl_traversal_postorder_contiguous_polars(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_polars(
+        df,
+        child_order="desc",
+    )
     assert result.tolist() == [4, 3, 2, 1, 0]
 
 

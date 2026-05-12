@@ -1,4 +1,5 @@
 import logging
+import typing
 
 import numpy as np
 import polars as pl
@@ -18,10 +19,14 @@ from ._alifestd_mark_csr_offsets_asexual import (
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
+from ._alifestd_mark_num_descendants_asexual import (
+    _alifestd_mark_num_descendants_asexual_fast_path,
+)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
+    _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit,
     _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit,
     _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit,
 )
@@ -29,6 +34,7 @@ from ._alifestd_unfurl_traversal_postorder_contiguous_asexual import (
 
 def alifestd_unfurl_traversal_postorder_contiguous_polars(
     phylogeny_df: pl.DataFrame,
+    child_order: typing.Optional[typing.Literal["asc", "desc"]] = None,
 ) -> np.ndarray:
     """List node indices in DFS postorder traversal order, with subtree
     contiguity.
@@ -40,6 +46,11 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
 
         Must represent an asexual phylogeny with contiguous ids and
         topologically sorted rows.
+    child_order : {"asc", "desc", None}, default None
+        Order in which siblings are visited when descending the tree.
+        ``"asc"`` visits smallest-id child first, ``"desc"`` visits
+        largest-id child first, and ``None`` uses an arbitrary
+        (implementation-defined) order.
 
     Returns
     -------
@@ -51,6 +62,10 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
     alifestd_unfurl_traversal_postorder_asexual :
         Pandas-based implementation.
     """
+    if child_order not in (None, "asc", "desc"):
+        raise ValueError(
+            f"child_order must be 'asc', 'desc', or None; got {child_order!r}",
+        )
     logging.info(
         "- alifestd_unfurl_traversal_postorder_contiguous_polars:"
         " adding ancestor_id col...",
@@ -95,6 +110,24 @@ def alifestd_unfurl_traversal_postorder_contiguous_polars(
         " calculating postorder traversal...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
+
+    if child_order != "desc":
+        if "num_descendants" in schema_names:
+            num_descendants = (
+                phylogeny_df.lazy()
+                .select("num_descendants")
+                .collect()
+                .to_series()
+                .to_numpy()
+            )
+        else:
+            num_descendants = _alifestd_mark_num_descendants_asexual_fast_path(
+                ancestor_ids
+            )
+        return _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
+            ancestor_ids,
+            num_descendants,
+        )
 
     # Prefer sibling-based JIT when first_child_id/next_sibling_id available
     if "first_child_id" in schema_names and "next_sibling_id" in schema_names:
