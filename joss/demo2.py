@@ -66,8 +66,12 @@ def _(pl, plt, sns):
 def _(pfl, pl, plot_trait, simulate_trait, tp):
     def run():
         return (
-            pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42)  # random tree
-            .pipe(pfl.alifestd_topological_sort_polars)  # parents before children
+            pfl.alifestd_make_edge_split_polars(
+                n_leaves=100, seed=42
+            )  # random tree
+            .pipe(
+                pfl.alifestd_topological_sort_polars
+            )  # parents before children
             .pipe(pfl.alifestd_assign_contiguous_ids_polars)  # reassign ids
             .pipe(pfl.alifestd_mark_node_depth_polars)  # add node_depth col
             .pipe(pfl.alifestd_mark_leaves_polars)  # add is_leaf col
