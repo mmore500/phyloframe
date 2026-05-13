@@ -176,34 +176,28 @@ Underlying software (earlier, a submodule of [@moreno2022hstrat]) has contribute
 # Development Roadmap
 
 Much future work remains in development of the PhyloFrame library.
-cache contiguous id and topologicla order checks,, or explicitly eschew them, would benefit the library.
-The legacy module (from phyloframe import legacy) provides all current PhyloFrame operations.
-The legacy API is stable and will continue to be maintained for backward compatibility.
-A redesigned API will accompany PhyloFrame v1.0.0.
 
-Known limitations iwth the current API include lack of automatic cleanup of generated columns after mutable operations, potentially creating out-of-date data.
-It would ideally be good to have standardized column naming schemes for additional topological and structural columns, and a way for users to define their own columns as topologically or chronologically sensitive.
+Feature-level improvements (e.g., tree metrics, mannipulations, etc.) are planned on an as-needed basis, with requests welcome via the project [issue tracker](https://github.com/mmore500/phyloframe).
 
-Rootedness and, while the alife standard does support reticulated networks, that is in a cold format (serialized strings) rather than readily parseable/manipulable encoding.
+Looking further ahead, a redesigned API is planned to accompany PhyloFrame's v1 release.
+In anticipation of this release, all current PhyloFrame operations are packaged in `phyloframe.legacy`.
+This API is stable and will continue to be maintained for backward compatibility.
 
-Pandas code is more permissive, whereas the Polars code generally enforces topological sortedness and contiguous IDs.
-Decciding a canonical representation for trees remains for future work.
-And having a way to cache whether a particuular dataframe is in that format.
+Identified design and development priorities include,
 
-Using CuPy or RAPIDS-backed data structures for GPU-based computations.
+- better-standardized naming schemes for library functions generated columns,
+- automatic cleanup of columns invalidated by tree manipulation,
+- caching contiguous id and topological order safety checks (currently, bypassable via environment variable),
+- first-class support for unrooted trees,
+- first-class support for reticulated ancestry graphs,
+- automatic repair of canonical representation invariants (i.e., contiguous ids, topological order),
+- support for GPU-based computations via CuPy and RAPIDS' Pandas integration [@learningsys2017;@rapids],
+- wheel-based distribution of pre-compiled Numba artifacts,
+- high-level visualization utilities leveraging Seaborn and iplotx [@waskom2021seaborn;@zanini2025iplotx], and
+- greater API symmetry between Pandas and Polars functionality.
 
-Systematic naming and organization scheme, as well as standardized keyword argument naming will also benefit the v1.0 release.
-
-With respect to JIT compilation, it is possible to pre-compile and distribute wheels for the library based on Numba, which could further aid efficiency.
-
-Additional specific features such as tree metrics and mannipulations, will be implemented on an as-needed basis, and feature requests via GitHub issues arewelcome.
-
-Visualization tools, likely wrapping iplotx in combination with e.g., seaborn could also be useful.
-
-Such approaches are not limited or specific to Python, and a number of languages havestrong DtaFrame infrastructure.
-Julia, which hosts a rich tightly-integrated DataFrame infrastructure [@bouchetvalat2023dataframesjl], and where JIT compilation is a first-class language feature rather than a third-party extension [@bezanson2018julia].
-
-It would be good to have full feature parity between Pandas and Polars, with a more ergonomic, systematic, annd symmetrical API for working with both.
+Beyond Python, DataFrame-based phylogenetic computing may prove useful in other language ecosystems, such as Julia and R.
+Julia appears especially well-suited, given its mature, tightly-integrated DataFrame stack [@bouchetvalat2023dataframesjl] and first-class language support for JIT compilation [@bezanson2017julia],
 
 # Acknowledgements
 
@@ -254,7 +248,7 @@ Base memory footprint is lightweight (e.g., as little as 32 bits per node), but 
 **Interoperation.**
 Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via reticulate and Arrow [@reticulate;@arrow], possible future support for zero-copy Polars DataFrames shared between Rust and Python).
 Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol [@meurer2023python]).
-Interoperation with broader Python DataFrame ecosystem [@vallat2018pingouin;@vanderplas2018altair;@waskom2021seaborn;@rapids;@skrub] and ALife data standard tooling [@lalejini2019alife].
+Interoperation with broader Python DataFrame ecosystem [@vallat2018pingouin;@vanderplas2018altair;@waskom2021seaborn;@skrub] and ALife data standard tooling [@lalejini2019alife].
 
 # Appendix B: Tree Manipulation Pipeline Demo
 
