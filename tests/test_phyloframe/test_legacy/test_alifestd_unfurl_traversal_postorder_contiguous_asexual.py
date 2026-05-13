@@ -81,27 +81,25 @@ def test_chain(apply: typing.Callable):
 def test_simple_branching(apply: typing.Callable):
     """Tree: 0 -> {1, 2}, 1 -> {3}.
 
-    DFS visits children in ascending id order (highest-id on top of stack,
-    processed first). So children of 0 are visited 2 first, then subtree
-    of 1 (which includes 3).
-
-    Result: [2, 3, 1, 0]
+    Default visits children in ascending id order (smallest-id first).
+    Subtree of 1 (which contains 3) is processed before 2.
+    Result: [3, 1, 2, 0]
     """
     df = _make_contiguous_df(np.array([0, 0, 0, 1]))
     result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
-    assert result.tolist() == [2, 3, 1, 0]
+    assert result.tolist() == [3, 1, 2, 0]
 
 
 @_prep_params
 def test_simple4(apply: typing.Callable):
     """Tree: 0 -> {1, 2, 4}, 1 -> {3}.
 
-    Children of 0 visited as: 4, 2, then subtree of 1 (3, 1).
-    Result: [4, 2, 3, 1, 0]
+    Default ascending: subtree of 1 (3, 1), then 2, then 4, then 0.
+    Result: [3, 1, 2, 4, 0]
     """
     df = _make_contiguous_df(np.array([0, 0, 0, 1, 0]))
     result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
-    assert result.tolist() == [4, 2, 3, 1, 0]
+    assert result.tolist() == [3, 1, 2, 4, 0]
 
 
 @_prep_params
@@ -118,8 +116,8 @@ def test_star(apply: typing.Callable):
     """Star graph: root 0 with children 1, 2, 3, 4."""
     df = _make_contiguous_df(np.array([0, 0, 0, 0, 0]))
     result = alifestd_unfurl_traversal_postorder_contiguous_asexual(apply(df))
-    # Highest-id child on top of stack, processed first
-    assert result.tolist() == [4, 3, 2, 1, 0]
+    # Default ascending: smallest-id child first
+    assert result.tolist() == [1, 2, 3, 4, 0]
 
 
 @_prep_params
@@ -280,13 +278,22 @@ def test_non_topologically_sorted():
         alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
 
 
+def test_with_num_descendants_col():
+    """Test that pre-existing num_descendants column is reused."""
+    ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
+    df = _make_contiguous_df(ancestor_ids)
+    df["num_descendants"] = [3, 1, 0, 0]
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    assert result.tolist() == [3, 1, 2, 0]
+
+
 def test_with_num_children_col():
-    """Test that pre-existing num_children column is reused."""
+    """Test that pre-existing num_children column does not break things."""
     ancestor_ids = np.array([0, 0, 0, 1], dtype=np.int64)
     df = _make_contiguous_df(ancestor_ids)
     df["num_children"] = [2, 1, 0, 0]
     result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
-    assert result.tolist() == [2, 3, 1, 0]
+    assert result.tolist() == [3, 1, 2, 0]
 
 
 def test_with_ancestor_list_col():
@@ -302,11 +309,14 @@ def test_with_ancestor_list_col():
 
 
 def test_with_sibling_cols():
-    """Test sibling fast path with first_child_id + next_sibling_id."""
+    """Test that sibling cols trigger the descending sibling fast path."""
     df = _make_contiguous_df(np.array([0, 0, 0, 1]))
     df["first_child_id"] = [1, 3, 2, 3]
     df["next_sibling_id"] = [0, 2, 2, 3]
-    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(df)
+    result = alifestd_unfurl_traversal_postorder_contiguous_asexual(
+        df,
+        child_order="desc",
+    )
     assert result.tolist() == [2, 3, 1, 0]
 
 

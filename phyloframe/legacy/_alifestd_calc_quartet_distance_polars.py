@@ -1,0 +1,27 @@
+import polars as pl
+import tqdist
+
+from ._alifestd_calc_triplet_distance_polars import (
+    _alifestd_make_distance_newicks_polars,
+)
+
+
+# adapted from https://github.com/mmore500/hstrat/blob/d23917cf/tests/test_hstrat/test_phylogenetic_inference/test_tree/_impl/_tree_quartet_distance.py
+def alifestd_calc_quartet_distance_polars(
+    ref: pl.DataFrame,
+    cmp: pl.DataFrame,
+    taxon_label_key: str = "taxon_label",
+) -> float:
+    """Calculate the quartet distance between two trees.
+
+    See Also
+    --------
+    alifestd_calc_quartet_distance_asexual :
+        Pandas-based implementation.
+    """
+    ref_newick, cmp_newick = _alifestd_make_distance_newicks_polars(
+        ref,
+        cmp,
+        taxon_label_key,
+    )
+    return tqdist.quartet_distance(ref_newick, cmp_newick)
