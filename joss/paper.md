@@ -90,7 +90,8 @@ Beyond high-performance end-user extensibility, DataFrame-based representation a
 
 # Features
 
-PhyloFrame supports both Pandas and Polars DataFrames [@mckinney2010pandas;@vink2024polars].
+PhyloFrame supports the following operations on both Pandas and Polars DataFrames [@mckinney2010pandas;@vink2024polars]:
+
 - __tree input/output__: Newick and ALife Data Standard formats [@lalejini2019alife];
 - __tree synthesis__: structured (e.g., comb, balanced, star) and random (e.g., edge-adding, node-adding);
 - __taxon-based queries__: pairwise and all-pairs MRCA/patristic distance;
@@ -101,11 +102,10 @@ PhyloFrame supports both Pandas and Polars DataFrames [@mckinney2010pandas;@vink
 - __tree comparison__: triplet/quartet distance [@sand2014tqdist;@estabrook1985comparison;@dobson1975comparing] and topological isomorphism; and
 - __tree visualization__: integration with Matplotlib-based iplotx [@zanini2025iplotx] and interactive Taxonium web application [@sanderson2022taxonium].[^fork]
 
-[^fork]: via experimental fork at <https://mmore500.github.io/taxonium>.
+[^fork]: via an experimental fork at <https://mmore500.github.io/taxonium>.
 
 A quickstart guide and full API listing is included in [PhyloFrame documentation](https://phyloframe.readthedocs.io).
 PhyloFrame is installable from the Python Packing Index (PyPI) via `pip` (e.g., `python3 -m pip install phyloframe[jit]`).
-
 
 # Demo: End-user JIT Compilation and Tidy Plotting
 
@@ -148,30 +148,24 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 
 # Related Software
 
-Several established Python libraries provide phylogenetic tree functionality.
+A rich ensemble of established libraries support Python-based phylogenetic computing.
 
-- TreeSwift [@moshiri2020treeswift] is a high-performance library using compact linked-node structures, designed to scale to very large trees.
 - DendroPy [@moreno2024dendropy] offers a comprehensive object-oriented framework for phylogenetic simulation and analysis.
 - Biopython [@cock2009biopython] includes a `Bio.Phylo` module supporting multiple tree formats with a focus on interoperability.
 - ETE [@huertacepas2016ete3] combines tree analysis with visualization capabilities.
+- scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit, including tree manipulation, reconstruction, and phylogenetic diversity metrics.
+- tskit [@wong2024args;@kelleher2016msprime] uses a specialized data structure to compactly store millions of related gene trees.​​​​​​​​​​​​​​​​
 - CompactTree [@moshiri2025compacttree] achieves minimal memory footprint through a header-only C++ implementation with a Python wrapper.
-- scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit including tree data structures and ecological diversity analyses.
+- TreeSwift [@moshiri2020treeswift] is a performance-oriented pure-Python library using a compact linked-node data structures, designed to scale to very large trees.
 - SuchTree [@ryneches2018suchtree] uses a Cython-based array data structure, focusing on fast pairwise distance queries and co-phylogenetic analyses; operations release the Python GIL (Global Interpreter Lock) to allow multithread parallelism.
-- ToyTree [@eaton2019toytree] is an object-oriented phylogeny, focusing on integrated visualization functionality.
-- PhyloTrack [@dolson2024phylotrack] focuses on tree representations for recording lineage histories in agent-based models of evolution, with suppoort for on-the-fly extinction pruning and metric calculations.
+- ToyTree [@eaton2019toytree] is an object-oriented library, providing on integrated visualization functionality.
+- PhyloTrack [@dolson2024phylotrack] uses a node-and-pointer data structure to record lineage histories in forward-time agent-based models, with suppoort for on-the-fly extinction pruning and metric calculations.
 
-In the Julia [@bezanson2017julia] ecosystem, PhyloNetworks [@solislemus2017phylonetworks] provides a comprehensive framework for phylogenetic network analysis.
+In the Julia [@bezanson2017julia] ecosystem, PhyloNetworks [@solislemus2017phylonetworks] emphasizes support for generalized phylogenetic networks incoporating reticulation events.
+The R-based ecosystem has largely coalesced around ape's edge matrix tree representation [@paradis2018ape].
+Other work has applied graph databases to manage large-scale phylogeny data [@loureno2024phylodb].
 
-The R ecosystem's success with the ape data structure demonstrates the value of edge matrix tree representations [@paradis2018ape]
-The R ecosystem has largely coalesced around ape as a shared data structure [@paradis2018ape].
-
-Another approach for working with large-scale phylogeny data is a graph database [@loureno2024phylodb].
-
-All of these libraries represent trees as pointer-linked node objects.
-PhyloFrame takes a fundamentally different approach by storing trees as column-oriented dataframes.
-This design enables direct integration with pandas and Polars analytics workflows, vectorized computation over node attributes, and natural attachment of per-node metadata as additional columns without custom data structures.
-
-Besides the common name, the PhyloFrame library presented here is unrelated to the recent machine learning methodology to counteract ancestral bias in precision medicine [@smith2025equitable].
+Except for commonality in name, the PhyloFrame library presented here is unrelated to recent machine learning methodology developed to counteract ancestral bias in precision medicine [@smith2025equitable].
 
 # Projects Using the Software
 
