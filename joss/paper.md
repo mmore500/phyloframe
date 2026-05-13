@@ -27,7 +27,7 @@ bibliography: paper.bib
 PhyloFrame is a Python library for phylogenetic computation targeting the gap between specialist, compiler-optimized operations and flexible, script-based workflows --- with emphasis on fast, memory-efficient operations for very large tree sizes (e.g., $\geq$ 300,000 taxa).
 
 PhyloFrame is built around a DataFrame-based tree representation, where each row corresponds to a node and columns record ancestor relationships, branch lengths, taxon labels, and any user-defined attributes.
-Crucial for scalability, such array-backed storage allows both library and end-user code alike to seamlessly harness Just-in-Time (JIT) compilation (e.g., Numba) and vectorized execution (e.g., NumPy, Polars).
+Crucial for scalability, such array-backed storage allows library and end-user code alike to seamlessly harness Just-in-Time (JIT) compilation (e.g., Numba) and vectorized execution (e.g., NumPy, Polars).
 At large tree sizes, performance generally matches or exceeds libraries backed by native code --- notably, achieving up to $10\times$ faster topological-order traversals, up to $10\times$ faster Newick reads, and nearly $2\times$ faster Newick writes.
 
 DataFrame-based representation affords several additional conveniences, including:
@@ -60,9 +60,9 @@ This array-backing enables vectorized bulk operations (e.g., NumPy [@harris2020a
 \autoref{fig:benchmark} benchmarks throughput and memory efficiency for operations on balanced binary trees with up to 30 million tips.[^bench]
 
 Beyond tree sizes of around 300,000 tips[^small], PhyloFrame matches the throughput and efficiency of native-backed libraries (e.g., CompactTree, SuchTree) for most benchmarked operations.
-At very large tree sizes (e.g., $\geq$ 1 million tips) PhyloFrame substantially accelerates throughput for some operations.
-For traversals, benefit likely stems from capability to materialize node iteration within a JIT-compiled context.
-Topological order traversals are particularly efficient, as they simply correspond to a sequential scan over array memory.
+At very large tree sizes (e.g., $\geq$ 1 million tips), PhyloFrame substantially accelerates throughput for some operations.
+For traversals, the benefit likely stems from the capability to materialize node iteration within a JIT-compiled context.
+Topological-order traversals are particularly efficient, as they simply correspond to a sequential scan over array memory.
 Newick parsing, on the other hand, likely benefits from streamlined per-array memory allocation (as opposed to per-node allocation), while Newick generation leverages the Polars engine to accelerate string-building.
 
 An important performance trade-off not captured in these benchmarks is tree manipulation.
@@ -138,7 +138,7 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 
 # Related Software
 
-A rich ensemble of existing libraries support Python-based phylogenetic computing.
+A rich ensemble of existing libraries supports Python-based phylogenetic computing.
 
 - DendroPy [@moreno2024dendropy] offers a comprehensive object-oriented framework for phylogenetic simulation and analysis.
 - Biopython [@cock2009biopython] includes support for phylogeny reconstruction and visualization via an object-oriented representation.
@@ -166,7 +166,7 @@ PhyloFrame utilities have contributed substantially to several projects, includi
 
 Much future work remains in development of the PhyloFrame library.
 
-Feature-level improvements (e.g., tree metrics, manipulations, etc.) are planned on an as-needed basis, with requests welcome via the project issue tracker at <https://github.com/mmore500/phyloframe/issues>.
+Feature-level improvements (e.g., tree metrics, manipulations) are planned on an as-needed basis, with requests welcome via the project issue tracker at <https://github.com/mmore500/phyloframe/issues>.
 
 Looking further ahead, a redesigned API is planned to accompany PhyloFrame's v1 release.
 In anticipation of this release, all current PhyloFrame operations are packaged in `phyloframe.legacy`.
@@ -175,7 +175,7 @@ This API is stable and will continue to be maintained for backward compatibility
 Identified design and development priorities include:
 
 - better-standardized naming schemes for library-function-generated columns,
-- reater API symmetry between Pandas and Polars functionality,
+- greater API symmetry between Pandas and Polars functionality,
 - automatic cleanup of columns invalidated by tree manipulation,
 - automatic repair of tree invariants (i.e., contiguous ids, topological order),
 - automatic caching of tree invariant safety checks (currently, bypassable via environment variable),
@@ -198,7 +198,7 @@ The views and opinions of authors expressed herein do not necessarily state or r
 
 **AI Use Declaration:**
 During the preparation of this work, AI tools were used to assemble manuscript boilerplate, proofread manuscript drafts, and assemble benchmarking scripts.
-Library maintenance employs agentic software development to refactor code, draft documentation, and o,[;e,emt scoped library features.
+Library maintenance employs agentic software development to refactor code, draft documentation, and implement scoped library features.
 Such contributions are closely supervised and tracked via commit co-authorship.
 Tools used include Claude Code, Google Gemini, and OpenAI ChatGPT.
 
