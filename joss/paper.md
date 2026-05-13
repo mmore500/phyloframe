@@ -26,11 +26,11 @@ bibliography: paper.bib
 
 PhyloFrame is a Python library for phylogenetic computation targeting the gap between specialist, compiler-optimized operations and flexible, script-based workflows --- with emphasis on fast, memory-efficient operations for very large tree sizes (e.g., $\geq$ 300,000 taxa).
 
-PhyloFrame is built around a DataFrame-based tree representation, where each row corresponds to a node and columns record ancestor relationships, branch lengths, and arbitrary user-defined attributes.
-Crucial for scalability, such array-backed storage allows library features and end-user code alike to seamlessly harness Just-in-Time (JIT) compilation (e.g., Numba) and vectorized execution (e.g., NumPy, Polars).
-At large tree sizes, performance generally matches or exceeds libraries backed by native code --- notably, achieving up to $10\times$ faster topological-order traversals, up to $10\times$ faster Newick reads, as well as nearly $2\times$ faster Newick writes.
+PhyloFrame is built around a DataFrame-based tree representation, where each row corresponds to a node and columns record ancestor relationships, branch lengths, taxon labels, and any user-defined attributes.
+Crucial for scalability, such array-backed storage allows both library and end-user code alike to seamlessly harness Just-in-Time (JIT) compilation (e.g., Numba) and vectorized execution (e.g., NumPy, Polars).
+At large tree sizes, performance generally matches or exceeds libraries backed by native code --- notably, achieving up to $10\times$ faster topological-order traversals, up to $10\times$ faster Newick reads, and nearly $2\times$ faster Newick writes.
 
-DataFrame-based representation affords additional conveniences, notably including:
+DataFrame-based representation affords several additional conveniences, including:
 
 - succinct bulk operations (e.g., NumPy);
 - powerful queries and transformations (e.g., Polars expressions, Pandas indexing, SQL-style joins and merges);
@@ -38,33 +38,32 @@ DataFrame-based representation affords additional conveniences, notably includin
 - broad interoperation with table-oriented data science tools (e.g., Seaborn, Plotly, Vega-Altair, tidyverse, Excel).
 
 Current library features include tree input/output, synthetic tree generation, taxon-based queries, tree traversals, tree metrics, tree manipulation, tree downsampling, and tree comparison.
-Most functionality supports both Pandas and Polars DataFrames and is available through package- and CLI-based interfaces.
+Most functionality supports both Pandas and Polars DataFrames, and is available through programmatic and CLI-based interfaces.
 
 # Statement of Need
 
 In addition to the ever-growing influx of high-throughput sequence data [@stephens2015big], recent years have seen the advent of powerful biotechnologies for cell-lineage tracing [@mckenna2016whole;@nguyenba2019high], ultra-high-throughput workflows capable of estimating ancestry among hundreds of millions of taxa [@konno2022deep], and ultra-scale simulations generating billion-taxa lineage histories [@singhvi2025scalable].
-These emerging sources of phylogeny data (evolutionary trees) offer unprecedented visibility into developmental and eco-evolutionary processes [@faith1992conservation;@STAMATAKIS2005phylogenetics;@frenchHostPhylogenyShapes2023;@kim2006discovery;@lewinsohnStatedependentEvolutionaryModels2023a;@lenski2003evolutionary;@nozoe2017inferring;@chan2019molecular], but dataset scales far exceed the capabilities of traditional tools supporting bioinformatics workflow development [@moreno2024dendropy;@cock2009biopython;@huertacepas2016ete3].
+These emerging sources of phylogeny data (evolutionary trees) offer unprecedented visibility into developmental and eco-evolutionary processes [@faith1992conservation;@STAMATAKIS2005phylogenetics;@frenchHostPhylogenyShapes2023;@kim2006discovery;@lewinsohnStatedependentEvolutionaryModels2023a;@lenski2003evolutionary;@nozoe2017inferring;@chan2019molecular] --- but data volume far exceeds the capabilities of traditional tools supporting phylogenetic workflow development [@moreno2024dendropy;@cock2009biopython;@huertacepas2016ete3].
 
 This unmet need has prompted development of several performance-first libraries for phylogenetic computing in Python [@moshiri2020treeswift;@moshiri2025compacttree;@ryneches2018suchtree].
-These libraries have greatly improved the state of the art, and provide powerful compiler-optimized implementations of standard phylogeny-based calculations [@moshiri2025compacttree;@ryneches2018suchtree].
+These libraries have greatly improved the state of the art by providing memory-efficient data structures and powerful compiler-optimized implementations of standard phylogeny-based calculations.
 End-user code requiring custom iterative operations, however, typically remains as slower, interpreted Python bytecode.
-Achieving full compiler optimization for custom operations thus requires writing extensions (or working fully) in less familiar systems-level languages (e.g., C/C++).
+Achieving full compiler optimization for custom operations requires integration of less familiar systems-level code (e.g., C/C++).
 
-As such, PhyloFrame seeks to complement this existing software landscape by filling the gap between fully-optimized native code and custom end-user operations.
-To this end, PhyloFrame sacrifices a typical object-oriented interface in favor of a DataFrame-based representation of tree nodes.
-A tree with $n$ nodes, in this framework, boils down to a set of length-$n$ arrays --- each storing a particular node-attribute (e.g., ancestor index, origin time, taxon name, etc.).
-Importantly, such array-backing is friendly to vectorized bulk operations (e.g., NumPy [@harris2020array]) and JIT compilation (e.g., Numba [@lam2015numba]) --- ultimately, yielding competitive performance while retaining Python-level expressiveness and productivity.
+PhyloFrame seeks to complement existing software by filling the gap between fully-optimized native code and custom end-user operations.
+For this purpose, PhyloFrame sacrifices a typical object-oriented interface in favor of a DataFrame-based representation of tree nodes.
+In this framework, a tree with $n$ nodes boils down to a set of named length-$n$ arrays --- each storing a particular node-attribute (e.g., ancestor index, origin time, taxon name, etc.).
+This array-backing enables vectorized bulk operations (e.g., NumPy [@harris2020array]) and JIT compilation (e.g., Numba [@lam2015numba]) --- which allow competitive performance, while retaining Python-level expressiveness and productivity.
 
-![Benchmark comparison. Left: throughput (tips processed per second) for each operation across tree sizes. Right: memory efficiency (tips stored per byte of RSS) across tree sizes. Higher is better in both panels.\label{fig:benchmark}](benchmark-panel.png)
+![Benchmark comparison. Left: throughput (tips processed per second) by operation across tree sizes. Right: memory efficiency (tips stored per byte), across tree sizes. Higher is better in both panels.\label{fig:benchmark}](benchmark-panel.png)
 
-\autoref{fig:benchmark} compares throughput and memory efficiency across these libraries on balanced binary trees with up to 30 million tips.[^bench]
-For most benchmarked operations, PhyloFrame matches or exceeds the throughput and efficiency of native-backed libraries (e.g., CompactTree, SuchTree) beyond tree sizes of around 300,000 tips.
-For workloads involving large quantities of smaller trees, performance benefit can be achieved by consolidating data as a "forest" within a single DataFrame.
+\autoref{fig:benchmark} benchmarks throughput and memory efficiency for operations on balanced binary trees with up to 30 million tips.[^bench]
 
-Surprisingly, at very large tree sizes (e.g., $\geq$ 1 million tips) PhyloFrame substantially accelerates throughput beyond the state of the art.
-For traversal operations, this likely stems from JIT-based capability to materialize iteration within a fully-native context.
+Beyond tree sizes of around 300,000 tips[^small], PhyloFrame matches the throughput and efficiency of native-backed libraries (e.g., CompactTree, SuchTree) for most benchmarked operations.
+At very large tree sizes (e.g., $\geq$ 1 million tips) PhyloFrame substantially accelerates throughput for some operations.
+For traversals, benefit likely stems from capability to materialize node iteration within a JIT-compiled context.
 Topological order traversals are particularly efficient, as they simply correspond to a sequential scan over array memory.
-Newick parsing, on the other hand, likely benefits from streamlined per-array (as opposed to per-node) memory allocation, while Newick generation leverages the Polars engine to accelerate string-building.
+Newick parsing, on the other hand, likely benefits from streamlined per-array memory allocation (as opposed to per-node allocation), while Newick generation leverages the Polars engine to accelerate string-building.
 
 An important performance trade-off not captured in these benchmarks is tree manipulation.
 While DataFrame-based representation does support mutable tree reconfiguration after construction, unlike allocated node-and-pointer representations, one-off node creation and deletion is not guaranteed $\mathcal{O}(1)$.
@@ -74,7 +73,10 @@ Timings were conducted on GitHub action `ubuntu-24.04` runners (4-core x86/16GB 
 Raw data is archived at <https://osf.io/knw8x> [@foster2017open].
 Benchmark design follows [@moshiri2025compacttree].
 
-Beyond high-performance end-user extensibility, DataFrame-based representation affords several notable conveniences that complement the existing phylogenetic computing landscape --- briefly described in Appendix A.
+[^small]:
+For workloads involving large quantities of smaller trees, performance benefit can be achieved by consolidating data as a "forest" within a single DataFrame.
+
+Beyond high-performance end-user extensibility, DataFrame-based representation affords several useful conveniences that complement the existing phylogenetic computing landscape --- briefly reviewed in Appendix A.
 
 # Features
 
@@ -88,16 +90,16 @@ PhyloFrame supports the following operations on both Pandas and Polars DataFrame
 - __tree manipulation__: collapsing unifurcations, rerooting, ladderizing;
 - __tree downsampling__: lineage sampling, tip sampling, clade sampling, custom pruning;
 - __tree comparison__: triplet/quartet distance [@sand2014tqdist;@estabrook1985comparison;@dobson1975comparing] and topological isomorphism; and
-- __tree visualization__: integration with Matplotlib-based iplotx [@zanini2025iplotx] and interactive Taxonium web application [@sanderson2022taxonium].[^fork]
+- __tree visualization__: integration with Matplotlib-based iplotx [@zanini2025iplotx] and interactive Taxonium web app[^fork] [@sanderson2022taxonium].
 
 [^fork]: via an experimental fork at <https://mmore500.github.io/taxonium>.
 
-A quickstart guide and full API listing are included in the [PhyloFrame documentation](https://phyloframe.readthedocs.io).
-PhyloFrame is installable from the Python Package Index (PyPI) via `pip` (e.g., `python3 -m pip install phyloframe[jit]`).
+A quickstart guide and full API listing are included in the PhyloFrame documentation at <https://phyloframe.readthedocs.io>.
+PhyloFrame is installable from the Python Package Index (PyPI) via `pip` (e.g., `python3 -m pip install "phyloframe[jit]"`).
 
 # Demo: End-user JIT Compilation and Tidy Plotting
 
-Example code applies a pipeline pattern to (1) generate a 100-tip tree, (2) apply JIT-compiled end-user code to simulate trait inheritance, (3) mark attributes `node_depth` and `is_leaf`, and (4) visualize using Seaborn and Matplotlib.
+Example code uses a pipeline pattern to (1) generate a 100-tip tree, (2) apply JIT-compiled end-user code to simulate trait inheritance, (3) mark attributes `node_depth` and `is_leaf`, and (4) visualize using Seaborn and Matplotlib.
 
 ```python
 import numpy as np; import polars as pl; import seaborn as sns
@@ -136,20 +138,20 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 
 # Related Software
 
-A rich ensemble of established libraries support Python-based phylogenetic computing.
+A rich ensemble of existing libraries support Python-based phylogenetic computing.
 
 - DendroPy [@moreno2024dendropy] offers a comprehensive object-oriented framework for phylogenetic simulation and analysis.
-- Biopython [@cock2009biopython] includes a `Bio.Phylo` module supporting multiple tree formats with a focus on interoperability.
-- ETE [@huertacepas2016ete3] combines tree analysis with visualization capabilities.
+- Biopython [@cock2009biopython] includes support for phylogeny reconstruction and visualization via an object-oriented representation.
+- ETE [@huertacepas2016ete3] combines tree analysis and visualization capabilities.
 - scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit, including tree manipulation, reconstruction, and phylogenetic diversity metrics.
-- tskit [@wong2024args;@kelleher2016msprime] uses a specialized data structure to compactly store millions of related gene trees.
-- CompactTree [@moshiri2025compacttree] achieves minimal memory footprint through a header-only C++ implementation with a Python wrapper.
-- TreeSwift [@moshiri2020treeswift] is a performance-oriented pure-Python library using a compact linked-node data structure, designed to scale to very large trees.
+- tskit [@wong2024args;@kelleher2016msprime] uses a specialized data structure to compactly store up to millions of related gene trees.
+- CompactTree [@moshiri2025compacttree] provides a memory-efficient C++ linked-node data structure implementation, distributed as a header-only library with a Python wrapper.
+- TreeSwift [@moshiri2020treeswift] is a performance-oriented pure-Python library using a compact linked-node representation, designed to support very large trees.
 - SuchTree [@ryneches2018suchtree] uses a Cython-based array data structure, focusing on fast pairwise distance queries and co-phylogenetic analyses; operations release the Python GIL (Global Interpreter Lock) to allow multithread parallelism.
 - ToyTree [@eaton2019toytree] is an object-oriented library, providing integrated visualization functionality.
-- PhyloTrack [@dolson2024phylotrack] uses a node-and-pointer data structure to record lineage histories in forward-time agent-based models, with support for on-the-fly extinction pruning and metric calculations.
+- PhyloTrack [@dolson2024phylotrack] uses a node-and-pointer data structure to record lineage histories from forward-time agent-based models, with support for on-the-fly extinction pruning and metric calculations.
 
-In the Julia [@bezanson2017julia] ecosystem, PhyloNetworks [@solislemus2017phylonetworks] emphasizes support for generalized phylogenetic networks incorporating reticulation events.
+In the Julia ecosystem, PhyloNetworks [@solislemus2017phylonetworks] emphasizes flexible support for generalized phylogenetic networks incorporating reticulation events.
 The R-based ecosystem has largely coalesced around ape's edge matrix tree representation [@paradis2018ape].
 Other work has applied graph databases to manage large-scale phylogeny data [@loureno2024phylodb].
 
@@ -157,15 +159,14 @@ Except for commonality in name, the PhyloFrame library presented here is unrelat
 
 # Projects Using the Software
 
-PhyloFrame originated from phylogeny-tracking components developed for the hstrat library [@moreno2022hstrat], which enables phylogenetic inference over distributed digital evolution populations.
-The alifestd operations now in PhyloFrame provide the core tree analysis and manipulation layer used by `hstrat` and downstream digital evolution experiments.
-Underlying software (earlier, a submodule of hstrat) has contributed substantially to several projects [@moreno2025ecology;@singhvi2025scalable;@moreno2025testing;@moreno2024trackable;@moreno2022hereditary].
+PhyloFrame originated from phylogeny utilities developed within the hstrat library for phylogeny tracking in highly-distributed evolution simulations [@moreno2022hstrat].
+PhyloFrame utilities have contributed substantially to several projects, including analysis of large-scale simulations scaling up to a billion taxa [@moreno2025ecology;@singhvi2025scalable;@moreno2025testing;@moreno2024trackable;@moreno2022hereditary].
 
 # Development Roadmap
 
 Much future work remains in development of the PhyloFrame library.
 
-Feature-level improvements (e.g., tree metrics, manipulations, etc.) are planned on an as-needed basis, with requests welcome via the project [issue tracker](https://github.com/mmore500/phyloframe).
+Feature-level improvements (e.g., tree metrics, manipulations, etc.) are planned on an as-needed basis, with requests welcome via the project issue tracker at <https://github.com/mmore500/phyloframe/issues>.
 
 Looking further ahead, a redesigned API is planned to accompany PhyloFrame's v1 release.
 In anticipation of this release, all current PhyloFrame operations are packaged in `phyloframe.legacy`.
@@ -174,18 +175,17 @@ This API is stable and will continue to be maintained for backward compatibility
 Identified design and development priorities include:
 
 - better-standardized naming schemes for library-function-generated columns,
+- reater API symmetry between Pandas and Polars functionality,
 - automatic cleanup of columns invalidated by tree manipulation,
-- caching contiguous id and topological order safety checks (currently, bypassable via environment variable),
-- first-class support for unrooted trees,
-- first-class support for reticulated ancestry graphs,
-- automatic repair of canonical representation invariants (i.e., contiguous ids, topological order),
-- support for GPU-based computations via CuPy and RAPIDS' Pandas integration [@cupy_learningsys2017;@rapids],
-- wheel-based distribution of pre-compiled Numba artifacts,
-- high-level visualization utilities leveraging Seaborn and iplotx [@waskom2021seaborn;@zanini2025iplotx], and
-- greater API symmetry between Pandas and Polars functionality.
+- automatic repair of tree invariants (i.e., contiguous ids, topological order),
+- automatic caching of tree invariant safety checks (currently, bypassable via environment variable),
+- first-class support for reticulated ancestry graphs and unrooted trees,
+- support for GPU-based computations via CuPy and the RAPIDS Pandas integration [@cupy_learningsys2017;@rapids],
+- wheel-based distribution of pre-compiled Numba artifacts, and
+- high-level visualization utilities leveraging Seaborn and iplotx [@waskom2021seaborn;@zanini2025iplotx].
 
-Beyond Python, DataFrame-based phylogenetic computing may prove useful in other language ecosystems, such as Julia and R.
-Julia appears especially well-suited, given its mature, tightly-integrated DataFrame stack [@bouchetvalat2023dataframesjl] and first-class language support for JIT compilation [@bezanson2017julia].
+Beyond Python, DataFrame-based phylogenetic computing may prove useful in other programming language ecosystems, such as Julia and R.
+Julia appears especially well-suited, on account of its tightly-integrated DataFrame stack [@bouchetvalat2023dataframesjl] and built-in support for JIT compilation [@bezanson2017julia].
 
 # Acknowledgements
 
@@ -197,9 +197,9 @@ Reference herein to any specific commercial product, process, or service by trad
 The views and opinions of authors expressed herein do not necessarily state or reflect those of the United States Government or any agency thereof.
 
 **AI Use Declaration:**
-During the preparation of this work, AI tools were used to assemble manuscript boilerplate and draft benchmarking scripts.
-Closely supervised agentic software development is used for refactoring code, drafting documentation, and scoped library feature development.
-Such contributions are tracked via commit co-authorship.
+During the preparation of this work, AI tools were used to assemble manuscript boilerplate, proofread manuscript drafts, and assemble benchmarking scripts.
+Library maintenance employs agentic software development to refactor code, draft documentation, and o,[;e,emt scoped library features.
+Such contributions are closely supervised and tracked via commit co-authorship.
 Tools used include Claude Code, Google Gemini, and OpenAI ChatGPT.
 
 # References
@@ -211,11 +211,11 @@ Tools used include Claude Code, Google Gemini, and OpenAI ChatGPT.
 
 # Appendix A: Why a DataFrame-based Tree Representation?
 
-DataFrames are scripting-friendly and end-user extensible, enabling a composable, interoperable, high-performance ecosystem for much of modern data science [@wu2020is].
-PhyloFrame seeks to go further with a fully tabular format hosted within DataFrame objects (e.g., pandas.DataFrame, pl.LazyFrame, pl.DataFrame, etc.).
+PhyloFrame relies on a fully-tabular data structure hosted within DataFrame objects (e.g., `pandas.DataFrame`, `polars.LazyFrame`, `polars.DataFrame`, etc.).
+Because DataFrame-based computation provides the foundation for much of modern data science [@wu2020is], a rich infrastructure ecosystem has developed around it --- providing several notable synergies to phylogenetic computation workflows.
 
 **Fast and highly portable load/save.**
-Use `pandas.read_csv`, `polars.read_parquet`, R's `read.table`, etc.
+DataFrame libraries provide robust builtin I/O capabilities (e.g., `pandas.read_csv`, `polars.read_parquet`, R's `read.table`).
 Many implementations can automatically fetch from URLs, cloud providers (e.g., AWS S3, Google Cloud, etc.), and online repositories [@foster2017open;@singh2011figshare].
 Contiguous allocations allow fast tree deserialization (e.g., Newick) and tree generation.
 
@@ -223,7 +223,7 @@ Contiguous allocations allow fast tree deserialization (e.g., Newick) and tree g
 Granular deserialization of selected columns, columnar compression for efficient storage, categorical strings, and explicit column typing with first-class null representation (e.g., Parquet [@vohra2016parquet]).
 Data layout optimization for fast load/save (e.g., Feather [@wickham2016feather]).
 
-**Benefit from modern high-performance dataframe tooling.**
+**Benefit from modern high-performance DataFrame tooling.**
 Memory-efficient representation, larger-than-memory streaming operations (e.g., Polars), distributed computing operations (e.g., Dask [@rocklin2015dask]), multithreaded operations (e.g., Polars), vectorized operations (e.g., NumPy), and just-in-time compilation (e.g., Numba).
 
 **Benefit from rich, expressive DataFrame functionality.**
@@ -235,7 +235,7 @@ Base memory footprint is lightweight (e.g., as little as 32 bits per node), but 
 
 **Interoperation.**
 Multi-language interoperation (e.g., possible future support for zero-copy interop between R and Python via reticulate and Arrow [@reticulate;@arrow], possible future support for zero-copy Polars DataFrames shared between Rust and Python).
-Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python dataframe protocol [@meurer2023python]).
+Multi-library interoperation (e.g., highly-optimized or zero-copy interoperation between Polars and Pandas; Python DataFrame protocol [@meurer2023python]).
 Interoperation with broader Python DataFrame ecosystem [@vallat2018pingouin;@vanderplas2018altair;@waskom2021seaborn;@skrub] and ALife data standard tooling [@lalejini2019alife].
 
 # Appendix B: Tree Manipulation Pipeline Demo
