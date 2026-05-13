@@ -140,11 +140,11 @@ pfl.alifestd_make_edge_split_polars(n_leaves=100, seed=42,  # random tree
 
 A rich ensemble of existing libraries supports Python-based phylogenetic computing.
 
-- DendroPy [@moreno2024dendropy] offers a comprehensive object-oriented framework for phylogenetic simulation and analysis.
-- Biopython [@cock2009biopython] includes support for phylogeny reconstruction and visualization via an object-oriented representation.
-- ETE [@huertacepas2016ete3] combines tree analysis and visualization capabilities.
+- DendroPy [@moreno2024dendropy] offers a comprehensive and dependency-free object-oriented framework for phylogenetic simulation and analysis.
+- Biopython [@cock2009biopython;@talevich2012biophylo] includes a Phylo module with a tree data structure and general-purpose utilites (including visualization).
+- ETE [@huertacepas2016ete3] combines tree reconstruction, analysis, and visualization capabilities, alongside integration with the NCBI taxonomy database.
 - scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit, including tree manipulation, reconstruction, and phylogenetic diversity metrics.
-- tskit [@wong2024args;@kelleher2016msprime] uses a specialized data structure to compactly store up to millions of related gene trees.
+- tskit [@wong2024args;@kelleher2016msprime] implements the succinct tree sequence data structure, a compact representation of correlated local trees along a recombining genome, used to represent Ancestral Recombination Graphs.
 - CompactTree [@moshiri2025compacttree] provides a memory-efficient C++ linked-node data structure implementation, distributed as a header-only library with a Python wrapper.
 - TreeSwift [@moshiri2020treeswift] is a performance-oriented pure-Python library using a compact linked-node representation, designed to support very large trees.
 - SuchTree [@ryneches2018suchtree] uses a Cython-based array data structure, focusing on fast pairwise distance queries and co-phylogenetic analyses; operations release the Python GIL (Global Interpreter Lock) to allow multithread parallelism.
