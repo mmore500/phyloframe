@@ -27,7 +27,7 @@ bibliography: paper.bib
 PhyloFrame is a Python library for phylogenetic computation targeting the gap between specialist, compiler-optimized operations and flexible, script-based workflows --- with emphasis on fast, memory-efficient operations for very large tree sizes (e.g., $\geq$ 300,000 taxa).
 
 PhyloFrame is built around a DataFrame-based tree representation, where each row corresponds to a node and columns record ancestor relationships, branch lengths, taxon labels, and any user-defined attributes.
-Crucial for scalability, such array-backed storage allows library and end-user code alike to seamlessly harness Just-in-Time (JIT) compilation (e.g., Numba) and vectorized execution (e.g., NumPy, Polars).
+Crucial for scalability, such array-backed storage allows both library and end-user code alike to seamlessly harness Just-in-Time (JIT) compilation (e.g., Numba) and vectorized execution (e.g., NumPy, Polars).
 At large tree sizes, performance generally matches or exceeds libraries backed by native code --- notably, achieving up to $10\times$ faster topological-order traversals, up to $10\times$ faster Newick reads, and nearly $2\times$ faster Newick writes.
 
 DataFrame-based representation affords several additional conveniences, including:
