@@ -9,12 +9,6 @@ authors:
   - name: Matthew Andres Moreno
     orcid: 0000-0003-4726-4479
     affiliation: "1, 2, 3, 4"
-  - name: Luis Zaman
-    orcid: 0000-0001-6838-7385
-    affiliation: "1, 2, 4"
-  - name: Emily Dolson
-    orcid: 0000-0001-8616-4898
-    affiliation: "5, 6, 7"
 affiliations:
   - name: Department of Ecology and Evolutionary Biology
     index: 1
@@ -24,12 +18,6 @@ affiliations:
     index: 3
   - name: University of Michigan, Ann Arbor, United States
     index: 4
-  - name: Department of Computer Science and Engineering
-    index: 5
-  - name: Program in Ecology, Evolution, and Behavior
-    index: 6
-  - name: Michigan State University, East Lansing, United States
-    index: 7
 date: 14 May 2026
 bibliography: paper.bib
 ---
