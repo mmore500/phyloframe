@@ -61,7 +61,7 @@ This array-backing enables vectorized bulk operations (e.g., NumPy [@harris2020a
 
 Beyond tree sizes of around 300,000 tips[^small], PhyloFrame matches the throughput and efficiency of native-backed libraries (e.g., CompactTree, SuchTree) for most benchmarked operations.
 At very large tree sizes (e.g., $\geq$ 1 million tips), PhyloFrame substantially accelerates throughput for some operations.
-For traversals, the benefit likely stems from the capability to materialize node iteration within a JIT-compiled context.
+For traversals, benefit likely stems from capability to materialize node iteration within a JIT-compiled context.
 Topological-order traversals are particularly efficient, as they simply correspond to a sequential scan over array memory.
 Newick parsing, on the other hand, likely benefits from streamlined per-array memory allocation (as opposed to per-node allocation), while Newick generation leverages the Polars engine to accelerate string-building.
 
