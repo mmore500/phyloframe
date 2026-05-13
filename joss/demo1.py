@@ -34,7 +34,7 @@ def _():
 
 @app.cell
 def _(ipx, pd, pfl, plt, sns):
-    def plot(df_raw: pd.DataFrame, df_res: pd.DataFrame) -> plt.Axes:
+    def plot(df_raw: pd.DataFrame, df_res: pd.DataFrame) -> plt.Figure:
         style = dict(
             layout="vertical",
             layout_orientation="ascending",
@@ -59,7 +59,7 @@ def _(ipx, pd, pfl, plt, sns):
         ax_raw.get_xaxis().set_visible(False)
         ax_res.get_xaxis().set_visible(False)
         ax_res.invert_yaxis()
-        return ax_raw, ax_res
+        return fig
 
     return (plot,)
 
