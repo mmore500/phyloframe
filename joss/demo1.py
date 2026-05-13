@@ -15,7 +15,7 @@
 import marimo
 
 __generated_with = "0.23.5"
-app = marimo.App(width="medium")
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -69,16 +69,16 @@ def _(np, pfl, plot, tp):
     df_raw = pfl.alifestd_from_newick("(((r:1)c:2,(x:2,y:1)e:1.5)s:2)a;")
     df_res = (
         df_raw.drop(columns=["branch_length", "origin_time_delta"])
-        .pipe(
+        .pipe(  # reroot at node "r"
             pfl.alifestd_reroot_at_id_asexual,
             new_root_id=df_raw.query("taxon_label == 'r'")["id"].item(),
         )
-        .pipe(  # update branch lengths after reroot
+        .pipe(  # flip rerooted lengths
             lambda df: df.assign(
                 branch_length=np.where(
-                    df_raw.loc[df["id"], "ancestor_id"] == df["ancestor_id"],
-                    df_raw.loc[df["id"], "branch_length"],
+                    df_raw.loc[df["id"], "ancestor_id"] != df["ancestor_id"],
                     df_raw.loc[df["ancestor_id"], "branch_length"],
+                    df_raw.loc[df["id"], "branch_length"],
                 ),
             ),
         )
