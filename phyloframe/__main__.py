@@ -159,7 +159,9 @@ $ python3 -m phyloframe.legacy._alifestd_sort_children_polars
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies_polars
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual
+$ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_polars
 $ python3 -m phyloframe.legacy._alifestd_to_working_format
+$ python3 -m phyloframe.legacy._alifestd_to_working_format_polars
 $ python3 -m phyloframe.legacy._alifestd_topological_sort
 $ python3 -m phyloframe.legacy._alifestd_topological_sort_polars
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_id_col

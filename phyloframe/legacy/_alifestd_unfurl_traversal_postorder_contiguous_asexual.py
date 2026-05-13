@@ -15,6 +15,9 @@ from ._alifestd_mark_csr_offsets_asexual import (
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
+from ._alifestd_mark_num_descendants_asexual import (
+    _alifestd_mark_num_descendants_asexual_fast_path,
+)
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
@@ -81,80 +84,6 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit(
                     if nxt == sib:
                         break
                     sib = nxt
-            else:
-                stack_top -= 1
-                result[result_pos] = node
-                result_pos += 1
-
-    return result
-
-
-@jit(nopython=True)
-def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_sibling_jit(
-    ancestor_ids: np.ndarray,
-    first_child_ids: np.ndarray,
-    next_sibling_ids: np.ndarray,
-) -> np.ndarray:
-    """Return DFS postorder traversal using first-child/next-sibling pointers.
-
-    Avoids CSR construction by navigating the tree via left-child
-    right-sibling representation.  Siblings are visited in ascending id
-    order (smallest-id child processed first).
-
-    Parameters
-    ----------
-    ancestor_ids : np.ndarray
-        Array of ancestor IDs, assumed contiguous (ids == row indices)
-        and topologically sorted.
-    first_child_ids : np.ndarray
-        Array where first_child_ids[i] is the smallest-id child of i,
-        or i itself if i is a leaf.
-    next_sibling_ids : np.ndarray
-        Array where next_sibling_ids[i] is the next-highest id sharing
-        the same parent, or i itself if no such sibling.
-
-    Returns
-    -------
-    np.ndarray
-        Index array giving DFS postorder traversal order.
-    """
-    n = len(ancestor_ids)
-    dtype = ancestor_ids.dtype
-    if n == 0:
-        return np.empty(0, dtype=dtype)
-
-    result = np.empty(n, dtype=dtype)
-    result_pos = 0
-
-    stack = np.empty(n, dtype=dtype)
-    stack_top = 0
-    expanded = np.zeros(n, dtype=np.bool_)
-
-    for root in range(n):
-        if ancestor_ids[root] != root:
-            continue
-
-        stack[0] = root
-        stack_top = 1
-
-        while stack_top > 0:
-            node = stack[stack_top - 1]
-            first_child = first_child_ids[node]
-
-            if not expanded[node] and first_child != node:
-                expanded[node] = True
-                # Walk siblings into the stack, then reverse so the
-                # smallest-id child ends up on top.
-                base = stack_top
-                sib = first_child
-                while True:
-                    stack[stack_top] = sib
-                    stack_top += 1
-                    nxt = next_sibling_ids[sib]
-                    if nxt == sib:
-                        break
-                    sib = nxt
-                stack[base:stack_top] = stack[base:stack_top][::-1]
             else:
                 stack_top -= 1
                 result[result_pos] = node
@@ -235,27 +164,21 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
 @jit(nopython=True)
 def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
     ancestor_ids: np.ndarray,
-    csr_offsets: np.ndarray,
-    csr_children: np.ndarray,
-    num_children: np.ndarray,
+    num_descendants: np.ndarray,
 ) -> np.ndarray:
     """Return DFS postorder traversal indices for contiguous, sorted phylogeny.
 
-    Uses iterative depth-first search so that each subtree's nodes are
-    contiguous in the result.  Siblings are visited in ascending id order
-    (smallest-id child processed first).
+    Uses subtree-size offsets to write each node directly to its final
+    position in a single forward sweep, yielding contiguous subtrees.
+    Siblings are visited in ascending id order (smallest-id child first).
 
     Parameters
     ----------
     ancestor_ids : np.ndarray
         Array of ancestor IDs, assumed contiguous (ids == row indices)
         and topologically sorted.
-    csr_offsets : np.ndarray
-        CSR offset array of length n.
-    csr_children : np.ndarray
-        Flat array of child ids, grouped by parent.
-    num_children : np.ndarray
-        Array of child counts per node.
+    num_descendants : np.ndarray
+        Number of descendants (excluding self) for each node.
 
     Returns
     -------
@@ -267,35 +190,23 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
     if n == 0:
         return np.empty(0, dtype=dtype)
 
+    # Offset array uses the input id dtype: narrower dtypes (e.g., int32)
+    # halve bandwidth on the random-access offset array vs int64, while
+    # still safely indexing positions in [0, n).
     result = np.empty(n, dtype=dtype)
-    result_pos = 0
-
-    stack = np.empty(n, dtype=dtype)
-    stack_top = 0
-    expanded = np.zeros(n, dtype=np.bool_)
-
-    for root in range(n):
-        if ancestor_ids[root] != root:
-            continue
-
-        stack[0] = root
-        stack_top = 1
-
-        while stack_top > 0:
-            node = stack[stack_top - 1]
-            c_start = csr_offsets[node]
-            c_end = c_start + num_children[node]
-
-            if not expanded[node] and c_start < c_end:
-                expanded[node] = True
-                # Push children in reverse so smallest-id is on top
-                for ci in range(c_end - 1, c_start - 1, -1):
-                    stack[stack_top] = csr_children[ci]
-                    stack_top += 1
-            else:
-                stack_top -= 1
-                result[result_pos] = node
-                result_pos += 1
+    offset = np.empty(n, dtype=dtype)
+    root_pos = dtype.type(0)
+    for node in range(n):
+        ancestor = ancestor_ids[node]
+        nd = num_descendants[node]
+        if ancestor == node:
+            ancestor_offset = root_pos
+            root_pos += nd + 1
+        else:
+            ancestor_offset = offset[ancestor]
+            offset[ancestor] = ancestor_offset + nd + 1
+        result[ancestor_offset + nd] = node
+        offset[node] = ancestor_offset
 
     return result
 
@@ -349,23 +260,32 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
         )
 
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+
+    if child_order != "desc":
+        if "num_descendants" in phylogeny_df.columns:
+            num_descendants = phylogeny_df["num_descendants"].to_numpy()
+        else:
+            num_descendants = _alifestd_mark_num_descendants_asexual_fast_path(
+                ancestor_ids
+            )
+        return _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
+            ancestor_ids,
+            num_descendants,
+        )
+
     if (
         "first_child_id" in phylogeny_df.columns
         and "next_sibling_id" in phylogeny_df.columns
     ):
+        assert child_order == "desc"
         first_child_ids = phylogeny_df["first_child_id"].to_numpy()
         next_sibling_ids = phylogeny_df["next_sibling_id"].to_numpy()
-        if child_order == "asc":
-            return _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_sibling_jit(
-                ancestor_ids,
-                first_child_ids,
-                next_sibling_ids,
-            )
         return _alifestd_unfurl_traversal_postorder_contiguous_asexual_sibling_jit(
             ancestor_ids,
             first_child_ids,
             next_sibling_ids,
         )
+
     if "num_children" not in phylogeny_df.columns:
         num_children = _alifestd_mark_num_children_asexual_fast_path(
             ancestor_ids,
@@ -385,13 +305,7 @@ def alifestd_unfurl_traversal_postorder_contiguous_asexual(
             ancestor_ids,
             csr_offsets,
         )
-    if child_order == "asc":
-        return _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
-            ancestor_ids,
-            csr_offsets,
-            csr_children,
-            num_children,
-        )
+    assert child_order == "desc"
     return _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         ancestor_ids,
         csr_offsets,

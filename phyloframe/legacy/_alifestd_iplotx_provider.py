@@ -31,6 +31,9 @@ from ._alifestd_mark_node_depth_asexual import (
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
+from ._alifestd_mark_num_descendants_asexual import (
+    _alifestd_mark_num_descendants_asexual_fast_path,
+)
 from ._alifestd_mark_origin_time_delta_asexual import (
     alifestd_mark_origin_time_delta_asexual,
 )
@@ -152,6 +155,9 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
         self._num_children = _alifestd_mark_num_children_asexual_fast_path(
             ancestor_ids,
         )
+        self._num_descendants = (
+            _alifestd_mark_num_descendants_asexual_fast_path(ancestor_ids)
+        )
         self._node_depths = _alifestd_calc_node_depth_asexual_contiguous(
             ancestor_ids,
         )
@@ -178,23 +184,17 @@ class AlifestdIplotxShimNumpy(TreeDataProvider):
     def preorder(self) -> typing.Iterable[_AlifestdNode]:
         order = _alifestd_unfurl_traversal_preorder_asexual_jit(
             self._ancestor_ids,
-            self._csr_offsets[:-1],  # without sentinel
-            self._csr_children,
-            self._num_children,
+            self._num_descendants,
         )
         yield from self._nodes[order]
 
     def postorder(self) -> typing.Iterable[_AlifestdNode]:
         # Walk DFS postorder with children visited smallest-id first so the
-        # leaf order matches preorder; the default JIT helper visits
-        # siblings in the opposite direction, which produces mirrored leaf
-        # y-coordinates in iplotx rooted layouts.
+        # leaf order matches preorder.
         order = (
             _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
                 self._ancestor_ids,
-                self._csr_offsets[:-1],  # without sentinel
-                self._csr_children,
-                self._num_children,
+                self._num_descendants,
             )
         )
         yield from self._nodes[order]
