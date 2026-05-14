@@ -920,8 +920,7 @@ class CompactTreeBench:
         # find_mrca unreachable through the stock Python wrapper).
         hdr_dir = os.path.dirname(CompactTree.__file__)
         src = (
-            pathlib.Path(__file__).parent
-            / "_compacttree_find_mrca_bridge.cpp"
+            pathlib.Path(__file__).parent / "_compacttree_find_mrca_bridge.cpp"
         )
         so_path = pathlib.Path(tempfile.mkdtemp()) / "shim.so"
         subprocess.run(
