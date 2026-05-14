@@ -733,18 +733,14 @@ class BiopythonBench:
         )
 
     def mrca_allpairs(self):
-        t = self._ensure_tree()
-        terminals = t.get_terminals()
-        for i, a in enumerate(terminals):
-            for b in terminals[i + 1 :]:
-                t.common_ancestor(a, b)
+        raise NotImplementedError(
+            "no all-pairs MRCA implementation in biopython"
+        )
 
     def pairwise_dist(self):
-        t = self._ensure_tree()
-        terminals = t.get_terminals()
-        for i, a in enumerate(terminals):
-            for b in terminals[i + 1 :]:
-                t.distance(a, b)
+        raise NotImplementedError(
+            "no all-pairs distance implementation in biopython"
+        )
 
     def memory_bytes(self):
         newick = self._newick
@@ -878,18 +874,12 @@ class EteBench:
         raise NotImplementedError("topological_order not available in ete")
 
     def mrca_allpairs(self):
-        t = self._ensure_tree()
-        leaves = list(t.get_leaves())
-        for i, a in enumerate(leaves):
-            for b in leaves[i + 1 :]:
-                t.get_common_ancestor(a, b)
+        raise NotImplementedError("no all-pairs MRCA implementation in ete")
 
     def pairwise_dist(self):
-        t = self._ensure_tree()
-        leaves = list(t.get_leaves())
-        for i, a in enumerate(leaves):
-            for b in leaves[i + 1 :]:
-                a.get_distance(b)
+        raise NotImplementedError(
+            "no all-pairs distance implementation in ete"
+        )
 
     def memory_bytes(self):
         newick = self._newick
@@ -915,9 +905,48 @@ class CompactTreeBench:
         self._tree = None
 
     def warmup(self):
+        import ctypes
+        import os
+        import pathlib
+        import subprocess
+
         import CompactTree
 
         self._ct = CompactTree
+
+        # JIT-compile an external shim that wraps compact_tree::find_mrca
+        # so it accepts a flat uint32_t buffer (CompactTree's bundled
+        # SWIG interface doesn't bind std::unordered_set, making
+        # find_mrca unreachable through the stock Python wrapper).
+        hdr_dir = os.path.dirname(CompactTree.__file__)
+        src = (
+            pathlib.Path(__file__).parent
+            / "_compacttree_find_mrca_bridge.cpp"
+        )
+        so_path = pathlib.Path(tempfile.mkdtemp()) / "shim.so"
+        subprocess.run(
+            [
+                "g++",
+                "-O3",
+                "-fPIC",
+                "-shared",
+                "-std=c++17",
+                "-w",  # silence header's deprecated std::iterator warnings
+                str(src),
+                f"-I{hdr_dir}",
+                "-o",
+                str(so_path),
+            ],
+            check=True,
+        )
+        lib = ctypes.CDLL(str(so_path))
+        lib.phyloframe_compacttree_find_mrca.restype = ctypes.c_uint32
+        lib.phyloframe_compacttree_find_mrca.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.c_size_t,
+        ]
+        self._find_mrca = lib.phyloframe_compacttree_find_mrca
 
     def parse_newick(self):
         self._tree = self._ct.compact_tree(self._tmppath)
@@ -950,26 +979,16 @@ class CompactTreeBench:
         )
 
     def mrca_allpairs(self):
+        import ctypes
+
         t = self._ensure_tree()
+        ptr = int(t.this)
         leaves = list(self._ct.traverse_leaves(t))
-
-        # CompactTree::find_mrca takes std::unordered_set<uint32_t>, which
-        # the package's SWIG .i does not bind (no std_unordered_set.i),
-        # so Python sets/lists/tuples raise TypeError. Fall back to a
-        # parent-walk via the get_parent/is_root bindings.
-        def _mrca(a, b):
-            ancestors_a = set()
-            while not t.is_root(a):
-                ancestors_a.add(a)
-                a = t.get_parent(a)
-            ancestors_a.add(a)
-            while b not in ancestors_a:
-                b = t.get_parent(b)
-            return b
-
+        Pair = ctypes.c_uint32 * 2
+        find_mrca = self._find_mrca
         for i, a in enumerate(leaves):
             for b in leaves[i + 1 :]:
-                _mrca(a, b)
+                find_mrca(ptr, Pair(a, b), 2)
 
     def pairwise_dist(self):
         t = self._ensure_tree()
@@ -1034,11 +1053,9 @@ class ScikitBioBench:
         )
 
     def mrca_allpairs(self):
-        t = self._ensure_tree()
-        tips = list(t.tips())
-        for i, a in enumerate(tips):
-            for b in tips[i + 1 :]:
-                t.lca([a, b])
+        raise NotImplementedError(
+            "no all-pairs MRCA implementation in scikit-bio"
+        )
 
     def pairwise_dist(self):
         t = self._ensure_tree()
@@ -1104,11 +1121,9 @@ class SuchTreeBench:
         )
 
     def mrca_allpairs(self):
-        t = self._ensure_tree()
-        leaf_ids = list(t.leaves.values())
-        for i, a in enumerate(leaf_ids):
-            for b in leaf_ids[i + 1 :]:
-                t.common_ancestor(a, b)
+        raise NotImplementedError(
+            "no all-pairs MRCA implementation in SuchTree"
+        )
 
     def pairwise_dist(self):
         t = self._ensure_tree()
