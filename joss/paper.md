@@ -9,6 +9,15 @@ authors:
   - name: Matthew Andres Moreno
     orcid: 0000-0003-4726-4479
     affiliation: "1, 2, 3, 4"
+  - name: Jeet Sukumaran
+    orcid: 0000-0002-9222-9608
+    affiliation: "5, 6"
+  - name: Luis Zaman
+    orcid: 0000-0001-6838-7385
+    affiliation: "1, 2, 4"
+  - name: Emily Dolson
+    orcid: 0000-0001-8616-4898
+    affiliation: "7, 8, 9"
 affiliations:
   - name: Department of Ecology and Evolutionary Biology
     index: 1
@@ -16,8 +25,18 @@ affiliations:
     index: 2
   - name: Michigan Institute for Data and AI in Society
     index: 3
-  - name: University of Michigan, Ann Arbor, United States
+  - name: University of Michigan, Ann Arbor, MI, United States of America
     index: 4
+  - name: Department of Biology
+    index: 5
+  - name: San Diego State University, San Diego, CA, United States of America
+    index: 6
+  - name: Department of Computer Science and Engineering
+    index: 7
+  - name: Program in Ecology, Evolution, and Behavior
+    index: 8
+  - name: Michigan State University, East Lansing, MI, United States of America
+    index: 9
 date: 14 May 2026
 bibliography: paper.bib
 ---
