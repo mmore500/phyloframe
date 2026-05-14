@@ -28,7 +28,7 @@ PhyloFrame is a Python library for phylogenetic computation targeting the gap be
 
 PhyloFrame is built around a DataFrame-based tree representation, where each row corresponds to a node and columns record ancestor relationships, branch lengths, taxon labels, and any user-defined attributes.
 Crucial for scalability, such array-backed storage allows both library and end-user code alike to seamlessly harness Just-in-Time (JIT) compilation (e.g., Numba) and vectorized execution (e.g., NumPy, Polars).
-At large tree sizes, performance generally matches or exceeds libraries backed by native code --- notably, achieving up to $10\times$ faster topological-order traversals, up to $10\times$ faster Newick reads, and nearly $2\times$ faster Newick writes.
+At large tree sizes, performance generally matches or exceeds Python libraries backed by native code --- notably, achieving strong performance in topological-order traversals and Newick I/O.
 
 DataFrame-based representation affords several additional conveniences, including:
 
@@ -57,19 +57,24 @@ This array-backing enables vectorized bulk operations (e.g., NumPy [@harris2020a
 
 ![Benchmark comparison. Left: throughput (tips processed per second) by operation across tree sizes. Right: memory efficiency (tips stored per byte), across tree sizes. Higher is better in both panels.\label{fig:benchmark}](benchmark-panel.png)
 
-\autoref{fig:benchmark} benchmarks throughput and memory efficiency for operations on balanced binary trees with up to 30 million tips.[^bench]
+\autoref{fig:benchmark} benchmarks throughput and memory efficiency for Python-based operations on balanced binary trees with up to 30 million tips.[^bench]
 
 Beyond tree sizes of around 300,000 tips[^small], PhyloFrame matches the throughput and efficiency of native-backed libraries (e.g., CompactTree, SuchTree) for most benchmarked operations.
 At very large tree sizes (e.g., $\geq$ 1 million tips), PhyloFrame substantially accelerates throughput for some operations.
 For traversals, benefit likely stems from capability to materialize node iteration within a JIT-compiled context.
-Topological-order traversals are particularly efficient, as they simply correspond to a sequential scan over array memory.
-Newick parsing, on the other hand, likely benefits from streamlined per-array memory allocation (as opposed to per-node allocation), while Newick generation leverages the Polars engine to accelerate string-building.
+Newick parsing, on the other hand, likely benefits from streamlined per-array memory allocation (as opposed to allocating node objects or setting up child lists), while Newick generation leverages the Polars engine to accelerate string-building.
+
+PhyloFrame’s architecture most closely resembles CompactTree, but differs in that taxon label and branch length attributes are optional, arbitrary end-user attributes are supported directly, and child lists use a flat array rather than nested structures (e.g., via compressed sparse row or linked lists).
+Under both libraries, topological-order traversals are particularly efficient, as they correspond to a sequential scan over array memory.
+Importantly, CompactTree's design priority is in supporting C++-based usage, which is strongly recommended over its Python-based bindings for performance --- a scenario not captured by the Python-based benchmarks reported here.
 
 An important performance trade-off not captured in these benchmarks is tree manipulation.
 While DataFrame-based representation does support mutable tree reconfiguration after construction, unlike allocated node-and-pointer representations, one-off node creation and deletion is not guaranteed $\mathcal{O}(1)$.
 
 [^bench]:
 Timings were conducted on GitHub action `ubuntu-24.04` runners (4-core x86/16GB memory circa May 2026), with cross-library comparisons restricted to common job instances for parity.
+Packages were installed via pip, `phyloframe[jit]==0.10.0`, `biopython==1.86`, `CompactTree==1.0.0`, `dendropy==5.0.8`, `treeswift==1.1.45`, `ete3==3.1.3`, `scikit-bio==0.6.3`, and `SuchTree==1.3`.
+PhyloFrame benchmarks report Polars-based operations.
 Raw data is archived at <https://osf.io/knw8x> [@foster2017open].
 Benchmark design follows [@moshiri2025compacttree].
 
@@ -145,7 +150,7 @@ A rich ensemble of existing libraries supports Python-based phylogenetic computi
 - ETE [@huertacepas2016ete3] combines tree reconstruction, analysis, and visualization capabilities, alongside integration with the NCBI taxonomy database.
 - scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit, including tree manipulation, reconstruction, and phylogenetic diversity metrics.
 - tskit [@wong2024args;@kelleher2016msprime] implements the succinct tree sequence data structure, a compact representation of correlated local trees along a recombining genome, used to represent Ancestral Recombination Graphs.
-- CompactTree [@moshiri2025compacttree] provides a memory-efficient C++ linked-node data structure implementation, distributed as a header-only library with a Python wrapper.
+- CompactTree [@moshiri2025compacttree] provides a memory-efficient array-based data structure implementation, distributed as a C++ header-only library with a Python wrapper.
 - TreeSwift [@moshiri2020treeswift] is a performance-oriented pure-Python library using a compact linked-node representation, designed to support very large trees.
 - SuchTree [@ryneches2018suchtree] uses a Cython-based array data structure, focusing on fast pairwise distance queries and co-phylogenetic analyses; operations release the Python GIL (Global Interpreter Lock) to allow multithread parallelism.
 - ToyTree [@eaton2019toytree] is an object-oriented library, providing integrated visualization functionality.
