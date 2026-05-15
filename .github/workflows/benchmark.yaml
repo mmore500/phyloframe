@@ -1,0 +1,56 @@
+name: benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  benchmark:
+    name: "benchmark ${{ matrix.n_leaves }} leaves"
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        n_leaves:
+          - 100
+          - 300
+          - 1000
+          - 3000
+          - 10000
+          - 30000
+          - 100000
+          - 300000
+          - 1000000
+          - 3000000
+          - 10000000
+          - 30000000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.12"
+      - name: Install phyloframe
+        run: python3 -m pip install ".[jit]"
+      - name: Install benchmark dependencies
+        run: |
+          sudo apt-get install -y swig
+          python3 -m pip install \
+            biopython==1.86 \
+            CompactTree==1.0.0 \
+            dendropy==5.0.8 \
+            treeswift==1.1.45 \
+            ete3==3.1.3 \
+            psutil \
+            scikit-bio==0.6.3 \
+            SuchTree==1.3
+      - name: Run benchmark
+        run: python3 joss/benchmark.py --size ${{ matrix.n_leaves }} > joss/benchmark-results.csv
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.n_leaves }}
+          path: joss/benchmark-results.csv
