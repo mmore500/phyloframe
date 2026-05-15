@@ -304,29 +304,6 @@ def _measure_memory(load_fn):
 
 
 # ── tree generation ──────────────────────────────────────────────────
-def _random_binary_newick(n_leaves):
-    """Build a random binary tree with n_leaves as a Newick string.
-
-    Uses treeswift's coalescent simulator when available, otherwise
-    builds a balanced binary tree newick string directly.
-    """
-    try:
-        import dendropy
-
-        taxa = dendropy.TaxonNamespace([f"t{i}" for i in range(n_leaves)])
-        tree = dendropy.simulate.treesim.birth_death_tree(
-            birth_rate=1.0,
-            death_rate=0.0,
-            num_extant_tips=n_leaves,
-            taxon_namespace=taxa,
-        )
-        return tree.as_string(schema="newick")
-    except Exception:
-        pass
-    # fallback: balanced binary tree
-    return _balanced_newick(n_leaves)
-
-
 def _balanced_newick(n):
     """Build a balanced binary newick string with n leaves."""
     if n <= 0:
