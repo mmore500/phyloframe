@@ -106,17 +106,18 @@ For a deeper introduction covering tree representation semantics, tree creation,
 
 If phyloframe contributes to a scholarly work, please cite it as
 
-> Matthew Andres Moreno. (2026). mmore500/phyloframe. Zenodo. https://doi.org/10.5281/zenodo.18842674
+> Moreno M. A., Sukumaran J., Zaman L., & Dolson E. (2026). PhyloFrame: A DataFrame-based Library for Fast, Flexible Phylogenetic Computation. arXiv preprint arXiv:2605.28545. https://doi.org/10.48550/arXiv.2605.28545
 
 ```bibtex
-@software{moreno2026phyloframe,
-  author = {Matthew Andres Moreno},
-  title = {mmore500/phyloframe},
-  month = mar,
-  year = 2026,
-  publisher = {Zenodo},
-  doi = {10.5281/zenodo.18842674},
-  url = {https://doi.org/10.5281/zenodo.18842674}
+@misc{moreno2026phyloframe,
+    doi={10.48550/arXiv.2605.28545},
+    url={https://arxiv.org/abs/2605.28545},
+    title={PhyloFrame: A DataFrame-based Library for Fast, Flexible Phylogenetic Computation},
+    author={Matthew Andres Moreno and Jeet Sukumaran and Luis Zaman and Emily Dolson},
+    year={2026},
+    eprint={2605.28545},
+    archivePrefix={arXiv},
+    primaryClass={q-bio.PE},
 }
 ```
 
