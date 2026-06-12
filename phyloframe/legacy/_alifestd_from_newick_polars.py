@@ -55,8 +55,8 @@ def alifestd_from_newick_polars(
         If True, include an ``ancestor_list`` column in the result.
     dtype_id : pl.DataType or None, default pl.Int64
         Polars dtype for the ``id`` and ``ancestor_id`` columns. If None, the
-        smallest signed integer dtype is chosen automatically based on the
-        number of commas in the Newick string.
+        smallest signed integer dtype that can hold all node ids is chosen
+        automatically based on the node count of the Newick string.
 
     Returns
     -------
@@ -72,8 +72,11 @@ def alifestd_from_newick_polars(
     """
     newick = newick.strip()
     if dtype_id is None:
-        comma_count = newick.count(",")
-        pl_dtype_id = min_scalar_type_polars(-max(comma_count, 1))
+        # the parser assigns one node id per '(' and per ',', plus the root,
+        # so the largest id is n_open_parens + n_commas; size the dtype from
+        # that node count rather than commas alone to avoid overflow
+        node_count = newick.count("(") + newick.count(",")
+        pl_dtype_id = min_scalar_type_polars(-max(node_count, 1))
     else:
         pl_dtype_id = dtype_id
 
@@ -123,6 +126,10 @@ def alifestd_from_newick_polars(
         data=pa.py_buffer(label_data),
     )
     labels_series = pl.Series("taxon_label", arrow_labels)
+    # spans exclude the outer quotes; collapse any doubled quotes (escaped
+    # literal quotes) back to a single quote. unquoted labels cannot contain
+    # quotes, so this global replacement is safe.
+    labels_series = labels_series.str.replace_all("''", "'", literal=True)
 
     # parse branch lengths directly in JIT (avoids Python string extraction)
     branch_lengths = _jit_parse_branch_lengths(

@@ -144,7 +144,14 @@ def _parse_newick_jit(
         elif c == SQUOTE:
             i += 1
             lbl_start = i
-            while i < n and chars[i] != SQUOTE:
+            while i < n:
+                if chars[i] == SQUOTE:
+                    # a doubled '' is an escaped literal quote: consume both
+                    # and keep scanning; a lone quote terminates the label
+                    if i + 1 < n and chars[i + 1] == SQUOTE:
+                        i += 2
+                        continue
+                    break
                 i += 1
             label_starts[cur] = lbl_start
             label_stops[cur] = i
@@ -287,7 +294,9 @@ def _extract_labels(
         if start == stop:
             labels[k] = ""
         else:
-            labels[k] = newick[start:stop].strip("'")
+            # spans exclude the outer quotes; collapse any doubled quotes
+            # (escaped literal quotes) back to a single quote
+            labels[k] = newick[start:stop].replace("''", "'")
     return labels
 
 
@@ -390,8 +399,8 @@ def alifestd_from_newick(
         If True, include an ``ancestor_list`` column in the result.
     dtype_id : type or None, default np.int64
         Numpy dtype for the ``id`` and ``ancestor_id`` columns. If None, the
-        smallest signed integer dtype is chosen automatically based on the
-        number of commas in the Newick string.
+        smallest signed integer dtype that can hold all node ids is chosen
+        automatically based on the node count of the Newick string.
 
     Returns
     -------
@@ -407,8 +416,11 @@ def alifestd_from_newick(
     """
     newick = newick.strip()
     if dtype_id is None:
-        comma_count = newick.count(",")
-        resolved_dtype_id = np.min_scalar_type(-max(comma_count, 1))
+        # the parser assigns one node id per '(' and per ',', plus the root,
+        # so the largest id is n_open_parens + n_commas; size the dtype from
+        # that node count rather than commas alone to avoid overflow
+        node_count = newick.count("(") + newick.count(",")
+        resolved_dtype_id = np.min_scalar_type(-max(node_count, 1))
     else:
         resolved_dtype_id = np.dtype(dtype_id)
 

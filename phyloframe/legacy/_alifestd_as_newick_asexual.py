@@ -38,7 +38,9 @@ def _format_newick_repr(taxon_label: str, origin_time_delta: str) -> str:
     label = taxon_label
 
     if label.translate(_UNSAFE_TRANSLATION_TABLE) != label:
-        label = label.join("''")
+        # quote the label, doubling any embedded single quotes per the
+        # Newick convention so the label round-trips through the parser
+        label = "'" + label.replace("'", "''") + "'"
 
     if origin_time_delta != "nan":
         if "." in origin_time_delta:
