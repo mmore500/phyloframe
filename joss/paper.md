@@ -168,7 +168,7 @@ A rich ensemble of existing libraries supports Python-based phylogenetic computi
 - Biopython [@cock2009biopython;@talevich2012biophylo] includes a Phylo module with a tree data structure and general-purpose utilites (including visualization).
 - ETE [@huertacepas2016ete3] combines tree reconstruction, analysis, and visualization capabilities, alongside integration with the NCBI taxonomy database.
 - scikit-bio [@aton2026scikitbio] provides a broad bioinformatics toolkit, including tree manipulation, reconstruction, and phylogenetic diversity metrics.
-- tskit [@wong2024args;@kelleher2016msprime] implements the succinct tree sequence data structure, a compact representation of correlated local trees along a recombining genome, used to represent Ancestral Recombination Graphs.
+- tskit [@wong2024args;@kelleher2019inferring] implements the succinct tree sequence data structure, a compact representation of correlated local trees along a recombining genome, used to represent Ancestral Recombination Graphs.
 - CompactTree [@moshiri2025compacttree] provides a memory-efficient array-based data structure implementation, distributed as a C++ header-only library with a Python wrapper.
 - TreeSwift [@moshiri2020treeswift] is a performance-oriented pure-Python library using a compact linked-node representation, designed to support very large trees.
 - SuchTree [@ryneches2018suchtree] uses a Cython-based array data structure, focusing on fast pairwise distance queries and co-phylogenetic analyses; operations release the Python GIL (Global Interpreter Lock) to allow multithread parallelism.
