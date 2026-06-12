@@ -149,12 +149,12 @@ def _parse_newick_jit(
             lbl_start = i
             while i < n:
                 if chars[i] == SQUOTE:
-                    # a doubled '' is an escaped literal quote: consume both
-                    # and keep scanning; a lone quote terminates the label
-                    if i + 1 < n and chars[i + 1] == SQUOTE:
-                        i += 2
-                        continue
-                    break
+                    # a lone quote closes the label; a doubled '' is an
+                    # escaped literal quote, so skip its first quote here
+                    # and let the shared increment consume the second
+                    if i + 1 >= n or chars[i + 1] != SQUOTE:
+                        break
+                    i += 1
                 i += 1
             label_starts[cur] = lbl_start
             label_stops[cur] = i

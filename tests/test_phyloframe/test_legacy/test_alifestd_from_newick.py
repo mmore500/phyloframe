@@ -804,3 +804,18 @@ def test_as_newick_quotes_labels_with_spaces():
         phylogeny_df, taxon_label="taxon_label"
     )
     assert "'root node'" in newick
+
+
+def test_parse_replace_unquoted_cli():
+    from phyloframe.legacy._alifestd_from_newick import (
+        _parse_replace_unquoted_cli,
+    )
+
+    assert _parse_replace_unquoted_cli([]) is None
+    assert _parse_replace_unquoted_cli(["_= "]) == {"_": " "}
+    # value may be empty (delete the character)
+    assert _parse_replace_unquoted_cli(["_="]) == {"_": ""}
+    # multiple substitutions
+    assert _parse_replace_unquoted_cli(["_= ", "+=-"]) == {"_": " ", "+": "-"}
+    with pytest.raises(ValueError):
+        _parse_replace_unquoted_cli(["no-equals-sign"])
