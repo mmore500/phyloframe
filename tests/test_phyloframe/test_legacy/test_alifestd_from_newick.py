@@ -871,6 +871,19 @@ def test_forest_forbidden_raises():
     assert len(result) == 3
 
 
+def test_as_newick_empty_yields_semicolon():
+    empty_df = pd.DataFrame(
+        {
+            "id": pd.Series([], dtype=int),
+            "ancestor_id": pd.Series([], dtype=int),
+            "taxon_label": pd.Series([], dtype=str),
+        },
+    )
+    assert (
+        alifestd_as_newick_asexual(empty_df, taxon_label="taxon_label") == ";"
+    )
+
+
 def test_as_newick_sep_forest():
     forest_df = pd.DataFrame(
         {

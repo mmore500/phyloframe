@@ -87,9 +87,12 @@ def _build_newick_string(
 
     logging.info(f"finalizing {len(child_newick_reprs)} subtrees...")
     # each tree is terminated by ';'; trees (a forest) are joined by
-    # sep_forest
-    return sep_forest.join(
-        f"{mit.one(reprs)};" for reprs in child_newick_reprs.values()
+    # sep_forest. an empty phylogeny still yields a bare ';'.
+    return (
+        sep_forest.join(
+            f"{mit.one(reprs)};" for reprs in child_newick_reprs.values()
+        )
+        or ";"
     )
 
 
