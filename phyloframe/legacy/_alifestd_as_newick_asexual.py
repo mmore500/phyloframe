@@ -29,7 +29,9 @@ from ._alifestd_unfurl_traversal_postorder_asexual import (
 )
 
 # adapted from https://stackoverflow.com/a/3939381/17332200
-_UNSAFE_SYMBOLS = ";(),[]:'"
+# whitespace is included so labels with spaces are quoted: an unquoted space
+# is non-standard Newick and, under the underscore convention, ambiguous
+_UNSAFE_SYMBOLS = ";(),[]:' \t\n"
 _UNSAFE_TRANSLATION_TABLE = str.maketrans("", "", _UNSAFE_SYMBOLS)
 
 

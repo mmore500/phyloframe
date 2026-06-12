@@ -21,7 +21,9 @@ from .._auxlib._min_scalar_type_polars import min_scalar_type_polars
 from ._alifestd_from_newick import (
     _jit_build_label_buffer,
     _jit_parse_branch_lengths,
+    _make_replace_unquoted_table,
     _parse_newick_jit,
+    _parse_replace_unquoted_cli,
 )
 
 
@@ -35,6 +37,7 @@ def alifestd_from_newick_polars(
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
+    replace_unquoted: typing.Optional[typing.Mapping[str, str]] = None,
 ) -> pl.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -57,6 +60,11 @@ def alifestd_from_newick_polars(
         Polars dtype for the ``id`` and ``ancestor_id`` columns. If None, the
         smallest signed integer dtype that can hold all node ids is chosen
         automatically based on the node count of the Newick string.
+    replace_unquoted : Mapping[str, str], optional
+        Character substitutions to apply to *unquoted* taxon labels only,
+        leaving quoted labels verbatim. Keys must be single characters.
+        Pass ``{"_": " "}`` to follow the strict Newick convention in which
+        an unquoted underscore denotes a space.
 
     Returns
     -------
@@ -65,11 +73,12 @@ def alifestd_from_newick_polars(
 
     Notes
     -----
-    Unquoted underscores in taxon labels are preserved literally; they are
-    *not* converted to spaces. This diverges from the strict Newick
+    By default, unquoted underscores in taxon labels are preserved literally;
+    they are *not* converted to spaces. This diverges from the strict Newick
     convention (in which an unquoted ``_`` denotes a space), but matches the
-    round-trip behavior of ``alifestd_as_newick_asexual``. Use quoted labels
-    (e.g., ``'a b'``) for labels that should contain spaces.
+    round-trip behavior of ``alifestd_as_newick_asexual``. Pass
+    ``replace_unquoted={"_": " "}`` to follow the strict convention, or use
+    quoted labels (e.g., ``'a b'``) for labels that should contain spaces.
 
     See Also
     --------
@@ -110,6 +119,7 @@ def alifestd_from_newick_polars(
         ancestor_ids,
         label_starts,
         label_stops,
+        label_quoted,
         bl_starts,
         bl_stops,
         bl_node_ids,
@@ -138,6 +148,20 @@ def alifestd_from_newick_polars(
     # literal quotes) back to a single quote. unquoted labels cannot contain
     # quotes, so this global replacement is safe.
     labels_series = labels_series.str.replace_all("''", "'", literal=True)
+
+    if replace_unquoted:
+        # apply character substitutions to unquoted labels only; quoted
+        # labels are left verbatim. replace_many does simultaneous literal
+        # replacement, matching str.translate semantics for single chars.
+        _make_replace_unquoted_table(replace_unquoted)  # validate keys
+        quoted_mask = pl.Series(label_quoted[:num_nodes].astype(bool))
+        translated = labels_series.str.replace_many(dict(replace_unquoted))
+        labels_series = pl.select(
+            pl.when(quoted_mask)
+            .then(labels_series)
+            .otherwise(translated)
+            .alias("taxon_label"),
+        ).to_series()
 
     # parse branch lengths directly in JIT (avoids Python string extraction)
     branch_lengths = _jit_parse_branch_lengths(
@@ -219,6 +243,21 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Include an ancestor_list column in the output.",
     )
     parser.add_argument(
+        "--replace-unquoted",
+        action="append",
+        dest="replace_unquoted",
+        type=str,
+        default=[],
+        metavar="FROM=TO",
+        help=(
+            "Substitute character FROM with TO in unquoted taxon labels only "
+            "(quoted labels are left verbatim). FROM must be a single "
+            "character; TO may be empty to delete it. Specify multiple "
+            "substitutions by repeating this flag. "
+            "Example: '_= ' maps unquoted underscores to spaces."
+        ),
+    )
+    parser.add_argument(
         "--output-kwarg",
         action="append",
         dest="output_kwargs",
@@ -260,6 +299,9 @@ if __name__ == "__main__":
             newick_str,
             branch_length_dtype=_dtype_lookup[args.branch_length_dtype],
             create_ancestor_list=args.create_ancestor_list,
+            replace_unquoted=_parse_replace_unquoted_cli(
+                args.replace_unquoted
+            ),
         )
 
     output_ext = os.path.splitext(args.output_file)[1]

@@ -744,3 +744,63 @@ def test_as_newick_missing_origin_time_delta_nullable_int():
     assert root["branch_length"].isna().all()
     children = reparsed[reparsed["id"] != reparsed["ancestor_id"]]
     assert set(children["branch_length"]) == {5.0, 10.0}
+
+
+def test_replace_unquoted_underscore_to_space():
+    result = alifestd_from_newick(
+        "(Homo_sapiens,Pan_troglodytes)root_node;",
+        replace_unquoted={"_": " "},
+    )
+    labels = set(result["taxon_label"])
+    assert labels == {"Homo sapiens", "Pan troglodytes", "root node"}
+
+
+def test_replace_unquoted_leaves_quoted_labels_verbatim():
+    # quoted labels must not be touched by replace_unquoted
+    result = alifestd_from_newick(
+        "(plain_label,'keep_this_one':1)r;",
+        replace_unquoted={"_": " "},
+    )
+    labels = set(result["taxon_label"])
+    assert "plain label" in labels
+    assert "keep_this_one" in labels
+
+
+def test_replace_unquoted_multichar_key_raises():
+    with pytest.raises(ValueError):
+        alifestd_from_newick("(a,b);", replace_unquoted={"ab": " "})
+
+
+def test_replace_unquoted_space_roundtrip():
+    # spaces are auto-quoted on write, so reading with replace_unquoted does
+    # not corrupt them; underscores stay underscores
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "taxon_label": ["root node", "leaf_a"],
+            "origin_time_delta": [np.nan, 1.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    # the space-containing label is quoted; the underscore one is not
+    assert "'root node'" in newick
+    reparsed = alifestd_from_newick(newick, replace_unquoted={"_": " "})
+    assert set(reparsed["taxon_label"]) == {"root node", "leaf a"}
+
+
+def test_as_newick_quotes_labels_with_spaces():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "taxon_label": ["root node", "a"],
+            "origin_time_delta": [np.nan, 1.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    assert "'root node'" in newick

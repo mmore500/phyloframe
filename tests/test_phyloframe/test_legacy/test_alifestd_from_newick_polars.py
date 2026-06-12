@@ -336,3 +336,20 @@ def test_roundtrip_label_with_quote():
     )
     reparsed = alifestd_from_newick_polars(newick)
     assert set(reparsed["taxon_label"].to_list()) == {"root", "o'brien", "b"}
+
+
+def test_replace_unquoted_underscore_to_space():
+    result = alifestd_from_newick_polars(
+        "(Homo_sapiens,'keep_this_one':1)root_node;",
+        replace_unquoted={"_": " "},
+    )
+    labels = set(result["taxon_label"].to_list())
+    # unquoted labels translated; quoted label left verbatim
+    assert "Homo sapiens" in labels
+    assert "root node" in labels
+    assert "keep_this_one" in labels
+
+
+def test_replace_unquoted_multichar_key_raises():
+    with pytest.raises(ValueError):
+        alifestd_from_newick_polars("(a,b);", replace_unquoted={"ab": " "})
