@@ -46,7 +46,7 @@ def _format_newick_repr(
     if label.translate(unsafe_table) != label:
         # quote the label, doubling any embedded single quotes per the
         # Newick convention so the label round-trips through the parser
-        label = "'" + label.replace("'", "''") + "'"
+        label = label.replace("'", "''").join("''")
 
     if has_origin_time_delta:
         if "." in origin_time_delta:
