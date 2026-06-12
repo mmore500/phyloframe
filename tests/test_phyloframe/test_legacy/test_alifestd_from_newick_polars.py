@@ -353,3 +353,27 @@ def test_replace_unquoted_underscore_to_space():
 def test_replace_unquoted_multichar_key_raises():
     with pytest.raises(ValueError):
         alifestd_from_newick_polars("(a,b);", replace_unquoted={"ab": " "})
+
+
+def test_multitree_forest_read():
+    result = alifestd_from_newick_polars("(a,b)r1;(c,d)r2;")
+    roots = result.filter(pl.col("id") == pl.col("ancestor_id"))
+    assert len(roots) == 2
+    assert set(roots["taxon_label"].to_list()) == {"r1", "r2"}
+    assert {"a", "b", "c", "d"} <= set(result["taxon_label"].to_list())
+
+
+def test_multitree_forest_roundtrip():
+    forest_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 2, 2],
+            "taxon_label": ["r1", "a", "r2", "b"],
+            "origin_time_delta": [np.nan, 1.0, np.nan, 2.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(forest_df, taxon_label="taxon_label")
+    reparsed = alifestd_from_newick_polars(newick)
+    roots = reparsed.filter(pl.col("id") == pl.col("ancestor_id"))
+    assert len(roots) == 2
+    assert set(reparsed["taxon_label"].to_list()) == {"r1", "a", "r2", "b"}

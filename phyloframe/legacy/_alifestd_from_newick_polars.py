@@ -1,4 +1,5 @@
 import argparse
+import ast
 import logging
 import os
 import pathlib
@@ -19,11 +20,11 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._min_scalar_type_polars import min_scalar_type_polars
 from ._alifestd_from_newick import (
+    _NO_REPLACE,
     _jit_build_label_buffer,
     _jit_parse_branch_lengths,
     _make_replace_unquoted_table,
     _parse_newick_jit,
-    _parse_replace_unquoted_cli,
 )
 
 
@@ -37,7 +38,7 @@ def alifestd_from_newick_polars(
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
-    replace_unquoted: typing.Optional[typing.Mapping[str, str]] = None,
+    replace_unquoted: typing.Mapping[str, str] = _NO_REPLACE,
 ) -> pl.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -77,8 +78,7 @@ def alifestd_from_newick_polars(
     they are *not* converted to spaces. This diverges from the strict Newick
     convention (in which an unquoted ``_`` denotes a space), but matches the
     round-trip behavior of ``alifestd_as_newick_asexual``. Pass
-    ``replace_unquoted={"_": " "}`` to follow the strict convention, or use
-    quoted labels (e.g., ``'a b'``) for labels that should contain spaces.
+    ``replace_unquoted={"_": " "}`` to follow the strict convention.
 
     See Also
     --------
@@ -89,10 +89,10 @@ def alifestd_from_newick_polars(
     """
     newick = newick.strip()
     if dtype_id is None:
-        # the parser assigns one node id per '(' and per ',', plus the root,
-        # so the largest id is n_open_parens + n_commas; size the dtype from
-        # that node count rather than commas alone to avoid overflow
-        node_count = newick.count("(") + newick.count(",")
+        # the parser assigns one node id per '(' and per ',', plus one root
+        # per tree (';'-terminated); size the dtype from that node-count
+        # upper bound rather than commas alone to avoid overflow
+        node_count = newick.count("(") + newick.count(",") + newick.count(";")
         pl_dtype_id = min_scalar_type_polars(-max(node_count, 1))
     else:
         pl_dtype_id = dtype_id
@@ -244,17 +244,14 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--replace-unquoted",
-        action="append",
-        dest="replace_unquoted",
         type=str,
-        default=[],
-        metavar="FROM=TO",
+        default="{}",
+        metavar="MAPPING",
         help=(
-            "Substitute character FROM with TO in unquoted taxon labels only "
-            "(quoted labels are left verbatim). FROM must be a single "
-            "character; TO may be empty to delete it. Specify multiple "
-            "substitutions by repeating this flag. "
-            "Example: '_= ' maps unquoted underscores to spaces."
+            "Mapping of single-character substitutions to apply to unquoted "
+            "taxon labels only (quoted labels are left verbatim), given as a "
+            "Python dict literal. "
+            "Example: \"{'_': ' '}\" maps unquoted underscores to spaces."
         ),
     )
     parser.add_argument(
@@ -299,9 +296,7 @@ if __name__ == "__main__":
             newick_str,
             branch_length_dtype=_dtype_lookup[args.branch_length_dtype],
             create_ancestor_list=args.create_ancestor_list,
-            replace_unquoted=_parse_replace_unquoted_cli(
-                args.replace_unquoted
-            ),
+            replace_unquoted=ast.literal_eval(args.replace_unquoted),
         )
 
     output_ext = os.path.splitext(args.output_file)[1]

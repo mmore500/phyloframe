@@ -32,19 +32,23 @@ from ._alifestd_unfurl_traversal_postorder_asexual import (
 # whitespace is included so labels with spaces are quoted: an unquoted space
 # is non-standard Newick and, under the underscore convention, ambiguous
 _UNSAFE_SYMBOLS = ";(),[]:' \t\n"
-_UNSAFE_TRANSLATION_TABLE = str.maketrans("", "", _UNSAFE_SYMBOLS)
 
 
-def _format_newick_repr(taxon_label: str, origin_time_delta: str) -> str:
+def _format_newick_repr(
+    taxon_label: str,
+    origin_time_delta: str,
+    has_origin_time_delta: bool,
+    unsafe_table: dict,
+) -> str:
     # adapted from https://github.com/niemasd/TreeSwift/blob/63b8979fb5e616ba89079d44e594682683c1365e/treeswift/Node.py#L129
     label = taxon_label
 
-    if label.translate(_UNSAFE_TRANSLATION_TABLE) != label:
+    if label.translate(unsafe_table) != label:
         # quote the label, doubling any embedded single quotes per the
         # Newick convention so the label round-trips through the parser
         label = "'" + label.replace("'", "''") + "'"
 
-    if origin_time_delta != "nan":
+    if has_origin_time_delta:
         if "." in origin_time_delta:
             origin_time_delta = origin_time_delta.rstrip("0").rstrip(".")
         label = f"{label}:{origin_time_delta}"
@@ -58,22 +62,28 @@ def _build_newick_string(
     origin_time_deltas: np.ndarray,
     ancestor_ids: np.ndarray,
     *,
+    unsafe_table: dict,
     progress_wrap: typing.Callable,
 ) -> str:
-    # normalize missing values to the "nan" sentinel that _format_newick_repr
-    # recognizes; otherwise nullable-int columns stringify pd.NA as "<NA>"
-    # (and floats as "nan"), leaking an invalid ":<NA>" edge length
-    origin_time_delta_strs = np.where(
-        pd.isna(origin_time_deltas),
-        "nan",
-        origin_time_deltas.astype(str),
-    )
+    # detect missing values with a mask rather than a string sentinel, so a
+    # branch length (or taxon label) that happens to stringify as "nan" is
+    # not mistaken for a missing edge length
+    has_origin_time_delta = ~pd.isna(origin_time_deltas)
+    origin_time_delta_strs = origin_time_deltas.astype(str)
 
     child_newick_reprs = dict()
-    for id_, taxon_label, origin_time_delta, ancestor_id in progress_wrap(
-        zip(ids, labels, origin_time_delta_strs, ancestor_ids)
+    for id_, taxon_label, otd_str, has_otd, ancestor_id in progress_wrap(
+        zip(
+            ids,
+            labels,
+            origin_time_delta_strs,
+            has_origin_time_delta,
+            ancestor_ids,
+        )
     ):
-        newick_repr = _format_newick_repr(taxon_label, origin_time_delta)
+        newick_repr = _format_newick_repr(
+            taxon_label, otd_str, has_otd, unsafe_table
+        )
 
         children_reprs = child_newick_reprs.pop(id_, None)
         if children_reprs is not None:
@@ -92,6 +102,7 @@ def alifestd_as_newick_asexual(
     mutate: bool = False,
     *,
     taxon_label: typing.Optional[str] = None,
+    unsafe_symbols: str = _UNSAFE_SYMBOLS,
     progress_wrap: typing.Callable = lambda x: x,
 ) -> str:
     """Convert phylogeny dataframe to Newick format.
@@ -104,6 +115,9 @@ def alifestd_as_newick_asexual(
         Allow in-place mutations of the input dataframe, by default False.
     taxon_label : str, optional
         Column to use for taxon labels, by default None.
+    unsafe_symbols : str, optional
+        Characters that force a taxon label to be single-quoted when present.
+        Defaults to the Newick-reserved symbols (and whitespace).
     progress_wrap : typing.Callable, optional
         Pass tqdm or equivalent to display a progress bar.
     """
@@ -158,7 +172,12 @@ def alifestd_as_newick_asexual(
     )
 
     logging.info("creating newick string...")
-    result = _build_newick_string(*reshaped, progress_wrap=progress_wrap)
+    unsafe_table = str.maketrans("", "", unsafe_symbols)
+    result = _build_newick_string(
+        *reshaped,
+        unsafe_table=unsafe_table,
+        progress_wrap=progress_wrap,
+    )
 
     logging.info(f"{len(result)=} {result[:20]=}")
     return result
@@ -217,6 +236,15 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Name of column to use as taxon label.",
         required=False,
     )
+    parser.add_argument(
+        "--unsafe-symbols",
+        type=str,
+        default=_UNSAFE_SYMBOLS,
+        help=(
+            "Characters that force a taxon label to be single-quoted when "
+            "present. Defaults to the Newick-reserved symbols and whitespace."
+        ),
+    )
     add_compression_cli_arg(parser)
     parser.add_argument(
         "-v",
@@ -264,7 +292,10 @@ if __name__ == "__main__":
     ):
         logging.info("converting to Newick format...")
         newick_str = alifestd_as_newick_asexual(
-            phylogeny_df, progress_wrap=tqdm, taxon_label=args.taxon_label
+            phylogeny_df,
+            progress_wrap=tqdm,
+            taxon_label=args.taxon_label,
+            unsafe_symbols=args.unsafe_symbols,
         )
 
     logging.info(f"writing Newick-formatted data to {args.output_file}...")

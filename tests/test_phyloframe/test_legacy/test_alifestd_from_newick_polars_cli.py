@@ -66,7 +66,7 @@ def test_alifestd_from_newick_polars_cli_replace_unquoted(
             "-o",
             str(output_file),
             "--replace-unquoted",
-            "_= ",
+            "{'_': ' '}",
         ],
         check=True,
     )

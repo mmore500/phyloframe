@@ -1,7 +1,9 @@
 import argparse
+import ast
 import logging
 import os
 import pathlib
+import types
 import typing
 
 import numpy as np
@@ -17,6 +19,9 @@ from .._auxlib._jit import jit
 from .._auxlib._jit_parse_float import jit_parse_float
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
+
+# immutable empty mapping, used as a safe default for replace_unquoted
+_NO_REPLACE: typing.Mapping[str, str] = types.MappingProxyType({})
 
 
 @jit(nopython=True)
@@ -50,14 +55,16 @@ def _parse_newick_jit(
     -------
     tuple
         (ids, ancestor_ids, label_starts, label_stops, label_quoted,
-         bl_starts, bl_stops, bl_node_ids, num_nodes, num_bls). ``label_quoted``
-         is a uint8 array flagging whether each node's label was quoted.
+         bl_starts, bl_stops, bl_node_ids, num_nodes, num_bls).
     """
     # estimate max node count using a translation table: each '(' and ','
-    # creates a node, plus the root
+    # creates a node, each ';' may start a new tree's root, plus the first
+    # root. ';' is an upper bound (trailing/empty trees overcount, which is
+    # harmless since arrays are trimmed to num_nodes).
     node_weight = np.zeros(256, dtype=np.int64)
     node_weight[np.uint8(ord(","))] = 1
     node_weight[np.uint8(ord("("))] = 1
+    node_weight[np.uint8(ord(";"))] = 1
     max_nodes = 1 + np.sum(node_weight[chars])
 
     # pre-allocate arrays using heuristic size
@@ -81,6 +88,13 @@ def _parse_newick_jit(
     LBRACKET = np.uint8(ord("["))
     RBRACKET = np.uint8(ord("]"))
 
+    # whitespace separating consecutive trees in a multi-tree (forest) string
+    is_space = np.zeros(256, dtype=np.uint8)
+    is_space[SPACE] = 1
+    is_space[np.uint8(ord("\t"))] = 1
+    is_space[np.uint8(ord("\n"))] = 1
+    is_space[np.uint8(ord("\r"))] = 1
+
     # translation tables for delimiter detection
     is_bl_term = np.zeros(256, dtype=np.uint8)
     is_bl_term[COMMA] = 1
@@ -103,9 +117,26 @@ def _parse_newick_jit(
 
     cur = 0
     i = 0
+    need_new_root = False
 
     while i < n:
         c = chars[i]
+
+        # after ';', the next non-whitespace content begins a new tree, so
+        # allocate a fresh root for it (forest / multi-tree support)
+        if need_new_root:
+            if is_space[c]:
+                i += 1
+                continue
+            if c == SEMI:  # empty tree (e.g. consecutive ';;'); skip
+                i += 1
+                continue
+            root_id = num_nodes
+            ids[root_id] = root_id
+            ancestor_ids[root_id] = root_id
+            num_nodes += 1
+            cur = root_id
+            need_new_root = False
 
         # go to new child: '(' — most frequent structural characters first
         if c == LPAREN:
@@ -148,14 +179,12 @@ def _parse_newick_jit(
             i += 1
             lbl_start = i
             while i < n:
-                if chars[i] == SQUOTE:
-                    # a lone quote closes the label; a doubled '' is an
-                    # escaped literal quote, so skip its first quote here
-                    # and let the shared increment consume the second
-                    if i + 1 >= n or chars[i + 1] != SQUOTE:
-                        break
-                    i += 1
-                i += 1
+                if chars[i] != SQUOTE:
+                    i += 1  # ordinary label character
+                elif i + 1 < n and chars[i + 1] == SQUOTE:
+                    i += 2  # doubled '' is an escaped literal quote
+                else:
+                    break  # lone quote closes the label
             label_starts[cur] = lbl_start
             label_stops[cur] = i
             label_quoted[cur] = 1
@@ -171,9 +200,9 @@ def _parse_newick_jit(
                 i += 1
             i -= 1  # will be incremented at end of loop
 
-        # end of newick string
+        # end of current tree; a following tree (if any) starts a new root
         elif c == SEMI:
-            pass
+            need_new_root = True
 
         # unquoted label
         else:
@@ -283,7 +312,7 @@ def _parse_newick(
         ancestor_ids,
         branch_lengths,
         label_start_stops,
-        label_quoted[:num_nodes].astype(bool),
+        label_quoted[:num_nodes],
     )
 
 
@@ -291,31 +320,24 @@ def _extract_labels(
     newick: str,
     chars: np.ndarray,
     label_start_stops: np.ndarray,
-    label_quoted: typing.Optional[np.ndarray] = None,
-    replace_unquoted_table: typing.Optional[dict] = None,
+    label_quoted: np.ndarray,
+    replace_unquoted_table: dict,
 ) -> np.ndarray:
     """Extract taxon labels from newick string using index ranges.
 
     Implementation detail for `alifestd_from_newick`.
 
-    If ``replace_unquoted_table`` is given (a ``str.maketrans`` table), its
-    character mapping is applied to *unquoted* labels only, leaving quoted
-    labels verbatim. ``label_quoted`` flags which labels were quoted.
+    The character mapping in ``replace_unquoted_table`` (a ``str.maketrans``
+    table, possibly empty) is applied to *unquoted* labels only, leaving
+    quoted labels verbatim. ``label_quoted`` flags which labels were quoted.
     """
     num_nodes = len(label_start_stops)
     labels = np.empty(num_nodes, dtype=object)
     for k, (start, stop) in enumerate(label_start_stops):
-        if start == stop:
-            labels[k] = ""
-            continue
         # spans exclude the outer quotes; collapse any doubled quotes
         # (escaped literal quotes) back to a single quote
         label = newick[start:stop].replace("''", "'")
-        if (
-            replace_unquoted_table is not None
-            and label_quoted is not None
-            and not label_quoted[k]
-        ):
+        if replace_unquoted_table and not label_quoted[k]:
             label = label.translate(replace_unquoted_table)
         labels[k] = label
     return labels
@@ -392,44 +414,18 @@ def _jit_parse_branch_lengths(
 
 
 def _make_replace_unquoted_table(
-    replace_unquoted: typing.Optional[typing.Mapping[str, str]],
-) -> typing.Optional[dict]:
+    replace_unquoted: typing.Mapping[str, str],
+) -> dict:
     """Build a ``str.translate`` table from a single-character mapping.
 
-    Returns None when no substitutions are requested. Raises ValueError if
-    any key is not a single character.
+    Returns a (possibly empty) translation table. Raises ValueError if any
+    key is not a single character.
 
     Implementation detail shared by the pandas and polars newick parsers.
     """
-    if not replace_unquoted:
-        return None
-    for key in replace_unquoted:
-        if len(key) != 1:
-            raise ValueError(
-                "replace_unquoted keys must be single characters; "
-                f"got {key!r}",
-            )
+    if any(len(key) != 1 for key in replace_unquoted):
+        raise ValueError("replace_unquoted keys must be single characters")
     return str.maketrans(dict(replace_unquoted))
-
-
-def _parse_replace_unquoted_cli(
-    items: typing.Sequence[str],
-) -> typing.Optional[dict]:
-    """Parse ``--replace-unquoted`` CLI ``from=to`` pairs into a mapping.
-
-    The value (right of the first ``=``) may be empty to delete a character.
-    Returns None when no substitutions are requested.
-    """
-    mapping = {}
-    for item in items:
-        if "=" not in item:
-            raise ValueError(
-                "replace-unquoted must be given as 'from=to'; "
-                f"got {item!r}",
-            )
-        key, _, value = item.partition("=")
-        mapping[key] = value
-    return mapping or None
 
 
 # Performance (as of 2026-03-15, 200k-node caterpillar tree, JIT-warmed):
@@ -441,7 +437,7 @@ def alifestd_from_newick(
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[type] = np.int64,
-    replace_unquoted: typing.Optional[typing.Mapping[str, str]] = None,
+    replace_unquoted: typing.Mapping[str, str] = _NO_REPLACE,
 ) -> pd.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -481,8 +477,7 @@ def alifestd_from_newick(
     they are *not* converted to spaces. This diverges from the strict Newick
     convention (in which an unquoted ``_`` denotes a space), but matches the
     round-trip behavior of ``alifestd_as_newick_asexual``. Pass
-    ``replace_unquoted={"_": " "}`` to follow the strict convention, or use
-    quoted labels (e.g., ``'a b'``) for labels that should contain spaces.
+    ``replace_unquoted={"_": " "}`` to follow the strict convention.
 
     See Also
     --------
@@ -494,10 +489,10 @@ def alifestd_from_newick(
     newick = newick.strip()
     replace_unquoted_table = _make_replace_unquoted_table(replace_unquoted)
     if dtype_id is None:
-        # the parser assigns one node id per '(' and per ',', plus the root,
-        # so the largest id is n_open_parens + n_commas; size the dtype from
-        # that node count rather than commas alone to avoid overflow
-        node_count = newick.count("(") + newick.count(",")
+        # the parser assigns one node id per '(' and per ',', plus one root
+        # per tree (';'-terminated); size the dtype from that node-count
+        # upper bound rather than commas alone to avoid overflow
+        node_count = newick.count("(") + newick.count(",") + newick.count(";")
         resolved_dtype_id = np.min_scalar_type(-max(node_count, 1))
     else:
         resolved_dtype_id = np.dtype(dtype_id)
@@ -612,17 +607,14 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--replace-unquoted",
-        action="append",
-        dest="replace_unquoted",
         type=str,
-        default=[],
-        metavar="FROM=TO",
+        default="{}",
+        metavar="MAPPING",
         help=(
-            "Substitute character FROM with TO in unquoted taxon labels only "
-            "(quoted labels are left verbatim). FROM must be a single "
-            "character; TO may be empty to delete it. Specify multiple "
-            "substitutions by repeating this flag. "
-            "Example: '_= ' maps unquoted underscores to spaces."
+            "Mapping of single-character substitutions to apply to unquoted "
+            "taxon labels only (quoted labels are left verbatim), given as a "
+            "Python dict literal. "
+            "Example: \"{'_': ' '}\" maps unquoted underscores to spaces."
         ),
     )
     parser.add_argument(
@@ -668,9 +660,7 @@ if __name__ == "__main__":
             newick_str,
             branch_length_dtype=_dtype_lookup[args.branch_length_dtype],
             create_ancestor_list=args.create_ancestor_list,
-            replace_unquoted=_parse_replace_unquoted_cli(
-                args.replace_unquoted
-            ),
+            replace_unquoted=ast.literal_eval(args.replace_unquoted),
         )
 
     output_ext = os.path.splitext(args.output_file)[1]

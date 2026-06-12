@@ -64,7 +64,7 @@ def test_alifestd_from_newick_cli_replace_unquoted(tmp_path: pathlib.Path):
             "-o",
             str(output_file),
             "--replace-unquoted",
-            "_= ",
+            "{'_': ' '}",
         ],
         check=True,
     )
