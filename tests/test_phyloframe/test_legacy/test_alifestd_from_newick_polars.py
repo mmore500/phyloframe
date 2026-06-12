@@ -363,6 +363,15 @@ def test_multitree_forest_read():
     assert {"a", "b", "c", "d"} <= set(result["taxon_label"].to_list())
 
 
+def test_multitree_forest_read_empty_trees_skipped():
+    # consecutive/trailing ';' denote empty trees and are skipped
+    result = alifestd_from_newick_polars("a;;b;;")
+    roots = result.filter(pl.col("id") == pl.col("ancestor_id"))
+    assert len(result) == 2
+    assert len(roots) == 2
+    assert set(result["taxon_label"].to_list()) == {"a", "b"}
+
+
 def test_multitree_forest_roundtrip():
     forest_df = pd.DataFrame(
         {

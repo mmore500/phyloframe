@@ -830,6 +830,16 @@ def test_multitree_forest_read_whitespace_separated():
     assert set(result["taxon_label"]) == {"a", "b"}
 
 
+def test_multitree_forest_read_empty_trees_skipped():
+    # consecutive/trailing ';' denote empty trees and are skipped, not turned
+    # into spurious roots
+    result = alifestd_from_newick("a;;b;;")
+    roots = result[result["id"] == result["ancestor_id"]]
+    assert len(result) == 2
+    assert len(roots) == 2
+    assert set(result["taxon_label"]) == {"a", "b"}
+
+
 def test_multitree_forest_roundtrip():
     forest_df = pd.DataFrame(
         {
