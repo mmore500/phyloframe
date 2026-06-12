@@ -65,9 +65,6 @@ def _build_newick_string(
     unsafe_table: dict,
     progress_wrap: typing.Callable,
 ) -> str:
-    # detect missing values with a mask rather than a string sentinel, so a
-    # branch length (or taxon label) that happens to stringify as "nan" is
-    # not mistaken for a missing edge length
     has_origin_time_delta = ~pd.isna(origin_time_deltas)
     origin_time_delta_strs = origin_time_deltas.astype(str)
 
