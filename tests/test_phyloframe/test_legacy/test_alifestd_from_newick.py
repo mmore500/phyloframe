@@ -710,3 +710,37 @@ def test_roundtrip_label_with_quote():
     )
     reparsed = alifestd_from_newick(newick)
     assert set(reparsed["taxon_label"]) == {"root", "o'brien", "b"}
+
+
+def test_unquoted_underscore_preserved():
+    # unquoted underscores are kept literally, not converted to spaces
+    result = alifestd_from_newick("(Homo_sapiens,Pan_troglodytes);")
+    labels = set(result["taxon_label"])
+    assert "Homo_sapiens" in labels
+    assert "Pan_troglodytes" in labels
+
+
+def test_as_newick_missing_origin_time_delta_nullable_int():
+    # nullable-int origin_time_delta with a missing value must not leak an
+    # invalid ":<NA>" edge length into the output
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "taxon_label": ["root", "a", "b"],
+            "origin_time_delta": pd.array(
+                [pd.NA, 5, 10], dtype=pd.Int64Dtype()
+            ),
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    assert "<NA>" not in newick
+    assert "nan" not in newick
+    # root (missing delta) has no edge length; children keep theirs
+    reparsed = alifestd_from_newick(newick)
+    root = reparsed[reparsed["id"] == reparsed["ancestor_id"]]
+    assert root["branch_length"].isna().all()
+    children = reparsed[reparsed["id"] != reparsed["ancestor_id"]]
+    assert set(children["branch_length"]) == {5.0, 10.0}

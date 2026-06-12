@@ -407,6 +407,14 @@ def alifestd_from_newick(
     pd.DataFrame
         Phylogeny dataframe in alife standard format.
 
+    Notes
+    -----
+    Unquoted underscores in taxon labels are preserved literally; they are
+    *not* converted to spaces. This diverges from the strict Newick
+    convention (in which an unquoted ``_`` denotes a space), but matches the
+    round-trip behavior of ``alifestd_as_newick_asexual``. Use quoted labels
+    (e.g., ``'a b'``) for labels that should contain spaces.
+
     See Also
     --------
     alifestd_from_newick_polars :

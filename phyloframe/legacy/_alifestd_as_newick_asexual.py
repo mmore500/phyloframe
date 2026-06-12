@@ -58,9 +58,18 @@ def _build_newick_string(
     *,
     progress_wrap: typing.Callable,
 ) -> str:
+    # normalize missing values to the "nan" sentinel that _format_newick_repr
+    # recognizes; otherwise nullable-int columns stringify pd.NA as "<NA>"
+    # (and floats as "nan"), leaking an invalid ":<NA>" edge length
+    origin_time_delta_strs = np.where(
+        pd.isna(origin_time_deltas),
+        "nan",
+        origin_time_deltas.astype(str),
+    )
+
     child_newick_reprs = dict()
     for id_, taxon_label, origin_time_delta, ancestor_id in progress_wrap(
-        zip(ids, labels, origin_time_deltas.astype(str), ancestor_ids)
+        zip(ids, labels, origin_time_delta_strs, ancestor_ids)
     ):
         newick_repr = _format_newick_repr(taxon_label, origin_time_delta)
 
