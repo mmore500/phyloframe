@@ -5,6 +5,7 @@ import os
 import pathlib
 import types
 import typing
+import warnings
 
 import numpy as np
 import polars as pl
@@ -34,6 +35,7 @@ from ._alifestd_from_newick import (
 def alifestd_from_newick_polars(
     newick: str,
     *,
+    allow_forest: typing.Optional[bool] = None,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
@@ -50,6 +52,11 @@ def alifestd_from_newick_polars(
     ----------
     newick : str
         A phylogeny in Newick format.
+    allow_forest : bool or None, default None
+        Policy for a Newick string holding multiple ``;``-terminated trees
+        (a forest). ``None`` parses the forest but warns; ``True`` parses it
+        silently; ``False`` raises ``ValueError`` unless there is a single
+        tree.
     branch_length_dtype : type, default float
         Dtype for branch length values. Use ``int`` to get nullable integer
         columns (``pl.Int64``). Missing branch lengths will be ``null`` for
@@ -129,6 +136,20 @@ def alifestd_from_newick_polars(
     # trim to actual sizes
     ids = ids[:num_nodes]
     ancestor_ids = ancestor_ids[:num_nodes]
+
+    if allow_forest is not True:
+        num_roots = int(np.count_nonzero(ancestor_ids == ids))
+        if num_roots > 1:
+            if allow_forest is False:
+                raise ValueError(
+                    f"Newick string contains a forest of {num_roots} trees; "
+                    "pass allow_forest=True to allow.",
+                )
+            warnings.warn(
+                f"Newick string contains a forest of {num_roots} trees; pass "
+                "allow_forest=True to silence this warning or "
+                "allow_forest=False to require a single tree.",
+            )
 
     # build labels via JIT byte-copy + pyarrow zero-copy string array
     label_data, label_offsets = _jit_build_label_buffer(
@@ -252,6 +273,16 @@ def _create_parser() -> argparse.ArgumentParser:
         default=False,
         help="Include an ancestor_list column in the output.",
     )
+    add_bool_arg(
+        parser,
+        "allow-forest",
+        default=None,
+        help=(
+            "Allow a multi-tree (forest) Newick string. Unset warns; "
+            "--allow-forest is silent; --no-allow-forest requires a single "
+            "tree."
+        ),
+    )
     parser.add_argument(
         "--replace-unquoted",
         type=str,
@@ -304,6 +335,7 @@ if __name__ == "__main__":
         logging.info("converting from Newick format...")
         phylogeny_df = alifestd_from_newick_polars(
             newick_str,
+            allow_forest=args.allow_forest,
             branch_length_dtype=_dtype_lookup[args.branch_length_dtype],
             create_ancestor_list=args.create_ancestor_list,
             replace_unquoted=ast.literal_eval(args.replace_unquoted),

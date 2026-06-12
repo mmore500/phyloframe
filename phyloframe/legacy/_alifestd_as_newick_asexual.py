@@ -62,6 +62,7 @@ def _build_newick_string(
     ancestor_ids: np.ndarray,
     *,
     unsafe_symbols: str,
+    sep_forest: str,
     progress_wrap: typing.Callable,
 ) -> str:
     unsafe_table = str.maketrans("", "", unsafe_symbols)
@@ -85,7 +86,11 @@ def _build_newick_string(
         child_newick_reprs.setdefault(ancestor_id, []).append(newick_repr)
 
     logging.info(f"finalizing {len(child_newick_reprs)} subtrees...")
-    return ";\n".join(map(mit.one, child_newick_reprs.values())) + ";"
+    # each tree is terminated by ';'; trees (a forest) are joined by
+    # sep_forest
+    return sep_forest.join(
+        f"{mit.one(reprs)};" for reprs in child_newick_reprs.values()
+    )
 
 
 # Performance (as of 2026-03-01, 200k-node caterpillar tree):
@@ -96,9 +101,13 @@ def alifestd_as_newick_asexual(
     *,
     taxon_label: typing.Optional[str] = None,
     unsafe_symbols: str = _UNSAFE_SYMBOLS,
+    sep_forest: str = "\n",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> str:
     """Convert phylogeny dataframe to Newick format.
+
+    A phylogeny with multiple roots (a forest) is rendered as one
+    ``;``-terminated tree per root, joined by ``sep_forest``.
 
     Parameters
     ----------
@@ -111,6 +120,8 @@ def alifestd_as_newick_asexual(
     unsafe_symbols : str, optional
         Characters that force a taxon label to be single-quoted when present.
         Defaults to the Newick-reserved symbols (and whitespace).
+    sep_forest : str, default "\\n"
+        Separator placed between the ``;``-terminated trees of a forest.
     progress_wrap : typing.Callable, optional
         Pass tqdm or equivalent to display a progress bar.
     """
@@ -168,6 +179,7 @@ def alifestd_as_newick_asexual(
     result = _build_newick_string(
         *reshaped,
         unsafe_symbols=unsafe_symbols,
+        sep_forest=sep_forest,
         progress_wrap=progress_wrap,
     )
 
@@ -237,6 +249,15 @@ def _create_parser() -> argparse.ArgumentParser:
             "present. Defaults to the Newick-reserved symbols and whitespace."
         ),
     )
+    parser.add_argument(
+        "--sep-forest",
+        type=str,
+        default="\n",
+        help=(
+            "Separator placed between the ';'-terminated trees of a forest. "
+            "Defaults to a newline."
+        ),
+    )
     add_compression_cli_arg(parser)
     parser.add_argument(
         "-v",
@@ -288,6 +309,7 @@ if __name__ == "__main__":
             progress_wrap=tqdm,
             taxon_label=args.taxon_label,
             unsafe_symbols=args.unsafe_symbols,
+            sep_forest=args.sep_forest,
         )
 
     logging.info(f"writing Newick-formatted data to {args.output_file}...")

@@ -808,7 +808,7 @@ def test_as_newick_quotes_labels_with_spaces():
 
 def test_multitree_forest_read():
     # multiple ';'-separated trees parse into a forest with one root each
-    result = alifestd_from_newick("a;b;")
+    result = alifestd_from_newick("a;b;", allow_forest=True)
     roots = result[result["id"] == result["ancestor_id"]]
     assert len(result) == 2
     assert len(roots) == 2
@@ -816,7 +816,7 @@ def test_multitree_forest_read():
 
 
 def test_multitree_forest_read_nested():
-    result = alifestd_from_newick("(a,b)r1;(c,d)r2;")
+    result = alifestd_from_newick("(a,b)r1;(c,d)r2;", allow_forest=True)
     roots = result[result["id"] == result["ancestor_id"]]
     assert len(roots) == 2
     assert set(roots["taxon_label"]) == {"r1", "r2"}
@@ -825,7 +825,7 @@ def test_multitree_forest_read_nested():
 
 def test_multitree_forest_read_whitespace_separated():
     # the writer joins trees with ';\n'; whitespace between trees is skipped
-    result = alifestd_from_newick("a;\nb;\n")
+    result = alifestd_from_newick("a;\nb;\n", allow_forest=True)
     assert len(result) == 2
     assert set(result["taxon_label"]) == {"a", "b"}
 
@@ -833,11 +833,63 @@ def test_multitree_forest_read_whitespace_separated():
 def test_multitree_forest_read_empty_trees_skipped():
     # consecutive/trailing ';' denote empty trees and are skipped, not turned
     # into spurious roots
-    result = alifestd_from_newick("a;;b;;")
+    result = alifestd_from_newick("a;;b;;", allow_forest=True)
     roots = result[result["id"] == result["ancestor_id"]]
     assert len(result) == 2
     assert len(roots) == 2
     assert set(result["taxon_label"]) == {"a", "b"}
+
+
+def test_forest_warns_by_default():
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick("a;b;")
+    assert any("forest" in str(w.message) for w in caught)
+    # a single tree does not warn
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick("(a,b);")
+    assert not caught
+
+
+def test_forest_allow_true_silent():
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick("a;b;", allow_forest=True)
+    assert not caught
+
+
+def test_forest_forbidden_raises():
+    with pytest.raises(ValueError, match="forest"):
+        alifestd_from_newick("a;b;", allow_forest=False)
+    # single tree is fine under allow_forest=False
+    result = alifestd_from_newick("(a,b);", allow_forest=False)
+    assert len(result) == 3
+
+
+def test_as_newick_sep_forest():
+    forest_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 2, 2],
+            "taxon_label": ["r1", "a", "r2", "b"],
+            "origin_time_delta": [np.nan, 1.0, np.nan, 2.0],
+        },
+    )
+    default = alifestd_as_newick_asexual(forest_df, taxon_label="taxon_label")
+    assert default.count(";\n") == 1 and default.endswith(";")
+    custom = alifestd_as_newick_asexual(
+        forest_df, taxon_label="taxon_label", sep_forest=""
+    )
+    assert "\n" not in custom
+    assert custom.count(";") == 2
+    # round-trips regardless of separator
+    reparsed = alifestd_from_newick(custom, allow_forest=True)
+    assert set(reparsed["taxon_label"]) == {"r1", "a", "r2", "b"}
 
 
 def test_multitree_forest_roundtrip():
@@ -850,7 +902,7 @@ def test_multitree_forest_roundtrip():
         },
     )
     newick = alifestd_as_newick_asexual(forest_df, taxon_label="taxon_label")
-    reparsed = alifestd_from_newick(newick)
+    reparsed = alifestd_from_newick(newick, allow_forest=True)
     roots = reparsed[reparsed["id"] == reparsed["ancestor_id"]]
     assert len(roots) == 2
     assert set(reparsed["taxon_label"]) == {"r1", "a", "r2", "b"}
