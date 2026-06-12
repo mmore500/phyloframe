@@ -3,6 +3,7 @@ import ast
 import logging
 import os
 import pathlib
+import types
 import typing
 
 import numpy as np
@@ -20,10 +21,8 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._min_scalar_type_polars import min_scalar_type_polars
 from ._alifestd_from_newick import (
-    _NO_REPLACE,
     _jit_build_label_buffer,
     _jit_parse_branch_lengths,
-    _make_replace_unquoted_table,
     _parse_newick_jit,
 )
 
@@ -38,7 +37,7 @@ def alifestd_from_newick_polars(
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
-    replace_unquoted: typing.Mapping[str, str] = _NO_REPLACE,
+    replace_unquoted: typing.Mapping[str, str] = types.MappingProxyType({}),
 ) -> pl.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -144,17 +143,28 @@ def alifestd_from_newick_polars(
         data=pa.py_buffer(label_data),
     )
     labels_series = pl.Series("taxon_label", arrow_labels)
-    # spans exclude the outer quotes; collapse any doubled quotes (escaped
-    # literal quotes) back to a single quote. unquoted labels cannot contain
-    # quotes, so this global replacement is safe.
-    labels_series = labels_series.str.replace_all("''", "'", literal=True)
+    quoted_slice = label_quoted[:num_nodes]
+
+    if quoted_slice.any():
+        # only quoted labels can contain escaped quotes; collapse the
+        # doubled '' back to a single quote for those labels (skip the work
+        # entirely when no label is quoted, the common case)
+        quoted_mask = pl.Series(quoted_slice.astype(bool))
+        collapsed = labels_series.str.replace_all("''", "'", literal=True)
+        labels_series = pl.select(
+            pl.when(quoted_mask)
+            .then(collapsed)
+            .otherwise(labels_series)
+            .alias("taxon_label"),
+        ).to_series()
 
     if replace_unquoted:
-        # apply character substitutions to unquoted labels only; quoted
-        # labels are left verbatim. replace_many does simultaneous literal
-        # replacement, matching str.translate semantics for single chars.
-        _make_replace_unquoted_table(replace_unquoted)  # validate keys
-        quoted_mask = pl.Series(label_quoted[:num_nodes].astype(bool))
+        if any(len(key) != 1 for key in replace_unquoted):
+            raise ValueError("replace_unquoted keys must be single characters")
+        # substitutions apply to unquoted labels only; quoted labels are
+        # left verbatim. replace_many does simultaneous literal replacement,
+        # matching str.translate semantics for single chars.
+        quoted_mask = pl.Series(quoted_slice.astype(bool))
         translated = labels_series.str.replace_many(dict(replace_unquoted))
         labels_series = pl.select(
             pl.when(quoted_mask)

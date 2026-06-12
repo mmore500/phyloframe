@@ -20,9 +20,6 @@ from .._auxlib._jit_parse_float import jit_parse_float
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
 
-# immutable empty mapping, used as a safe default for replace_unquoted
-_NO_REPLACE: typing.Mapping[str, str] = types.MappingProxyType({})
-
 
 @jit(nopython=True)
 def _parse_newick_jit(
@@ -85,15 +82,11 @@ def _parse_newick_jit(
     SEMI = np.uint8(ord(";"))
     SQUOTE = np.uint8(ord("'"))
     SPACE = np.uint8(ord(" "))
+    TAB = np.uint8(ord("\t"))
+    NEWLINE = np.uint8(ord("\n"))
+    CR = np.uint8(ord("\r"))
     LBRACKET = np.uint8(ord("["))
     RBRACKET = np.uint8(ord("]"))
-
-    # whitespace separating consecutive trees in a multi-tree (forest) string
-    is_space = np.zeros(256, dtype=np.uint8)
-    is_space[SPACE] = 1
-    is_space[np.uint8(ord("\t"))] = 1
-    is_space[np.uint8(ord("\n"))] = 1
-    is_space[np.uint8(ord("\r"))] = 1
 
     # translation tables for delimiter detection
     is_bl_term = np.zeros(256, dtype=np.uint8)
@@ -117,26 +110,9 @@ def _parse_newick_jit(
 
     cur = 0
     i = 0
-    need_new_root = False
 
     while i < n:
         c = chars[i]
-
-        # after ';', the next non-whitespace content begins a new tree, so
-        # allocate a fresh root for it (forest / multi-tree support)
-        if need_new_root:
-            if is_space[c]:
-                i += 1
-                continue
-            if c == SEMI:  # empty tree (e.g. consecutive ';;'); skip
-                i += 1
-                continue
-            root_id = num_nodes
-            ids[root_id] = root_id
-            ancestor_ids[root_id] = root_id
-            num_nodes += 1
-            cur = root_id
-            need_new_root = False
 
         # go to new child: '(' — most frequent structural characters first
         if c == LPAREN:
@@ -200,9 +176,25 @@ def _parse_newick_jit(
                 i += 1
             i -= 1  # will be incremented at end of loop
 
-        # end of current tree; a following tree (if any) starts a new root
+        # end of current tree; if more (non-whitespace) content follows, it
+        # begins another tree, so allocate a fresh root for it inline
+        # (forest / multi-tree support)
         elif c == SEMI:
-            need_new_root = True
+            j = i + 1
+            while j < n and (
+                chars[j] == SPACE
+                or chars[j] == TAB
+                or chars[j] == NEWLINE
+                or chars[j] == CR
+            ):
+                j += 1
+            if j < n and chars[j] != SEMI:
+                root_id = num_nodes
+                ids[root_id] = root_id
+                ancestor_ids[root_id] = root_id
+                num_nodes += 1
+                cur = root_id
+            i = j - 1  # resume at the next content char (loop will +1)
 
         # unquoted label
         else:
@@ -334,10 +326,13 @@ def _extract_labels(
     num_nodes = len(label_start_stops)
     labels = np.empty(num_nodes, dtype=object)
     for k, (start, stop) in enumerate(label_start_stops):
-        # spans exclude the outer quotes; collapse any doubled quotes
-        # (escaped literal quotes) back to a single quote
-        label = newick[start:stop].replace("''", "'")
-        if replace_unquoted_table and not label_quoted[k]:
+        label = newick[start:stop]
+        if label_quoted[k]:
+            # only quoted labels can contain escaped quotes; collapse the
+            # doubled '' back to a single quote
+            label = label.replace("''", "'")
+        elif replace_unquoted_table:
+            # substitutions apply to unquoted labels only
             label = label.translate(replace_unquoted_table)
         labels[k] = label
     return labels
@@ -413,21 +408,6 @@ def _jit_parse_branch_lengths(
     return branch_lengths
 
 
-def _make_replace_unquoted_table(
-    replace_unquoted: typing.Mapping[str, str],
-) -> dict:
-    """Build a ``str.translate`` table from a single-character mapping.
-
-    Returns a (possibly empty) translation table. Raises ValueError if any
-    key is not a single character.
-
-    Implementation detail shared by the pandas and polars newick parsers.
-    """
-    if any(len(key) != 1 for key in replace_unquoted):
-        raise ValueError("replace_unquoted keys must be single characters")
-    return str.maketrans(dict(replace_unquoted))
-
-
 # Performance (as of 2026-03-15, 200k-node caterpillar tree, JIT-warmed):
 #   with branch lengths: phyloframe ~0.4s vs treeswift ~1.4s (~0.3x)
 #   without branch lengths: phyloframe ~0.3s vs treeswift ~0.8s (~0.4x)
@@ -437,7 +417,7 @@ def alifestd_from_newick(
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[type] = np.int64,
-    replace_unquoted: typing.Mapping[str, str] = _NO_REPLACE,
+    replace_unquoted: typing.Mapping[str, str] = types.MappingProxyType({}),
 ) -> pd.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -487,7 +467,9 @@ def alifestd_from_newick(
         Inverse conversion, from alife standard to Newick format.
     """
     newick = newick.strip()
-    replace_unquoted_table = _make_replace_unquoted_table(replace_unquoted)
+    if any(len(key) != 1 for key in replace_unquoted):
+        raise ValueError("replace_unquoted keys must be single characters")
+    replace_unquoted_table = str.maketrans(dict(replace_unquoted))
     if dtype_id is None:
         # the parser assigns one node id per '(' and per ',', plus one root
         # per tree (';'-terminated); size the dtype from that node-count

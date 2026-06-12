@@ -37,7 +37,6 @@ _UNSAFE_SYMBOLS = ";(),[]:' \t\n"
 def _format_newick_repr(
     taxon_label: str,
     origin_time_delta: str,
-    has_origin_time_delta: bool,
     unsafe_table: dict,
 ) -> str:
     # adapted from https://github.com/niemasd/TreeSwift/blob/63b8979fb5e616ba89079d44e594682683c1365e/treeswift/Node.py#L129
@@ -48,7 +47,7 @@ def _format_newick_repr(
         # Newick convention so the label round-trips through the parser
         label = label.replace("'", "''").join("''")
 
-    if has_origin_time_delta:
+    if origin_time_delta:  # empty string denotes a missing branch length
         if "." in origin_time_delta:
             origin_time_delta = origin_time_delta.rstrip("0").rstrip(".")
         label = f"{label}:{origin_time_delta}"
@@ -62,25 +61,22 @@ def _build_newick_string(
     origin_time_deltas: np.ndarray,
     ancestor_ids: np.ndarray,
     *,
-    unsafe_table: dict,
+    unsafe_symbols: str,
     progress_wrap: typing.Callable,
 ) -> str:
-    has_origin_time_delta = ~pd.isna(origin_time_deltas)
-    origin_time_delta_strs = origin_time_deltas.astype(str)
+    unsafe_table = str.maketrans("", "", unsafe_symbols)
+    # use empty string (never a valid branch length) to mark a missing
+    # origin_time_delta, avoiding a "nan"/"<NA>" sentinel that could collide
+    # with a taxon literally named "nan"
+    origin_time_delta_strs = np.where(
+        pd.isna(origin_time_deltas), "", origin_time_deltas.astype(str)
+    )
 
     child_newick_reprs = dict()
-    for id_, taxon_label, otd_str, has_otd, ancestor_id in progress_wrap(
-        zip(
-            ids,
-            labels,
-            origin_time_delta_strs,
-            has_origin_time_delta,
-            ancestor_ids,
-        )
+    for id_, taxon_label, otd_str, ancestor_id in progress_wrap(
+        zip(ids, labels, origin_time_delta_strs, ancestor_ids)
     ):
-        newick_repr = _format_newick_repr(
-            taxon_label, otd_str, has_otd, unsafe_table
-        )
+        newick_repr = _format_newick_repr(taxon_label, otd_str, unsafe_table)
 
         children_reprs = child_newick_reprs.pop(id_, None)
         if children_reprs is not None:
@@ -169,10 +165,9 @@ def alifestd_as_newick_asexual(
     )
 
     logging.info("creating newick string...")
-    unsafe_table = str.maketrans("", "", unsafe_symbols)
     result = _build_newick_string(
         *reshaped,
-        unsafe_table=unsafe_table,
+        unsafe_symbols=unsafe_symbols,
         progress_wrap=progress_wrap,
     )
 
