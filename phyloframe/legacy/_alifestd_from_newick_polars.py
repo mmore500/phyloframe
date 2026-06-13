@@ -133,29 +133,23 @@ def alifestd_from_newick_polars(
         num_bls,
     ) = _parse_newick_jit(chars, n, np_dtype_id)
 
-    # trim to actual sizes
-    ids = ids[:num_nodes]
-    ancestor_ids = ancestor_ids[:num_nodes]
-
-    if allow_forest is not True:
-        num_roots = int(np.count_nonzero(ancestor_ids == ids))
-        if num_roots > 1:
-            if allow_forest is False:
-                raise ValueError(
-                    f"Newick string contains a forest of {num_roots} trees; "
-                    "pass allow_forest=True to allow.",
-                )
-            warnings.warn(
-                f"Newick string contains a forest of {num_roots} trees; pass "
-                "allow_forest=True to silence this warning or "
-                "allow_forest=False to require a single tree.",
+    if not allow_forest and np.count_nonzero(ancestor_ids == ids) > 1:
+        if allow_forest is False:
+            raise ValueError(
+                "Newick string contains a forest of multiple trees; "
+                "pass allow_forest=True to allow.",
             )
+        warnings.warn(
+            "Newick string contains a forest of multiple trees; pass "
+            "allow_forest=True to silence this warning or allow_forest=False "
+            "to require a single tree.",
+        )
 
     # build labels via JIT byte-copy + pyarrow zero-copy string array
     label_data, label_offsets = _jit_build_label_buffer(
         chars,
-        label_starts[:num_nodes],
-        label_stops[:num_nodes],
+        label_starts,
+        label_stops,
         num_nodes,
     )
     arrow_labels = pa.LargeStringArray.from_buffers(
@@ -164,35 +158,41 @@ def alifestd_from_newick_polars(
         data=pa.py_buffer(label_data),
     )
     labels_series = pl.Series("taxon_label", arrow_labels)
-    quoted_slice = label_quoted[:num_nodes]
 
-    if quoted_slice.any():
-        # only quoted labels can contain escaped quotes; collapse the
-        # doubled '' back to a single quote for those labels (skip the work
-        # entirely when no label is quoted, the common case)
-        quoted_mask = pl.Series(quoted_slice.astype(bool))
-        collapsed = labels_series.str.replace_all("''", "'", literal=True)
-        labels_series = pl.select(
-            pl.when(quoted_mask)
-            .then(collapsed)
-            .otherwise(labels_series)
-            .alias("taxon_label"),
-        ).to_series()
-
+    # build up label fix-ups as expressions, then apply them in a single
+    # lazy collect (only when any is needed, the common case skips entirely):
+    # collapse escaped '' inside quoted labels, and apply replace_unquoted
+    # substitutions to unquoted labels only.
+    label_expr = pl.col("taxon_label")
+    quoted_any = bool(label_quoted.any())
+    if quoted_any:
+        label_expr = (
+            pl.when(pl.col("__quoted"))
+            .then(label_expr.str.replace_all("''", "'", literal=True))
+            .otherwise(label_expr)
+        )
     if replace_unquoted:
         if any(len(key) != 1 for key in replace_unquoted):
             raise ValueError("replace_unquoted keys must be single characters")
-        # substitutions apply to unquoted labels only; quoted labels are
-        # left verbatim. replace_many does simultaneous literal replacement,
-        # matching str.translate semantics for single chars.
-        quoted_mask = pl.Series(quoted_slice.astype(bool))
-        translated = labels_series.str.replace_many(dict(replace_unquoted))
-        labels_series = pl.select(
-            pl.when(quoted_mask)
-            .then(labels_series)
-            .otherwise(translated)
-            .alias("taxon_label"),
-        ).to_series()
+        # replace_many does simultaneous literal replacement, matching
+        # str.translate semantics for single chars.
+        label_expr = (
+            pl.when(pl.col("__quoted"))
+            .then(label_expr)
+            .otherwise(label_expr.str.replace_many(dict(replace_unquoted)))
+        )
+    if quoted_any or replace_unquoted:
+        labels_series = (
+            pl.LazyFrame(
+                {
+                    "taxon_label": labels_series,
+                    "__quoted": pl.Series(label_quoted.astype(bool)),
+                },
+            )
+            .select(label_expr.alias("taxon_label"))
+            .collect()
+            .to_series()
+        )
 
     # parse branch lengths directly in JIT (avoids Python string extraction)
     branch_lengths = _jit_parse_branch_lengths(

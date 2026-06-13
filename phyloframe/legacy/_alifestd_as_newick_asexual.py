@@ -66,9 +66,7 @@ def _build_newick_string(
     progress_wrap: typing.Callable,
 ) -> str:
     unsafe_table = str.maketrans("", "", unsafe_symbols)
-    # use empty string (never a valid branch length) to mark a missing
-    # origin_time_delta, avoiding a "nan"/"<NA>" sentinel that could collide
-    # with a taxon literally named "nan"
+    # empty string is the missing-branch-length sentinel
     origin_time_delta_strs = np.where(
         pd.isna(origin_time_deltas), "", origin_time_deltas.astype(str)
     )
@@ -86,13 +84,10 @@ def _build_newick_string(
         child_newick_reprs.setdefault(ancestor_id, []).append(newick_repr)
 
     logging.info(f"finalizing {len(child_newick_reprs)} subtrees...")
-    # each tree is terminated by ';'; trees (a forest) are joined by
+    # each tree is terminated by ';'; a forest's trees are joined by
     # sep_forest. an empty phylogeny still yields a bare ';'.
     return (
-        sep_forest.join(
-            f"{mit.one(reprs)};" for reprs in child_newick_reprs.values()
-        )
-        or ";"
+        f";{sep_forest}".join(map(mit.one, child_newick_reprs.values())) + ";"
     )
 
 
@@ -107,7 +102,7 @@ def alifestd_as_newick_asexual(
     sep_forest: str = "\n",
     progress_wrap: typing.Callable = lambda x: x,
 ) -> str:
-    """Convert phylogeny dataframe to Newick format.
+    r"""Convert phylogeny dataframe to Newick format.
 
     A phylogeny with multiple roots (a forest) is rendered as one
     ``;``-terminated tree per root, joined by ``sep_forest``.
@@ -123,7 +118,7 @@ def alifestd_as_newick_asexual(
     unsafe_symbols : str, optional
         Characters that force a taxon label to be single-quoted when present.
         Defaults to the Newick-reserved symbols (and whitespace).
-    sep_forest : str, default "\\n"
+    sep_forest : str, default "\n"
         Separator placed between the ``;``-terminated trees of a forest.
     progress_wrap : typing.Callable, optional
         Pass tqdm or equivalent to display a progress bar.

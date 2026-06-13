@@ -208,15 +208,16 @@ def _parse_newick_jit(
 
         i += 1
 
+    # return arrays already trimmed to their used lengths
     return (
-        ids,
-        ancestor_ids,
-        label_starts,
-        label_stops,
-        label_quoted,
-        bl_starts,
-        bl_stops,
-        bl_node_ids,
+        ids[:num_nodes],
+        ancestor_ids[:num_nodes],
+        label_starts[:num_nodes],
+        label_stops[:num_nodes],
+        label_quoted[:num_nodes],
+        bl_starts[:num_bls],
+        bl_stops[:num_bls],
+        bl_node_ids[:num_bls],
         num_nodes,
         num_bls,
     )
@@ -278,10 +279,6 @@ def _parse_newick(
         num_bls,
     ) = _parse_newick_jit(chars, n, dtype_id)
 
-    # trim to actual sizes
-    ids = ids[:num_nodes]
-    ancestor_ids = ancestor_ids[:num_nodes]
-
     # branch lengths: parse substrings using the requested dtype, then
     # store as float64 (to support NaN for missing values)
     np_dtype = np.dtype(branch_length_dtype)
@@ -289,23 +286,20 @@ def _parse_newick(
     if num_bls:
         # string extraction is sequential (variable-length slices);
         # numeric conversion is vectorized via np.array
-        node_ids = bl_node_ids[:num_bls]
-        starts = bl_starts[:num_bls]
-        stops = bl_stops[:num_bls]
-        bl_strings = [newick[starts[k] : stops[k]] for k in range(num_bls)]
-        branch_lengths[node_ids] = np.array(bl_strings, dtype=np_dtype)
+        bl_strings = [
+            newick[bl_starts[k] : bl_stops[k]] for k in range(num_bls)
+        ]
+        branch_lengths[bl_node_ids] = np.array(bl_strings, dtype=np_dtype)
 
     # pack label start/stops into a 2D array
-    label_start_stops = np.column_stack(
-        (label_starts[:num_nodes], label_stops[:num_nodes])
-    )
+    label_start_stops = np.column_stack((label_starts, label_stops))
 
     return (
         ids,
         ancestor_ids,
         branch_lengths,
         label_start_stops,
-        label_quoted[:num_nodes],
+        label_quoted,
     )
 
 
@@ -509,19 +503,17 @@ def alifestd_from_newick(
         label_quoted,
     ) = _parse_newick(newick, chars, n, branch_length_dtype, resolved_dtype_id)
 
-    if allow_forest is not True:
-        num_roots = int(np.count_nonzero(ancestor_ids == ids))
-        if num_roots > 1:
-            if allow_forest is False:
-                raise ValueError(
-                    f"Newick string contains a forest of {num_roots} trees; "
-                    "pass allow_forest=True to allow.",
-                )
-            warnings.warn(
-                f"Newick string contains a forest of {num_roots} trees; pass "
-                "allow_forest=True to silence this warning or "
-                "allow_forest=False to require a single tree.",
+    if not allow_forest and np.count_nonzero(ancestor_ids == ids) > 1:
+        if allow_forest is False:
+            raise ValueError(
+                "Newick string contains a forest of multiple trees; "
+                "pass allow_forest=True to allow.",
             )
+        warnings.warn(
+            "Newick string contains a forest of multiple trees; pass "
+            "allow_forest=True to silence this warning or allow_forest=False "
+            "to require a single tree.",
+        )
 
     labels = _extract_labels(
         newick,
