@@ -277,3 +277,129 @@ def test_dtype_id_none_values_correct():
     assert len(result) == 5
     root = result.filter(pl.col("ancestor_id") == pl.col("id"))
     assert len(root) == 1
+
+
+def _build_balanced_newick(num_leaves: int) -> str:
+    leaves = [f"L{i}" for i in range(num_leaves)]
+    while len(leaves) > 1:
+        nxt = []
+        for i in range(0, len(leaves) - 1, 2):
+            nxt.append(f"({leaves[i]},{leaves[i + 1]})")
+        if len(leaves) % 2 == 1:
+            nxt.append(leaves[-1])
+        leaves = nxt
+    return leaves[0] + ";"
+
+
+def test_dtype_id_none_no_overflow_many_leaves():
+    # a bifurcating tree's max id (~2 * num_leaves) exceeds the comma count,
+    # so sizing the dtype must account for parentheses, not commas alone
+    newick = _build_balanced_newick(100)
+    result = alifestd_from_newick_polars(newick, dtype_id=None)
+    assert len(result) == 199
+    assert result["id"].n_unique() == len(result)
+    assert (result["id"] >= 0).all()
+    assert (result["ancestor_id"] >= 0).all()
+    assert result["id"].to_list() == list(range(len(result)))
+
+
+def test_dtype_id_none_no_overflow_unifurcation_chain():
+    # a chain of unifurcations has zero commas but many nodes
+    depth = 200
+    newick = "(" * depth + "A" + ")" * depth + ";"
+    result = alifestd_from_newick_polars(newick, dtype_id=None)
+    assert len(result) == depth + 1
+    assert result["id"].n_unique() == len(result)
+    assert (result["ancestor_id"] >= 0).all()
+    assert result["id"].to_list() == list(range(len(result)))
+
+
+def test_quoted_label_with_escaped_quote():
+    # a doubled '' inside a quoted label is a literal single quote
+    result = alifestd_from_newick_polars("('o''brien','d''angelo');")
+    labels = set(result["taxon_label"].to_list())
+    assert "o'brien" in labels
+    assert "d'angelo" in labels
+
+
+def test_roundtrip_label_with_quote():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "taxon_label": ["root", "o'brien", "b"],
+            "origin_time_delta": [np.nan, 1.0, 2.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    reparsed = alifestd_from_newick_polars(newick)
+    assert set(reparsed["taxon_label"].to_list()) == {"root", "o'brien", "b"}
+
+
+def test_replace_unquoted_underscore_to_space():
+    result = alifestd_from_newick_polars(
+        "(Homo_sapiens,'keep_this_one':1)root_node;",
+        replace_unquoted={"_": " "},
+    )
+    labels = set(result["taxon_label"].to_list())
+    # unquoted labels translated; quoted label left verbatim
+    assert "Homo sapiens" in labels
+    assert "root node" in labels
+    assert "keep_this_one" in labels
+
+
+def test_replace_unquoted_multichar_key_raises():
+    with pytest.raises(ValueError):
+        alifestd_from_newick_polars("(a,b);", replace_unquoted={"ab": " "})
+
+
+def test_multitree_forest_read():
+    result = alifestd_from_newick_polars("(a,b)r1;(c,d)r2;", allow_forest=True)
+    roots = result.filter(pl.col("id") == pl.col("ancestor_id"))
+    assert len(roots) == 2
+    assert set(roots["taxon_label"].to_list()) == {"r1", "r2"}
+    assert {"a", "b", "c", "d"} <= set(result["taxon_label"].to_list())
+
+
+def test_multitree_forest_read_empty_trees_skipped():
+    # consecutive/trailing ';' denote empty trees and are skipped
+    result = alifestd_from_newick_polars("a;;b;;", allow_forest=True)
+    roots = result.filter(pl.col("id") == pl.col("ancestor_id"))
+    assert len(result) == 2
+    assert len(roots) == 2
+    assert set(result["taxon_label"].to_list()) == {"a", "b"}
+
+
+def test_forest_warns_by_default_and_policy():
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick_polars("a;b;")
+    assert any("forest" in str(w.message) for w in caught)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick_polars("a;b;", allow_forest=True)
+    assert not caught
+
+    with pytest.raises(ValueError, match="forest"):
+        alifestd_from_newick_polars("a;b;", allow_forest=False)
+
+
+def test_multitree_forest_roundtrip():
+    forest_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 2, 2],
+            "taxon_label": ["r1", "a", "r2", "b"],
+            "origin_time_delta": [np.nan, 1.0, np.nan, 2.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(forest_df, taxon_label="taxon_label")
+    reparsed = alifestd_from_newick_polars(newick, allow_forest=True)
+    roots = reparsed.filter(pl.col("id") == pl.col("ancestor_id"))
+    assert len(roots) == 2
+    assert set(reparsed["taxon_label"].to_list()) == {"r1", "a", "r2", "b"}

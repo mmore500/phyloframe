@@ -643,3 +643,323 @@ def test_dtype_id_none_values_correct():
     assert len(result) == 5
     root = result[result["ancestor_id"] == result["id"]]
     assert len(root) == 1
+
+
+def _build_balanced_newick(num_leaves: int) -> str:
+    leaves = [f"L{i}" for i in range(num_leaves)]
+    while len(leaves) > 1:
+        nxt = []
+        for i in range(0, len(leaves) - 1, 2):
+            nxt.append(f"({leaves[i]},{leaves[i + 1]})")
+        if len(leaves) % 2 == 1:
+            nxt.append(leaves[-1])
+        leaves = nxt
+    return leaves[0] + ";"
+
+
+def test_dtype_id_none_no_overflow_many_leaves():
+    # a bifurcating tree's max id (~2 * num_leaves) exceeds the comma count,
+    # so sizing the dtype must account for parentheses, not commas alone
+    newick = _build_balanced_newick(100)
+    result = alifestd_from_newick(newick, dtype_id=None)
+    assert len(result) == 199
+    assert result["id"].is_unique
+    assert (result["id"] >= 0).all()
+    assert (result["ancestor_id"] >= 0).all()
+    assert list(result["id"]) == list(range(len(result)))
+    info = np.iinfo(result["id"].dtype)
+    assert result["id"].max() <= info.max
+
+
+def test_dtype_id_none_no_overflow_unifurcation_chain():
+    # a chain of unifurcations has zero commas but many nodes
+    depth = 200
+    newick = "(" * depth + "A" + ")" * depth + ";"
+    result = alifestd_from_newick(newick, dtype_id=None)
+    assert len(result) == depth + 1
+    assert result["id"].is_unique
+    assert (result["ancestor_id"] >= 0).all()
+    assert list(result["id"]) == list(range(len(result)))
+
+
+def test_quoted_label_with_escaped_quote():
+    # a doubled '' inside a quoted label is a literal single quote
+    result = alifestd_from_newick("('o''brien','d''angelo');")
+    labels = set(result["taxon_label"])
+    assert "o'brien" in labels
+    assert "d'angelo" in labels
+
+
+def test_quoted_label_only_escaped_quote():
+    result = alifestd_from_newick("('''');")
+    labels = set(result["taxon_label"])
+    assert "'" in labels
+
+
+def test_roundtrip_label_with_quote():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "taxon_label": ["root", "o'brien", "b"],
+            "origin_time_delta": [np.nan, 1.0, 2.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    reparsed = alifestd_from_newick(newick)
+    assert set(reparsed["taxon_label"]) == {"root", "o'brien", "b"}
+
+
+def test_unquoted_underscore_preserved():
+    # unquoted underscores are kept literally, not converted to spaces
+    result = alifestd_from_newick("(Homo_sapiens,Pan_troglodytes);")
+    labels = set(result["taxon_label"])
+    assert "Homo_sapiens" in labels
+    assert "Pan_troglodytes" in labels
+
+
+def test_as_newick_missing_origin_time_delta_nullable_int():
+    # nullable-int origin_time_delta with a missing value must not leak an
+    # invalid ":<NA>" edge length into the output
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "taxon_label": ["root", "a", "b"],
+            "origin_time_delta": pd.array(
+                [pd.NA, 5, 10], dtype=pd.Int64Dtype()
+            ),
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    assert "<NA>" not in newick
+    assert "nan" not in newick
+    # root (missing delta) has no edge length; children keep theirs
+    reparsed = alifestd_from_newick(newick)
+    root = reparsed[reparsed["id"] == reparsed["ancestor_id"]]
+    assert root["branch_length"].isna().all()
+    children = reparsed[reparsed["id"] != reparsed["ancestor_id"]]
+    assert set(children["branch_length"]) == {5.0, 10.0}
+
+
+def test_replace_unquoted_underscore_to_space():
+    result = alifestd_from_newick(
+        "(Homo_sapiens,Pan_troglodytes)root_node;",
+        replace_unquoted={"_": " "},
+    )
+    labels = set(result["taxon_label"])
+    assert labels == {"Homo sapiens", "Pan troglodytes", "root node"}
+
+
+def test_replace_unquoted_leaves_quoted_labels_verbatim():
+    # quoted labels must not be touched by replace_unquoted
+    result = alifestd_from_newick(
+        "(plain_label,'keep_this_one':1)r;",
+        replace_unquoted={"_": " "},
+    )
+    labels = set(result["taxon_label"])
+    assert "plain label" in labels
+    assert "keep_this_one" in labels
+
+
+def test_replace_unquoted_multichar_key_raises():
+    with pytest.raises(ValueError):
+        alifestd_from_newick("(a,b);", replace_unquoted={"ab": " "})
+
+
+def test_replace_unquoted_space_roundtrip():
+    # spaces are auto-quoted on write, so reading with replace_unquoted does
+    # not corrupt them; underscores stay underscores
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "taxon_label": ["root node", "leaf_a"],
+            "origin_time_delta": [np.nan, 1.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    # the space-containing label is quoted; the underscore one is not
+    assert "'root node'" in newick
+    reparsed = alifestd_from_newick(newick, replace_unquoted={"_": " "})
+    assert set(reparsed["taxon_label"]) == {"root node", "leaf a"}
+
+
+def test_as_newick_quotes_labels_with_spaces():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "taxon_label": ["root node", "a"],
+            "origin_time_delta": [np.nan, 1.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    assert "'root node'" in newick
+
+
+def test_multitree_forest_read():
+    # multiple ';'-separated trees parse into a forest with one root each
+    result = alifestd_from_newick("a;b;", allow_forest=True)
+    roots = result[result["id"] == result["ancestor_id"]]
+    assert len(result) == 2
+    assert len(roots) == 2
+    assert set(result["taxon_label"]) == {"a", "b"}
+
+
+def test_multitree_forest_read_nested():
+    result = alifestd_from_newick("(a,b)r1;(c,d)r2;", allow_forest=True)
+    roots = result[result["id"] == result["ancestor_id"]]
+    assert len(roots) == 2
+    assert set(roots["taxon_label"]) == {"r1", "r2"}
+    assert {"a", "b", "c", "d"} <= set(result["taxon_label"])
+
+
+def test_multitree_forest_read_whitespace_separated():
+    # the writer joins trees with ';\n'; whitespace between trees is skipped
+    result = alifestd_from_newick("a;\nb;\n", allow_forest=True)
+    assert len(result) == 2
+    assert set(result["taxon_label"]) == {"a", "b"}
+
+
+def test_multitree_forest_read_empty_trees_skipped():
+    # consecutive/trailing ';' denote empty trees and are skipped, not turned
+    # into spurious roots
+    result = alifestd_from_newick("a;;b;;", allow_forest=True)
+    roots = result[result["id"] == result["ancestor_id"]]
+    assert len(result) == 2
+    assert len(roots) == 2
+    assert set(result["taxon_label"]) == {"a", "b"}
+
+
+def test_forest_warns_by_default():
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick("a;b;")
+    assert any("forest" in str(w.message) for w in caught)
+    # a single tree does not warn
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick("(a,b);")
+    assert not caught
+
+
+def test_forest_allow_true_silent():
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        alifestd_from_newick("a;b;", allow_forest=True)
+    assert not caught
+
+
+def test_forest_forbidden_raises():
+    with pytest.raises(ValueError, match="forest"):
+        alifestd_from_newick("a;b;", allow_forest=False)
+    # single tree is fine under allow_forest=False
+    result = alifestd_from_newick("(a,b);", allow_forest=False)
+    assert len(result) == 3
+
+
+def test_as_newick_empty_yields_semicolon():
+    empty_df = pd.DataFrame(
+        {
+            "id": pd.Series([], dtype=int),
+            "ancestor_id": pd.Series([], dtype=int),
+            "taxon_label": pd.Series([], dtype=str),
+        },
+    )
+    assert (
+        alifestd_as_newick_asexual(empty_df, taxon_label="taxon_label") == ";"
+    )
+
+
+def test_as_newick_sep_forest():
+    forest_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 2, 2],
+            "taxon_label": ["r1", "a", "r2", "b"],
+            "origin_time_delta": [np.nan, 1.0, np.nan, 2.0],
+        },
+    )
+    default = alifestd_as_newick_asexual(forest_df, taxon_label="taxon_label")
+    assert default.count(";\n") == 1 and default.endswith(";")
+    custom = alifestd_as_newick_asexual(
+        forest_df, taxon_label="taxon_label", sep_forest=""
+    )
+    assert "\n" not in custom
+    assert custom.count(";") == 2
+    # round-trips regardless of separator
+    reparsed = alifestd_from_newick(custom, allow_forest=True)
+    assert set(reparsed["taxon_label"]) == {"r1", "a", "r2", "b"}
+
+
+def test_multitree_forest_roundtrip():
+    forest_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 2, 2],
+            "taxon_label": ["r1", "a", "r2", "b"],
+            "origin_time_delta": [np.nan, 1.0, np.nan, 2.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(forest_df, taxon_label="taxon_label")
+    reparsed = alifestd_from_newick(newick, allow_forest=True)
+    roots = reparsed[reparsed["id"] == reparsed["ancestor_id"]]
+    assert len(roots) == 2
+    assert set(reparsed["taxon_label"]) == {"r1", "a", "r2", "b"}
+
+
+def test_as_newick_taxon_named_nan_roundtrips():
+    # a taxon literally named "nan" must not be confused with a missing
+    # branch length, and must round-trip
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "taxon_label": ["root", "nan"],
+            "origin_time_delta": [np.nan, 5.0],
+        },
+    )
+    newick = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    assert "nan:5" in newick
+    reparsed = alifestd_from_newick(newick)
+    assert set(reparsed["taxon_label"]) == {"root", "nan"}
+    leaf = reparsed[reparsed["taxon_label"] == "nan"]
+    assert leaf["branch_length"].iloc[0] == 5.0
+
+
+def test_as_newick_unsafe_symbols_kwarg():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "taxon_label": ["root", "a#b"],
+            "origin_time_delta": [np.nan, 1.0],
+        },
+    )
+    # by default '#' is safe, so the label is not quoted
+    default_out = alifestd_as_newick_asexual(
+        phylogeny_df, taxon_label="taxon_label"
+    )
+    assert "a#b" in default_out and "'a#b'" not in default_out
+    # adding '#' to unsafe_symbols forces quoting
+    custom_out = alifestd_as_newick_asexual(
+        phylogeny_df,
+        taxon_label="taxon_label",
+        unsafe_symbols=";(),[]:' #",
+    )
+    assert "'a#b'" in custom_out

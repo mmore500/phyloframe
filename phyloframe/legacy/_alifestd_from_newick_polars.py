@@ -1,8 +1,11 @@
 import argparse
+import ast
 import logging
 import os
 import pathlib
+import types
 import typing
+import warnings
 
 import numpy as np
 import polars as pl
@@ -32,9 +35,11 @@ from ._alifestd_from_newick import (
 def alifestd_from_newick_polars(
     newick: str,
     *,
+    allow_forest: typing.Optional[bool] = None,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
+    replace_unquoted: typing.Mapping[str, str] = types.MappingProxyType({}),
 ) -> pl.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -47,6 +52,11 @@ def alifestd_from_newick_polars(
     ----------
     newick : str
         A phylogeny in Newick format.
+    allow_forest : bool or None, default None
+        Policy for a Newick string holding multiple ``;``-terminated trees
+        (a forest). ``None`` parses the forest but warns; ``True`` parses it
+        silently; ``False`` raises ``ValueError`` unless there is a single
+        tree.
     branch_length_dtype : type, default float
         Dtype for branch length values. Use ``int`` to get nullable integer
         columns (``pl.Int64``). Missing branch lengths will be ``null`` for
@@ -55,13 +65,26 @@ def alifestd_from_newick_polars(
         If True, include an ``ancestor_list`` column in the result.
     dtype_id : pl.DataType or None, default pl.Int64
         Polars dtype for the ``id`` and ``ancestor_id`` columns. If None, the
-        smallest signed integer dtype is chosen automatically based on the
-        number of commas in the Newick string.
+        smallest signed integer dtype that can hold all node ids is chosen
+        automatically based on the node count of the Newick string.
+    replace_unquoted : Mapping[str, str], optional
+        Character substitutions to apply to *unquoted* taxon labels only,
+        leaving quoted labels verbatim. Keys must be single characters.
+        Pass ``{"_": " "}`` to follow the strict Newick convention in which
+        an unquoted underscore denotes a space.
 
     Returns
     -------
     pl.DataFrame
         Phylogeny dataframe in alife standard format.
+
+    Notes
+    -----
+    By default, unquoted underscores in taxon labels are preserved literally;
+    they are *not* converted to spaces. This diverges from the strict Newick
+    convention (in which an unquoted ``_`` denotes a space), but matches the
+    round-trip behavior of ``alifestd_as_newick_asexual``. Pass
+    ``replace_unquoted={"_": " "}`` to follow the strict convention.
 
     See Also
     --------
@@ -72,8 +95,11 @@ def alifestd_from_newick_polars(
     """
     newick = newick.strip()
     if dtype_id is None:
-        comma_count = newick.count(",")
-        pl_dtype_id = min_scalar_type_polars(-max(comma_count, 1))
+        # the parser assigns one node id per '(' and per ',', plus one root
+        # per tree (';'-terminated); size the dtype from that node-count
+        # upper bound rather than commas alone to avoid overflow
+        node_count = newick.count("(") + newick.count(",") + newick.count(";")
+        pl_dtype_id = min_scalar_type_polars(-max(node_count, 1))
     else:
         pl_dtype_id = dtype_id
 
@@ -99,6 +125,7 @@ def alifestd_from_newick_polars(
         ancestor_ids,
         label_starts,
         label_stops,
+        label_quoted,
         bl_starts,
         bl_stops,
         bl_node_ids,
@@ -106,15 +133,23 @@ def alifestd_from_newick_polars(
         num_bls,
     ) = _parse_newick_jit(chars, n, np_dtype_id)
 
-    # trim to actual sizes
-    ids = ids[:num_nodes]
-    ancestor_ids = ancestor_ids[:num_nodes]
+    if not allow_forest and np.count_nonzero(ancestor_ids == ids) > 1:
+        if allow_forest is False:
+            raise ValueError(
+                "Newick string contains a forest of multiple trees; "
+                "pass allow_forest=True to allow.",
+            )
+        warnings.warn(
+            "Newick string contains a forest of multiple trees; pass "
+            "allow_forest=True to silence this warning or allow_forest=False "
+            "to require a single tree.",
+        )
 
     # build labels via JIT byte-copy + pyarrow zero-copy string array
     label_data, label_offsets = _jit_build_label_buffer(
         chars,
-        label_starts[:num_nodes],
-        label_stops[:num_nodes],
+        label_starts,
+        label_stops,
         num_nodes,
     )
     arrow_labels = pa.LargeStringArray.from_buffers(
@@ -123,6 +158,39 @@ def alifestd_from_newick_polars(
         data=pa.py_buffer(label_data),
     )
     labels_series = pl.Series("taxon_label", arrow_labels)
+
+    # fix up labels in a single lazy pass: collapse escaped '' inside quoted
+    # labels, and apply replace_unquoted substitutions to unquoted labels.
+    # only run when needed -- the common parse (no quoted labels, no
+    # substitutions) skips this entirely. (the str ops scan every label, so
+    # the guard is a real saving, not redundant with polars' optimizer.)
+    if replace_unquoted and any(len(key) != 1 for key in replace_unquoted):
+        raise ValueError("replace_unquoted keys must be single characters")
+    if label_quoted.any() or replace_unquoted:
+        labels_series = (
+            pl.LazyFrame(
+                {
+                    "taxon_label": labels_series,
+                    "__quoted": pl.Series(label_quoted).cast(pl.Boolean),
+                },
+            )
+            .select(
+                pl.when(pl.col("__quoted"))
+                .then(
+                    pl.col("taxon_label").str.replace_all(
+                        "''", "'", literal=True
+                    )
+                )
+                .otherwise(
+                    pl.col("taxon_label").str.replace_many(
+                        dict(replace_unquoted)
+                    )
+                )
+                .alias("taxon_label"),
+            )
+            .collect()
+            .to_series()
+        )
 
     # parse branch lengths directly in JIT (avoids Python string extraction)
     branch_lengths = _jit_parse_branch_lengths(
@@ -203,6 +271,28 @@ def _create_parser() -> argparse.ArgumentParser:
         default=False,
         help="Include an ancestor_list column in the output.",
     )
+    add_bool_arg(
+        parser,
+        "allow-forest",
+        default=None,
+        help=(
+            "Allow a multi-tree (forest) Newick string. Unset warns; "
+            "--allow-forest is silent; --no-allow-forest requires a single "
+            "tree."
+        ),
+    )
+    parser.add_argument(
+        "--replace-unquoted",
+        type=str,
+        default="{}",
+        metavar="MAPPING",
+        help=(
+            "Mapping of single-character substitutions to apply to unquoted "
+            "taxon labels only (quoted labels are left verbatim), given as a "
+            "Python dict literal. "
+            "Example: \"{'_': ' '}\" maps unquoted underscores to spaces."
+        ),
+    )
     parser.add_argument(
         "--output-kwarg",
         action="append",
@@ -243,8 +333,10 @@ if __name__ == "__main__":
         logging.info("converting from Newick format...")
         phylogeny_df = alifestd_from_newick_polars(
             newick_str,
+            allow_forest=args.allow_forest,
             branch_length_dtype=_dtype_lookup[args.branch_length_dtype],
             create_ancestor_list=args.create_ancestor_list,
+            replace_unquoted=ast.literal_eval(args.replace_unquoted),
         )
 
     output_ext = os.path.splitext(args.output_file)[1]

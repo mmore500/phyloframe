@@ -1,8 +1,11 @@
 import argparse
+import ast
 import logging
 import os
 import pathlib
+import types
 import typing
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -32,6 +35,7 @@ def _parse_newick_jit(
     np.ndarray,
     np.ndarray,
     np.ndarray,
+    np.ndarray,
     int,
     int,
 ]:
@@ -48,14 +52,17 @@ def _parse_newick_jit(
     Returns
     -------
     tuple
-        (ids, ancestor_ids, label_starts, label_stops, bl_starts, bl_stops,
-         bl_node_ids, num_nodes, num_bls).
+        (ids, ancestor_ids, label_starts, label_stops, label_quoted,
+         bl_starts, bl_stops, bl_node_ids, num_nodes, num_bls).
     """
     # estimate max node count using a translation table: each '(' and ','
-    # creates a node, plus the root
+    # creates a node, each ';' may start a new tree's root, plus the first
+    # root. ';' is an upper bound (trailing/empty trees overcount, which is
+    # harmless since arrays are trimmed to num_nodes).
     node_weight = np.zeros(256, dtype=np.int64)
     node_weight[np.uint8(ord(","))] = 1
     node_weight[np.uint8(ord("("))] = 1
+    node_weight[np.uint8(ord(";"))] = 1
     max_nodes = 1 + np.sum(node_weight[chars])
 
     # pre-allocate arrays using heuristic size
@@ -63,6 +70,7 @@ def _parse_newick_jit(
     ancestor_ids = np.empty(max_nodes, dtype=dtype_id)
     label_starts = np.zeros(max_nodes, dtype=np.int64)
     label_stops = np.zeros(max_nodes, dtype=np.int64)
+    label_quoted = np.zeros(max_nodes, dtype=np.uint8)
     bl_starts = np.empty(max_nodes, dtype=np.int64)
     bl_stops = np.empty(max_nodes, dtype=np.int64)
     bl_node_ids = np.empty(max_nodes, dtype=np.int64)
@@ -75,6 +83,9 @@ def _parse_newick_jit(
     SEMI = np.uint8(ord(";"))
     SQUOTE = np.uint8(ord("'"))
     SPACE = np.uint8(ord(" "))
+    TAB = np.uint8(ord("\t"))
+    NEWLINE = np.uint8(ord("\n"))
+    CR = np.uint8(ord("\r"))
     LBRACKET = np.uint8(ord("["))
     RBRACKET = np.uint8(ord("]"))
 
@@ -144,10 +155,16 @@ def _parse_newick_jit(
         elif c == SQUOTE:
             i += 1
             lbl_start = i
-            while i < n and chars[i] != SQUOTE:
-                i += 1
+            while i < n:
+                if chars[i] != SQUOTE:
+                    i += 1  # ordinary label character
+                elif i + 1 < n and chars[i + 1] == SQUOTE:
+                    i += 2  # doubled '' is an escaped literal quote
+                else:
+                    break  # lone quote closes the label
             label_starts[cur] = lbl_start
             label_stops[cur] = i
+            label_quoted[cur] = 1
             # i now points at closing quote; will be incremented at end
 
         # comment (square brackets)
@@ -160,9 +177,25 @@ def _parse_newick_jit(
                 i += 1
             i -= 1  # will be incremented at end of loop
 
-        # end of newick string
+        # end of current tree; if more (non-whitespace) content follows, it
+        # begins another tree, so allocate a fresh root for it inline
+        # (forest / multi-tree support)
         elif c == SEMI:
-            pass
+            j = i + 1
+            while j < n and (
+                chars[j] == SPACE
+                or chars[j] == TAB
+                or chars[j] == NEWLINE
+                or chars[j] == CR
+            ):
+                j += 1
+            if j < n and chars[j] != SEMI:
+                root_id = num_nodes
+                ids[root_id] = root_id
+                ancestor_ids[root_id] = root_id
+                num_nodes += 1
+                cur = root_id
+            i = j - 1  # resume at the next content char (loop will +1)
 
         # unquoted label
         else:
@@ -175,14 +208,16 @@ def _parse_newick_jit(
 
         i += 1
 
+    # return arrays already trimmed to their used lengths
     return (
-        ids,
-        ancestor_ids,
-        label_starts,
-        label_stops,
-        bl_starts,
-        bl_stops,
-        bl_node_ids,
+        ids[:num_nodes],
+        ancestor_ids[:num_nodes],
+        label_starts[:num_nodes],
+        label_stops[:num_nodes],
+        label_quoted[:num_nodes],
+        bl_starts[:num_bls],
+        bl_stops[:num_bls],
+        bl_node_ids[:num_bls],
         num_nodes,
         num_bls,
     )
@@ -194,7 +229,7 @@ def _parse_newick(
     n: int,
     branch_length_dtype: type = float,
     dtype_id: np.dtype = np.dtype(np.int64),
-) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Parse newick string characters into parallel arrays.
 
     Implementation detail for `alifestd_from_newick`.
@@ -224,27 +259,25 @@ def _parse_newick(
     Returns
     -------
     tuple of np.ndarray
-        (ids, ancestor_ids, branch_lengths, label_start_stops) where
-        branch_lengths is float64 with NaN for missing values (callers
-        should convert to nullable int if needed), and label_start_stops
-        has shape (num_nodes, 2) giving the start (inclusive) and stop
-        (exclusive) index into `chars` for each node's label.
+        (ids, ancestor_ids, branch_lengths, label_start_stops, label_quoted)
+        where branch_lengths is float64 with NaN for missing values (callers
+        should convert to nullable int if needed), label_start_stops has shape
+        (num_nodes, 2) giving the start (inclusive) and stop (exclusive) index
+        into `chars` for each node's label, and label_quoted is a bool array
+        flagging whether each node's label was quoted.
     """
     (
         ids,
         ancestor_ids,
         label_starts,
         label_stops,
+        label_quoted,
         bl_starts,
         bl_stops,
         bl_node_ids,
         num_nodes,
         num_bls,
     ) = _parse_newick_jit(chars, n, dtype_id)
-
-    # trim to actual sizes
-    ids = ids[:num_nodes]
-    ancestor_ids = ancestor_ids[:num_nodes]
 
     # branch lengths: parse substrings using the requested dtype, then
     # store as float64 (to support NaN for missing values)
@@ -253,22 +286,20 @@ def _parse_newick(
     if num_bls:
         # string extraction is sequential (variable-length slices);
         # numeric conversion is vectorized via np.array
-        node_ids = bl_node_ids[:num_bls]
-        starts = bl_starts[:num_bls]
-        stops = bl_stops[:num_bls]
-        bl_strings = [newick[starts[k] : stops[k]] for k in range(num_bls)]
-        branch_lengths[node_ids] = np.array(bl_strings, dtype=np_dtype)
+        bl_strings = [
+            newick[bl_starts[k] : bl_stops[k]] for k in range(num_bls)
+        ]
+        branch_lengths[bl_node_ids] = np.array(bl_strings, dtype=np_dtype)
 
     # pack label start/stops into a 2D array
-    label_start_stops = np.column_stack(
-        (label_starts[:num_nodes], label_stops[:num_nodes])
-    )
+    label_start_stops = np.column_stack((label_starts, label_stops))
 
     return (
         ids,
         ancestor_ids,
         branch_lengths,
         label_start_stops,
+        label_quoted,
     )
 
 
@@ -276,18 +307,29 @@ def _extract_labels(
     newick: str,
     chars: np.ndarray,
     label_start_stops: np.ndarray,
+    label_quoted: np.ndarray,
+    replace_unquoted_table: dict,
 ) -> np.ndarray:
     """Extract taxon labels from newick string using index ranges.
 
     Implementation detail for `alifestd_from_newick`.
+
+    The character mapping in ``replace_unquoted_table`` (a ``str.maketrans``
+    table, possibly empty) is applied to *unquoted* labels only, leaving
+    quoted labels verbatim. ``label_quoted`` flags which labels were quoted.
     """
     num_nodes = len(label_start_stops)
     labels = np.empty(num_nodes, dtype=object)
     for k, (start, stop) in enumerate(label_start_stops):
-        if start == stop:
-            labels[k] = ""
-        else:
-            labels[k] = newick[start:stop].strip("'")
+        label = newick[start:stop]
+        if label_quoted[k]:
+            # only quoted labels can contain escaped quotes; collapse the
+            # doubled '' back to a single quote
+            label = label.replace("''", "'")
+        elif replace_unquoted_table:
+            # substitutions apply to unquoted labels only
+            label = label.translate(replace_unquoted_table)
+        labels[k] = label
     return labels
 
 
@@ -367,9 +409,11 @@ def _jit_parse_branch_lengths(
 def alifestd_from_newick(
     newick: str,
     *,
+    allow_forest: typing.Optional[bool] = None,
     branch_length_dtype: type = float,
     create_ancestor_list: bool = False,
     dtype_id: typing.Optional[type] = np.int64,
+    replace_unquoted: typing.Mapping[str, str] = types.MappingProxyType({}),
 ) -> pd.DataFrame:
     """Convert a Newick format string to a phylogeny dataframe.
 
@@ -382,6 +426,11 @@ def alifestd_from_newick(
     ----------
     newick : str
         A phylogeny in Newick format.
+    allow_forest : bool or None, default None
+        Policy for a Newick string holding multiple ``;``-terminated trees
+        (a forest). ``None`` parses the forest but warns; ``True`` parses it
+        silently; ``False`` raises ``ValueError`` unless there is a single
+        tree.
     branch_length_dtype : type, default float
         Dtype for branch length values. Use ``int`` to get nullable integer
         columns (``pd.Int64Dtype``). Missing branch lengths will be ``pd.NA``
@@ -390,13 +439,26 @@ def alifestd_from_newick(
         If True, include an ``ancestor_list`` column in the result.
     dtype_id : type or None, default np.int64
         Numpy dtype for the ``id`` and ``ancestor_id`` columns. If None, the
-        smallest signed integer dtype is chosen automatically based on the
-        number of commas in the Newick string.
+        smallest signed integer dtype that can hold all node ids is chosen
+        automatically based on the node count of the Newick string.
+    replace_unquoted : Mapping[str, str], optional
+        Character substitutions to apply to *unquoted* taxon labels only,
+        leaving quoted labels verbatim. Keys must be single characters.
+        Pass ``{"_": " "}`` to follow the strict Newick convention in which
+        an unquoted underscore denotes a space.
 
     Returns
     -------
     pd.DataFrame
         Phylogeny dataframe in alife standard format.
+
+    Notes
+    -----
+    By default, unquoted underscores in taxon labels are preserved literally;
+    they are *not* converted to spaces. This diverges from the strict Newick
+    convention (in which an unquoted ``_`` denotes a space), but matches the
+    round-trip behavior of ``alifestd_as_newick_asexual``. Pass
+    ``replace_unquoted={"_": " "}`` to follow the strict convention.
 
     See Also
     --------
@@ -406,9 +468,15 @@ def alifestd_from_newick(
         Inverse conversion, from alife standard to Newick format.
     """
     newick = newick.strip()
+    if any(len(key) != 1 for key in replace_unquoted):
+        raise ValueError("replace_unquoted keys must be single characters")
+    replace_unquoted_table = str.maketrans(dict(replace_unquoted))
     if dtype_id is None:
-        comma_count = newick.count(",")
-        resolved_dtype_id = np.min_scalar_type(-max(comma_count, 1))
+        # the parser assigns one node id per '(' and per ',', plus one root
+        # per tree (';'-terminated); size the dtype from that node-count
+        # upper bound rather than commas alone to avoid overflow
+        node_count = newick.count("(") + newick.count(",") + newick.count(";")
+        resolved_dtype_id = np.min_scalar_type(-max(node_count, 1))
     else:
         resolved_dtype_id = np.dtype(dtype_id)
 
@@ -432,9 +500,28 @@ def alifestd_from_newick(
         ancestor_ids,
         branch_lengths,
         label_start_stops,
+        label_quoted,
     ) = _parse_newick(newick, chars, n, branch_length_dtype, resolved_dtype_id)
 
-    labels = _extract_labels(newick, chars, label_start_stops)
+    if not allow_forest and np.count_nonzero(ancestor_ids == ids) > 1:
+        if allow_forest is False:
+            raise ValueError(
+                "Newick string contains a forest of multiple trees; "
+                "pass allow_forest=True to allow.",
+            )
+        warnings.warn(
+            "Newick string contains a forest of multiple trees; pass "
+            "allow_forest=True to silence this warning or allow_forest=False "
+            "to require a single tree.",
+        )
+
+    labels = _extract_labels(
+        newick,
+        chars,
+        label_start_stops,
+        label_quoted,
+        replace_unquoted_table,
+    )
 
     # convert branch lengths to requested dtype with proper null handling
     np_dtype = np.dtype(branch_length_dtype)
@@ -513,6 +600,28 @@ def _create_parser() -> argparse.ArgumentParser:
         default=False,
         help="Include an ancestor_list column in the output.",
     )
+    add_bool_arg(
+        parser,
+        "allow-forest",
+        default=None,
+        help=(
+            "Allow a multi-tree (forest) Newick string. Unset warns; "
+            "--allow-forest is silent; --no-allow-forest requires a single "
+            "tree."
+        ),
+    )
+    parser.add_argument(
+        "--replace-unquoted",
+        type=str,
+        default="{}",
+        metavar="MAPPING",
+        help=(
+            "Mapping of single-character substitutions to apply to unquoted "
+            "taxon labels only (quoted labels are left verbatim), given as a "
+            "Python dict literal. "
+            "Example: \"{'_': ' '}\" maps unquoted underscores to spaces."
+        ),
+    )
     parser.add_argument(
         "--output-kwarg",
         action="append",
@@ -554,8 +663,10 @@ if __name__ == "__main__":
         logging.info("converting from Newick format...")
         phylogeny_df = alifestd_from_newick(
             newick_str,
+            allow_forest=args.allow_forest,
             branch_length_dtype=_dtype_lookup[args.branch_length_dtype],
             create_ancestor_list=args.create_ancestor_list,
+            replace_unquoted=ast.literal_eval(args.replace_unquoted),
         )
 
     output_ext = os.path.splitext(args.output_file)[1]
