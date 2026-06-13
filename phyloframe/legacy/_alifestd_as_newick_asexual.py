@@ -37,12 +37,12 @@ _UNSAFE_SYMBOLS = ";(),[]:' \t\n"
 def _format_newick_repr(
     taxon_label: str,
     origin_time_delta: str,
-    unsafe_symbols: str,
+    unsafe_table: dict,
 ) -> str:
     # adapted from https://github.com/niemasd/TreeSwift/blob/63b8979fb5e616ba89079d44e594682683c1365e/treeswift/Node.py#L129
     label = taxon_label
 
-    if any(c in unsafe_symbols for c in label):
+    if label.translate(unsafe_table) != label:
         # quote the label, doubling any embedded single quotes per the
         # Newick convention so the label round-trips through the parser
         label = label.replace("'", "''").join("''")
@@ -65,6 +65,7 @@ def _build_newick_string(
     sep_forest: str,
     unsafe_symbols: str,
 ) -> str:
+    unsafe_table = str.maketrans("", "", unsafe_symbols)
     # empty string is the missing-branch-length sentinel
     origin_time_delta_strs = np.where(
         pd.isna(origin_time_deltas), "", origin_time_deltas.astype(str)
@@ -74,7 +75,7 @@ def _build_newick_string(
     for id_, taxon_label, otd_str, ancestor_id in progress_wrap(
         zip(ids, labels, origin_time_delta_strs, ancestor_ids)
     ):
-        newick_repr = _format_newick_repr(taxon_label, otd_str, unsafe_symbols)
+        newick_repr = _format_newick_repr(taxon_label, otd_str, unsafe_table)
 
         children_reprs = child_newick_reprs.pop(id_, None)
         if children_reprs is not None:
