@@ -159,28 +159,14 @@ def alifestd_from_newick_polars(
     )
     labels_series = pl.Series("taxon_label", arrow_labels)
 
-    # build up label fix-ups as expressions, then apply them in a single
-    # lazy collect (only when any is needed, the common case skips entirely):
-    # collapse escaped '' inside quoted labels, and apply replace_unquoted
-    # substitutions to unquoted labels only.
-    label_expr = pl.col("taxon_label")
+    # fix up labels in a single lazy pass: collapse escaped '' inside quoted
+    # labels, and apply replace_unquoted substitutions to unquoted labels.
+    # only run when needed -- the common parse (no quoted labels, no
+    # substitutions) skips this entirely. (the str ops scan every label, so
+    # the guard is a real saving, not redundant with polars' optimizer.)
+    if replace_unquoted and any(len(key) != 1 for key in replace_unquoted):
+        raise ValueError("replace_unquoted keys must be single characters")
     quoted_any = bool(label_quoted.any())
-    if quoted_any:
-        label_expr = (
-            pl.when(pl.col("__quoted"))
-            .then(label_expr.str.replace_all("''", "'", literal=True))
-            .otherwise(label_expr)
-        )
-    if replace_unquoted:
-        if any(len(key) != 1 for key in replace_unquoted):
-            raise ValueError("replace_unquoted keys must be single characters")
-        # replace_many does simultaneous literal replacement, matching
-        # str.translate semantics for single chars.
-        label_expr = (
-            pl.when(pl.col("__quoted"))
-            .then(label_expr)
-            .otherwise(label_expr.str.replace_many(dict(replace_unquoted)))
-        )
     if quoted_any or replace_unquoted:
         labels_series = (
             pl.LazyFrame(
@@ -189,7 +175,20 @@ def alifestd_from_newick_polars(
                     "__quoted": pl.Series(label_quoted.astype(bool)),
                 },
             )
-            .select(label_expr.alias("taxon_label"))
+            .select(
+                pl.when(pl.col("__quoted"))
+                .then(
+                    pl.col("taxon_label").str.replace_all(
+                        "''", "'", literal=True
+                    )
+                )
+                .otherwise(
+                    pl.col("taxon_label").str.replace_many(
+                        dict(replace_unquoted)
+                    )
+                )
+                .alias("taxon_label"),
+            )
             .collect()
             .to_series()
         )
