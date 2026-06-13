@@ -260,10 +260,10 @@ A containerized release of phyloframe is available:
 
    # Via Singularity
    ls -1 "input.csv" \
-     | singularity exec docker://ghcr.io/mmore500/phyloframe:v0.10.0 \
+     | singularity exec docker://ghcr.io/mmore500/phyloframe:v0.10.1 \
        python3 -m phyloframe.legacy._alifestd_mark_leaves "output.csv"
 
    # Via Docker
    ls -1 "input.csv" \
-     | docker run --rm -i ghcr.io/mmore500/phyloframe:v0.10.0 \
+     | docker run --rm -i ghcr.io/mmore500/phyloframe:v0.10.1 \
        python3 -m phyloframe.legacy._alifestd_mark_leaves "output.csv"

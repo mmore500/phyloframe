@@ -63,7 +63,7 @@ Benchmarked operations include tree traversals, newick read/write, and pairwise 
 ## Install
 
 ```bash
-python3 -m pip install "phyloframe[jit]==0.10.0"
+python3 -m pip install "phyloframe[jit]==0.10.1"
 ```
 
 The `[jit]` extra installs [Numba](https://numba.pydata.org/) for just-in-time compilation, providing native-level performance for many operations.
@@ -72,7 +72,7 @@ JIT dependency is strongly recommended.
 A containerized release of `phyloframe` is available via [ghcr.io](https://ghcr.io/mmore500/phyloframe)
 
 ```bash
-singularity exec docker://ghcr.io/mmore500/phyloframe:v0.10.0 python3 -m phyloframe --help
+singularity exec docker://ghcr.io/mmore500/phyloframe:v0.10.1 python3 -m phyloframe --help
 ```
 
 ## Quickstart
