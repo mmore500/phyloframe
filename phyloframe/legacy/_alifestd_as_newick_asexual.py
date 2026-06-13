@@ -37,12 +37,12 @@ _UNSAFE_SYMBOLS = ";(),[]:' \t\n"
 def _format_newick_repr(
     taxon_label: str,
     origin_time_delta: str,
-    unsafe_table: dict,
+    unsafe_symbols: str,
 ) -> str:
     # adapted from https://github.com/niemasd/TreeSwift/blob/63b8979fb5e616ba89079d44e594682683c1365e/treeswift/Node.py#L129
     label = taxon_label
 
-    if label.translate(unsafe_table) != label:
+    if any(c in unsafe_symbols for c in label):
         # quote the label, doubling any embedded single quotes per the
         # Newick convention so the label round-trips through the parser
         label = label.replace("'", "''").join("''")
@@ -61,11 +61,10 @@ def _build_newick_string(
     origin_time_deltas: np.ndarray,
     ancestor_ids: np.ndarray,
     *,
-    unsafe_symbols: str,
-    sep_forest: str,
     progress_wrap: typing.Callable,
+    sep_forest: str,
+    unsafe_symbols: str,
 ) -> str:
-    unsafe_table = str.maketrans("", "", unsafe_symbols)
     # empty string is the missing-branch-length sentinel
     origin_time_delta_strs = np.where(
         pd.isna(origin_time_deltas), "", origin_time_deltas.astype(str)
@@ -75,7 +74,7 @@ def _build_newick_string(
     for id_, taxon_label, otd_str, ancestor_id in progress_wrap(
         zip(ids, labels, origin_time_delta_strs, ancestor_ids)
     ):
-        newick_repr = _format_newick_repr(taxon_label, otd_str, unsafe_table)
+        newick_repr = _format_newick_repr(taxon_label, otd_str, unsafe_symbols)
 
         children_reprs = child_newick_reprs.pop(id_, None)
         if children_reprs is not None:
@@ -97,10 +96,10 @@ def alifestd_as_newick_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
+    progress_wrap: typing.Callable = lambda x: x,
+    sep_forest: str = "\n",
     taxon_label: typing.Optional[str] = None,
     unsafe_symbols: str = _UNSAFE_SYMBOLS,
-    sep_forest: str = "\n",
-    progress_wrap: typing.Callable = lambda x: x,
 ) -> str:
     r"""Convert phylogeny dataframe to Newick format.
 
@@ -113,15 +112,15 @@ def alifestd_as_newick_asexual(
         Phylogeny dataframe in Alife standard format.
     mutate : bool, optional
         Allow in-place mutations of the input dataframe, by default False.
+    progress_wrap : typing.Callable, optional
+        Pass tqdm or equivalent to display a progress bar.
+    sep_forest : str, default "\n"
+        Separator placed between the ``;``-terminated trees of a forest.
     taxon_label : str, optional
         Column to use for taxon labels, by default None.
     unsafe_symbols : str, optional
         Characters that force a taxon label to be single-quoted when present.
         Defaults to the Newick-reserved symbols (and whitespace).
-    sep_forest : str, default "\n"
-        Separator placed between the ``;``-terminated trees of a forest.
-    progress_wrap : typing.Callable, optional
-        Pass tqdm or equivalent to display a progress bar.
     """
 
     logging.info(
@@ -176,9 +175,9 @@ def alifestd_as_newick_asexual(
     logging.info("creating newick string...")
     result = _build_newick_string(
         *reshaped,
-        unsafe_symbols=unsafe_symbols,
-        sep_forest=sep_forest,
         progress_wrap=progress_wrap,
+        sep_forest=sep_forest,
+        unsafe_symbols=unsafe_symbols,
     )
 
     logging.info(f"{len(result)=} {result[:20]=}")
@@ -305,9 +304,9 @@ if __name__ == "__main__":
         newick_str = alifestd_as_newick_asexual(
             phylogeny_df,
             progress_wrap=tqdm,
+            sep_forest=args.sep_forest,
             taxon_label=args.taxon_label,
             unsafe_symbols=args.unsafe_symbols,
-            sep_forest=args.sep_forest,
         )
 
     logging.info(f"writing Newick-formatted data to {args.output_file}...")

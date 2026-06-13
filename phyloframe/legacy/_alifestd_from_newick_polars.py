@@ -166,13 +166,12 @@ def alifestd_from_newick_polars(
     # the guard is a real saving, not redundant with polars' optimizer.)
     if replace_unquoted and any(len(key) != 1 for key in replace_unquoted):
         raise ValueError("replace_unquoted keys must be single characters")
-    quoted_any = bool(label_quoted.any())
-    if quoted_any or replace_unquoted:
+    if label_quoted.any() or replace_unquoted:
         labels_series = (
             pl.LazyFrame(
                 {
                     "taxon_label": labels_series,
-                    "__quoted": pl.Series(label_quoted.astype(bool)),
+                    "__quoted": pl.Series(label_quoted).cast(pl.Boolean),
                 },
             )
             .select(

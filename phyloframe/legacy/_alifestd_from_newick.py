@@ -308,16 +308,17 @@ def _extract_labels(
     chars: np.ndarray,
     label_start_stops: np.ndarray,
     label_quoted: np.ndarray,
-    replace_unquoted_table: dict,
+    replace_unquoted: typing.Mapping[str, str],
 ) -> np.ndarray:
     """Extract taxon labels from newick string using index ranges.
 
     Implementation detail for `alifestd_from_newick`.
 
-    The character mapping in ``replace_unquoted_table`` (a ``str.maketrans``
-    table, possibly empty) is applied to *unquoted* labels only, leaving
-    quoted labels verbatim. ``label_quoted`` flags which labels were quoted.
+    The ``replace_unquoted`` character mapping is applied to *unquoted*
+    labels only, leaving quoted labels verbatim. ``label_quoted`` flags
+    which labels were quoted.
     """
+    replace_unquoted_table = str.maketrans(dict(replace_unquoted))
     num_nodes = len(label_start_stops)
     labels = np.empty(num_nodes, dtype=object)
     for k, (start, stop) in enumerate(label_start_stops):
@@ -470,7 +471,6 @@ def alifestd_from_newick(
     newick = newick.strip()
     if any(len(key) != 1 for key in replace_unquoted):
         raise ValueError("replace_unquoted keys must be single characters")
-    replace_unquoted_table = str.maketrans(dict(replace_unquoted))
     if dtype_id is None:
         # the parser assigns one node id per '(' and per ',', plus one root
         # per tree (';'-terminated); size the dtype from that node-count
@@ -520,7 +520,7 @@ def alifestd_from_newick(
         chars,
         label_start_stops,
         label_quoted,
-        replace_unquoted_table,
+        replace_unquoted,
     )
 
     # convert branch lengths to requested dtype with proper null handling
