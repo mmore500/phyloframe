@@ -98,6 +98,8 @@ def alifestd_prefix_roots_polars(
         )
         .with_row_index("row_idx")
         .join(new_ancestor_map.lazy(), on="row_idx", how="left")
+        # join does not guarantee row order (e.g., under streaming engine)
+        .sort("row_idx")
         .with_columns(
             ancestor_id=pl.coalesce("new_ancestor_id", "ancestor_id"),
         )

@@ -193,16 +193,16 @@ pluggy==1.6.0
     #   -c /tmp/constraints-312.txt
     #   pytest
     #   tox
-polars==1.39.0
+polars==2.0.0
     # via
     #   -c /tmp/constraints-312.txt
     #   phyloframe (pyproject.toml)
     #   joinem
-polars-runtime-32==1.39.0
+polars-runtime-32==2.0.0
     # via
     #   -c /tmp/constraints-312.txt
     #   polars
-polars-runtime-64==1.39.0
+polars-runtime-64==2.0.0
     # via
     #   -c /tmp/constraints-312.txt
     #   polars
