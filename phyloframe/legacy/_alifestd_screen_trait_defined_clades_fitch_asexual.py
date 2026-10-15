@@ -87,7 +87,7 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         "performing bottom-up pass...",
     )
     # process deepest level first, so children are resolved before parents
-    for depth in progress_wrap(range(max_depth, -1, -1)):
+    for depth in progress_wrap(reversed(range(max_depth + 1))):
         ft_intersect[:] = 3
         # at each parent, calculate intersection of children's trait sets
         np.bitwise_and.at(
