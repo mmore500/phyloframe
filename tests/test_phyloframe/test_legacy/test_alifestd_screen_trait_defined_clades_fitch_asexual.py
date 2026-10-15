@@ -84,12 +84,11 @@ def test_simple2(mutate: bool):
     )
     # 0 resolves to - from 3 and 4, so root 1 is ambiguous between - (0) and
     # + (2) and defaults to -, making 2 a gain
-    ids = phylogeny_df["id"].to_list()
-    assert not result[ids.index(0)]
-    assert not result[ids.index(1)]
-    assert result[ids.index(2)]
-    assert not result[ids.index(3)]
-    assert not result[ids.index(4)]
+    assert not result[0]
+    assert not result[1]
+    assert not result[2]
+    assert result[3]
+    assert not result[4]
 
     if not mutate:
         assert original_df.equals(phylogeny_df)
