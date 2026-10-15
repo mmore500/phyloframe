@@ -8,6 +8,7 @@ import pandas as pd
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_mark_node_depth_asexual import alifestd_mark_node_depth_asexual
+from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
@@ -47,12 +48,14 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         phylogeny_df = phylogeny_df.copy()
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
-    saved_id_order = None
-    if not alifestd_is_topologically_sorted(phylogeny_df):
-        saved_id_order = phylogeny_df["id"].to_numpy(copy=True)
     phylogeny_df["fitch_trait_set"] = (
         mask_trait_absent + 2 * mask_trait_present
     )
+
+    saved_id_order = None
+    if not alifestd_is_topologically_sorted(phylogeny_df):
+        saved_id_order = phylogeny_df["id"].to_numpy(copy=True)
+        phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
     if "node_depth" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_node_depth_asexual(
@@ -147,14 +150,12 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         inplace=True,
     )
     if saved_id_order is not None:
-        return (
-            phylogeny_df.set_index("id")
-            .loc[
-                saved_id_order,
-                "alifestd_screen_trait_defined_clades_fitch_asexual",
-            ]
-            .to_numpy()
-        )
-    return phylogeny_df[
-        "alifestd_screen_trait_defined_clades_fitch_asexual"
-    ].values
+        phylogeny_df.index = phylogeny_df["id"]
+        return phylogeny_df.loc[
+            saved_id_order,
+            "alifestd_screen_trait_defined_clades_fitch_asexual",
+        ].to_numpy()
+    else:
+        return phylogeny_df[
+            "alifestd_screen_trait_defined_clades_fitch_asexual"
+        ].values
