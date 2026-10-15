@@ -151,7 +151,7 @@ def alifestd_mark_sample_tips_canopy_polars(
         "- alifestd_mark_sample_tips_canopy_polars: setting mark column...",
     )
     phylogeny_df = phylogeny_df.with_columns(
-        pl.col("id").is_in(leaf_ids).alias(mark_as),
+        pl.col("id").is_in(leaf_ids.implode()).alias(mark_as),
     )
     del leaf_ids
     gc.collect()
