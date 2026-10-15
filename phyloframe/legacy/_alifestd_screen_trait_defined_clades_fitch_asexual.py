@@ -6,7 +6,9 @@ from packaging.version import parse
 import pandas as pd
 
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_mark_node_depth_asexual import alifestd_mark_node_depth_asexual
+from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
@@ -50,6 +52,11 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         mask_trait_absent + 2 * mask_trait_present
     )
 
+    saved_id_order = None
+    if not alifestd_is_topologically_sorted(phylogeny_df):
+        saved_id_order = phylogeny_df["id"].to_numpy(copy=True)
+        phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
+
     if "node_depth" not in phylogeny_df.columns:
         phylogeny_df = alifestd_mark_node_depth_asexual(
             phylogeny_df, mutate=True
@@ -79,7 +86,8 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         " - alifestd_screen_trait_defined_clades_fitch_asexual: "
         "performing bottom-up pass...",
     )
-    for __ in progress_wrap(range(max_depth + 1)):
+    # process deepest level first, so children are resolved before parents
+    for depth in progress_wrap(reversed(range(max_depth + 1))):
         ft_intersect[:] = 3
         # at each parent, calculate intersection of children's trait sets
         np.bitwise_and.at(
@@ -105,9 +113,9 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
             (ft_num0s > ft_num1s) + 2 * (ft_num1s > ft_num0s),
         )
 
-        # only update trait set if not already set
+        # only update trait set if not already set, for current level only
         ft_set = np.where(
-            ft_set == 0,
+            (ft_set == 0) & (node_depth == depth),
             proposed_update,
             ft_set,
         )
@@ -141,6 +149,13 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         columns=["fitch_trait_set", "fitch_trait_intersect"],
         inplace=True,
     )
-    return phylogeny_df[
-        "alifestd_screen_trait_defined_clades_fitch_asexual"
-    ].values
+    if saved_id_order is not None:
+        phylogeny_df.index = phylogeny_df["id"]
+        return phylogeny_df.loc[
+            saved_id_order,
+            "alifestd_screen_trait_defined_clades_fitch_asexual",
+        ].to_numpy()
+    else:
+        return phylogeny_df[
+            "alifestd_screen_trait_defined_clades_fitch_asexual"
+        ].values

@@ -82,10 +82,12 @@ def test_simple2(mutate: bool):
         mask_trait_present=[False, False, False, True, False],
         mask_trait_absent=[True, False, False, False, True],
     )
+    # 0 resolves to - from 3 and 4, so root 1 is ambiguous between - (0) and
+    # + (2) and defaults to -, making 2 a gain
     assert not result[0]
     assert not result[1]
     assert not result[2]
-    assert not result[3]
+    assert result[3]
     assert not result[4]
 
     if not mutate:
@@ -1126,6 +1128,44 @@ def test_simple23(apply: typing.Callable, mutate: bool):
     assert result[5]
     assert not result[6]
     assert result[7]
+
+    if not mutate:
+        assert original_df.equals(phylogeny_df)
+
+
+@pytest.mark.parametrize("apply", [lambda x: x, alifestd_to_working_format])
+@pytest.mark.parametrize("mutate", [True, False])
+def test_unresolved_sibling_subtree(apply: typing.Callable, mutate: bool):
+    # Tree structure:
+    #   0 -+- 1 -+- 3 -
+    #      |     +- 4 -+- 5 +
+    #      |           +- 6 +
+    #      +- 2 +
+    # 1 must not resolve from 3 alone before its sibling subtree 4 resolves;
+    # 4 resolves to +, so 1 is ambiguous, root 0 is +, and 3 is a loss
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6],
+            "ancestor_list": [
+                "[None]",
+                "[0]",
+                "[0]",
+                "[1]",
+                "[1]",
+                "[4]",
+                "[4]",
+            ],
+        },
+    )
+    phylogeny_df = apply(phylogeny_df)
+    original_df = phylogeny_df.copy()
+    result = alifestd_screen_trait_defined_clades_fitch_asexual(
+        phylogeny_df,
+        mutate=mutate,
+        mask_trait_absent=[False, False, False, True, False, False, False],
+        mask_trait_present=[False, False, True, False, False, True, True],
+    )
+    assert not result.any()
 
     if not mutate:
         assert original_df.equals(phylogeny_df)
