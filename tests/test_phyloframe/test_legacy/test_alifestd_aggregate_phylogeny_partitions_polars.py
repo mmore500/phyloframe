@@ -158,15 +158,14 @@ def test_preserves_id_dtypes():
 
 
 @pytest.mark.parametrize(
-    "args",
+    "partitioned_by",
     [
-        (["x", pl.col("y") > 5],),
-        ("x", pl.col("y") > 5),
-        (cs.by_name("x"), pl.col("y") > 5),
-        ([cs.by_name("x")], pl.col("y") > 5),
+        ["x", pl.col("y") > 5],
+        [cs.by_name("x"), pl.col("y") > 5],
+        pl.struct("x", pl.col("y") > 5),
     ],
 )
-def test_more_partitioned_by(args):
+def test_partitioned_by_forms(partitioned_by):
     df = pl.DataFrame(
         {
             "id": [0, 0, 1, 0, 1],
@@ -175,6 +174,6 @@ def test_more_partitioned_by(args):
             "y": [5, 6, 7, 8, 9],
         },
     )
-    result = alifestd_aggregate_phylogeny_partitions_polars(df, *args)
+    result = alifestd_aggregate_phylogeny_partitions_polars(df, partitioned_by)
     assert result["id"].to_list() == [0, 1, 2, 3, 4]
     assert result["ancestor_id"].to_list() == [0, 1, 1, 3, 3]

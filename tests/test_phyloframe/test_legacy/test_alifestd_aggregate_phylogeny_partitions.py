@@ -92,17 +92,3 @@ def test_missing_partitioned_by():
     df = _tag([_load("nk_ecoeaselection")])
     with pytest.raises(KeyError):
         alifestd_aggregate_phylogeny_partitions(df, "nonexistent")
-
-
-@pytest.mark.parametrize(
-    "args",
-    [(["tree", "group"],), ("tree", "group"), (["tree"], "group")],
-)
-def test_more_partitioned_by(args):
-    a, b = _load("nk_ecoeaselection"), _load("nk_tournamentselection")
-    combined = _tag([a, b, a])
-    combined["group"] = combined["tree"] % 2
-
-    result = alifestd_aggregate_phylogeny_partitions(combined, *args)
-    expected = alifestd_aggregate_phylogeny_partitions(combined, "tree")
-    pd.testing.assert_frame_equal(result, expected)
