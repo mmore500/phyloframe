@@ -70,28 +70,13 @@ def test_matches_aggregate_phylogenies(names, lazy, by):
     assert alifestd_is_topologically_sorted_polars(result)
 
 
-def test_noncontiguous_ids_within_partitions():
-    df = pl.DataFrame(
-        {
-            "id": [10, 20, 30, 40],
-            "ancestor_id": [10, 20, 10, 20],
-            "key": ["a", "b", "a", "b"],
-        },
-    )
-    result = alifestd_aggregate_phylogeny_partitions_polars(df, "key")
-    assert result["key"].to_list() == ["a", "a", "b", "b"]
-    # partitions shifted by fixed offsets: a by 0, b by 31
-    assert result["id"].to_list() == [10, 30, 51, 71]
-    assert result["ancestor_id"].to_list() == [10, 10, 51, 51]
-
-
 def test_multiple_keys_and_expr():
     df = pl.DataFrame(
         {
-            "id": [0, 1, 2, 3],
-            "ancestor_id": [0, 1, 2, 2],
-            "x": [1, 1, 2, 2],
-            "y": [5, 6, 7, 8],
+            "id": [0, 0, 1, 0, 1],
+            "ancestor_id": [0, 0, 0, 0, 0],
+            "x": [1, 1, 1, 2, 2],
+            "y": [5, 6, 7, 8, 9],
         },
     )
     result = alifestd_aggregate_phylogeny_partitions_polars(
@@ -99,8 +84,35 @@ def test_multiple_keys_and_expr():
     )
     assert result.columns == df.columns
     # partitions (1, False), (1, True), (2, True) shifted by 0, 1, 3
-    assert result["id"].to_list() == [0, 2, 5, 6]
-    assert result["ancestor_id"].to_list() == [0, 2, 5, 5]
+    assert result["y"].to_list() == [5, 6, 7, 8, 9]
+    assert result["id"].to_list() == [0, 1, 2, 3, 4]
+    assert result["ancestor_id"].to_list() == [0, 1, 1, 3, 3]
+
+
+def test_partitions_ordered_by_first_appearance():
+    df = pl.DataFrame(
+        {
+            "id": [0, 0, 1, 1],
+            "ancestor_id": [0, 0, 0, 0],
+            "key": ["b", "a", "a", "b"],
+        },
+    )
+    result = alifestd_aggregate_phylogeny_partitions_polars(df, "key")
+    assert result["key"].to_list() == ["b", "b", "a", "a"]
+    assert result["id"].to_list() == [0, 1, 2, 3]
+    assert result["ancestor_id"].to_list() == [0, 0, 2, 2]
+
+
+def test_noncontiguous_ids_within_partitions():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 1, 0, 1],
+            "key": ["a", "b", "a", "b"],
+        },
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_aggregate_phylogeny_partitions_polars(df, "key")
 
 
 def test_agrees_with_pandas():
@@ -119,7 +131,9 @@ def test_empty():
         {"id": [], "ancestor_id": [], "k": []},
         schema={"id": pl.Int64, "ancestor_id": pl.Int64, "k": pl.Int64},
     )
-    assert alifestd_aggregate_phylogeny_partitions_polars(df, "k").is_empty()
+    result = alifestd_aggregate_phylogeny_partitions_polars(df, "k")
+    assert result.is_empty()
+    assert result.columns == df.columns
 
 
 def test_invalid():
