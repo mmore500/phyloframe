@@ -20,7 +20,7 @@ from ._alifestd_aggregate_phylogenies import alifestd_aggregate_phylogenies
 
 def alifestd_aggregate_phylogeny_partitions(
     phylogeny_df: pd.DataFrame,
-    partitioned_by: typing.Union[str, typing.Sequence[str]],
+    partition_by: typing.Union[str, typing.Sequence[str]],
     mutate: bool = False,
 ) -> pd.DataFrame:
     """Split a dataframe into partitions by the values of one or more columns,
@@ -40,7 +40,7 @@ def alifestd_aggregate_phylogeny_partitions(
     ----------
     phylogeny_df : pandas.DataFrame
         The phylogeny as a dataframe in alife standard format.
-    partitioned_by : str or sequence of str
+    partition_by : str or sequence of str
         Name(s) of the column(s) to split the dataframe over.
     mutate : bool, default False
         If True, allow mutation of the input dataframe.
@@ -63,7 +63,7 @@ def alifestd_aggregate_phylogeny_partitions(
     partitions = [
         partition
         for __, partition in phylogeny_df.groupby(
-            partitioned_by,
+            partition_by,
             sort=False,
             dropna=False,
         )
@@ -74,7 +74,7 @@ def alifestd_aggregate_phylogeny_partitions(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Split data into partitions by the values of `--partitioned-by` column(s),
+Split data into partitions by the values of `--partition-by` column(s),
 then concatenate the partitions as independent phylogenies, reassigning
 organism ids to prevent collisions.
 
@@ -109,9 +109,9 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--partitioned-by",
+        "--partition-by",
         action="append",
-        dest="partitioned_by",
+        dest="partition_by",
         type=str,
         default=[],
         help=(
@@ -136,7 +136,7 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_aggregate_phylogeny_partitions,
-                    partitioned_by=args.partitioned_by,
+                    partition_by=args.partition_by,
                 ),
             ),
         )

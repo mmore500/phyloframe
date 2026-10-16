@@ -38,7 +38,7 @@ def test_cli_csv():
             MODULE,
             "--with-column",
             'pl.lit(filepath).alias("source")',
-            "--partitioned-by",
+            "--partition-by",
             "source",
             "--how",
             "diagonal_relaxed",
@@ -56,7 +56,7 @@ def test_cli_csv():
     assert result_df["source"].drop_duplicates().tolist() == INPUTS
 
 
-def test_cli_multiple_partitioned_by():
+def test_cli_multiple_partition_by():
     output_file = "/tmp/phyloframe_alifestd_aggregate_phylogeny_partitions_multiple.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
@@ -68,9 +68,9 @@ def test_cli_multiple_partitioned_by():
             'pl.lit(filepath).alias("source")',
             "--with-column",
             'pl.lit(0).alias("replicate")',
-            "--partitioned-by",
+            "--partition-by",
             "source",
-            "--partitioned-by",
+            "--partition-by",
             "replicate",
             "--how",
             "diagonal_relaxed",

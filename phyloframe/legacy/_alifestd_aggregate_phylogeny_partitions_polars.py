@@ -19,7 +19,7 @@ from ._alifestd_aggregate_phylogenies_polars import (
 
 def alifestd_aggregate_phylogeny_partitions_polars(
     phylogeny_df: typing.Union[pl.DataFrame, pl.LazyFrame],
-    partitioned_by: typing.Union[
+    partition_by: typing.Union[
         str,
         pl.Expr,
         typing.Sequence[typing.Union[str, pl.Expr]],
@@ -44,7 +44,7 @@ def alifestd_aggregate_phylogeny_partitions_polars(
 
         Must represent an asexual phylogeny with an ``ancestor_id`` column
         (not ``ancestor_list``).
-    partitioned_by : str, polars.Expr, or sequence of str and polars.Expr
+    partition_by : str, polars.Expr, or sequence of str and polars.Expr
         Column name(s), selector(s), or expression(s) to split the dataframe
         over.
 
@@ -64,7 +64,7 @@ def alifestd_aggregate_phylogeny_partitions_polars(
     phylogeny_df = (
         phylogeny_df.lazy()
         .with_columns(
-            pl.struct(partitioned_by).alias(partition_col),
+            pl.struct(partition_by).alias(partition_col),
         )
         .collect()
     )
@@ -82,7 +82,7 @@ def alifestd_aggregate_phylogeny_partitions_polars(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Split data into partitions by the values of `--partitioned-by` column(s),
+Split data into partitions by the values of `--partition-by` column(s),
 then concatenate the partitions as independent phylogenies, reassigning
 organism ids to prevent collisions.
 
@@ -117,9 +117,9 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--partitioned-by",
+        "--partition-by",
         action="append",
-        dest="partitioned_by",
+        dest="partition_by",
         type=str,
         default=[],
         help=(
@@ -145,7 +145,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_aggregate_phylogeny_partitions_polars,
-                    partitioned_by=args.partitioned_by,
+                    partition_by=args.partition_by,
                 ),
             )
     except NotImplementedError as e:

@@ -42,7 +42,7 @@ def test_matches_aggregate_phylogenies(n_trees, mutate, drop_ancestor_list):
 
     result = alifestd_aggregate_phylogeny_partitions(
         combined if not mutate else combined.copy(),
-        partitioned_by="tree",
+        partition_by="tree",
         mutate=mutate,
     )
     expected = alifestd_aggregate_phylogenies(
@@ -71,7 +71,7 @@ def test_interleaved_rows_and_multiple_columns():
 
     result = alifestd_aggregate_phylogeny_partitions(
         combined,
-        partitioned_by=["tree", "group"],
+        partition_by=["tree", "group"],
     )
     assert result["id"].is_unique
     assert alifestd_validate(result)
@@ -88,7 +88,7 @@ def test_empty():
     assert list(result.columns) == list(df.columns)
 
 
-def test_missing_partitioned_by():
+def test_missing_partition_by():
     df = _tag([_load("nk_ecoeaselection")])
     with pytest.raises(KeyError):
         alifestd_aggregate_phylogeny_partitions(df, "nonexistent")

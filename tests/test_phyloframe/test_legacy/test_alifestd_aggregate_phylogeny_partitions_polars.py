@@ -52,7 +52,7 @@ def test_matches_aggregate_phylogenies(names, lazy, by):
     dfs, combined = _tagged(names)
     result = alifestd_aggregate_phylogeny_partitions_polars(
         combined.lazy() if lazy else combined,
-        partitioned_by=by,
+        partition_by=by,
     )
     assert isinstance(result, pl.DataFrame)
     expected = alifestd_aggregate_phylogenies_polars(
@@ -158,14 +158,14 @@ def test_preserves_id_dtypes():
 
 
 @pytest.mark.parametrize(
-    "partitioned_by",
+    "partition_by",
     [
         ["x", pl.col("y") > 5],
         [cs.by_name("x"), pl.col("y") > 5],
         pl.struct("x", pl.col("y") > 5),
     ],
 )
-def test_partitioned_by_forms(partitioned_by):
+def test_partition_by_forms(partition_by):
     df = pl.DataFrame(
         {
             "id": [0, 0, 1, 0, 1],
@@ -174,6 +174,6 @@ def test_partitioned_by_forms(partitioned_by):
             "y": [5, 6, 7, 8, 9],
         },
     )
-    result = alifestd_aggregate_phylogeny_partitions_polars(df, partitioned_by)
+    result = alifestd_aggregate_phylogeny_partitions_polars(df, partition_by)
     assert result["id"].to_list() == [0, 1, 2, 3, 4]
     assert result["ancestor_id"].to_list() == [0, 1, 1, 3, 3]
