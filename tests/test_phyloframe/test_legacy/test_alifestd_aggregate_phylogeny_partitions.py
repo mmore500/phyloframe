@@ -88,9 +88,7 @@ def test_empty():
     assert list(result.columns) == list(df.columns)
 
 
-def test_invalid_partitioned_by():
+def test_missing_partitioned_by():
     df = _tag([_load("nk_ecoeaselection")])
-    with pytest.raises(ValueError):
-        alifestd_aggregate_phylogeny_partitions(df, [])
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         alifestd_aggregate_phylogeny_partitions(df, "nonexistent")

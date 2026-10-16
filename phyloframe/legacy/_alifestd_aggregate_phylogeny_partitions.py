@@ -44,19 +44,6 @@ def alifestd_aggregate_phylogeny_partitions(
     alifestd_aggregate_phylogenies :
         Aggregates a list of separate phylogeny dataframes.
     """
-    if isinstance(partitioned_by, str):
-        partitioned_by = [partitioned_by]
-    else:
-        partitioned_by = list(partitioned_by)
-    if not partitioned_by:
-        raise ValueError("partitioned_by must specify at least one column")
-
-    missing = [col for col in partitioned_by if col not in phylogeny_df]
-    if missing:
-        raise ValueError(
-            f"partitioned_by columns {missing!r} not found in phylogeny_df",
-        )
-
     if len(phylogeny_df) == 0:
         return phylogeny_df if mutate else phylogeny_df.copy()
 
@@ -68,5 +55,5 @@ def alifestd_aggregate_phylogeny_partitions(
             dropna=False,
         )
     ]
-    # groupby slices are copies, so aggregation may safely mutate them
+    # groupby partitions are copies, so safe to mutate
     return alifestd_aggregate_phylogenies(partitions, mutate=True)

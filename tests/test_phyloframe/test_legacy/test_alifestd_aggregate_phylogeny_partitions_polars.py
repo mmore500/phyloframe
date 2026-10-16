@@ -137,8 +137,6 @@ def test_empty():
 
 def test_invalid():
     df = pl.DataFrame({"id": [0], "ancestor_id": [0], "k": [1]})
-    with pytest.raises(ValueError):
-        alifestd_aggregate_phylogeny_partitions_polars(df, [])
     with pytest.raises(NotImplementedError):
         alifestd_aggregate_phylogeny_partitions_polars(
             df.drop("ancestor_id"), "k"

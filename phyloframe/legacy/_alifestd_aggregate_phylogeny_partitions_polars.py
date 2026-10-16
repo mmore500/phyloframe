@@ -2,15 +2,10 @@ import typing
 
 import polars as pl
 
-_prefix = "__phyloframe_aggregate_partitions_"
-_key_prefix = f"{_prefix}key_"
-_first_name = f"{_prefix}first"
-_part_name = f"{_prefix}part"
-_row_name = f"{_prefix}row"
-_span_name = f"{_prefix}span"
-_offset_name = f"{_prefix}offset"
+from .._auxlib._preserve_id_dtypes_polars import preserve_id_dtypes_polars
 
 
+@preserve_id_dtypes_polars
 def alifestd_aggregate_phylogeny_partitions_polars(
     phylogeny_df: typing.Union[pl.DataFrame, pl.LazyFrame],
     partitioned_by: typing.Union[
@@ -58,15 +53,11 @@ def alifestd_aggregate_phylogeny_partitions_polars(
     """
     if isinstance(partitioned_by, (str, pl.Expr)):
         partitioned_by = [partitioned_by]
-    else:
-        partitioned_by = list(partitioned_by)
-    if not partitioned_by:
-        raise ValueError("partitioned_by must specify at least one column")
+    keys = [pl.col(k) if isinstance(k, str) else k for k in partitioned_by]
 
     is_eager = isinstance(phylogeny_df, pl.DataFrame)
-    lf = phylogeny_df.lazy()
-    schema = lf.collect_schema()
-    schema_names = schema.names()
+    phylogeny_lf = phylogeny_df.lazy()
+    schema_names = phylogeny_lf.collect_schema().names()
 
     if "ancestor_list" in schema_names:
         raise NotImplementedError(
@@ -77,49 +68,27 @@ def alifestd_aggregate_phylogeny_partitions_polars(
             "ancestor_id column required in polars implementation",
         )
 
-    key_names = [f"{_key_prefix}{i}" for i in range(len(partitioned_by))]
-    key_cols = [pl.col(name) for name in key_names]
-
-    # number partitions by order of first appearance
-    lf = (
-        lf.with_columns(
-            [
-                (pl.col(key) if isinstance(key, str) else key).alias(name)
-                for key, name in zip(partitioned_by, key_names)
-            ],
-        )
-        .with_row_index(_row_name)
+    result = (
+        phylogeny_lf.with_row_index("__row")
+        # first row of each partition orders partitions by first appearance
+        .with_columns(pl.col("__row").min().over(keys).alias("__part"))
+        .sort("__part", "__row")
+        # id span claimed by each partition, recorded on its first row
         .with_columns(
-            pl.struct(key_cols).is_first_distinct().alias(_first_name),
+            pl.when(pl.col("__row") == pl.col("__part"))
+            .then(pl.col("id").max().over("__part") + 1)
+            .otherwise(0)
+            .alias("__span"),
         )
         .with_columns(
-            pl.when(pl.col(_first_name))
-            .then(pl.col(_first_name).cum_sum() - 1)
-            .alias(_part_name),
+            (pl.col("__span").cum_sum() - pl.col("__span")).alias("__offset"),
         )
-        .with_columns(pl.col(_part_name).max().over(key_cols))
-        # stable w.r.t. original row order, gathers partitions together
-        .sort(_part_name, _row_name)
         # shift each partition's ids past the ids of all prior partitions
         .with_columns(
-            pl.when(pl.col(_first_name))
-            .then(pl.col("id").max().over(_part_name) + 1)
-            .otherwise(0)
-            .alias(_span_name),
-        )
-        .with_columns(
-            (pl.col(_span_name).cum_sum() - pl.col(_span_name)).alias(
-                _offset_name,
-            ),
-        )
-        .with_columns(pl.col(_offset_name).first().over(_part_name))
-        .with_columns(
-            (pl.col("id") + pl.col(_offset_name)).cast(schema["id"]),
-            (pl.col("ancestor_id") + pl.col(_offset_name)).cast(
-                schema["ancestor_id"],
-            ),
+            pl.col("id") + pl.col("__offset").first().over("__part"),
+            pl.col("ancestor_id") + pl.col("__offset").first().over("__part"),
         )
         .select(schema_names)
     )
 
-    return lf.collect() if is_eager else lf
+    return result.collect() if is_eager else result
