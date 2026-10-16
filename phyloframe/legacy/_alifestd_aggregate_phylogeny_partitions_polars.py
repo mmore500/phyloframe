@@ -36,8 +36,9 @@ def alifestd_aggregate_phylogeny_partitions_polars(
     within each partition need not be contiguous; resulting ids are
     contiguous.
 
-    Assumes asexual phylogenies, topologically sorted, and with an
-    ``ancestor_id`` column (not ``ancestor_list``).
+    Assumes asexual phylogenies with an ``ancestor_id`` column (not
+    ``ancestor_list``). Topological sorting is not required; the result is
+    topologically sorted if and only if the input is.
 
     Parameters
     ----------
