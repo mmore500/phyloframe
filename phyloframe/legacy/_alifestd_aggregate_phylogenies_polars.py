@@ -25,6 +25,8 @@ def alifestd_aggregate_phylogenies_polars(
     --------
     alifestd_aggregate_phylogenies :
         Pandas-based implementation.
+    alifestd_aggregate_phylogeny_partitions_polars :
+        Aggregates partitions of a single phylogeny dataframe.
     """
     aggregate_least_available_id = 0
 

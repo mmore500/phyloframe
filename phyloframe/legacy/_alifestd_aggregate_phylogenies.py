@@ -16,6 +16,13 @@ def alifestd_aggregate_phylogenies(
     Inputs dataframe are not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
     value to get transformed phylogeny dataframe.
+
+    See Also
+    --------
+    alifestd_aggregate_phylogenies_polars :
+        Polars-based implementation.
+    alifestd_aggregate_phylogeny_partitions :
+        Aggregates partitions of a single phylogeny dataframe.
     """
 
     aggregate_least_available_id = 0
