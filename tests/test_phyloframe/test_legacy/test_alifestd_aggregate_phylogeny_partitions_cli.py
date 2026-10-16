@@ -84,3 +84,16 @@ def test_cli_multiple_partition_by():
     result_df = pd.read_csv(output_file)
     assert len(result_df) == sum(map(len, map(pd.read_csv, INPUTS)))
     assert result_df["id"].is_unique
+
+
+def test_cli_create_parser():
+    from phyloframe.legacy._alifestd_aggregate_phylogeny_partitions import (
+        _create_parser,
+    )
+
+    parser = _create_parser()
+    assert parser is not None
+    args, __ = parser.parse_known_args(
+        ["--partition-by", "a", "--partition-by", "b"]
+    )
+    assert args.partition_by == ["a", "b"]
