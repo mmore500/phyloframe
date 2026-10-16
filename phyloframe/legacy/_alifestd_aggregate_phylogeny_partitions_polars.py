@@ -24,6 +24,7 @@ def alifestd_aggregate_phylogeny_partitions_polars(
         pl.Expr,
         typing.Sequence[typing.Union[str, pl.Expr]],
     ],
+    *more_partitioned_by: typing.Union[str, pl.Expr],
 ) -> pl.DataFrame:
     """Split a dataframe into partitions by the values of one or more columns
     or expressions, then concatenate the partitions as independent
@@ -45,7 +46,11 @@ def alifestd_aggregate_phylogeny_partitions_polars(
         Must represent an asexual phylogeny with an ``ancestor_id`` column
         (not ``ancestor_list``).
     partitioned_by : str, polars.Expr, or sequence of str and polars.Expr
-        Column name(s) or expression(s) to split the dataframe over.
+        Column name(s), selector(s), or expression(s) to split the dataframe
+        over.
+    *more_partitioned_by : str or polars.Expr
+        Additional column names, selectors, or expressions to split over,
+        specified as positional arguments.
 
     Returns
     -------
@@ -61,11 +66,14 @@ def alifestd_aggregate_phylogeny_partitions_polars(
     """
     if isinstance(partitioned_by, (str, pl.Expr)):
         partitioned_by = [partitioned_by]
-    keys = [pl.col(k) if isinstance(k, str) else k for k in partitioned_by]
 
     phylogeny_df = (
         phylogeny_df.lazy()
-        .with_columns(pl.struct(keys).alias("_partition"))
+        .with_columns(
+            pl.struct(*partitioned_by, *more_partitioned_by).alias(
+                "_partition",
+            ),
+        )
         .collect()
     )
     if phylogeny_df.is_empty():

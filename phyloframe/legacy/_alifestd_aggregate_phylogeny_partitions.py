@@ -21,6 +21,7 @@ from ._alifestd_aggregate_phylogenies import alifestd_aggregate_phylogenies
 def alifestd_aggregate_phylogeny_partitions(
     phylogeny_df: pd.DataFrame,
     partitioned_by: typing.Union[str, typing.Sequence[str]],
+    *more_partitioned_by: str,
     mutate: bool = False,
 ) -> pd.DataFrame:
     """Split a dataframe into partitions by the values of one or more columns,
@@ -42,6 +43,9 @@ def alifestd_aggregate_phylogeny_partitions(
         The phylogeny as a dataframe in alife standard format.
     partitioned_by : str or sequence of str
         Name(s) of the column(s) to split the dataframe over.
+    *more_partitioned_by : str
+        Additional column names to split over, specified as positional
+        arguments.
     mutate : bool, default False
         If True, allow mutation of the input dataframe.
 
@@ -60,10 +64,13 @@ def alifestd_aggregate_phylogeny_partitions(
     if len(phylogeny_df) == 0:
         return phylogeny_df if mutate else phylogeny_df.copy()
 
+    if isinstance(partitioned_by, str):
+        partitioned_by = [partitioned_by]
+
     partitions = [
         partition
         for __, partition in phylogeny_df.groupby(
-            partitioned_by,
+            [*partitioned_by, *more_partitioned_by],
             sort=False,
             dropna=False,
         )

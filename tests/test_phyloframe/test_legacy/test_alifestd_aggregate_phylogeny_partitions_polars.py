@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 import polars as pl
+import polars.selectors as cs
 import pytest
 
 from phyloframe.legacy import (
@@ -154,3 +155,26 @@ def test_preserves_id_dtypes():
     assert result.schema["ancestor_id"] == pl.UInt16
     assert result["id"].to_list() == [0, 1, 2]
     assert result["ancestor_id"].to_list() == [0, 0, 2]
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        (["x", pl.col("y") > 5],),
+        ("x", pl.col("y") > 5),
+        (cs.by_name("x"), pl.col("y") > 5),
+        ([cs.by_name("x")], pl.col("y") > 5),
+    ],
+)
+def test_more_partitioned_by(args):
+    df = pl.DataFrame(
+        {
+            "id": [0, 0, 1, 0, 1],
+            "ancestor_id": [0, 0, 0, 0, 0],
+            "x": [1, 1, 1, 2, 2],
+            "y": [5, 6, 7, 8, 9],
+        },
+    )
+    result = alifestd_aggregate_phylogeny_partitions_polars(df, *args)
+    assert result["id"].to_list() == [0, 1, 2, 3, 4]
+    assert result["ancestor_id"].to_list() == [0, 1, 1, 3, 3]
