@@ -7,8 +7,8 @@ _key_prefix = f"{_prefix}key_"
 _first_name = f"{_prefix}first"
 _part_name = f"{_prefix}part"
 _row_name = f"{_prefix}row"
-_new_id_name = f"{_prefix}new_id"
-_new_ancestor_name = f"{_prefix}new_ancestor_id"
+_span_name = f"{_prefix}span"
+_offset_name = f"{_prefix}offset"
 
 
 def alifestd_aggregate_phylogeny_partitions_polars(
@@ -32,9 +32,11 @@ def alifestd_aggregate_phylogeny_partitions_polars(
     Partitions are ordered by first appearance of their key in
     `phylogeny_df`, and rows retain their relative order within each
     partition. Each partition is expected to be a self-contained phylogeny,
-    i.e., no organism should have an ancestor in a different partition. Ids
-    within each partition need not be contiguous; resulting ids are
-    contiguous.
+    i.e., no organism should have an ancestor in a different partition.
+
+    Ids within each partition are shifted by a fixed offset, so resulting ids
+    are unique, and are contiguous if the ids within every partition are
+    contiguous (i.e., each id equals its row number within its partition).
 
     Assumes asexual phylogenies with an ``ancestor_id`` column (not
     ``ancestor_list``). Topological sorting is not required; the result is
@@ -98,24 +100,23 @@ def alifestd_aggregate_phylogeny_partitions_polars(
         .with_columns(pl.col(_part_name).max().over(key_cols))
         # stable w.r.t. original row order, gathers partitions together
         .sort(_part_name, _row_name)
-        .with_row_index(_new_id_name)
-    )
-
-    # re-point ancestors at new ids; ids are only unique within a partition
-    id_lookup = lf.select(
-        pl.col(_part_name),
-        pl.col("id").alias("ancestor_id"),
-        pl.col(_new_id_name).alias(_new_ancestor_name),
-    )
-    lf = (
-        lf.join(id_lookup, on=[_part_name, "ancestor_id"], how="left")
-        .sort(_new_id_name)
+        # shift each partition's ids past the ids of all prior partitions
         .with_columns(
-            pl.col(_new_id_name).cast(schema["id"]).alias("id"),
-            pl.col(_new_ancestor_name)
-            .cast(schema["ancestor_id"])
-            .alias(
-                "ancestor_id",
+            pl.when(pl.col(_first_name))
+            .then(pl.col("id").max().over(_part_name) + 1)
+            .otherwise(0)
+            .alias(_span_name),
+        )
+        .with_columns(
+            (pl.col(_span_name).cum_sum() - pl.col(_span_name)).alias(
+                _offset_name,
+            ),
+        )
+        .with_columns(pl.col(_offset_name).first().over(_part_name))
+        .with_columns(
+            (pl.col("id") + pl.col(_offset_name)).cast(schema["id"]),
+            (pl.col("ancestor_id") + pl.col(_offset_name)).cast(
+                schema["ancestor_id"],
             ),
         )
         .select(schema_names)

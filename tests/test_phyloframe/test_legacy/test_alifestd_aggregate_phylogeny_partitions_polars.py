@@ -81,8 +81,9 @@ def test_noncontiguous_ids_within_partitions():
     )
     result = alifestd_aggregate_phylogeny_partitions_polars(df, "key")
     assert result["key"].to_list() == ["a", "a", "b", "b"]
-    assert result["id"].to_list() == [0, 1, 2, 3]
-    assert result["ancestor_id"].to_list() == [0, 0, 2, 2]
+    # partitions shifted by fixed offsets: a by 0, b by 31
+    assert result["id"].to_list() == [10, 30, 51, 71]
+    assert result["ancestor_id"].to_list() == [10, 10, 51, 51]
 
 
 def test_multiple_keys_and_expr():
@@ -98,9 +99,9 @@ def test_multiple_keys_and_expr():
         df, ["x", pl.col("y") > 5]
     )
     assert result.columns == df.columns
-    assert result["id"].to_list() == [0, 1, 2, 3]
-    # (1, False), (1, True), (2, True) partitions, three roots
-    assert result["ancestor_id"].to_list() == [0, 1, 2, 2]
+    # partitions (1, False), (1, True), (2, True) shifted by 0, 1, 3
+    assert result["id"].to_list() == [0, 2, 5, 6]
+    assert result["ancestor_id"].to_list() == [0, 2, 5, 5]
 
 
 def test_agrees_with_pandas():
