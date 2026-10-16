@@ -53,8 +53,7 @@ def test_matches_aggregate_phylogenies(names, lazy, by):
         combined.lazy() if lazy else combined,
         partitioned_by=by,
     )
-    assert isinstance(result, pl.LazyFrame) == lazy
-    result = result.lazy().collect()
+    assert isinstance(result, pl.DataFrame)
     expected = alifestd_aggregate_phylogenies_polars(
         [
             alifestd_assign_contiguous_ids_polars(df).with_columns(
@@ -115,18 +114,6 @@ def test_agrees_with_pandas():
     assert res_pl["ancestor_id"].to_list() == res_pd["ancestor_id"].tolist()
 
 
-def test_lazy_input_stays_lazy():
-    __, combined = _tagged(["nk_ecoeaselection", "nk_tournamentselection"])
-    result = alifestd_aggregate_phylogeny_partitions_polars(
-        combined.lazy(),
-        "tree",
-    )
-    assert isinstance(result, pl.LazyFrame)
-    expected = alifestd_aggregate_phylogeny_partitions_polars(combined, "tree")
-    assert isinstance(expected, pl.DataFrame)
-    assert result.collect().equals(expected)
-
-
 def test_empty():
     df = pl.DataFrame(
         {"id": [], "ancestor_id": [], "k": []},
@@ -141,3 +128,15 @@ def test_invalid():
         alifestd_aggregate_phylogeny_partitions_polars(
             df.drop("ancestor_id"), "k"
         )
+
+
+def test_preserves_id_dtypes():
+    df = pl.DataFrame(
+        {"id": [0, 1, 0], "ancestor_id": [0, 0, 0], "k": [1, 1, 2]},
+        schema={"id": pl.UInt16, "ancestor_id": pl.UInt16, "k": pl.Int64},
+    )
+    result = alifestd_aggregate_phylogeny_partitions_polars(df, "k")
+    assert result.schema["id"] == pl.UInt16
+    assert result.schema["ancestor_id"] == pl.UInt16
+    assert result["id"].to_list() == [0, 1, 2]
+    assert result["ancestor_id"].to_list() == [0, 0, 2]
