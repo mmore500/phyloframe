@@ -48,7 +48,7 @@ Install with JIT support:
 
 .. code-block:: bash
 
-   python3 -m pip install "phyloframe[jit]==0.10.3"
+   python3 -m pip install "phyloframe[jit]==0.11.0"
 
 Many phyloframe operations automatically use JIT-compiled fast paths when Numba is available.
 No code changes are needed --- just install the ``[jit]`` extra.
