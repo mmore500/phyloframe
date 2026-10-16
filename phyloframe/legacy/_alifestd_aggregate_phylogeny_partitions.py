@@ -57,8 +57,11 @@ def alifestd_aggregate_phylogeny_partitions(
     alifestd_aggregate_phylogenies :
         Aggregates a list of separate phylogeny dataframes.
     """
+    if not mutate:
+        phylogeny_df = phylogeny_df.copy()
+
     if len(phylogeny_df) == 0:
-        return phylogeny_df if mutate else phylogeny_df.copy()
+        return phylogeny_df
 
     partitions = [
         partition
@@ -68,7 +71,6 @@ def alifestd_aggregate_phylogeny_partitions(
             dropna=False,
         )
     ]
-    # groupby partitions are copies, so safe to mutate
     return alifestd_aggregate_phylogenies(partitions, mutate=True)
 
 
