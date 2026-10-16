@@ -53,6 +53,8 @@ def test_matches_aggregate_phylogenies(names, lazy, by):
         combined.lazy() if lazy else combined,
         partitioned_by=by,
     )
+    assert isinstance(result, pl.LazyFrame) == lazy
+    result = result.lazy().collect()
     expected = alifestd_aggregate_phylogenies_polars(
         [
             alifestd_assign_contiguous_ids_polars(df).with_columns(
@@ -110,6 +112,18 @@ def test_agrees_with_pandas():
     )
     assert res_pl["id"].to_list() == res_pd["id"].tolist()
     assert res_pl["ancestor_id"].to_list() == res_pd["ancestor_id"].tolist()
+
+
+def test_lazy_input_stays_lazy():
+    __, combined = _tagged(["nk_ecoeaselection", "nk_tournamentselection"])
+    result = alifestd_aggregate_phylogeny_partitions_polars(
+        combined.lazy(),
+        "tree",
+    )
+    assert isinstance(result, pl.LazyFrame)
+    expected = alifestd_aggregate_phylogeny_partitions_polars(combined, "tree")
+    assert isinstance(expected, pl.DataFrame)
+    assert result.collect().equals(expected)
 
 
 def test_empty():

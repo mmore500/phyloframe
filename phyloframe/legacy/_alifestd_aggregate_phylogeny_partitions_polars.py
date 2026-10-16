@@ -1,17 +1,14 @@
-import logging
 import typing
 
 import polars as pl
 
-from ._alifestd_aggregate_phylogenies_polars import (
-    alifestd_aggregate_phylogenies_polars,
-)
-from ._alifestd_assign_contiguous_ids_polars import (
-    alifestd_assign_contiguous_ids_polars,
-)
-from ._alifestd_make_empty_polars import alifestd_make_empty_polars
-
-_partition_key_prefix = "__phyloframe_partition_key_"
+_prefix = "__phyloframe_aggregate_partitions_"
+_key_prefix = f"{_prefix}key_"
+_first_name = f"{_prefix}first"
+_part_name = f"{_prefix}part"
+_row_name = f"{_prefix}row"
+_new_id_name = f"{_prefix}new_id"
+_new_ancestor_name = f"{_prefix}new_ancestor_id"
 
 
 def alifestd_aggregate_phylogeny_partitions_polars(
@@ -21,16 +18,23 @@ def alifestd_aggregate_phylogeny_partitions_polars(
         pl.Expr,
         typing.Sequence[typing.Union[str, pl.Expr]],
     ],
-) -> pl.DataFrame:
+) -> typing.Union[pl.DataFrame, pl.LazyFrame]:
     """Split a dataframe into partitions by the values of one or more columns
-    or expressions, then concatenate the partitions as independent
-    phylogenies, reassigning organism ids to prevent collisions.
+    or expressions, then aggregate the partitions as independent phylogenies,
+    reassigning organism ids to prevent collisions.
+
+    Equivalent to splitting `phylogeny_df` over `partitioned_by` and calling
+    ``alifestd_aggregate_phylogenies_polars``, but performed as a single
+    query plan without collecting intermediate results. A LazyFrame input
+    yields a LazyFrame (nothing is collected); a DataFrame input yields a
+    DataFrame.
 
     Partitions are ordered by first appearance of their key in
     `phylogeny_df`, and rows retain their relative order within each
     partition. Each partition is expected to be a self-contained phylogeny,
     i.e., no organism should have an ancestor in a different partition. Ids
-    within each partition need not be contiguous.
+    within each partition need not be contiguous; resulting ids are
+    contiguous.
 
     Assumes asexual phylogenies, topologically sorted, and with an
     ``ancestor_id`` column (not ``ancestor_list``).
@@ -56,8 +60,10 @@ def alifestd_aggregate_phylogeny_partitions_polars(
     if not partitioned_by:
         raise ValueError("partitioned_by must specify at least one column")
 
-    phylogeny_df = phylogeny_df.lazy().collect()
-    schema_names = phylogeny_df.collect_schema().names()
+    is_eager = isinstance(phylogeny_df, pl.DataFrame)
+    lf = phylogeny_df.lazy()
+    schema = lf.collect_schema()
+    schema_names = schema.names()
 
     if "ancestor_list" in schema_names:
         raise NotImplementedError(
@@ -68,32 +74,50 @@ def alifestd_aggregate_phylogeny_partitions_polars(
             "ancestor_id column required in polars implementation",
         )
 
-    if phylogeny_df.is_empty():
-        return phylogeny_df
+    key_names = [f"{_key_prefix}{i}" for i in range(len(partitioned_by))]
+    key_cols = [pl.col(name) for name in key_names]
 
-    key_names = [
-        f"{_partition_key_prefix}{i}" for i in range(len(partitioned_by))
-    ]
-    keyed_df = phylogeny_df.with_columns(
-        [
-            (pl.col(key) if isinstance(key, str) else key).alias(name)
-            for key, name in zip(partitioned_by, key_names)
-        ],
-    )
-
-    logging.info(
-        "- alifestd_aggregate_phylogeny_partitions_polars: " "partitioning...",
-    )
-    partitions = [
-        alifestd_assign_contiguous_ids_polars(partition.drop(key_names))
-        for partition in keyed_df.partition_by(
-            key_names,
-            maintain_order=True,
-            include_key=True,
+    # number partitions by order of first appearance
+    lf = (
+        lf.with_columns(
+            [
+                (pl.col(key) if isinstance(key, str) else key).alias(name)
+                for key, name in zip(partitioned_by, key_names)
+            ],
         )
-    ]
+        .with_row_index(_row_name)
+        .with_columns(
+            pl.struct(key_cols).is_first_distinct().alias(_first_name),
+        )
+        .with_columns(
+            pl.when(pl.col(_first_name))
+            .then(pl.col(_first_name).cum_sum() - 1)
+            .alias(_part_name),
+        )
+        .with_columns(pl.col(_part_name).max().over(key_cols))
+        # stable w.r.t. original row order, gathers partitions together
+        .sort(_part_name, _row_name)
+        .with_row_index(_new_id_name)
+    )
 
-    if not partitions:
-        return alifestd_make_empty_polars()
+    # re-point ancestors at new ids; ids are only unique within a partition
+    id_lookup = lf.select(
+        pl.col(_part_name),
+        pl.col("id").alias("ancestor_id"),
+        pl.col(_new_id_name).alias(_new_ancestor_name),
+    )
+    lf = (
+        lf.join(id_lookup, on=[_part_name, "ancestor_id"], how="left")
+        .sort(_new_id_name)
+        .with_columns(
+            pl.col(_new_id_name).cast(schema["id"]).alias("id"),
+            pl.col(_new_ancestor_name)
+            .cast(schema["ancestor_id"])
+            .alias(
+                "ancestor_id",
+            ),
+        )
+        .select(schema_names)
+    )
 
-    return alifestd_aggregate_phylogenies_polars(partitions)
+    return lf.collect() if is_eager else lf
