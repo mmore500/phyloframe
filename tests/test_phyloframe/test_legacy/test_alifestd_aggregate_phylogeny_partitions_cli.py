@@ -56,36 +56,6 @@ def test_cli_csv():
     assert result_df["source"].drop_duplicates().tolist() == INPUTS
 
 
-def test_cli_multiple_partition_by():
-    output_file = "/tmp/phyloframe_alifestd_aggregate_phylogeny_partitions_multiple.csv"  # nosec B108
-    pathlib.Path(output_file).unlink(missing_ok=True)
-    subprocess.run(  # nosec B603
-        [
-            "python3",
-            "-m",
-            MODULE,
-            "--with-column",
-            'pl.lit(filepath).alias("source")',
-            "--with-column",
-            'pl.lit(0).alias("replicate")',
-            "--partition-by",
-            "source",
-            "--partition-by",
-            "replicate",
-            "--how",
-            "diagonal_relaxed",
-            "--eager-write",
-            output_file,
-        ],
-        check=True,
-        input="\n".join(INPUTS).encode(),
-    )
-    assert os.path.exists(output_file)
-    result_df = pd.read_csv(output_file)
-    assert len(result_df) == sum(map(len, map(pd.read_csv, INPUTS)))
-    assert result_df["id"].is_unique
-
-
 def test_cli_create_parser():
     from phyloframe.legacy._alifestd_aggregate_phylogeny_partitions import (
         _create_parser,

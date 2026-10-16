@@ -71,25 +71,6 @@ def test_matches_aggregate_phylogenies(names, lazy, by):
     assert alifestd_is_topologically_sorted_polars(result)
 
 
-def test_multiple_keys_and_expr():
-    df = pl.DataFrame(
-        {
-            "id": [0, 0, 1, 0, 1],
-            "ancestor_id": [0, 0, 0, 0, 0],
-            "x": [1, 1, 1, 2, 2],
-            "y": [5, 6, 7, 8, 9],
-        },
-    )
-    result = alifestd_aggregate_phylogeny_partitions_polars(
-        df, ["x", pl.col("y") > 5]
-    )
-    assert result.columns == df.columns
-    # partitions (1, False), (1, True), (2, True) shifted by 0, 1, 3
-    assert result["y"].to_list() == [5, 6, 7, 8, 9]
-    assert result["id"].to_list() == [0, 1, 2, 3, 4]
-    assert result["ancestor_id"].to_list() == [0, 1, 1, 3, 3]
-
-
 def test_partitions_ordered_by_first_appearance():
     df = pl.DataFrame(
         {
@@ -143,6 +124,10 @@ def test_invalid():
         alifestd_aggregate_phylogeny_partitions_polars(
             df.drop("ancestor_id"), "k"
         )
+    with pytest.raises(NotImplementedError):
+        alifestd_aggregate_phylogeny_partitions_polars(
+            df.with_columns(ancestor_list=pl.lit("[none]")), "k"
+        )
 
 
 def test_preserves_id_dtypes():
@@ -175,5 +160,6 @@ def test_partition_by_forms(partition_by):
         },
     )
     result = alifestd_aggregate_phylogeny_partitions_polars(df, partition_by)
+    assert result.columns == df.columns
     assert result["id"].to_list() == [0, 1, 2, 3, 4]
     assert result["ancestor_id"].to_list() == [0, 1, 1, 3, 3]
