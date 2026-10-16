@@ -67,21 +67,22 @@ def alifestd_aggregate_phylogeny_partitions_polars(
     if isinstance(partitioned_by, (str, pl.Expr)):
         partitioned_by = [partitioned_by]
 
+    partition_col = "_alifestd_partition_key"
     phylogeny_df = (
         phylogeny_df.lazy()
         .with_columns(
             pl.struct(*partitioned_by, *more_partitioned_by).alias(
-                "_partition",
+                partition_col
             ),
         )
         .collect()
     )
     if phylogeny_df.is_empty():
-        return phylogeny_df.drop("_partition")
+        return phylogeny_df.drop(partition_col)
 
     return alifestd_aggregate_phylogenies_polars(
         phylogeny_df.partition_by(
-            "_partition",
+            partition_col,
             maintain_order=True,
             include_key=False,
         ),
