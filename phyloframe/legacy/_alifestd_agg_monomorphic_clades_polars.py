@@ -16,8 +16,8 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
-from ._alifestd_mark_ancestral_trait_polars import (
-    alifestd_mark_ancestral_trait_polars,
+from ._alifestd_mark_founder_id_polars import (
+    alifestd_mark_founder_id_polars,
 )
 from ._alifestd_mark_monomorphic_clades_polars import (
     alifestd_mark_monomorphic_clades_polars,
@@ -163,12 +163,11 @@ def alifestd_agg_monomorphic_clades_polars(
     ids = np.arange(len(ancestor_ids))
     is_root = ancestor_ids == ids
     is_group_root = is_monomorphic & (is_root | ~is_monomorphic[ancestor_ids])
-    phylogeny_df = alifestd_mark_ancestral_trait_polars(
+    # taxa outside monomorphic clades are their own founder
+    phylogeny_df = alifestd_mark_founder_id_polars(
         phylogeny_df,
+        founder_mask=pl.lit(pl.Series(is_group_root)),
         mark_as=group_col,
-        trait_default=pl.col("id"),  # taxa outside monomorphic clades
-        trait_mask=pl.lit(pl.Series(is_group_root)),
-        trait_values=pl.col("id"),
     )
     del ancestor_ids, is_monomorphic, ids, is_root, is_group_root
     gc.collect()

@@ -306,9 +306,6 @@ from ._alifestd_mark_ancestor_origin_time_asexual import (
 from ._alifestd_mark_ancestor_origin_time_polars import (
     alifestd_mark_ancestor_origin_time_polars,
 )
-from ._alifestd_mark_ancestral_trait_polars import (
-    alifestd_mark_ancestral_trait_polars,
-)
 from ._alifestd_mark_clade_duration_asexual import (
     alifestd_mark_clade_duration_asexual,
 )
@@ -410,6 +407,9 @@ from ._alifestd_mark_first_child_id_asexual import (
 )
 from ._alifestd_mark_first_child_id_polars import (
     alifestd_mark_first_child_id_polars,
+)
+from ._alifestd_mark_founder_id_polars import (
+    alifestd_mark_founder_id_polars,
 )
 from ._alifestd_mark_is_left_child_asexual import (
     alifestd_mark_is_left_child_asexual,
@@ -864,7 +864,6 @@ __all__ = [
     "alifestd_make_star_polars",
     "alifestd_mark_ancestor_origin_time_asexual",
     "alifestd_mark_ancestor_origin_time_polars",
-    "alifestd_mark_ancestral_trait_polars",
     "alifestd_mark_clade_duration_asexual",
     "alifestd_mark_clade_duration_polars",
     "alifestd_mark_clade_duration_ratio_sister_asexual",
@@ -899,6 +898,7 @@ __all__ = [
     "alifestd_mark_csr_offsets_polars",
     "alifestd_mark_first_child_id_asexual",
     "alifestd_mark_first_child_id_polars",
+    "alifestd_mark_founder_id_polars",
     "alifestd_mark_is_left_child_asexual",
     "alifestd_mark_is_left_child_polars",
     "alifestd_mark_is_right_child_asexual",
