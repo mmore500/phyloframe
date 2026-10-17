@@ -3,16 +3,11 @@ import pathlib
 import subprocess
 
 import pandas as pd
-import pytest
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
-@pytest.fixture
-def minified_file() -> str:
-    minified_file = (
-        "/tmp/phyloframe_alifestd_unminify_asexual_input.pqt"  # nosec B108
-    )
+def _make_minified_file(minified_file: str) -> str:
     pathlib.Path(minified_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [
@@ -51,7 +46,10 @@ def test_alifestd_unminify_asexual_cli_version():
     )
 
 
-def test_alifestd_unminify_asexual_cli_csv(minified_file: str):
+def test_alifestd_unminify_asexual_cli_csv():
+    minified_file = _make_minified_file(
+        "/tmp/phyloframe_alifestd_unminify_asexual_input_csv.pqt"  # nosec B108
+    )
     output_file = "/tmp/phyloframe_alifestd_unminify_asexual.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
@@ -73,7 +71,10 @@ def test_alifestd_unminify_asexual_cli_csv(minified_file: str):
     assert "ancestor_offset" not in result_df.columns
 
 
-def test_alifestd_unminify_asexual_cli_parquet(minified_file: str):
+def test_alifestd_unminify_asexual_cli_parquet():
+    minified_file = _make_minified_file(
+        "/tmp/phyloframe_alifestd_unminify_asexual_input_parquet.pqt"  # nosec B108
+    )
     output_file = "/tmp/phyloframe_alifestd_unminify_asexual.pqt"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
