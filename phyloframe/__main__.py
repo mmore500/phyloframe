@@ -13,6 +13,7 @@ $ python3 -m phyloframe.legacy._alifestd_add_inner_knuckles_polars
 $ python3 -m phyloframe.legacy._alifestd_add_inner_leaves
 $ python3 -m phyloframe.legacy._alifestd_add_inner_niblings_asexual
 $ python3 -m phyloframe.legacy._alifestd_add_inner_niblings_polars
+$ python3 -m phyloframe.legacy._alifestd_agg_monomorphic_clades_polars
 $ python3 -m phyloframe.legacy._alifestd_aggregate_phylogeny_partitions
 $ python3 -m phyloframe.legacy._alifestd_aggregate_phylogeny_partitions_polars
 $ python3 -m phyloframe.legacy._alifestd_as_newick_asexual
