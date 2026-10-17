@@ -53,8 +53,9 @@ def alifestd_agg_monomorphic_clades_polars(
     an "is_monomorphic_clade" column marking collapsed clades (vs.
     polymorphic singletons), plus aggregation results; other columns are
     discarded. By default, `by` columns are aggregated to the group's shared
-    value (i.e., from members marked by `trait_mask`, if provided). Override
-    by passing an entry of the same name in `named_aggs`.
+    value among members marked by `trait_mask` (or all members, if None), or
+    null for groups with no marked members. Override by passing an entry of
+    the same name in `named_aggs`.
 
     For example, to count leaves and take the root's and the latest origin
     times within each collapsed clade, pass
@@ -160,24 +161,21 @@ def alifestd_agg_monomorphic_clades_polars(
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: aggregating...",
     )
-    by_aggs = {
-        col: (
-            pl.col(col).first()
+    # marked members of monomorphic groups share by values, so distinct
+    # (group, *by) keys give each group's shared value; groups without
+    # marked members get null
+    by_keys_df = (
+        phylogeny_df.filter(
+            pl.lit(True)
             if trait_mask is None
-            else pl.when(pl.col(trait_mask).cast(pl.Boolean).any())
-            .then(
-                pl.col(col).filter(pl.col(trait_mask).cast(pl.Boolean)).first()
-            )
-            .otherwise(pl.col(col).first())
+            else pl.col(trait_mask).cast(pl.Boolean)
         )
-        for col in by
-    }
+        .group_by(group_col, *(col for col in by if col not in named_aggs))
+        .agg()
+    )
     aggregated_df = phylogeny_df.group_by(group_col).agg(
-        **{
-            **by_aggs,
-            "is_monomorphic_clade": pl.col(mono_col).first(),
-            **named_aggs,
-        },
+        is_monomorphic_clade=pl.col(mono_col).first(),
+        **named_aggs,
     )
 
     logging.info(
@@ -186,6 +184,7 @@ def alifestd_agg_monomorphic_clades_polars(
     return (
         phylogeny_df.filter(pl.col(group_col) == pl.col("id"))
         .drop(*({*schema_names} - structure_cols), mono_col)
+        .join(by_keys_df, on=group_col, how="left", maintain_order="left")
         .join(aggregated_df, on=group_col, how="left", maintain_order="left")
         .drop(group_col)
     )

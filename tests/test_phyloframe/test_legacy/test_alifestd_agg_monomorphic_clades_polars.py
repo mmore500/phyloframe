@@ -203,8 +203,8 @@ def test_alifestd_agg_monomorphic_clades_polars_trait_mask():
     )
     assert res["id"].to_list() == [0, 1, 2, 5, 6]
     assert res["clade_size"].to_list() == [0, 2, 0, 1, 1]
-    # by columns take group's shared value among marked members
-    assert res["trait"].to_list() == ["z", "a", "b", "b", "c"]
+    # by columns take group's shared value among marked members, or null
+    assert res["trait"].to_list() == [None, "a", None, "b", "c"]
 
     res = alifestd_agg_monomorphic_clades_polars(df, by="trait")
     assert res["id"].to_list() == [0, 1, 2, 3, 4, 5, 6, 7]
@@ -224,7 +224,7 @@ def test_alifestd_agg_monomorphic_clades_polars_trait_mask_unmarked_clade():
         df, by="trait", trait_mask="considered"
     )
     assert res["id"].to_list() == [0, 1, 2, 5, 6]
-    assert res["trait"].to_list() == ["a", "a", "b", "b", "c"]
+    assert res["trait"].to_list() == ["a", None, "b", "b", "c"]
 
     # ... and does not prevent collapse of a parent clade
     res = alifestd_agg_monomorphic_clades_polars(
@@ -238,9 +238,9 @@ def test_alifestd_agg_monomorphic_clades_polars_trait_mask_none_marked():
     res = alifestd_agg_monomorphic_clades_polars(
         df, by="trait", trait_mask="considered"
     )
-    # single group with no marked members takes root's value
+    # single group with no marked members has null by value
     assert res["id"].to_list() == [0]
-    assert res["trait"].to_list() == ["a"]
+    assert res["trait"].to_list() == [None]
 
 
 def test_alifestd_agg_monomorphic_clades_polars_override_by_agg():
@@ -448,6 +448,8 @@ def test_alifestd_agg_monomorphic_clades_polars_reference(
         expected = []
         for id_ in kept_ids:
             group = sorted(groups[id_])
-            group_considered = [m for m in group if considered[m]] or group
-            expected.append(values[group_considered[0]])
+            group_considered = [m for m in group if considered[m]]
+            expected.append(
+                values[group_considered[0]] if group_considered else None
+            )
         assert res[col].to_list() == expected
