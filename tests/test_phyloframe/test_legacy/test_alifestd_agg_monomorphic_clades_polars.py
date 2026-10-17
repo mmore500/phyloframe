@@ -124,34 +124,57 @@ def test_alifestd_agg_monomorphic_clades_polars_toy(apply: typing.Callable):
             apply(df),
             by="trait",
             aggs=[pl.col("origin_time").max()],
-            named_aggs={
-                "clade_size": pl.col("is_leaf").sum(),
-                "origin_time_min": pl.col("origin_time").min(),
-            },
+            named_aggs=dict(
+                clade_size=pl.col("is_leaf").sum(),
+                origin_time_first=pl.col("origin_time").first(),
+            ),
         )
         .lazy()
         .collect()
     )
-    assert res.columns == [*df.columns, "clade_size", "origin_time_min"]
+    assert res.columns == [
+        "id",
+        "ancestor_id",
+        "trait",
+        "origin_time",
+        "clade_size",
+        "origin_time_first",
+    ]
     assert res["id"].to_list() == [0, 1, 2, 5, 6]
     assert res["ancestor_id"].to_list() == [0, 0, 0, 2, 2]
     assert res["trait"].to_list() == ["a", "a", "b", "b", "c"]
     assert res["clade_size"].to_list() == [0, 2, 0, 1, 1]
     assert res["origin_time"].to_list() == [0, 3, 1, 4, 2]
-    assert res["origin_time_min"].to_list() == [0, 1, 1, 2, 2]
+    assert res["origin_time_first"].to_list() == [0, 1, 1, 2, 2]
 
 
 def test_alifestd_agg_monomorphic_clades_polars_no_aggs():
     df = _make_toy_df()
     res = alifestd_agg_monomorphic_clades_polars(df, by="trait")
-    assert res.equals(df.filter(pl.col("id").is_in([0, 1, 2, 5, 6])))
+    # unaggregated columns are discarded
+    assert res.equals(
+        df.filter(pl.col("id").is_in([0, 1, 2, 5, 6])).select(
+            "id", "ancestor_id", "trait"
+        )
+    )
 
 
-def test_alifestd_agg_monomorphic_clades_polars_unaggregated():
+def test_alifestd_agg_monomorphic_clades_polars_first_all_but_overridden():
     df = _make_toy_df().with_columns(label=pl.Series(list("ABCDEFGH")))
-    res = alifestd_agg_monomorphic_clades_polars(df, by="trait")
-    # unaggregated columns retain group root's values
+    res = alifestd_agg_monomorphic_clades_polars(
+        df,
+        by="trait",
+        aggs=[
+            pl.exclude(
+                "id", "ancestor_id", "ancestor_list", "trait", "origin_time"
+            ).first(),
+        ],
+        named_aggs=dict(origin_time=pl.col("origin_time").max()),
+    )
+    assert sorted(res.columns) == sorted(df.columns)
     assert res["label"].to_list() == list("ABCFG")
+    assert res["is_leaf"].to_list() == [False, False, False, False, True]
+    assert res["origin_time"].to_list() == [0, 3, 1, 4, 2]
 
 
 def test_alifestd_agg_monomorphic_clades_polars_trait_mask():
@@ -267,10 +290,10 @@ def test_alifestd_agg_monomorphic_clades_polars_empty():
         df,
         by="trait",
         trait_mask="is_leaf",
-        named_aggs={"origin_time_max": pl.col("origin_time").max()},
+        named_aggs=dict(origin_time_last=pl.col("origin_time").max()),
     )
     assert res.is_empty()
-    assert res.columns == [*df.columns, "origin_time_max"]
+    assert res.columns == ["id", "ancestor_id", "trait", "origin_time_last"]
 
 
 @pytest.mark.parametrize("col", ["missing", None])
@@ -353,10 +376,11 @@ def test_alifestd_agg_monomorphic_clades_polars_reference(
             apply(pl.from_pandas(phylogeny_df)),
             by=by,
             trait_mask=trait_mask,
-            named_aggs={
-                "clade_size": pl.col("is_leaf").sum(),
-                "origin_time_max": pl.col("origin_time").max(),
-            },
+            named_aggs=dict(
+                clade_size=pl.col("is_leaf").sum(),
+                origin_time_first=pl.col("origin_time").first(),
+                origin_time_last=pl.col("origin_time").max(),
+            ),
         )
         .lazy()
         .collect()
@@ -380,11 +404,19 @@ def test_alifestd_agg_monomorphic_clades_polars_reference(
         sum(map(is_leaf.get, groups[id_])) for id_ in kept_ids
     ]
     assert res["clade_size"].sum() == phylogeny_df["is_leaf"].sum()
-    assert res["origin_time_max"].to_list() == [
+    assert res["origin_time_last"].to_list() == [
         max(map(origin_times.get, groups[id_])) for id_ in kept_ids
     ]
-    assert res["origin_time"].to_list() == [
+    assert res["origin_time_first"].to_list() == [
         origin_times[id_] for id_ in kept_ids
+    ]
+    assert res.columns == [
+        "id",
+        "ancestor_id",
+        *by,
+        "clade_size",
+        "origin_time_first",
+        "origin_time_last",
     ]
     for col in by:
         values = dict(zip(ids, phylogeny_df[col]))

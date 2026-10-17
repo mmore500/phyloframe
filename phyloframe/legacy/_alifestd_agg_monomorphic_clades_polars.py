@@ -38,34 +38,48 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_agg_monomorphic_clades_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    by: typing.Union[str, typing.Sequence[str]],
-    trait_mask: typing.Optional[str] = None,
     aggs: typing.Sequence[pl.Expr] = [],
+    by: typing.Union[str, typing.Sequence[str]],
     named_aggs: typing.Mapping[str, pl.Expr] = {},
+    trait_mask: typing.Optional[str] = None,
 ) -> pl.DataFrame:
     """Collapse clades whose members all share identical values in `by`
     column(s), aggregating values over each maximal monomorphic clade.
 
     Each maximal monomorphic clade is replaced by its root, which becomes a
-    leaf. Taxa belonging
-    to no monomorphic clade (i.e., polymorphic inner nodes) are kept as their
-    own singleton group. Null values compare equal to one another.
+    leaf. Taxa belonging to no monomorphic clade (i.e., polymorphic inner
+    nodes) are kept as their own singleton group. Null values compare equal
+    to one another.
 
-    Aggregation results are assigned to each group's root, overwriting
-    existing columns of the same name. Unaggregated columns retain the group
-    root's values. By default, `by` columns are aggregated to the group's
-    shared value (i.e., from members marked by `trait_mask`, if provided).
-    Override by passing an entry of the same name in `named_aggs`.
+    Output retains "id", "ancestor_id", "ancestor_list", and `by` columns,
+    plus aggregation results; other columns are discarded. By default, `by`
+    columns are aggregated to the group's shared value (i.e., from members
+    marked by `trait_mask`, if provided). Override by passing an entry of the
+    same name in `named_aggs`.
 
-    For example, to count leaves and take the latest origin time within
-    each collapsed clade, pass
+    For example, to count leaves and take the root's and the latest origin
+    times within each collapsed clade, pass
 
-        named_aggs={
-            "clade_size": pl.col("is_leaf").sum(),
-            "origin_time_max": pl.col("origin_time").max(),
-        }
+        named_aggs=dict(
+            clade_size=pl.col("is_leaf").sum(),
+            origin_time_first=pl.col("origin_time").first(),
+            origin_time_last=pl.col("origin_time").max(),
+        )
 
-    where "is_leaf" may be added with `alifestd_mark_leaves_polars`.
+    where "is_leaf" may be added with `alifestd_mark_leaves_polars`. Group
+    members are aggregated in topological order, so `first` gives the group
+    root's value.
+
+    To instead keep the group root's values for all columns while overriding
+    some, take `first` over all columns except those overridden, structural
+    columns, and `by` columns, e.g., for `by="trait"`,
+
+        aggs=[
+            pl.exclude(
+                "id", "ancestor_id", "ancestor_list", "trait", "origin_time"
+            ).first(),
+        ],
+        named_aggs=dict(origin_time=pl.col("origin_time").max()),
 
     Parameters
     ----------
@@ -73,31 +87,29 @@ def alifestd_agg_monomorphic_clades_polars(
         The phylogeny as a dataframe in alife standard format.
 
         Must represent an asexual phylogeny.
+    aggs : sequence of polars.Expr, default []
+        Aggregations over group members, forwarded as positional arguments
+        to `polars.DataFrame.group_by(...).agg`.
     by : str or sequence of str
         Name(s) of column(s) whose values determine monomorphism.
+    named_aggs : mapping of str to polars.Expr, default {}
+        Aggregations over group members, forwarded as keyword arguments to
+        `polars.DataFrame.group_by(...).agg`.
     trait_mask : str, optional
         Name of boolean column marking taxa whose `by` values are considered.
         Values of unmarked taxa are ignored. For example, pass "is_leaf" to
         consider only leaf values (see `alifestd_mark_leaves_polars`). Clades
         with no marked taxa are considered monomorphic. If None, all taxa are
         considered.
-    aggs : sequence of polars.Expr, default []
-        Aggregations over group members, forwarded as positional arguments
-        to `polars.DataFrame.group_by(...).agg`.
-    named_aggs : mapping of str to polars.Expr, default {}
-        Aggregations over group members, forwarded as keyword arguments to
-        `polars.DataFrame.group_by(...).agg`.
 
     Raises
     ------
     NotImplementedError
-        If `phylogeny_df` has non-contiguous ids.
-    NotImplementedError
-        If `phylogeny_df` is not topologically sorted.
+        If `phylogeny_df` has non-contiguous ids or is not topologically
+        sorted.
     ValueError
-        If any of `by` or `trait_mask` is not a column in `phylogeny_df`.
-    ValueError
-        If an aggregation would overwrite "id", "ancestor_id", or
+        If any of `by` or `trait_mask` is not a column in `phylogeny_df` or
+        an aggregation would overwrite "id", "ancestor_id", or
         "ancestor_list".
 
     Returns
@@ -211,12 +223,17 @@ def alifestd_agg_monomorphic_clades_polars(
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: collapsing...",
     )
+    structure_cols = [
+        col
+        for col in ("id", "ancestor_id", "ancestor_list")
+        if col in schema_names
+    ]
     return (
         phylogeny_df.filter(pl.col(group_col) == pl.col("id"))
-        .drop(agg_names, strict=False)
+        .select(*structure_cols, group_col)
         .join(aggregated_df, on=group_col, how="left", maintain_order="left")
         .select(
-            *schema_names, *(c for c in agg_names if c not in schema_names)
+            *structure_cols, *by, pl.exclude(*structure_cols, *by, group_col)
         )
     )
 
@@ -225,7 +242,6 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 
 Collapse clades whose members all share identical values in `--by` column(s),
 aggregating values over each maximal monomorphic clade onto its root.
-Aggregation results overwrite existing columns of the same name.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
@@ -240,9 +256,11 @@ column, e.g., `--trait-mask is_leaf` to consider only leaf values.
 
 - Use `--agg` to specify aggregations, e.g.,
 `--agg 'pl.col("is_leaf").sum().alias("clade_size")'`,
-`--agg 'pl.col("origin_time").max().alias("origin_time_max")'`.
+`--agg 'pl.col("origin_time").first().alias("origin_time_first")'`, or
+`--agg 'pl.col("origin_time").max().alias("origin_time_last")'`.
 
-- Unaggregated columns retain the group root's values. `--by` columns are
+- Output retains 'id', 'ancestor_id', 'ancestor_list', and `--by` columns,
+plus aggregation results; other columns are discarded. `--by` columns are
 aggregated to the group's shared value by default.
 
 - Use `--eager-read` if modifying data file inplace.

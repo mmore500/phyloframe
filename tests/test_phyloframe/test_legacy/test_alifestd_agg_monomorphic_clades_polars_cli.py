@@ -54,9 +54,9 @@ def test_cli(input_csv_with_trait, ext, trait_mask):
             "--agg",
             'pl.col("is_leaf").sum().alias("clade_size")',
             "--agg",
-            'pl.col("origin_time").min().alias("origin_time_min")',
+            'pl.col("origin_time").first().alias("origin_time_first")',
             "--agg",
-            'pl.col("origin_time").max().alias("origin_time_max")',
+            'pl.col("origin_time").max().alias("origin_time_last")',
             output_file,
         ],
         check=True,
@@ -71,7 +71,9 @@ def test_cli(input_csv_with_trait, ext, trait_mask):
     input_df = pd.read_csv(input_csv_with_trait)
     assert 0 < len(result_df) < len(input_df)
     assert result_df["clade_size"].sum() == input_df["is_leaf"].sum()
-    assert (result_df["origin_time_max"] >= result_df["origin_time_min"]).all()
+    assert (
+        result_df["origin_time_last"] >= result_df["origin_time_first"]
+    ).all()
 
 
 def test_cli_create_parser():
