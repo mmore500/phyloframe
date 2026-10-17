@@ -151,21 +151,15 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
 
-    try:
-        with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_founder_id_polars",
-            logging.info,
-        ):
-            _run_dataframe_cli(
-                base_parser=parser,
-                output_dataframe_op=functools.partial(
-                    alifestd_mark_founder_id_polars,
-                    founder_mask=args.founder_mask,
-                    mark_as=args.mark_as,
-                ),
-            )
-    except NotImplementedError as e:
-        logging.error(
-            "- polars op not yet implemented, use pandas op CLI instead",
+    with log_context_duration(
+        "phyloframe.legacy._alifestd_mark_founder_id_polars",
+        logging.info,
+    ):
+        _run_dataframe_cli(
+            base_parser=parser,
+            output_dataframe_op=functools.partial(
+                alifestd_mark_founder_id_polars,
+                founder_mask=args.founder_mask,
+                mark_as=args.mark_as,
+            ),
         )
-        raise e

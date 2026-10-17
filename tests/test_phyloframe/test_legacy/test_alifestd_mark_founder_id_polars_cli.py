@@ -5,6 +5,8 @@ import subprocess
 import pandas as pd
 import pytest
 
+from phyloframe.legacy._alifestd_mark_founder_id_polars import _create_parser
+
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 MODULE = "phyloframe.legacy._alifestd_mark_founder_id_polars"
@@ -62,10 +64,6 @@ def test_cli(ext):
 
 
 def test_cli_create_parser():
-    from phyloframe.legacy._alifestd_mark_founder_id_polars import (
-        _create_parser,
-    )
-
     parser = _create_parser()
     assert parser is not None
     args, __ = parser.parse_known_args(

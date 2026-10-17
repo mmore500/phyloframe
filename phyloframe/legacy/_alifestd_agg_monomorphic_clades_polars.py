@@ -313,24 +313,18 @@ if __name__ == "__main__":
 
     aggs = [eval(agg, {"pl": pl}) for agg in args.aggs]  # nosec B307
 
-    try:
-        with log_context_duration(
-            "phyloframe.legacy._alifestd_agg_monomorphic_clades_polars",
-            logging.info,
-        ):
-            _run_dataframe_cli(
-                base_parser=parser,
-                output_dataframe_op=functools.partial(
-                    alifestd_agg_monomorphic_clades_polars,
-                    by=args.by,
-                    trait_mask=args.trait_mask,
-                    aggs=aggs,
-                    ignore_topological_sensitivity=args.ignore_topological_sensitivity,
-                    drop_topological_sensitivity=args.drop_topological_sensitivity,
-                ),
-            )
-    except NotImplementedError as e:
-        logging.error(
-            "- polars op not yet implemented, use pandas op CLI instead",
+    with log_context_duration(
+        "phyloframe.legacy._alifestd_agg_monomorphic_clades_polars",
+        logging.info,
+    ):
+        _run_dataframe_cli(
+            base_parser=parser,
+            output_dataframe_op=functools.partial(
+                alifestd_agg_monomorphic_clades_polars,
+                by=args.by,
+                trait_mask=args.trait_mask,
+                aggs=aggs,
+                ignore_topological_sensitivity=args.ignore_topological_sensitivity,
+                drop_topological_sensitivity=args.drop_topological_sensitivity,
+            ),
         )
-        raise e
