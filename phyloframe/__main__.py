@@ -69,6 +69,7 @@ $ python3 -m phyloframe.legacy._alifestd_ladderize_asexual
 $ python3 -m phyloframe.legacy._alifestd_ladderize_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_ancestral_trait_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_ratio_sister_asexual

@@ -162,14 +162,15 @@ def alifestd_agg_monomorphic_clades_polars(
     group_col = "alifestd_agg_monomorphic_clades_group"
     ids = np.arange(len(ancestor_ids))
     is_root = ancestor_ids == ids
+    is_group_root = is_monomorphic & (is_root | ~is_monomorphic[ancestor_ids])
     phylogeny_df = alifestd_mark_ancestral_trait_polars(
         phylogeny_df,
         mark_as=group_col,
-        trait_default=ids,  # taxa outside monomorphic clades group alone
-        trait_mask=is_monomorphic & (is_root | ~is_monomorphic[ancestor_ids]),
-        trait_value=ids,
+        trait_default=pl.col("id"),  # taxa outside monomorphic clades
+        trait_mask=pl.lit(pl.Series(is_group_root)),
+        trait_values=pl.col("id"),
     )
-    del ancestor_ids, is_monomorphic, ids, is_root
+    del ancestor_ids, is_monomorphic, ids, is_root, is_group_root
     gc.collect()
     log_memory_usage(logging.info)
 
