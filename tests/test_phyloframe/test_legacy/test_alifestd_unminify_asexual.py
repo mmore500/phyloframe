@@ -84,22 +84,6 @@ def test_dtype_explicit(dtype_id: type):
     assert result["ancestor_id"].tolist() == [0, 0, 1]
 
 
-@pytest.mark.parametrize(
-    "num_rows, expected_dtype",
-    [(0, np.int8), (3, np.int8), (300, np.int16)],
-)
-def test_dtype_auto(num_rows: int, expected_dtype: type):
-    phylogeny_df = pd.DataFrame(
-        {"ancestor_offset": np.zeros(num_rows, dtype=np.int8)},
-    )
-
-    result = alifestd_unminify_asexual(phylogeny_df, dtype_id=None)
-
-    assert result["id"].dtype == expected_dtype
-    assert result["ancestor_id"].dtype == expected_dtype
-    assert result["id"].tolist() == list(range(num_rows))
-
-
 @pytest.mark.parametrize("column", ["id", "ancestor_id"])
 def test_warns_existing_id_columns(column: str):
     phylogeny_df = pd.DataFrame(

@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import typing
 import warnings
 
 import joinem
@@ -12,12 +11,11 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._min_scalar_type_polars import min_scalar_type_polars
 
 
 def alifestd_unminify_polars(
     phylogeny_df: pl.DataFrame,
-    dtype_id: typing.Optional[pl.datatypes.DataType] = pl.Int64,
+    dtype_id: pl.datatypes.DataType = pl.Int64,
 ) -> pl.DataFrame:
     """Restore alife standard format from a phylogeny minified by
     `alifestd_minify_polars`.
@@ -36,10 +34,8 @@ def alifestd_unminify_polars(
         The phylogeny in minified format, with an `ancestor_offset` column.
 
         Any existing `id` or `ancestor_id` columns will be overwritten.
-    dtype_id : pl.DataType or None, default pl.Int64
-        Polars dtype for the `id` and `ancestor_id` columns. If None, the
-        smallest signed integer dtype that can hold all ids is chosen
-        automatically based on row count.
+    dtype_id : pl.DataType, default pl.Int64
+        Polars dtype for the `id` and `ancestor_id` columns.
 
     Returns
     -------
@@ -61,14 +57,6 @@ def alifestd_unminify_polars(
             warnings.warn(
                 f"alifestd_unminify_polars overwrites existing {column}",
             )
-
-    if dtype_id is None:
-        num_rows = phylogeny_df.lazy().select(pl.len()).collect().item()
-        dtype_id = min_scalar_type_polars(-max(num_rows, 1))
-        logging.info(
-            "- alifestd_unminify_polars: "
-            f"detected {num_rows} rows, chose id dtype {dtype_id}",
-        )
 
     ids = pl.int_range(pl.len(), dtype=dtype_id)
     return phylogeny_df.select(

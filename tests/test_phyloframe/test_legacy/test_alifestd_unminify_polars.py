@@ -1,7 +1,6 @@
 import os
 import typing
 
-import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
@@ -35,10 +34,6 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     ],
 )
 @pytest.mark.parametrize(
-    "dtype_id_pd, dtype_id_pl",
-    [(np.int64, pl.Int64), (np.int32, pl.Int32), (None, None)],
-)
-@pytest.mark.parametrize(
     "apply",
     [
         pytest.param(lambda x: x, id="DataFrame"),
@@ -47,18 +42,14 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
 )
 def test_alifestd_unminify_polars_matches_pandas(
     phylogeny_df: pd.DataFrame,
-    dtype_id_pd: typing.Optional[type],
-    dtype_id_pl: typing.Optional[pl.DataType],
     apply: typing.Callable,
 ):
     """Verify polars result matches pandas result."""
     minified_df = alifestd_minify_asexual(phylogeny_df)
-    result_pd = alifestd_unminify_asexual(minified_df, dtype_id=dtype_id_pd)
+    result_pd = alifestd_unminify_asexual(minified_df)
 
     df_pl = apply(pl.from_pandas(minified_df))
-    result_pl = (
-        alifestd_unminify_polars(df_pl, dtype_id=dtype_id_pl).lazy().collect()
-    )
+    result_pl = alifestd_unminify_polars(df_pl).lazy().collect()
 
     pd.testing.assert_frame_equal(
         result_pl.to_pandas(),
@@ -195,33 +186,6 @@ def test_alifestd_unminify_polars_dtype_explicit(
     assert result.schema["id"] == dtype_id
     assert result.schema["ancestor_id"] == dtype_id
     assert result["ancestor_id"].to_list() == [0, 0, 1]
-
-
-@pytest.mark.parametrize(
-    "num_rows, expected_dtype",
-    [(0, pl.Int8), (3, pl.Int8), (300, pl.Int16)],
-)
-@pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
-def test_alifestd_unminify_polars_dtype_auto(
-    apply: typing.Callable, num_rows: int, expected_dtype: pl.DataType
-):
-    df_pl = apply(
-        pl.DataFrame(
-            {"ancestor_offset": pl.zeros(num_rows, dtype=pl.Int8, eager=True)},
-        ),
-    )
-
-    result = alifestd_unminify_polars(df_pl, dtype_id=None).lazy().collect()
-
-    assert result.schema["id"] == expected_dtype
-    assert result.schema["ancestor_id"] == expected_dtype
-    assert result["id"].to_list() == list(range(num_rows))
 
 
 @pytest.mark.parametrize("column", ["id", "ancestor_id"])

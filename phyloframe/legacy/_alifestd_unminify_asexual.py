@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import typing
 import warnings
 
 import joinem
@@ -20,7 +19,7 @@ from .._auxlib._log_context_duration import log_context_duration
 
 def alifestd_unminify_asexual(
     phylogeny_df: pd.DataFrame,
-    dtype_id: typing.Optional[type] = np.int64,
+    dtype_id: type = np.int64,
     mutate: bool = False,
 ) -> pd.DataFrame:
     """Restore alife standard format from a phylogeny minified by
@@ -31,10 +30,8 @@ def alifestd_unminify_asexual(
     preserved, so the returned phylogeny will have contiguous ids and be
     topologically sorted.
 
-    The `id` and `ancestor_id` columns will have dtype `dtype_id`. If
-    `dtype_id` is None, the smallest signed integer dtype that can hold all
-    ids is chosen automatically based on row count. Any existing `id` or
-    `ancestor_id` columns will be overwritten.
+    The `id` and `ancestor_id` columns will have dtype `dtype_id` (default
+    int64). Any existing `id` or `ancestor_id` columns will be overwritten.
 
     No `ancestor_list` column is added. To add one, call
     `alifestd_try_add_ancestor_list_col` on the result.
@@ -60,13 +57,6 @@ def alifestd_unminify_asexual(
 
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
-
-    if dtype_id is None:
-        dtype_id = np.min_scalar_type(-max(len(phylogeny_df), 1))
-        logging.info(
-            "- alifestd_unminify_asexual: "
-            f"detected {len(phylogeny_df)} rows, chose id dtype {dtype_id}",
-        )
 
     ids = np.arange(len(phylogeny_df), dtype=dtype_id)
     ancestor_ids = ids - phylogeny_df["ancestor_offset"].to_numpy(
