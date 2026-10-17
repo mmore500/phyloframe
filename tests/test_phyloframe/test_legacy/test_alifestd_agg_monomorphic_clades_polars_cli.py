@@ -1,5 +1,4 @@
 import os
-import pathlib
 import subprocess
 
 import pandas as pd
@@ -39,9 +38,9 @@ def test_cli_version():
 
 @pytest.mark.parametrize("ext", [".csv", ".pqt"])
 @pytest.mark.parametrize("trait_mask", [[], ["--trait-mask", "is_leaf"]])
-def test_cli(input_csv_with_trait, ext, trait_mask):
-    output_file = f"/tmp/phyloframe_alifestd_agg_monomorphic_clades_polars{ext}"  # nosec B108
-    pathlib.Path(output_file).unlink(missing_ok=True)
+def test_cli(input_csv_with_trait, ext, trait_mask, tmp_path):
+    # unique per test, as xdist workers run parametrizations concurrently
+    output_file = str(tmp_path / f"output{ext}")
     subprocess.run(  # nosec B603
         [
             "python3",

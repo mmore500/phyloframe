@@ -124,8 +124,9 @@ def alifestd_agg_monomorphic_clades_polars(
         Marks monomorphic clades without collapsing them.
     """
     if isinstance(by, str):
-        by = (by,)
-    by = list(by)
+        by = [by]
+    else:
+        by = [*by]
 
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: "
