@@ -5,6 +5,9 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import alifestd_mark_leaves
+from phyloframe.legacy._alifestd_mark_monomorphic_clades_polars import (
+    _create_parser,
+)
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -67,10 +70,6 @@ def test_cli(input_csv_with_trait, ext, trait_mask, tmp_path):
 
 
 def test_cli_create_parser():
-    from phyloframe.legacy._alifestd_mark_monomorphic_clades_polars import (
-        _create_parser,
-    )
-
     parser = _create_parser()
     assert parser is not None
     args, __ = parser.parse_known_args(
