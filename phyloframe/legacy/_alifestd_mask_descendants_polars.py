@@ -23,6 +23,7 @@ def alifestd_mask_descendants_polars(
     phylogeny_df: pl.DataFrame,
     *,
     ancestor_mask: np.ndarray,
+    mark_as: str = "alifestd_mask_descendants_polars",
 ) -> pl.DataFrame:
     """For given ancestor nodes, create a mask identifying those nodes and all
     descendants.
@@ -31,7 +32,7 @@ def alifestd_mask_descendants_polars(
     in `phylogeny_df`.
 
     The mask is returned as a new column ``alifestd_mask_descendants_polars``
-    in the output DataFrame.
+    in the output DataFrame. Pass ``mark_as`` parameter to override.
 
     Only supports asexual phylogenies.
 
@@ -44,6 +45,8 @@ def alifestd_mask_descendants_polars(
         topologically sorted ids and an ``ancestor_id`` column.
     ancestor_mask : numpy.ndarray
         Boolean array indicating ancestor nodes to propagate from.
+    mark_as : str, default "alifestd_mask_descendants_polars"
+        Column name for the mask.
 
     Raises
     ------
@@ -89,5 +92,5 @@ def alifestd_mask_descendants_polars(
     log_memory_usage(logging.info)
 
     return phylogeny_df.with_columns(
-        alifestd_mask_descendants_polars=mask,
+        pl.Series(name=mark_as, values=mask),
     )

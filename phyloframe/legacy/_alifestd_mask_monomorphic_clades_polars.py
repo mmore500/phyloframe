@@ -23,6 +23,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_mask_monomorphic_clades_polars(
     phylogeny_df: pl.DataFrame,
     *,
+    mark_as: str = "alifestd_mask_monomorphic_clades_polars",
     trait_mask: np.ndarray,
     trait_values: np.ndarray,
 ) -> pl.DataFrame:
@@ -33,7 +34,8 @@ def alifestd_mask_monomorphic_clades_polars(
     monomorphic. All leaf nodes are considered monomorphic.
 
     The mask is returned as a new column
-    ``alifestd_mask_monomorphic_clades_polars`` in the output DataFrame.
+    ``alifestd_mask_monomorphic_clades_polars`` in the output DataFrame. Pass
+    ``mark_as`` parameter to override.
 
     Only supports asexual phylogenies.
 
@@ -44,6 +46,8 @@ def alifestd_mask_monomorphic_clades_polars(
 
         Must represent an asexual phylogeny with contiguous,
         topologically sorted ids.
+    mark_as : str, default "alifestd_mask_monomorphic_clades_polars"
+        Column name for the mask.
     trait_mask : numpy.ndarray
         Boolean array marking the nodes that have a defined trait value,
         corresponding to rows in `phylogeny_df`.
@@ -81,8 +85,8 @@ def alifestd_mask_monomorphic_clades_polars(
             "non-topologically-sorted data not supported",
         )
 
-    # replace non-numeric dtypes with integer aliases
-    if not np.issubdtype(trait_values.dtype, np.number):
+    # replace non-integer dtypes with integer aliases, so NaN/None match
+    if not np.issubdtype(trait_values.dtype, np.integer):
         trait_values = pd.factorize(trait_values)[0]
     else:  # copy, modified in place
         trait_values = trait_values.copy()
@@ -107,5 +111,5 @@ def alifestd_mask_monomorphic_clades_polars(
     log_memory_usage(logging.info)
 
     return phylogeny_df.with_columns(
-        alifestd_mask_monomorphic_clades_polars=mask,
+        pl.Series(name=mark_as, values=mask),
     )

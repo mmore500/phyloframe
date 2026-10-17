@@ -42,10 +42,11 @@ def _alifestd_mask_monomorphic_clades_asexual_fast_path(
 
 def _alifestd_mask_monomorphic_clades_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_mask_monomorphic_clades_asexual`."""
     phylogeny_df.index = phylogeny_df["id"]
-    phylogeny_df["alifestd_mask_monomorphic_clades_asexual"] = True
+    phylogeny_df[mark_as] = True
 
     for idx in reversed(phylogeny_df.index):
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
@@ -79,7 +80,7 @@ def _alifestd_mask_monomorphic_clades_asexual_slow_path(
             ]
 
         result_value = (
-            phylogeny_df.at[idx, "alifestd_mask_monomorphic_clades_asexual"]
+            phylogeny_df.at[idx, mark_as]
             and phylogeny_df.at[
                 ancestor_id,
                 "alifestd_mask_monomorphic_clades_asexual_trait",
@@ -89,9 +90,7 @@ def _alifestd_mask_monomorphic_clades_asexual_slow_path(
             ]
         )
 
-        phylogeny_df.at[
-            ancestor_id, "alifestd_mask_monomorphic_clades_asexual"
-        ] &= result_value
+        phylogeny_df.at[ancestor_id, mark_as] &= result_value
 
     return phylogeny_df
 
@@ -100,6 +99,7 @@ def alifestd_mask_monomorphic_clades_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
+    mark_as: str = "alifestd_mask_monomorphic_clades_asexual",
     trait_mask: np.ndarray,
     trait_values: np.ndarray,
 ) -> pd.DataFrame:
@@ -117,6 +117,8 @@ def alifestd_mask_monomorphic_clades_asexual(
     mutate : bool, default=False
         If False, operates on a copy of `phylogeny_df`; if True, modifies
         `phylogeny_df` in place (but still returns it).
+    mark_as : str, default "alifestd_mask_monomorphic_clades_asexual"
+        Column name for the mask.
     trait_mask : np.ndarray
         Boolean array marking the nodes that have a defined trait value,
         aligned with `phylogeny_df.index`.
@@ -133,8 +135,8 @@ def alifestd_mask_monomorphic_clades_asexual(
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
 
-    # replace non-numeric dtypes with integer aliases
-    if not np.issubdtype(trait_values.dtype, np.number):
+    # replace non-integer dtypes with integer aliases, so NaN/None match
+    if not np.issubdtype(trait_values.dtype, np.integer):
         trait_values = pd.factorize(trait_values)[0]
 
     phylogeny_df["alifestd_mask_monomorphic_clades_asexual_mask"] = trait_mask
@@ -147,7 +149,7 @@ def alifestd_mask_monomorphic_clades_asexual(
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df[
-            "alifestd_mask_monomorphic_clades_asexual"
+            mark_as
         ] = _alifestd_mask_monomorphic_clades_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
             phylogeny_df[
@@ -164,7 +166,7 @@ def alifestd_mask_monomorphic_clades_asexual(
         )
     else:
         phylogeny_df = _alifestd_mask_monomorphic_clades_asexual_slow_path(
-            phylogeny_df,
+            phylogeny_df, mark_as
         )
 
     phylogeny_df.drop(

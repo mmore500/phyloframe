@@ -185,3 +185,24 @@ def test_simple7(mutate: bool):
     assert result_df.loc[2, "alifestd_mask_descendants_asexual"]
     if not mutate:
         assert original_df.equals(phylogeny_df)
+
+
+@pytest.mark.parametrize("ids", [[0, 1, 2], [3, 13, 23]])
+def test_mark_as(ids: list):
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": ids,
+            "ancestor_list": ["[None]", f"[{ids[0]}]", f"[{ids[1]}]"],
+        }
+    )
+    result_df = alifestd_mask_descendants_asexual(
+        phylogeny_df,
+        ancestor_mask=np.array([False, True, False]),
+        mark_as="mask",
+    )
+    assert "alifestd_mask_descendants_asexual" not in result_df
+    assert result_df.set_index("id")["mask"].to_dict() == {
+        ids[0]: False,
+        ids[1]: True,
+        ids[2]: True,
+    }

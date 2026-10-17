@@ -1,3 +1,5 @@
+import typing
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -385,3 +387,55 @@ def test_undefined_clade(
     assert result_df["alifestd_mask_monomorphic_clades_asexual"].all()
     if not mutate:
         assert original_df.equals(phylogeny_df)
+
+
+@pytest.mark.parametrize("ids", [[0, 1, 2, 3], [3, 13, 23, 33]])
+def test_mark_as(ids: list):
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": ids,
+            "ancestor_list": [
+                "[None]",
+                f"[{ids[0]}]",
+                f"[{ids[0]}]",
+                f"[{ids[1]}]",
+            ],
+        }
+    )
+    result_df = alifestd_mask_monomorphic_clades_asexual(
+        phylogeny_df,
+        mark_as="mask",
+        trait_mask=np.array([True, True, True, True]),
+        trait_values=np.array([0, 0, 1, 0]),
+    )
+    assert "alifestd_mask_monomorphic_clades_asexual" not in result_df
+    assert result_df.set_index("id")["mask"].to_dict() == {
+        ids[0]: False,
+        ids[1]: True,
+        ids[2]: True,
+        ids[3]: True,
+    }
+
+
+@pytest.mark.parametrize("ids", [[0, 1, 2, 3], [3, 13, 23, 33]])
+@pytest.mark.parametrize("null", [np.nan, None])
+def test_nulls_compare_equal(ids: list, null: typing.Any):
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": ids,
+            "ancestor_list": [
+                "[None]",
+                f"[{ids[0]}]",
+                f"[{ids[0]}]",
+                f"[{ids[1]}]",
+            ],
+        }
+    )
+    result_df = alifestd_mask_monomorphic_clades_asexual(
+        phylogeny_df,
+        trait_mask=np.array([True, True, True, True]),
+        trait_values=np.array([null, null, 1.0, null]),
+    )
+    assert result_df.set_index("id")[
+        "alifestd_mask_monomorphic_clades_asexual"
+    ].to_dict() == {ids[0]: False, ids[1]: True, ids[2]: True, ids[3]: True}

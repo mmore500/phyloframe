@@ -23,15 +23,16 @@ def _alifestd_mask_descendants_asexual_fast_path(
 
 def _alifestd_mask_descendants_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    mark_as: str,
 ) -> pd.DataFrame:
     phylogeny_df.index = phylogeny_df["id"]
 
     for idx in phylogeny_df.index:
         ancestor_id = phylogeny_df.at[idx, "ancestor_id"]
 
-        phylogeny_df.at[idx, "alifestd_mask_descendants_asexual"] = (
-            phylogeny_df.at[ancestor_id, "alifestd_mask_descendants_asexual"]
-            | phylogeny_df.at[idx, "alifestd_mask_descendants_asexual"]
+        phylogeny_df.at[idx, mark_as] = (
+            phylogeny_df.at[ancestor_id, mark_as]
+            | phylogeny_df.at[idx, mark_as]
         )
 
     return phylogeny_df
@@ -42,6 +43,7 @@ def alifestd_mask_descendants_asexual(
     mutate: bool = False,
     *,
     ancestor_mask: np.ndarray,
+    mark_as: str = "alifestd_mask_descendants_asexual",
 ) -> pd.DataFrame:
     """For given ancestor nodes, create a mask identifying those nodes and all
     descendants.
@@ -50,7 +52,7 @@ def alifestd_mask_descendants_asexual(
     in `phylogeny_df`.
 
     The mask is returned as a new column `alifestd_mask_descendants_asexual` in
-    the output DataFrame.
+    the output DataFrame. Pass ``mark_as`` parameter to override.
 
     A topological sort will be applied if `phylogeny_df` is not topologically
     sorted. Dataframe reindexing (e.g., df.index) may be applied.
@@ -65,20 +67,20 @@ def alifestd_mask_descendants_asexual(
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
 
-    phylogeny_df["alifestd_mask_descendants_asexual"] = ancestor_mask
+    phylogeny_df[mark_as] = ancestor_mask
 
     if not alifestd_is_topologically_sorted(phylogeny_df):
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
     if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df[
-            "alifestd_mask_descendants_asexual"
-        ] = _alifestd_mask_descendants_asexual_fast_path(
+        phylogeny_df[mark_as] = _alifestd_mask_descendants_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
-            phylogeny_df["alifestd_mask_descendants_asexual"].to_numpy(
+            phylogeny_df[mark_as].to_numpy(
                 copy=parse(pd.__version__) >= parse("3.0.0"),
             ),
         )
         return phylogeny_df
     else:
-        return _alifestd_mask_descendants_asexual_slow_path(phylogeny_df)
+        return _alifestd_mask_descendants_asexual_slow_path(
+            phylogeny_df, mark_as
+        )
