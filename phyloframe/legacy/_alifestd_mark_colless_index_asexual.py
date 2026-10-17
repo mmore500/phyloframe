@@ -47,8 +47,12 @@ def alifestd_mark_colless_index_asexual_fast_path(
         idx, left_child = tup
         if left_child != idx:  # Has children (internal node)
             left_leaves = num_leaves[left_child]
+            assert num_leaves[idx] >= left_leaves
             right_leaves = num_leaves[idx] - left_leaves
-            local_colless[idx] = abs(left_leaves - right_leaves)
+            # subtract smaller from larger, so unsigned counts can't wrap
+            local_colless[idx] = max(left_leaves, right_leaves) - min(
+                left_leaves, right_leaves
+            )
 
     # Reverse pass: accumulate subtree colless bottom-up
     colless_index = np.zeros(n, dtype=np.int64)

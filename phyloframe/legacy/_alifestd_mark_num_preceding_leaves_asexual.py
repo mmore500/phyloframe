@@ -40,9 +40,11 @@ def _alifestd_mark_num_preceding_leaves_asexual_fast_path(
 
     num_preceding_leaves = np.zeros_like(ancestor_ids)
     for idx, ancestor_id in enumerate(ancestor_ids):
+        # prevent numba float64 promotion
+        is_right_child_ = num_leaves.dtype.type(is_right_child[idx])
         num_preceding_leaves[idx] = (
             num_preceding_leaves[ancestor_id]
-            + (num_leaves[ancestor_id] - num_leaves[idx]) * is_right_child[idx]
+            + (num_leaves[ancestor_id] - num_leaves[idx]) * is_right_child_
         )
 
     return num_preceding_leaves
