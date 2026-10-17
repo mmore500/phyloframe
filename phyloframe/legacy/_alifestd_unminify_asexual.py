@@ -62,7 +62,7 @@ def alifestd_unminify_asexual(
         phylogeny_df = phylogeny_df.copy()
 
     if dtype_id is None:
-        dtype_id = np.min_scalar_type(-max(len(phylogeny_df), 1))
+        dtype_id = np.min_scalar_type(-(len(phylogeny_df) or 1))
         logging.info(
             "- alifestd_unminify_asexual: "
             f"detected {len(phylogeny_df)} rows, chose id dtype {dtype_id}",
