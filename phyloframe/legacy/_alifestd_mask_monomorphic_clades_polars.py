@@ -82,8 +82,10 @@ def alifestd_mask_monomorphic_clades_polars(
         )
 
     # replace non-numeric dtypes with integer aliases
-    if trait_values.dtype.kind not in "biuf":
+    if not np.issubdtype(trait_values.dtype, np.number):
         trait_values = pd.factorize(trait_values)[0]
+    else:  # copy, modified in place
+        trait_values = trait_values.copy()
 
     logging.info(
         "- alifestd_mask_monomorphic_clades_polars: computing mask...",
@@ -98,7 +100,7 @@ def alifestd_mask_monomorphic_clades_polars(
     mask = _alifestd_mask_monomorphic_clades_asexual_fast_path(
         ancestor_ids,
         np.array(trait_mask, dtype=np.bool_),  # copy, modified in place
-        trait_values.copy(),
+        trait_values,
     )
     del ancestor_ids
     gc.collect()

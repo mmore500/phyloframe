@@ -133,10 +133,9 @@ def alifestd_mask_monomorphic_clades_asexual(
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
 
-    # replace string dtypes with integer aliases
-    if trait_values.dtype.kind.lower() in "u":
-        __, inverse = np.unique(trait_values, return_inverse=True)
-        trait_values = inverse
+    # replace non-numeric dtypes with integer aliases
+    if not np.issubdtype(trait_values.dtype, np.number):
+        trait_values = pd.factorize(trait_values)[0]
 
     phylogeny_df["alifestd_mask_monomorphic_clades_asexual_mask"] = trait_mask
     phylogeny_df[
@@ -146,10 +145,7 @@ def alifestd_mask_monomorphic_clades_asexual(
     if not alifestd_is_topologically_sorted(phylogeny_df):
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
-    if (
-        alifestd_has_contiguous_ids(phylogeny_df)
-        and trait_values.dtype.kind.lower() not in "o"
-    ):
+    if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df[
             "alifestd_mask_monomorphic_clades_asexual"
         ] = _alifestd_mask_monomorphic_clades_asexual_fast_path(
