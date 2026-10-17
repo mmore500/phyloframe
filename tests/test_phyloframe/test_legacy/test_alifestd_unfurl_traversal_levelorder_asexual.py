@@ -8,6 +8,7 @@ from phyloframe.legacy import (
     alifestd_find_root_ids,
     alifestd_make_empty,
     alifestd_mark_node_depth_asexual,
+    alifestd_try_add_ancestor_id_col,
 )
 from phyloframe.legacy import (
     alifestd_unfurl_traversal_levelorder_asexual as alifestd_unfurl_traversal_levelorder_asexual_,
@@ -64,8 +65,6 @@ def test_fuzz(phylogeny_df: pd.DataFrame):
     assert result[-1] in alifestd_find_leaf_ids(phylogeny_df)
 
     # Verify valid levelorder: every parent appears before its children
-    from phyloframe.legacy import alifestd_try_add_ancestor_id_col
-
     ref_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
     ancestor_of = dict(zip(ref_df["id"], ref_df["ancestor_id"]))
     pos = {node: i for i, node in enumerate(result)}

@@ -1,10 +1,12 @@
 import os
 
 import numpy as np
+import pandas as pd
 import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_unfurl_traversal_semiorder_asexual,
     alifestd_unfurl_traversal_semiorder_polars,
 )
 
@@ -181,12 +183,6 @@ def test_with_ancestor_list_col():
 
 def test_matches_pandas():
     """Verify polars result matches pandas result."""
-    import pandas as pd
-
-    from phyloframe.legacy import (
-        alifestd_unfurl_traversal_semiorder_asexual,
-    )
-
     ancestor_ids = np.array([0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4])
     n = len(ancestor_ids)
 

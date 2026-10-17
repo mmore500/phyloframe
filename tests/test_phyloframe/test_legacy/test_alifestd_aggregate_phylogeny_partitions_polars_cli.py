@@ -4,6 +4,10 @@ import subprocess
 
 import pandas as pd
 
+from phyloframe.legacy._alifestd_aggregate_phylogeny_partitions_polars import (
+    _create_parser,
+)
+
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 MODULE = "phyloframe.legacy._alifestd_aggregate_phylogeny_partitions_polars"
@@ -59,10 +63,6 @@ def test_cli_csv():
 
 
 def test_cli_create_parser():
-    from phyloframe.legacy._alifestd_aggregate_phylogeny_partitions_polars import (
-        _create_parser,
-    )
-
     parser = _create_parser()
     assert parser is not None
     args, __ = parser.parse_known_args(

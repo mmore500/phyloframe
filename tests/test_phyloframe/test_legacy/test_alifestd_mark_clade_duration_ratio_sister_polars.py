@@ -1,3 +1,4 @@
+import math
 import typing
 
 import polars as pl
@@ -71,8 +72,6 @@ def test_alifestd_mark_clade_duration_ratio_sister_polars_simple_tree(
     assert vals[1] == pytest.approx(0.75)
     assert vals[2] == pytest.approx(4.0 / 3.0)
     # leaf siblings have 0/0 = NaN
-    import math
-
     assert math.isnan(vals[3])
     assert math.isnan(vals[4])
     assert math.isnan(vals[5])
@@ -105,8 +104,6 @@ def test_alifestd_mark_clade_duration_ratio_sister_polars_single_node(
         .lazy()
         .collect()
     )
-
-    import math
 
     # root: clade_dur=0, sister is self, 0/0 = NaN
     assert math.isnan(result["clade_duration_ratio_sister"].to_list()[0])

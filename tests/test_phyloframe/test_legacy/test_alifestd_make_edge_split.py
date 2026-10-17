@@ -1,3 +1,6 @@
+import random
+
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -76,10 +79,6 @@ def test_no_seed(n_leaves: int):
 
 def test_seed_does_not_leak_rng_state():
     """Using a seed should not perturb outer RNG state."""
-    import random
-
-    import numpy as np
-
     random.seed(0)
     np.random.seed(0)
     expected_py = random.random()

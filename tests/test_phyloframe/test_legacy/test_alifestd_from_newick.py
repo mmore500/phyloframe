@@ -1,5 +1,6 @@
 import os
 import pathlib
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -841,8 +842,6 @@ def test_multitree_forest_read_empty_trees_skipped():
 
 
 def test_forest_warns_by_default():
-    import warnings
-
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         alifestd_from_newick("a;b;")
@@ -855,8 +854,6 @@ def test_forest_warns_by_default():
 
 
 def test_forest_allow_true_silent():
-    import warnings
-
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         alifestd_from_newick("a;b;", allow_forest=True)

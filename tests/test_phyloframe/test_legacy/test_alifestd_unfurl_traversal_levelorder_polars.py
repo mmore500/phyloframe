@@ -7,6 +7,7 @@ import pytest
 from phyloframe.legacy import (
     alifestd_unfurl_traversal_levelorder_polars,
 )
+from phyloframe.legacy import _alifestd_mark_node_depth_asexual as depth_mod
 
 assets_path = os.path.join(os.path.dirname(__file__), "assets")
 
@@ -114,10 +115,6 @@ def test_valid_levelorder():
             )
 
     # Check nondecreasing depths
-    from phyloframe.legacy import (
-        _alifestd_mark_node_depth_asexual as depth_mod,
-    )
-
     depths = depth_mod._alifestd_calc_node_depth_asexual_contiguous(
         ancestor_ids,
     )
@@ -170,10 +167,6 @@ def test_fuzz(phylogeny_csv: str):
             assert pos[parent] < pos[child]
 
     # Verify nondecreasing depths
-    from phyloframe.legacy import (
-        _alifestd_mark_node_depth_asexual as depth_mod,
-    )
-
     depths = depth_mod._alifestd_calc_node_depth_asexual_contiguous(
         ancestor_ids,
     )

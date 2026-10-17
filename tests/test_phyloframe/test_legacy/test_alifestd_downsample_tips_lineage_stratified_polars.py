@@ -7,6 +7,7 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_count_leaf_nodes,
     alifestd_downsample_tips_lineage_stratified_asexual,
     alifestd_sum_origin_time_deltas_asexual,
     alifestd_to_working_format,
@@ -303,8 +304,6 @@ def test_alifestd_downsample_tips_lineage_stratified_polars_matches_pandas(
     )
 
     # Both should produce same leaf count
-    from phyloframe.legacy import alifestd_count_leaf_nodes
-
     assert result_num_tips_pl == alifestd_count_leaf_nodes(result_pd)
 
 

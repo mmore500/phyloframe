@@ -1,5 +1,6 @@
 import typing
 
+import pandas as pd
 import polars as pl
 import pytest
 
@@ -202,8 +203,6 @@ def test_unsorted(apply: typing.Callable):
     ],
 )
 def test_matches_pandas(apply: typing.Callable):
-    import pandas as pd
-
     df_pd = pd.DataFrame(
         {
             "id": [0, 1, 2, 3, 4, 5],
