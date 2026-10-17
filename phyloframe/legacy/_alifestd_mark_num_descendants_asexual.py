@@ -29,12 +29,13 @@ def _alifestd_mark_num_descendants_asexual_fast_path(
     """Implementation detail for `alifestd_mark_num_descendants_asexual`."""
 
     num_descendants = np.zeros_like(ancestor_ids)
+    one = num_descendants.dtype.type(1)  # prevent numba float64 promotion
     for idx_r, ancestor_id in enumerate(ancestor_ids[::-1]):
         idx = len(ancestor_ids) - 1 - idx_r
         if ancestor_id == idx:
             continue  # handle genesis cases
 
-        num_descendants[ancestor_id] += num_descendants[idx] + 1
+        num_descendants[ancestor_id] += num_descendants[idx] + one
 
     return num_descendants
 

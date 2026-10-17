@@ -1,6 +1,7 @@
 import os
 import typing
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -99,6 +100,27 @@ def test_fuzz(phylogeny_df: pd.DataFrame, apply: typing.Callable):
 def test_empty():
     res = alifestd_unfurl_traversal_preorder_asexual(alifestd_make_empty())
     assert len(res) == 0
+
+
+@pytest.mark.parametrize(
+    "dtype", [np.int32, np.int64, np.uint8, np.uint32, np.uint64]
+)
+def test_dtype(dtype: type):
+    """Tree structure:
+    0 (root)
+    +-- 1
+    |   +-- 3
+    +-- 2
+        +-- 4
+    """
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": np.array([0, 1, 2, 3, 4], dtype=dtype),
+            "ancestor_id": np.array([0, 0, 0, 1, 2], dtype=dtype),
+        },
+    )
+    result = alifestd_unfurl_traversal_preorder_asexual(phylogeny_df)
+    assert result.tolist() == [0, 1, 3, 2, 4]
 
 
 @pytest.mark.parametrize("mutate", [True, False])

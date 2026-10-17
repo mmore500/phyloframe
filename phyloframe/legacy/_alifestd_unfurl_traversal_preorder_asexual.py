@@ -114,18 +114,19 @@ def _alifestd_unfurl_traversal_preorder_asexual_jit(
     result = np.empty(n, dtype=dtype)
     offset = np.empty(n, dtype=dtype)
     root_pos = dtype.type(0)
+    one = dtype.type(1)  # prevent numba float64 promotion
 
     for node in range(n):
         ancestor = ancestor_ids[node]
-        nd = num_descendants[node]
+        nd = dtype.type(num_descendants[node])
         if ancestor == node:
             start = root_pos
-            root_pos += nd + 1
+            root_pos += nd + one
         else:
             start = offset[ancestor]
-            offset[ancestor] = start + nd + 1
+            offset[ancestor] = start + nd + one
         result[start] = node
-        offset[node] = start + 1
+        offset[node] = start + one
 
     return result
 

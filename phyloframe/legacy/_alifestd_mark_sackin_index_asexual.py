@@ -37,7 +37,9 @@ def alifestd_mark_sackin_index_asexual_fast_path(
     for idx in range(n - 1, -1, -1):  # reversed enumerate
         ancestor_id = ancestor_ids[idx]
         if ancestor_id != idx:  # Not a root
-            sackin_index[ancestor_id] += sackin_index[idx] + num_leaves[idx]
+            # prevent numba float64 promotion
+            num_leaves_ = np.int64(num_leaves[idx])
+            sackin_index[ancestor_id] += sackin_index[idx] + num_leaves_
 
     return sackin_index
 

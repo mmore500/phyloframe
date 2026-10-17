@@ -31,6 +31,7 @@ def _alifestd_unfurl_traversal_semiorder_asexual_fast_path(
     num_descendants_lookup = num_descendants
 
     site_assignments = np.zeros(len(ancestor_ids), dtype=dtype)
+    zero, one = dtype.type(0), dtype.type(1)  # prevent numba float64 promotion
     visited = np.zeros(len(ancestor_ids), dtype=np.bool_)
     for leaf_id in leaf_ids:
 
@@ -38,12 +39,12 @@ def _alifestd_unfurl_traversal_semiorder_asexual_fast_path(
         current_id = leaf_id
         while True:
             if visited[current_id]:
-                offset = site_assignments[current_id] + 1
+                offset = site_assignments[current_id] + one
                 break
 
             current_id, prev_id = ancestor_lookup[current_id], current_id
             if current_id == prev_id:
-                offset = 0
+                offset = zero
                 break
 
         site_assignments[leaf_id] = offset
@@ -53,7 +54,9 @@ def _alifestd_unfurl_traversal_semiorder_asexual_fast_path(
                 break
             visited[current_id] = True
 
-            assigned_site = offset + num_descendants_lookup[prev_id] + 1
+            assigned_site = (
+                offset + dtype.type(num_descendants_lookup[prev_id]) + one
+            )
             site_assignments[current_id] = assigned_site
 
             current_id, prev_id = ancestor_lookup[current_id], current_id

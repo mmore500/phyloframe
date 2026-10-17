@@ -145,7 +145,9 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_jit(
         while stack_top > 0:
             node = stack[stack_top - 1]
             c_start = csr_offsets[node]
-            c_end = c_start + num_children[node]
+            # prevent numba float64 promotion
+            c_count = csr_offsets.dtype.type(num_children[node])
+            c_end = c_start + c_count
 
             if not expanded[node] and c_start < c_end:
                 expanded[node] = True
@@ -196,15 +198,16 @@ def _alifestd_unfurl_traversal_postorder_contiguous_asexual_asc_jit(
     result = np.empty(n, dtype=dtype)
     offset = np.empty(n, dtype=dtype)
     root_pos = dtype.type(0)
+    one = dtype.type(1)  # prevent numba float64 promotion
     for node in range(n):
         ancestor = ancestor_ids[node]
-        nd = num_descendants[node]
+        nd = dtype.type(num_descendants[node])
         if ancestor == node:
             ancestor_offset = root_pos
-            root_pos += nd + 1
+            root_pos += nd + one
         else:
             ancestor_offset = offset[ancestor]
-            offset[ancestor] = ancestor_offset + nd + 1
+            offset[ancestor] = ancestor_offset + nd + one
         result[ancestor_offset + nd] = node
         offset[node] = ancestor_offset
 
