@@ -235,11 +235,13 @@ def test_alifestd_mark_monomorphic_clades_polars_unsorted():
     ],
 )
 @pytest.mark.parametrize(
-    "by", [["trait_a"], ["trait_b"], ["trait_a", "trait_b"]]
+    "trait_by", [["trait_a"], ["trait_b"], ["trait_a", "trait_b"]]
 )
 @pytest.mark.parametrize("trait_mask", [None, "is_leaf"])
 def test_alifestd_mark_monomorphic_clades_polars_matches_pandas(
-    phylogeny_df: pd.DataFrame, by: list, trait_mask: typing.Optional[str]
+    phylogeny_df: pd.DataFrame,
+    trait_by: list,
+    trait_mask: typing.Optional[str],
 ):
     phylogeny_df = _add_inherited_traits(
         alifestd_to_working_format(phylogeny_df)
@@ -252,13 +254,13 @@ def test_alifestd_mark_monomorphic_clades_polars_matches_pandas(
             if trait_mask is None
             else phylogeny_df[trait_mask].to_numpy()
         ),
-        trait_values=phylogeny_df.groupby(by, dropna=False)
+        trait_values=phylogeny_df.groupby(trait_by, dropna=False)
         .ngroup()
         .to_numpy(),
     )["alifestd_mask_monomorphic_clades_asexual"]
 
     res = alifestd_mark_monomorphic_clades_polars(
-        pl.from_pandas(phylogeny_df), by, trait_mask=trait_mask
+        pl.from_pandas(phylogeny_df), trait_by, trait_mask=trait_mask
     )
     result = res["alifestd_mark_monomorphic_clades_polars"]
     assert result.to_list() == expected.tolist()

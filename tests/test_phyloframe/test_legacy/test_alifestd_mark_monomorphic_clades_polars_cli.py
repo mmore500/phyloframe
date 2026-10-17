@@ -47,7 +47,7 @@ def test_cli(input_csv_with_trait, ext, trait_mask):
             "python3",
             "-m",
             MODULE,
-            "--by",
+            "--trait-by",
             "trait",
             *trait_mask,
             "--mark-as",
@@ -75,12 +75,21 @@ def test_cli_create_parser():
     parser = _create_parser()
     assert parser is not None
     args, __ = parser.parse_known_args(
-        ["--by", "a", "--by", "b", "--trait-mask", "is_leaf", "--mark-as", "m"]
+        [
+            "--trait-by",
+            "a",
+            "--trait-by",
+            "b",
+            "--trait-mask",
+            "is_leaf",
+            "--mark-as",
+            "m",
+        ]
     )
-    assert args.by == ["a", "b"]
+    assert args.trait_by == ["a", "b"]
     assert args.trait_mask == "is_leaf"
     assert args.mark_as == "m"
     args, __ = parser.parse_known_args([])
-    assert args.by == []
+    assert args.trait_by == []
     assert args.trait_mask is None
     assert args.mark_as == "alifestd_mark_monomorphic_clades_polars"

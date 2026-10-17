@@ -21,7 +21,7 @@ from ._alifestd_mask_monomorphic_clades_polars import (
 
 def alifestd_mark_monomorphic_clades_polars(
     phylogeny_df: pl.DataFrame,
-    by: typing.Union[
+    trait_by: typing.Union[
         str,
         pl.Expr,
         typing.Sequence[typing.Union[str, pl.Expr]],
@@ -31,13 +31,11 @@ def alifestd_mark_monomorphic_clades_polars(
     mark_as: str = "alifestd_mark_monomorphic_clades_polars",
 ) -> pl.DataFrame:
     """Mark "monomorphic" clades where all members with a defined trait share
-    identical values in `by` column(s) or expression(s).
+    identical values in `trait_by` column(s) or expression(s).
 
     Clades containing no members with a defined trait value are considered
     monomorphic. All leaf nodes are considered monomorphic. Null values
     compare equal to one another.
-
-    Adds a boolean column ``mark_as``.
 
     Only supports asexual phylogenies.
 
@@ -48,7 +46,7 @@ def alifestd_mark_monomorphic_clades_polars(
 
         Must represent an asexual phylogeny with contiguous,
         topologically sorted ids.
-    by : str, polars.Expr, or sequence of str or polars.Expr
+    trait_by : str, polars.Expr, or sequence of str or polars.Expr
         Column name(s) or expression(s) whose combined values determine
         monomorphism.
     trait_mask : str or polars.Expr, optional
@@ -65,7 +63,7 @@ def alifestd_mark_monomorphic_clades_polars(
         If `phylogeny_df` has non-contiguous ids or is not topologically
         sorted.
     ValueError
-        If a column named in `by` or `trait_mask` is not in `phylogeny_df`.
+        If a column named in `trait_by` or `trait_mask` is not in `phylogeny_df`.
 
     Returns
     -------
@@ -77,15 +75,15 @@ def alifestd_mark_monomorphic_clades_polars(
     alifestd_mask_monomorphic_clades_polars :
         Marks monomorphic clades given trait mask and value arrays.
     """
-    if isinstance(by, (str, pl.Expr)):
-        by = [by]
-    by = list(by)
+    if isinstance(trait_by, (str, pl.Expr)):
+        trait_by = [trait_by]
+    trait_by = list(trait_by)
 
     logging.info(
         "- alifestd_mark_monomorphic_clades_polars: collecting schema...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    for col in by + [trait_mask]:
+    for col in trait_by + [trait_mask]:
         if isinstance(col, str) and col not in schema_names:
             raise ValueError(f"column {col!r} not found in phylogeny_df")
 
@@ -101,7 +99,7 @@ def alifestd_mark_monomorphic_clades_polars(
         phylogeny_df.lazy()
         .select(
             # dense rank assigns each distinct combination a group index
-            pl.struct(by).rank("dense").alias("trait_values"),
+            pl.struct(trait_by).rank("dense").alias("trait_values"),
             trait_mask.cast(pl.Boolean).alias("trait_mask"),
         )
         .collect()
@@ -127,7 +125,7 @@ def alifestd_mark_monomorphic_clades_polars(
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Mark "monomorphic" clades where all members with a defined trait share
-identical values in `--by` column(s).
+identical values in `--trait-by` column(s).
 
 Clades containing no members with a defined trait value are considered
 monomorphic. All leaf nodes are considered monomorphic.
@@ -162,9 +160,9 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--by",
+        "--trait-by",
         action="append",
-        dest="by",
+        dest="trait_by",
         type=str,
         default=[],
         help=(
@@ -208,7 +206,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mark_monomorphic_clades_polars,
-                    by=args.by,
+                    trait_by=args.trait_by,
                     trait_mask=args.trait_mask,
                     mark_as=args.mark_as,
                 ),
