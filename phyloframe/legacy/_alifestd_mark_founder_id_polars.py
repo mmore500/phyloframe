@@ -26,7 +26,8 @@ def alifestd_mark_founder_id_polars(
     """Add column `founder_id`, containing the `id` of the oldest taxon along
     each entry's lineage (inclusive) marked by `founder_mask`.
 
-    Entries with no marked taxon along their lineage are their own founder.
+    Entries with no marked taxon along their lineage are marked as their own
+    founder.
     If all taxa are marked, `founder_id` is equivalent to `root_id`.
 
     The output column name can be changed via the ``mark_as`` parameter.
@@ -50,7 +51,7 @@ def alifestd_mark_founder_id_polars(
     NotImplementedError
         If `phylogeny_df` has non-contiguous ids or is not topologically
         sorted.
-    ValueError
+    polars.exceptions.ColumnNotFoundError
         If a column named by `founder_mask` is not in `phylogeny_df`.
 
     Returns
@@ -63,16 +64,7 @@ def alifestd_mark_founder_id_polars(
     alifestd_mark_root_id_polars :
         Marks ids of entries' ultimate ancestors.
     """
-    logging.info(
-        "- alifestd_mark_founder_id_polars: collecting schema...",
-    )
-    schema_names = phylogeny_df.lazy().collect_schema().names()
     if isinstance(founder_mask, str):
-        if founder_mask not in schema_names:
-            raise ValueError(
-                f"founder_mask column {founder_mask!r} not found "
-                "in phylogeny_df",
-            )
         founder_mask = pl.col(founder_mask)
 
     logging.info(

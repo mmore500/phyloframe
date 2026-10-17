@@ -83,7 +83,7 @@ def test_alifestd_mark_founder_id_polars_empty():
 
 
 def test_alifestd_mark_founder_id_polars_missing_column():
-    with pytest.raises(ValueError):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
         alifestd_mark_founder_id_polars(_make_toy_df(), founder_mask="missing")
 
 

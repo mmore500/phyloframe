@@ -123,8 +123,8 @@ def test_alifestd_agg_monomorphic_clades_polars_toy(apply: typing.Callable):
         alifestd_agg_monomorphic_clades_polars(
             apply(df),
             by="trait",
-            aggs=[pl.col("origin_time").max()],
             named_aggs=dict(
+                origin_time=pl.col("origin_time").max(),
                 clade_size=pl.col("is_leaf").sum(),
                 origin_time_first=pl.col("origin_time").first(),
             ),
@@ -136,9 +136,17 @@ def test_alifestd_agg_monomorphic_clades_polars_toy(apply: typing.Callable):
         "id",
         "ancestor_id",
         "trait",
+        "is_monomorphic_clade",
         "origin_time",
         "clade_size",
         "origin_time_first",
+    ]
+    assert res["is_monomorphic_clade"].to_list() == [
+        False,
+        True,
+        False,
+        True,
+        True,
     ]
     assert res["id"].to_list() == [0, 1, 2, 5, 6]
     assert res["ancestor_id"].to_list() == [0, 0, 0, 2, 2]
@@ -153,8 +161,10 @@ def test_alifestd_agg_monomorphic_clades_polars_no_aggs():
     res = alifestd_agg_monomorphic_clades_polars(df, by="trait")
     # unaggregated columns are discarded
     assert res.equals(
-        df.filter(pl.col("id").is_in([0, 1, 2, 5, 6])).select(
-            "id", "ancestor_id", "trait"
+        df.filter(pl.col("id").is_in([0, 1, 2, 5, 6]))
+        .select("id", "ancestor_id", "trait")
+        .with_columns(
+            is_monomorphic_clade=pl.Series([False, True, False, True, True]),
         )
     )
 
@@ -164,14 +174,16 @@ def test_alifestd_agg_monomorphic_clades_polars_first_all_but_overridden():
     res = alifestd_agg_monomorphic_clades_polars(
         df,
         by="trait",
-        aggs=[
-            pl.exclude(
-                "id", "ancestor_id", "ancestor_list", "trait", "origin_time"
-            ).first(),
-        ],
-        named_aggs=dict(origin_time=pl.col("origin_time").max()),
+        named_aggs={
+            **{
+                col: pl.col(col).first()
+                for col in df.columns
+                if col not in ("id", "ancestor_id", "ancestor_list", "trait")
+            },
+            "origin_time": pl.col("origin_time").max(),
+        },
     )
-    assert sorted(res.columns) == sorted(df.columns)
+    assert sorted(res.columns) == sorted([*df.columns, "is_monomorphic_clade"])
     assert res["label"].to_list() == list("ABCFG")
     assert res["is_leaf"].to_list() == [False, False, False, False, True]
     assert res["origin_time"].to_list() == [0, 3, 1, 4, 2]
@@ -293,7 +305,13 @@ def test_alifestd_agg_monomorphic_clades_polars_empty():
         named_aggs=dict(origin_time_last=pl.col("origin_time").max()),
     )
     assert res.is_empty()
-    assert res.columns == ["id", "ancestor_id", "trait", "origin_time_last"]
+    assert res.columns == [
+        "id",
+        "ancestor_id",
+        "trait",
+        "is_monomorphic_clade",
+        "origin_time_last",
+    ]
 
 
 @pytest.mark.parametrize("col", ["missing", None])
@@ -314,7 +332,7 @@ def test_alifestd_agg_monomorphic_clades_polars_protected_column(col):
     )
     with pytest.raises(ValueError):
         alifestd_agg_monomorphic_clades_polars(
-            df, by="trait", aggs=[pl.col(col).first()]
+            df, by="trait", named_aggs={col: pl.col(col).first()}
         )
 
 
@@ -414,10 +432,17 @@ def test_alifestd_agg_monomorphic_clades_polars_reference(
         "id",
         "ancestor_id",
         *by,
+        "is_monomorphic_clade",
         "clade_size",
         "origin_time_first",
         "origin_time_last",
     ]
+    # collapsed clades are monomorphic; singletons are leaves or polymorphic
+    assert all(
+        is_monomorphic
+        for id_, is_monomorphic in zip(kept_ids, res["is_monomorphic_clade"])
+        if len(groups[id_]) > 1
+    )
     for col in by:
         values = dict(zip(ids, phylogeny_df[col]))
         expected = []
