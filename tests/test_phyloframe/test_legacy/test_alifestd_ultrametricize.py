@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_find_leaf_ids,
     alifestd_make_empty,
 )
 from phyloframe.legacy import (
@@ -285,8 +286,6 @@ def test_fuzz(phylogeny_df: pd.DataFrame):
 
     assert alifestd_validate(result)
     assert original.equals(phylogeny_df)
-
-    from phyloframe.legacy import alifestd_find_leaf_ids
 
     leaf_ids = list(alifestd_find_leaf_ids(phylogeny_df))
     target = phylogeny_df["origin_time"].max()

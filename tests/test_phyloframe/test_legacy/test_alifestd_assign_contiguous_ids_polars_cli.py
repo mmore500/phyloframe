@@ -4,6 +4,10 @@ import subprocess
 
 import pandas as pd
 
+from phyloframe.legacy._alifestd_assign_contiguous_ids_polars import (
+    _create_parser,
+)
+
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
@@ -72,9 +76,5 @@ def test_alifestd_assign_contiguous_ids_polars_cli_parquet():
 
 
 def test_alifestd_assign_contiguous_ids_polars_create_parser():
-    from phyloframe.legacy._alifestd_assign_contiguous_ids_polars import (
-        _create_parser,
-    )
-
     parser = _create_parser()
     assert parser is not None

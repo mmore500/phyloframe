@@ -15,6 +15,7 @@ from phyloframe.legacy import (
     alifestd_mark_colless_like_index_sd_asexual as alifestd_mark_colless_like_index_sd_asexual_,
 )
 from phyloframe.legacy import (
+    alifestd_mark_colless_like_index_var_asexual,
     alifestd_mark_num_children_asexual,
     alifestd_try_add_ancestor_id_col,
     alifestd_validate,
@@ -378,10 +379,6 @@ def test_relationship_sd_var():
             ],
         }
     )
-    from phyloframe.legacy import (
-        alifestd_mark_colless_like_index_var_asexual,
-    )
-
     result_sd = alifestd_mark_colless_like_index_sd_asexual(
         phylogeny_df,
     )

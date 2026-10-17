@@ -14,6 +14,7 @@ from phyloframe.legacy import (
     alifestd_mark_first_child_id_asexual,
     alifestd_mark_next_sibling_id_asexual,
     alifestd_mark_num_children_asexual,
+    alifestd_try_add_ancestor_id_col,
 )
 from phyloframe.legacy import (
     alifestd_unfurl_traversal_preorder_asexual as alifestd_unfurl_traversal_preorder_asexual_,
@@ -86,8 +87,6 @@ def test_fuzz(phylogeny_df: pd.DataFrame, apply: typing.Callable):
     assert result[-1] in alifestd_find_leaf_ids(phylogeny_df)
 
     # Verify valid preorder: every parent appears before its children
-    from phyloframe.legacy import alifestd_try_add_ancestor_id_col
-
     ref_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
     ancestor_of = dict(zip(ref_df["id"], ref_df["ancestor_id"]))
     pos = {node: i for i, node in enumerate(result)}
@@ -261,12 +260,6 @@ def test_with_sibling_cols():
 )
 def test_sibling_fast_path_matches_baseline(phylogeny_df: pd.DataFrame):
     """Verify sibling-based fast path gives same result as CSR-based."""
-    from phyloframe.legacy import (
-        alifestd_mark_first_child_id_asexual,
-        alifestd_mark_next_sibling_id_asexual,
-        alifestd_try_add_ancestor_id_col,
-    )
-
     result_base = alifestd_unfurl_traversal_preorder_asexual(phylogeny_df)
 
     df_sib = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())

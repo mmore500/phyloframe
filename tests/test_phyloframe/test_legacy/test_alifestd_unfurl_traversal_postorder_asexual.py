@@ -238,12 +238,6 @@ def test_with_sibling_cols():
 )
 def test_sibling_fast_path_valid_postorder(phylogeny_df: pd.DataFrame):
     """Verify sibling-based fast path produces valid postorder."""
-    from phyloframe.legacy import (
-        alifestd_mark_first_child_id_asexual,
-        alifestd_mark_next_sibling_id_asexual,
-        alifestd_try_add_ancestor_id_col,
-    )
-
     df_sib = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
     df_sib = alifestd_mark_first_child_id_asexual(df_sib, mutate=True)
     df_sib = alifestd_mark_next_sibling_id_asexual(df_sib, mutate=True)

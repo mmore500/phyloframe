@@ -11,6 +11,7 @@ from phyloframe.legacy import (
     alifestd_mark_first_child_id_asexual,
     alifestd_mark_next_sibling_id_asexual,
     alifestd_mark_num_children_asexual,
+    alifestd_try_add_ancestor_id_col,
     alifestd_unfurl_traversal_postorder_contiguous_asexual,
 )
 
@@ -203,8 +204,6 @@ def test_fuzz(phylogeny_csv: str, apply: typing.Callable):
 
     # Sort by id and remap to contiguous 0..n-1
     phylogeny_df = phylogeny_df.sort_values("id").reset_index(drop=True)
-    from phyloframe.legacy import alifestd_try_add_ancestor_id_col
-
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
     ids = phylogeny_df["id"].to_numpy()
     id_map = {int(old): new for new, old in enumerate(ids)}
@@ -331,12 +330,6 @@ def test_with_sibling_cols():
 )
 def test_sibling_fast_path_matches_baseline(phylogeny_csv: str):
     """Verify sibling-based fast path gives same result as CSR-based."""
-    from phyloframe.legacy import (
-        alifestd_mark_first_child_id_asexual,
-        alifestd_mark_next_sibling_id_asexual,
-        alifestd_try_add_ancestor_id_col,
-    )
-
     phylogeny_df = pd.read_csv(f"{assets_path}/{phylogeny_csv}")
     phylogeny_df = phylogeny_df.sort_values("id").reset_index(drop=True)
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
@@ -481,8 +474,6 @@ def test_child_order_valid_postorder(
     apply: typing.Callable,
 ):
     """Both ``child_order`` modes must produce a valid postorder."""
-    from phyloframe.legacy import alifestd_try_add_ancestor_id_col
-
     phylogeny_df = pd.read_csv(f"{assets_path}/{phylogeny_csv}")
     phylogeny_df = phylogeny_df.sort_values("id").reset_index(drop=True)
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())
@@ -520,12 +511,6 @@ def test_child_order_valid_postorder(
 )
 def test_child_order_asc_csr_matches_sibling(phylogeny_csv: str):
     """CSR and sibling fast paths must agree for ``child_order='asc'``."""
-    from phyloframe.legacy import (
-        alifestd_mark_first_child_id_asexual,
-        alifestd_mark_next_sibling_id_asexual,
-        alifestd_try_add_ancestor_id_col,
-    )
-
     phylogeny_df = pd.read_csv(f"{assets_path}/{phylogeny_csv}")
     phylogeny_df = phylogeny_df.sort_values("id").reset_index(drop=True)
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df.copy())

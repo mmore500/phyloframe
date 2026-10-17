@@ -4,6 +4,8 @@ import subprocess
 
 import pandas as pd
 
+from phyloframe.legacy._alifestd_topological_sort_polars import _create_parser
+
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
@@ -53,9 +55,5 @@ def test_alifestd_topological_sort_polars_cli_csv():
 
 
 def test_alifestd_topological_sort_polars_create_parser():
-    from phyloframe.legacy._alifestd_topological_sort_polars import (
-        _create_parser,
-    )
-
     parser = _create_parser()
     assert parser is not None
