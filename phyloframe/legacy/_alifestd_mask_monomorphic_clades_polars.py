@@ -23,6 +23,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_mask_monomorphic_clades_polars(
     phylogeny_df: pl.DataFrame,
     *,
+    mark_as: str = "alifestd_mask_monomorphic_clades_polars",
     trait_mask: np.ndarray,
     trait_values: np.ndarray,
 ) -> pl.DataFrame:
@@ -33,7 +34,8 @@ def alifestd_mask_monomorphic_clades_polars(
     monomorphic. All leaf nodes are considered monomorphic.
 
     The mask is returned as a new column
-    ``alifestd_mask_monomorphic_clades_polars`` in the output DataFrame.
+    ``alifestd_mask_monomorphic_clades_polars`` in the output DataFrame. The
+    output column name can be changed via the ``mark_as`` parameter.
 
     Only supports asexual phylogenies.
 
@@ -44,6 +46,8 @@ def alifestd_mask_monomorphic_clades_polars(
 
         Must represent an asexual phylogeny with contiguous,
         topologically sorted ids.
+    mark_as : str, default "alifestd_mask_monomorphic_clades_polars"
+        Column name for the mask.
     trait_mask : numpy.ndarray
         Boolean array marking the nodes that have a defined trait value,
         corresponding to rows in `phylogeny_df`.
@@ -107,5 +111,5 @@ def alifestd_mask_monomorphic_clades_polars(
     log_memory_usage(logging.info)
 
     return phylogeny_df.with_columns(
-        alifestd_mask_monomorphic_clades_polars=mask,
+        pl.Series(mark_as, mask),
     )

@@ -179,6 +179,19 @@ def test_alifestd_mark_monomorphic_clades_polars_mark_as():
     res = alifestd_mark_monomorphic_clades_polars(res, "trait", mark_as="mono")
     assert res.columns == [*df.columns, "mono"]
 
+    # mark_as may match mask function's output column
+    mask_col = "alifestd_mask_monomorphic_clades_polars"
+    res = alifestd_mark_monomorphic_clades_polars(
+        df, "trait", mark_as=mask_col
+    )
+    assert res.columns == [*df.columns, mask_col]
+    assert res[mask_col].equals(
+        alifestd_mark_monomorphic_clades_polars(df, "trait")[
+            "alifestd_mark_monomorphic_clades_polars"
+        ],
+        check_names=False,
+    )
+
 
 def test_alifestd_mark_monomorphic_clades_polars_empty():
     df = _make_toy_df().head(0)

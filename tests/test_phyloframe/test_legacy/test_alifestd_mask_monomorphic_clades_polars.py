@@ -165,3 +165,17 @@ def test_alifestd_mask_monomorphic_clades_polars_unsorted():
             trait_mask=np.array([True, True, True]),
             trait_values=np.array([0, 0, 0]),
         )
+
+
+def test_alifestd_mask_monomorphic_clades_polars_mark_as():
+    phylogeny_df = pl.DataFrame(
+        {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 1]},
+    )
+    result_df = alifestd_mask_monomorphic_clades_polars(
+        phylogeny_df,
+        mark_as="mask",
+        trait_mask=np.array([True, True, True, True]),
+        trait_values=np.array([0, 0, 1, 0]),
+    )
+    assert result_df.columns == ["id", "ancestor_id", "mask"]
+    assert result_df["mask"].to_list() == [False, True, True, True]

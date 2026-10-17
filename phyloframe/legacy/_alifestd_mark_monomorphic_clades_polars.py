@@ -77,13 +77,14 @@ def alifestd_mark_monomorphic_clades_polars(
     """
     if isinstance(trait_by, (str, pl.Expr)):
         trait_by = [trait_by]
-    trait_by = list(trait_by)
+    else:
+        trait_by = [*trait_by]
 
     logging.info(
         "- alifestd_mark_monomorphic_clades_polars: collecting schema...",
     )
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    for col in trait_by + [trait_mask]:
+    for col in (trait_mask, *trait_by):
         if isinstance(col, str) and col not in schema_names:
             raise ValueError(f"column {col!r} not found in phylogeny_df")
 
@@ -109,6 +110,7 @@ def alifestd_mark_monomorphic_clades_polars(
 
     phylogeny_df = alifestd_mask_monomorphic_clades_polars(
         phylogeny_df,
+        mark_as=mark_as,
         trait_mask=traits_df["trait_mask"].to_numpy(),
         trait_values=traits_df["trait_values"].to_numpy(),
     )
@@ -116,10 +118,7 @@ def alifestd_mark_monomorphic_clades_polars(
     gc.collect()
     log_memory_usage(logging.info)
 
-    mask_col = "alifestd_mask_monomorphic_clades_polars"
-    if mark_as == mask_col:
-        return phylogeny_df
-    return phylogeny_df.drop(mark_as, strict=False).rename({mask_col: mark_as})
+    return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
