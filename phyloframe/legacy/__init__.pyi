@@ -566,6 +566,9 @@ from ._alifestd_mask_descendants_polars import (
 from ._alifestd_mask_monomorphic_clades_asexual import (
     alifestd_mask_monomorphic_clades_asexual,
 )
+from ._alifestd_mask_monomorphic_clades_polars import (
+    alifestd_mask_monomorphic_clades_polars,
+)
 from ._alifestd_parse_ancestor_id import alifestd_parse_ancestor_id
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_pipe_unary_ops import alifestd_pipe_unary_ops
@@ -934,6 +937,7 @@ __all__ = [
     "alifestd_mask_descendants_asexual",
     "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
+    "alifestd_mask_monomorphic_clades_polars",
     "alifestd_parse_ancestor_id",
     "alifestd_pipe_unary_ops",
     "alifestd_pipe_unary_ops_polars",

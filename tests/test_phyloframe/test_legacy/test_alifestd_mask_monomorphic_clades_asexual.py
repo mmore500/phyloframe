@@ -110,7 +110,7 @@ def test_simple3(mutate: bool, dtype: type):
     )
     result_df.index = result_df["id"]
     assert result_df.loc[0, "alifestd_mask_monomorphic_clades_asexual"]
-    assert not result_df.loc[1, "alifestd_mask_monomorphic_clades_asexual"]
+    assert result_df.loc[1, "alifestd_mask_monomorphic_clades_asexual"]
     assert result_df.loc[2, "alifestd_mask_monomorphic_clades_asexual"]
     assert result_df.loc[4, "alifestd_mask_monomorphic_clades_asexual"]
     if not mutate:
@@ -168,8 +168,8 @@ def test_simple5(mutate: bool, dtype: type):
         trait_values=trait_values,
     )
     result_df.index = result_df["id"]
-    assert not result_df.loc[1, "alifestd_mask_monomorphic_clades_asexual"]
-    assert not result_df.loc[0, "alifestd_mask_monomorphic_clades_asexual"]
+    assert result_df.loc[1, "alifestd_mask_monomorphic_clades_asexual"]
+    assert result_df.loc[0, "alifestd_mask_monomorphic_clades_asexual"]
     assert result_df.loc[2, "alifestd_mask_monomorphic_clades_asexual"]
     assert result_df.loc[3, "alifestd_mask_monomorphic_clades_asexual"]
     assert result_df.loc[4, "alifestd_mask_monomorphic_clades_asexual"]
@@ -347,5 +347,41 @@ def test_simple11(mutate: bool, dtype: type):
     assert not result_df.loc[0, "alifestd_mask_monomorphic_clades_asexual"]
     assert result_df.loc[1, "alifestd_mask_monomorphic_clades_asexual"]
     assert result_df.loc[2, "alifestd_mask_monomorphic_clades_asexual"]
+    if not mutate:
+        assert original_df.equals(phylogeny_df)
+
+
+@pytest.mark.parametrize("mutate", [False, True])
+@pytest.mark.parametrize("dtype", [int, float, str, tuple])
+@pytest.mark.parametrize(
+    "ancestor_list, trait_mask",
+    [
+        # clade without defined traits precedes defined sibling
+        (["[None]", "[0]", "[0]", "[1]"], [False, False, True, False]),
+        # clade without defined traits follows defined sibling
+        (["[None]", "[0]", "[0]", "[2]"], [False, True, False, False]),
+    ],
+)
+def test_undefined_clade(
+    mutate: bool, dtype: type, ancestor_list: list, trait_mask: list
+):
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_list": ancestor_list,
+        }
+    )
+    original_df = phylogeny_df.copy()
+    trait_mask = np.array(trait_mask, dtype=bool)
+    raw_traits = [7, 8, 9, 6]
+    trait_values = np.array(raw_traits, dtype=dtype)
+
+    result_df = alifestd_mask_monomorphic_clades_asexual(
+        phylogeny_df,
+        mutate=mutate,
+        trait_mask=trait_mask,
+        trait_values=trait_values,
+    )
+    assert result_df["alifestd_mask_monomorphic_clades_asexual"].all()
     if not mutate:
         assert original_df.equals(phylogeny_df)
