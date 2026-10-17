@@ -569,6 +569,8 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_mask_monomorphic_clades_polars import (
     alifestd_mask_monomorphic_clades_polars,
 )
+from ._alifestd_minify_asexual import alifestd_minify_asexual
+from ._alifestd_minify_polars import alifestd_minify_polars
 from ._alifestd_parse_ancestor_id import alifestd_parse_ancestor_id
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_pipe_unary_ops import alifestd_pipe_unary_ops
@@ -682,6 +684,8 @@ from ._alifestd_unfurl_traversal_topological_asexual import (
 from ._alifestd_unfurl_traversal_topological_polars import (
     alifestd_unfurl_traversal_topological_polars,
 )
+from ._alifestd_unminify_asexual import alifestd_unminify_asexual
+from ._alifestd_unminify_polars import alifestd_unminify_polars
 from ._alifestd_validate import alifestd_validate
 from ._alifestd_warn_topological_sensitivity import (
     alifestd_warn_topological_sensitivity,
@@ -938,6 +942,8 @@ __all__ = [
     "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
     "alifestd_mask_monomorphic_clades_polars",
+    "alifestd_minify_asexual",
+    "alifestd_minify_polars",
     "alifestd_parse_ancestor_id",
     "alifestd_pipe_unary_ops",
     "alifestd_pipe_unary_ops_polars",
@@ -987,6 +993,8 @@ __all__ = [
     "alifestd_unfurl_traversal_semiorder_polars",
     "alifestd_unfurl_traversal_topological_asexual",
     "alifestd_unfurl_traversal_topological_polars",
+    "alifestd_unminify_asexual",
+    "alifestd_unminify_polars",
     "alifestd_validate",
     "alifestd_warn_topological_sensitivity",
     "alifestd_warn_topological_sensitivity_polars",
