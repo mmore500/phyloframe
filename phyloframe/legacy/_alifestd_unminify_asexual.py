@@ -19,8 +19,9 @@ from .._auxlib._log_context_duration import log_context_duration
 
 def alifestd_unminify_asexual(
     phylogeny_df: pd.DataFrame,
-    dtype_id: type = np.int64,
     mutate: bool = False,
+    *,
+    dtype_id: type = np.int64,
 ) -> pd.DataFrame:
     """Restore alife standard format from a phylogeny minified by
     `alifestd_minify_asexual`.

@@ -61,8 +61,9 @@ def _alifestd_calc_minified_ancestor_offsets_asexual(
 
 def alifestd_minify_asexual(
     phylogeny_df: pd.DataFrame,
-    shrink_dtype: bool = True,
     mutate: bool = False,
+    *,
+    shrink_dtype: bool = True,
 ) -> pd.DataFrame:
     """Re-encode phylogeny_df compactly, replacing explicit ids with
     relative ancestor row offsets.

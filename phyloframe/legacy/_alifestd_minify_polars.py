@@ -33,6 +33,7 @@ from ._alifestd_unfurl_traversal_preorder_polars import (
 
 def alifestd_minify_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     shrink_dtype: bool = True,
 ) -> pl.DataFrame:
     """Re-encode phylogeny_df compactly, replacing explicit ids with

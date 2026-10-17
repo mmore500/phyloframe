@@ -15,6 +15,7 @@ from .._auxlib._log_context_duration import log_context_duration
 
 def alifestd_unminify_polars(
     phylogeny_df: pl.DataFrame,
+    *,
     dtype_id: pl.datatypes.DataType = pl.Int64,
 ) -> pl.DataFrame:
     """Restore alife standard format from a phylogeny minified by
