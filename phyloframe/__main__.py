@@ -164,6 +164,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_polars
+$ python3 -m phyloframe.legacy._alifestd_minify_asexual
+$ python3 -m phyloframe.legacy._alifestd_minify_polars
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots
@@ -188,6 +190,8 @@ $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col
 $ python3 -m phyloframe.legacy._alifestd_try_add_ancestor_list_col_polars
 $ python3 -m phyloframe.legacy._alifestd_ultrametricize
 $ python3 -m phyloframe.legacy._alifestd_ultrametricize_polars
+$ python3 -m phyloframe.legacy._alifestd_unminify_asexual
+$ python3 -m phyloframe.legacy._alifestd_unminify_polars
 
 For information on a command, invoke it with the --help flag.
 """,
