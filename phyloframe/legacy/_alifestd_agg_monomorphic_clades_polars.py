@@ -148,8 +148,8 @@ def alifestd_agg_monomorphic_clades_polars(
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: calculating groups...",
     )
-    # oldest monomorphic taxon along each lineage is its group's root;
-    # taxa outside monomorphic clades are their own founder
+    # oldest monomorphic taxon along each lineage marked with group's root;
+    # taxa outside monomorphic clades are marked as their own founder
     group_col = "alifestd_agg_monomorphic_clades_group"
     phylogeny_df = alifestd_mark_founder_id_polars(
         phylogeny_df, founder_mask=mono_col, mark_as=group_col
