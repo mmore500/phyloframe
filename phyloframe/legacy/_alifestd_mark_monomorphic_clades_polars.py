@@ -104,7 +104,6 @@ def alifestd_mark_monomorphic_clades_polars(
         .collect()
         .to_series()
         .to_numpy(),
-        # dense rank assigns each distinct combination a group index
         trait_values=phylogeny_df.lazy()
         .select(
             trait_by[0]
