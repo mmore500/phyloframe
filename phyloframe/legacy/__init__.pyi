@@ -306,6 +306,9 @@ from ._alifestd_mark_ancestor_origin_time_asexual import (
 from ._alifestd_mark_ancestor_origin_time_polars import (
     alifestd_mark_ancestor_origin_time_polars,
 )
+from ._alifestd_mark_ancestral_trait_polars import (
+    alifestd_mark_ancestral_trait_polars,
+)
 from ._alifestd_mark_clade_duration_asexual import (
     alifestd_mark_clade_duration_asexual,
 )
@@ -861,6 +864,7 @@ __all__ = [
     "alifestd_make_star_polars",
     "alifestd_mark_ancestor_origin_time_asexual",
     "alifestd_mark_ancestor_origin_time_polars",
+    "alifestd_mark_ancestral_trait_polars",
     "alifestd_mark_clade_duration_asexual",
     "alifestd_mark_clade_duration_polars",
     "alifestd_mark_clade_duration_ratio_sister_asexual",

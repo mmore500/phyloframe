@@ -16,8 +16,8 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._log_memory_usage import log_memory_usage
-from ._alifestd_mark_lineage_cummax_asexual import (
-    _alifestd_mark_lineage_cummax_asexual_fast_path,
+from ._alifestd_mark_ancestral_trait_polars import (
+    alifestd_mark_ancestral_trait_polars,
 )
 from ._alifestd_mark_monomorphic_clades_polars import (
     alifestd_mark_monomorphic_clades_polars,
@@ -159,25 +159,23 @@ def alifestd_agg_monomorphic_clades_polars(
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: calculating groups...",
     )
+    group_col = "alifestd_agg_monomorphic_clades_group"
     ids = np.arange(len(ancestor_ids))
     is_root = ancestor_ids == ids
-    is_group_root = is_monomorphic & (is_root | ~is_monomorphic[ancestor_ids])
-    # at most one group root per lineage, so cummax propagates it to members
-    group_ids = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        ancestor_ids, np.where(is_group_root, ids, -1), False
+    phylogeny_df = alifestd_mark_ancestral_trait_polars(
+        phylogeny_df,
+        mark_as=group_col,
+        trait_default=ids,  # taxa outside monomorphic clades group alone
+        trait_mask=is_monomorphic & (is_root | ~is_monomorphic[ancestor_ids]),
+        trait_value=ids,
     )
-    group_ids = np.where(group_ids >= 0, group_ids, ids)
-    del ancestor_ids, is_monomorphic, ids, is_root, is_group_root
+    del ancestor_ids, is_monomorphic, ids, is_root
     gc.collect()
     log_memory_usage(logging.info)
 
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: aggregating...",
     )
-    group_col = "alifestd_agg_monomorphic_clades_group"
-    phylogeny_df = phylogeny_df.with_columns(pl.Series(group_col, group_ids))
-    del group_ids
-
     by_aggs = {
         col: (
             pl.col(col).first()
