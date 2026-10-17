@@ -25,6 +25,10 @@ def _alifestd_mask_monomorphic_clades_asexual_fast_path(
         if ancestor_id == idx:
             continue
 
+        # clade has no defined trait values, so imposes no constraint
+        if not trait_mask[idx]:
+            continue
+
         if not trait_mask[ancestor_id]:
             trait_values[ancestor_id] = trait_values[idx]
             trait_mask[ancestor_id] = trait_mask[idx]
@@ -48,6 +52,12 @@ def _alifestd_mask_monomorphic_clades_asexual_slow_path(
 
         # handle genesis case
         if ancestor_id == idx:
+            continue
+
+        # clade has no defined trait values, so imposes no constraint
+        if not phylogeny_df.at[
+            idx, "alifestd_mask_monomorphic_clades_asexual_mask"
+        ]:
             continue
 
         trait_value = phylogeny_df.at[
