@@ -34,8 +34,8 @@ def alifestd_mask_monomorphic_clades_polars(
     monomorphic. All leaf nodes are considered monomorphic.
 
     The mask is returned as a new column
-    ``alifestd_mask_monomorphic_clades_polars`` in the output DataFrame. The
-    output column name can be changed via the ``mark_as`` parameter.
+    ``alifestd_mask_monomorphic_clades_polars`` in the output DataFrame. Pass
+    ``mark_as`` parameter to override.
 
     Only supports asexual phylogenies.
 
@@ -85,8 +85,8 @@ def alifestd_mask_monomorphic_clades_polars(
             "non-topologically-sorted data not supported",
         )
 
-    # replace non-numeric dtypes with integer aliases
-    if not np.issubdtype(trait_values.dtype, np.number):
+    # replace non-integer dtypes with integer aliases, so NaN/None match
+    if not np.issubdtype(trait_values.dtype, np.integer):
         trait_values = pd.factorize(trait_values)[0]
     else:  # copy, modified in place
         trait_values = trait_values.copy()
@@ -111,5 +111,5 @@ def alifestd_mask_monomorphic_clades_polars(
     log_memory_usage(logging.info)
 
     return phylogeny_df.with_columns(
-        pl.Series(mark_as, mask),
+        pl.Series(name=mark_as, values=mask),
     )

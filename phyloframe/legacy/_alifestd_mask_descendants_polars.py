@@ -32,8 +32,7 @@ def alifestd_mask_descendants_polars(
     in `phylogeny_df`.
 
     The mask is returned as a new column ``alifestd_mask_descendants_polars``
-    in the output DataFrame. The output column name can be changed via the
-    ``mark_as`` parameter.
+    in the output DataFrame. Pass ``mark_as`` parameter to override.
 
     Only supports asexual phylogenies.
 
@@ -93,5 +92,5 @@ def alifestd_mask_descendants_polars(
     log_memory_usage(logging.info)
 
     return phylogeny_df.with_columns(
-        pl.Series(mark_as, mask),
+        pl.Series(name=mark_as, values=mask),
     )

@@ -135,8 +135,8 @@ def alifestd_mask_monomorphic_clades_asexual(
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
 
-    # replace non-numeric dtypes with integer aliases
-    if not np.issubdtype(trait_values.dtype, np.number):
+    # replace non-integer dtypes with integer aliases, so NaN/None match
+    if not np.issubdtype(trait_values.dtype, np.integer):
         trait_values = pd.factorize(trait_values)[0]
 
     phylogeny_df["alifestd_mask_monomorphic_clades_asexual_mask"] = trait_mask

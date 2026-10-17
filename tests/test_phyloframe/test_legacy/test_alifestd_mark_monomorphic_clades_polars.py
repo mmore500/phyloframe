@@ -278,3 +278,13 @@ def test_alifestd_mark_monomorphic_clades_polars_matches_pandas(
     result = res["alifestd_mark_monomorphic_clades_polars"]
     assert result.to_list() == expected.tolist()
     assert result.any()
+
+
+@pytest.mark.parametrize("dtype", [pl.Int64, pl.Float64, pl.String])
+def test_alifestd_mark_monomorphic_clades_polars_single_column_nulls(dtype):
+    df = pl.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "t": [None] * 3},
+        schema={"id": pl.Int64, "ancestor_id": pl.Int64, "t": dtype},
+    )
+    res = alifestd_mark_monomorphic_clades_polars(df, "t")
+    assert res["alifestd_mark_monomorphic_clades_polars"].all()

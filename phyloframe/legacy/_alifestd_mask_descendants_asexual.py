@@ -52,8 +52,7 @@ def alifestd_mask_descendants_asexual(
     in `phylogeny_df`.
 
     The mask is returned as a new column `alifestd_mask_descendants_asexual` in
-    the output DataFrame. The output column name can be changed via the
-    ``mark_as`` parameter.
+    the output DataFrame. Pass ``mark_as`` parameter to override.
 
     A topological sort will be applied if `phylogeny_df` is not topologically
     sorted. Dataframe reindexing (e.g., df.index) may be applied.

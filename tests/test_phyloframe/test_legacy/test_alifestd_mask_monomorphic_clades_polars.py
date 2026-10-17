@@ -179,3 +179,33 @@ def test_alifestd_mask_monomorphic_clades_polars_mark_as():
     )
     assert result_df.columns == ["id", "ancestor_id", "mask"]
     assert result_df["mask"].to_list() == [False, True, True, True]
+
+
+@pytest.mark.parametrize(
+    "trait_values",
+    [
+        pytest.param(np.array([np.nan, np.nan, 1.0, np.nan]), id="float_nan"),
+        pytest.param(np.array([None, None, 1, None]), id="object_none"),
+        pytest.param(
+            pl.Series([None, None, 1, None], dtype=pl.Int64).to_numpy(),
+            id="polars_int_nulls",
+        ),
+    ],
+)
+def test_alifestd_mask_monomorphic_clades_polars_nulls_compare_equal(
+    trait_values: np.ndarray,
+):
+    phylogeny_df = pl.DataFrame(
+        {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 1]},
+    )
+    result_df = alifestd_mask_monomorphic_clades_polars(
+        phylogeny_df,
+        trait_mask=np.array([True, True, True, True]),
+        trait_values=trait_values,
+    )
+    assert result_df["alifestd_mask_monomorphic_clades_polars"].to_list() == [
+        False,
+        True,
+        True,
+        True,
+    ]

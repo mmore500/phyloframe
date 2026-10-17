@@ -89,32 +89,32 @@ def alifestd_mark_monomorphic_clades_polars(
             raise ValueError(f"column {col!r} not found in phylogeny_df")
 
     if trait_mask is None:
-        trait_mask = pl.lit(True)
+        trait_mask = pl.repeat(True, pl.len())
     elif isinstance(trait_mask, str):
         trait_mask = pl.col(trait_mask)
 
     logging.info(
-        "- alifestd_mark_monomorphic_clades_polars: collecting traits...",
+        "- alifestd_mark_monomorphic_clades_polars: masking clades...",
     )
-    traits_df = (
-        phylogeny_df.lazy()
-        .select(
-            # dense rank assigns each distinct combination a group index
-            pl.struct(trait_by).rank("dense").alias("trait_values"),
-            trait_mask.cast(pl.Boolean).alias("trait_mask"),
-        )
-        .collect()
-    )
-    gc.collect()
-    log_memory_usage(logging.info)
-
     phylogeny_df = alifestd_mask_monomorphic_clades_polars(
         phylogeny_df,
         mark_as=mark_as,
-        trait_mask=traits_df["trait_mask"].to_numpy(),
-        trait_values=traits_df["trait_values"].to_numpy(),
+        trait_mask=phylogeny_df.lazy()
+        .select(trait_mask.cast(pl.Boolean))
+        .collect()
+        .to_series()
+        .to_numpy(),
+        # dense rank assigns each distinct combination a group index
+        trait_values=phylogeny_df.lazy()
+        .select(
+            trait_by[0]
+            if len(trait_by) == 1
+            else pl.struct(trait_by).rank("dense")
+        )
+        .collect()
+        .to_series()
+        .to_numpy(),
     )
-    del traits_df
     gc.collect()
     log_memory_usage(logging.info)
 
@@ -196,22 +196,16 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
 
-    try:
-        with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_monomorphic_clades_polars",
-            logging.info,
-        ):
-            _run_dataframe_cli(
-                base_parser=parser,
-                output_dataframe_op=functools.partial(
-                    alifestd_mark_monomorphic_clades_polars,
-                    trait_by=args.trait_by,
-                    trait_mask=args.trait_mask,
-                    mark_as=args.mark_as,
-                ),
-            )
-    except NotImplementedError as e:
-        logging.error(
-            "- polars op not yet implemented, use pandas op CLI instead",
+    with log_context_duration(
+        "phyloframe.legacy._alifestd_mark_monomorphic_clades_polars",
+        logging.info,
+    ):
+        _run_dataframe_cli(
+            base_parser=parser,
+            output_dataframe_op=functools.partial(
+                alifestd_mark_monomorphic_clades_polars,
+                trait_by=args.trait_by,
+                trait_mask=args.trait_mask,
+                mark_as=args.mark_as,
+            ),
         )
-        raise e
