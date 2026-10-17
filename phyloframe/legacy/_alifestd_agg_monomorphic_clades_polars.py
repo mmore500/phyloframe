@@ -19,8 +19,8 @@ from .._auxlib._log_memory_usage import log_memory_usage
 from ._alifestd_mark_lineage_cummax_asexual import (
     _alifestd_mark_lineage_cummax_asexual_fast_path,
 )
-from ._alifestd_mask_monomorphic_clades_polars import (
-    alifestd_mask_monomorphic_clades_polars,
+from ._alifestd_mark_monomorphic_clades_polars import (
+    alifestd_mark_monomorphic_clades_polars,
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
@@ -120,20 +120,12 @@ def alifestd_agg_monomorphic_clades_polars(
 
     See Also
     --------
-    alifestd_mask_monomorphic_clades_asexual :
+    alifestd_mark_monomorphic_clades_polars :
         Marks monomorphic clades without collapsing them.
     """
     if isinstance(by, str):
         by = (by,)
     by = list(by)
-
-    logging.info(
-        "- alifestd_agg_monomorphic_clades_polars: collecting schema...",
-    )
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    for col in by + ([] if trait_mask is None else [trait_mask]):
-        if col not in schema_names:
-            raise ValueError(f'Need "{col}" column.')
 
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: "
@@ -143,38 +135,24 @@ def alifestd_agg_monomorphic_clades_polars(
     schema_names = phylogeny_df.lazy().collect_schema().names()
 
     logging.info(
-        "- alifestd_agg_monomorphic_clades_polars: masking clades...",
+        "- alifestd_agg_monomorphic_clades_polars: marking clades...",
     )
-    traits_df = (
-        phylogeny_df.lazy()
-        .select(
-            pl.struct(by).rank("dense").alias("trait_values"),
-            (
-                pl.lit(True)
-                if trait_mask is None
-                else pl.col(trait_mask).cast(pl.Boolean)
-            ).alias("trait_mask"),
-        )
-        .collect()
-    )
-    masked_df = (
-        alifestd_mask_monomorphic_clades_polars(
-            phylogeny_df,
-            trait_mask=traits_df["trait_mask"].to_numpy(),
-            trait_values=traits_df["trait_values"].to_numpy(),
+    marked_df = (
+        alifestd_mark_monomorphic_clades_polars(
+            phylogeny_df, by, trait_mask=trait_mask
         )
         .lazy()
         .select(
             pl.col("ancestor_id").cast(pl.Int64),
-            "alifestd_mask_monomorphic_clades_polars",
+            "alifestd_mark_monomorphic_clades_polars",
         )
         .collect()
     )
-    ancestor_ids = masked_df["ancestor_id"].to_numpy()
-    is_monomorphic = masked_df[
-        "alifestd_mask_monomorphic_clades_polars"
+    ancestor_ids = marked_df["ancestor_id"].to_numpy()
+    is_monomorphic = marked_df[
+        "alifestd_mark_monomorphic_clades_polars"
     ].to_numpy()
-    del traits_df, masked_df
+    del marked_df
     gc.collect()
     log_memory_usage(logging.info)
 
