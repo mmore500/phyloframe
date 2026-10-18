@@ -189,7 +189,7 @@ def alifestd_agg_monomorphic_clades_polars(
         on=group_col,
         how="left",
         maintain_order="left",
-        validate="1:1",  # monomorphic groups have one shared by value
+        validate="1:1",  # error if a group has multiple by values
     ).drop(group_col)
 
 

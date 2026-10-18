@@ -86,6 +86,20 @@ def alifestd_mark_monomorphic_clades_polars(
     logging.info(
         "- alifestd_mark_monomorphic_clades_polars: masking clades...",
     )
+    trait_values = (
+        phylogeny_df.lazy()
+        .select(
+            trait_by[0]
+            if len(trait_by) == 1
+            else pl.struct(trait_by).rank("dense")
+        )
+        .collect()
+        .to_series()
+    )
+    # numpy converts nullable ints to float64, merging values above 2**53
+    if trait_values.dtype.is_integer() and trait_values.has_nulls():
+        trait_values = trait_values.rank("dense")
+
     phylogeny_df = alifestd_mask_monomorphic_clades_polars(
         phylogeny_df,
         mark_as=mark_as,
@@ -94,14 +108,9 @@ def alifestd_mark_monomorphic_clades_polars(
         .collect()
         .to_series()
         .to_numpy(),
-        # dense rank encodes values exactly; e.g., numpy conversion of
-        # nullable ints goes through float64, merging values above 2**53
-        trait_values=phylogeny_df.lazy()
-        .select(pl.struct(trait_by).rank("dense"))
-        .collect()
-        .to_series()
-        .to_numpy(),
+        trait_values=trait_values.to_numpy(),
     )
+    del trait_values
     gc.collect()
     log_memory_usage(logging.info)
 
