@@ -5,53 +5,78 @@ import numpy as np
 from packaging.version import parse
 import pandas as pd
 
+from .._auxlib._jit import jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
+from ._alifestd_is_working_format_asexual import (
+    alifestd_is_working_format_asexual,
+)
 from ._alifestd_mark_node_depth_asexual import alifestd_mark_node_depth_asexual
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-def alifestd_screen_trait_defined_clades_fitch_asexual(
+@jit(nopython=True)
+def _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
+    ancestor_ids: np.ndarray,
+    ft_set: np.ndarray,
+) -> np.ndarray:
+    """Implementation detail for
+    `alifestd_screen_trait_defined_clades_fitch_asexual`."""
+    num_nodes = len(ancestor_ids)
+    ft_intersect = np.full(num_nodes, 3, dtype=np.uint8)
+    ft_union = np.zeros(num_nodes, dtype=np.uint8)
+    ft_num0s = np.zeros(num_nodes, dtype=np.int64)
+    ft_num1s = np.zeros(num_nodes, dtype=np.int64)
+
+    # bottom-up pass: iterate back to front, so children are resolved before
+    # parents, accumulating children's trait set statistics at parents
+    for idx_r, ancestor_id in enumerate(ancestor_ids[::-1]):
+        idx = num_nodes - 1 - idx_r
+        if ft_set[idx] == 0:
+            if ft_num0s[idx] == ft_num1s[idx]:
+                # trait set is intersection if nonempty, else union
+                if ft_intersect[idx] != 0:
+                    ft_set[idx] = ft_intersect[idx]
+                else:
+                    ft_set[idx] = ft_union[idx]
+            # if majority of children have trait absent/present, set that
+            elif ft_num0s[idx] > ft_num1s[idx]:
+                ft_set[idx] = 1
+            else:
+                ft_set[idx] = 2
+
+        if ancestor_id != idx:  # exclude genesis cases
+            ft_num0s[ancestor_id] += ft_set[idx] & 1
+            ft_num1s[ancestor_id] += ft_set[idx] >> 1
+            ft_intersect[ancestor_id] &= ft_set[idx]
+            ft_union[ancestor_id] |= ft_set[idx]
+
+    # top-down pass: iterate front to back, so parents are resolved before
+    # children, resolving ambiguity in favor of parent's trait state
+    res = np.zeros(num_nodes, dtype=np.bool_)
+    for idx, ancestor_id in enumerate(ancestor_ids):
+        if ancestor_id == idx:  # handle genesis cases
+            if ft_set[idx] == 3:
+                ft_set[idx] = 1  # root assumed to be trait absent
+            continue  # mutation at root not considered a change
+
+        # inherit shared trait
+        common_trait = ft_set[idx] & ft_set[ancestor_id]
+        if common_trait != 0 or ft_set[idx] == 0:
+            ft_set[idx] = common_trait
+
+        res[idx] = ft_set[idx] == 2 and ft_set[ancestor_id] != 2
+
+    return res
+
+
+def _alifestd_screen_trait_defined_clades_fitch_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
-    mutate: bool = False,
-    *,
-    mask_trait_absent: np.ndarray,  # 1D boolean array
-    mask_trait_present: np.ndarray,  # 1D boolean array
-    progress_wrap: typing.Callable = lambda x: x,
-) -> np.ndarray:  # 1D boolean array
-    """Perform a maximum parsimony screen for trait-defined clades using
-    Fitch's algorithm.
-
-    The `mask_trait_absent` parameter can be used to exclude nodes from
-    consideration, for instance &'ing with `alifestd_mark_leaves` can be used
-    to only consider traits on leaves.
-
-    Pass tqdm or equivalent as `progress_wrap` to display a progress bar.
-
-    Default root state is assumed to be False.
-
-    Returns a numpy array of bool with the same length as the input DataFrame,
-    with array elements as the number of nodes in the clade that have the
-    trait. Returned array matches row order of the input DataFrame.
-    """
-
-    if len(phylogeny_df) == 0:
-        return np.array([], dtype=bool)
-
-    mask_trait_absent = np.asarray(mask_trait_absent, dtype=bool)
-    mask_trait_present = np.asarray(mask_trait_present, dtype=bool)
-    if (mask_trait_absent & mask_trait_present).any():
-        raise ValueError("conflicting trait presence/absence masks")
-
-    if not mutate:
-        phylogeny_df = phylogeny_df.copy()
-
-    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
-    phylogeny_df["fitch_trait_set"] = (
-        mask_trait_absent + 2 * mask_trait_present
-    )
-
+    progress_wrap: typing.Callable,
+) -> np.ndarray:
+    """Implementation detail for
+    `alifestd_screen_trait_defined_clades_fitch_asexual`."""
     saved_id_order = None
     if not alifestd_is_topologically_sorted(phylogeny_df):
         saved_id_order = phylogeny_df["id"].to_numpy(copy=True)
@@ -159,3 +184,53 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         return phylogeny_df[
             "alifestd_screen_trait_defined_clades_fitch_asexual"
         ].values
+
+
+def alifestd_screen_trait_defined_clades_fitch_asexual(
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    mask_trait_absent: np.ndarray,  # 1D boolean array
+    mask_trait_present: np.ndarray,  # 1D boolean array
+    progress_wrap: typing.Callable = lambda x: x,
+) -> np.ndarray:  # 1D boolean array
+    """Perform a maximum parsimony screen for trait-defined clades using
+    Fitch's algorithm.
+
+    The `mask_trait_absent` parameter can be used to exclude nodes from
+    consideration, for instance &'ing with `alifestd_mark_leaves` can be used
+    to only consider traits on leaves.
+
+    Pass tqdm or equivalent as `progress_wrap` to display a progress bar.
+
+    Default root state is assumed to be False.
+
+    Returns a numpy array of bool with the same length as the input DataFrame,
+    with array elements as the number of nodes in the clade that have the
+    trait. Returned array matches row order of the input DataFrame.
+    """
+    if len(phylogeny_df) == 0:
+        return np.array([], dtype=bool)
+
+    mask_trait_absent = np.asarray(mask_trait_absent, dtype=bool)
+    mask_trait_present = np.asarray(mask_trait_present, dtype=bool)
+    if (mask_trait_absent & mask_trait_present).any():
+        raise ValueError("conflicting trait presence/absence masks")
+
+    if not mutate:
+        phylogeny_df = phylogeny_df.copy()
+
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+    if alifestd_is_working_format_asexual(phylogeny_df, mutate=True):
+        return _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
+            pd.to_numeric(phylogeny_df["ancestor_id"]).to_numpy(),
+            (mask_trait_absent + 2 * mask_trait_present).astype(np.uint8),
+        )
+    else:
+        phylogeny_df["fitch_trait_set"] = (
+            mask_trait_absent + 2 * mask_trait_present
+        )
+        return _alifestd_screen_trait_defined_clades_fitch_asexual_slow_path(
+            phylogeny_df,
+            progress_wrap=progress_wrap,
+        )
