@@ -62,8 +62,6 @@ def alifestd_mark_monomorphic_clades_polars(
     NotImplementedError
         If `phylogeny_df` has non-contiguous ids or is not topologically
         sorted.
-    ValueError
-        If a column named in `trait_by` or `trait_mask` is not in `phylogeny_df`.
 
     Returns
     -------
@@ -79,14 +77,6 @@ def alifestd_mark_monomorphic_clades_polars(
         trait_by = [trait_by]
     else:
         trait_by = [*trait_by]
-
-    logging.info(
-        "- alifestd_mark_monomorphic_clades_polars: collecting schema...",
-    )
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    for col in (trait_mask, *trait_by):
-        if isinstance(col, str) and col not in schema_names:
-            raise ValueError(f"column {col!r} not found in phylogeny_df")
 
     if trait_mask is None:
         trait_mask = pl.repeat(True, pl.len())

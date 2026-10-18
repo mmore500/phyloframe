@@ -107,8 +107,7 @@ def alifestd_agg_monomorphic_clades_polars(
         If `phylogeny_df` has non-contiguous ids or is not topologically
         sorted.
     ValueError
-        If any of `by` or `trait_mask` is not a column in `phylogeny_df` or
-        `named_aggs` would overwrite "id", "ancestor_id", or
+        If `named_aggs` would overwrite "id", "ancestor_id", or
         "ancestor_list".
 
     Returns
@@ -162,9 +161,7 @@ def alifestd_agg_monomorphic_clades_polars(
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: aggregating...",
     )
-    # marked members of monomorphic groups share by values, so distinct
-    # (group, *by) keys give each group's shared value; groups without
-    # marked members get null
+    # shared by values of marked members (null if none are marked)
     by_keys_df = (
         phylogeny_df.filter(
             pl.lit(True)

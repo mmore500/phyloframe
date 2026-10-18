@@ -50,8 +50,6 @@ def alifestd_mark_founder_id_polars(
     NotImplementedError
         If `phylogeny_df` has non-contiguous ids or is not topologically
         sorted.
-    polars.exceptions.ColumnNotFoundError
-        If a column named by `founder_mask` is not in `phylogeny_df`.
 
     Returns
     -------

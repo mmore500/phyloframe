@@ -317,7 +317,7 @@ def test_alifestd_agg_monomorphic_clades_polars_empty():
 @pytest.mark.parametrize("col", ["missing", None])
 def test_alifestd_agg_monomorphic_clades_polars_missing_column(col):
     df = _make_toy_df()
-    with pytest.raises(ValueError):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
         alifestd_agg_monomorphic_clades_polars(
             df,
             by="trait" if col is None else col,
