@@ -325,7 +325,9 @@ def test_alifestd_agg_monomorphic_clades_polars_missing_column(col):
         )
 
 
-@pytest.mark.parametrize("col", ["id", "ancestor_id", "ancestor_list"])
+@pytest.mark.parametrize(
+    "col", ["id", "ancestor_id", "ancestor_list", "is_monomorphic_clade"]
+)
 def test_alifestd_agg_monomorphic_clades_polars_protected_column(col):
     df = _make_toy_df().with_columns(
         ancestor_list=pl.format("[{}]", pl.col("ancestor_id")),

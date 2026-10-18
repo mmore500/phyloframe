@@ -70,7 +70,7 @@ def alifestd_mark_founder_id_polars(
     # non-founders get sentinel len; ids increase from ancestor to descendant
     phylogeny_df = alifestd_mark_lineage_cummin_polars(
         phylogeny_df,
-        pl.when(founder_mask.cast(pl.Boolean))
+        values=pl.when(founder_mask.cast(pl.Boolean))
         .then(pl.int_range(pl.len(), dtype=pl.Int64))
         .otherwise(pl.len().cast(pl.Int64)),
         mark_as=mark_as,

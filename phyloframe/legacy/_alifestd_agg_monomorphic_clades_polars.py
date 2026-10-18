@@ -107,8 +107,8 @@ def alifestd_agg_monomorphic_clades_polars(
         If `phylogeny_df` has non-contiguous ids or is not topologically
         sorted.
     ValueError
-        If `named_aggs` would overwrite "id", "ancestor_id", or
-        "ancestor_list".
+        If `named_aggs` would overwrite "id", "ancestor_id", "ancestor_list",
+        or "is_monomorphic_clade".
 
     Returns
     -------
@@ -127,7 +127,7 @@ def alifestd_agg_monomorphic_clades_polars(
         by = [*by]
 
     structure_cols = {"id", "ancestor_id", "ancestor_list"}
-    overwritten = structure_cols & {*named_aggs}
+    overwritten = (structure_cols | {"is_monomorphic_clade"}) & {*named_aggs}
     if overwritten:
         raise ValueError(f"named_aggs may not overwrite {overwritten}")
 
