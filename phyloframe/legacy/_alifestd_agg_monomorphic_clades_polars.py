@@ -62,7 +62,7 @@ def alifestd_agg_monomorphic_clades_polars(
 
         named_aggs=dict(
             clade_size=pl.col("is_leaf").sum(),
-            origin_time_first=pl.col("origin_time").first(),
+            origin_time=pl.col("origin_time").first(),
             origin_time_last=pl.col("origin_time").max(),
         )
 
@@ -171,15 +171,14 @@ def alifestd_agg_monomorphic_clades_polars(
             if trait_mask is None
             else pl.col(trait_mask).cast(pl.Boolean)
         )
-        .group_by(group_col, *(col for col in by if col not in named_aggs))
+        .group_by(group_col, *sorted({*by} - {*named_aggs}))
         .agg()
     )
     # group members are in topological order, so first is the group's root;
     # groups appear in order of their roots
     structure_aggs = {
         col: pl.col(col).first()
-        for col in schema_names
-        if col in structure_cols
+        for col in sorted(structure_cols & {*schema_names})
     }
     aggregated_df = phylogeny_df.group_by(group_col, maintain_order=True).agg(
         **structure_aggs,
@@ -192,7 +191,7 @@ def alifestd_agg_monomorphic_clades_polars(
     )
     return aggregated_df.join(
         by_keys_df, on=group_col, how="left", maintain_order="left"
-    ).select(*structure_aggs, *by, pl.exclude(*structure_aggs, *by, group_col))
+    ).drop(group_col)
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
@@ -214,7 +213,7 @@ column, e.g., `--trait-mask is_leaf` to consider only leaf values.
 - Use `--agg` to specify aggregations, named by their output column (e.g.,
 via `.alias`), e.g.,
 `--agg 'pl.col("is_leaf").sum().alias("clade_size")'`,
-`--agg 'pl.col("origin_time").first().alias("origin_time_first")'`, or
+`--agg 'pl.col("origin_time").first()'`, or
 `--agg 'pl.col("origin_time").max().alias("origin_time_last")'`.
 
 - Output retains 'id', 'ancestor_id', 'ancestor_list', and `--by` columns,

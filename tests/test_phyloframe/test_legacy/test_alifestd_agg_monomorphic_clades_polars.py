@@ -133,13 +133,13 @@ def test_alifestd_agg_monomorphic_clades_polars_toy(apply: typing.Callable):
         .collect()
     )
     assert res.columns == [
-        "id",
         "ancestor_id",
-        "trait",
+        "id",
         "is_monomorphic_clade",
         "origin_time",
         "clade_size",
         "origin_time_first",
+        "trait",
     ]
     assert res["is_monomorphic_clade"].to_list() == [
         False,
@@ -162,10 +162,10 @@ def test_alifestd_agg_monomorphic_clades_polars_no_aggs():
     # unaggregated columns are discarded
     assert res.equals(
         df.filter(pl.col("id").is_in([0, 1, 2, 5, 6]))
-        .select("id", "ancestor_id", "trait")
         .with_columns(
             is_monomorphic_clade=pl.Series([False, True, False, True, True]),
         )
+        .select("ancestor_id", "id", "is_monomorphic_clade", "trait")
     )
 
 
@@ -306,11 +306,11 @@ def test_alifestd_agg_monomorphic_clades_polars_empty():
     )
     assert res.is_empty()
     assert res.columns == [
-        "id",
         "ancestor_id",
-        "trait",
+        "id",
         "is_monomorphic_clade",
         "origin_time_last",
+        "trait",
     ]
 
 
@@ -429,13 +429,13 @@ def test_alifestd_agg_monomorphic_clades_polars_reference(
         origin_times[id_] for id_ in kept_ids
     ]
     assert res.columns == [
-        "id",
         "ancestor_id",
-        *by,
+        "id",
         "is_monomorphic_clade",
         "clade_size",
         "origin_time_first",
         "origin_time_last",
+        *sorted(by),
     ]
     # collapsed clades are monomorphic; singletons are leaves or polymorphic
     assert all(
