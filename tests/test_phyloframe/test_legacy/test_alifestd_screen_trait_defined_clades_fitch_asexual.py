@@ -1,6 +1,7 @@
 import os
 import typing
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -12,6 +13,10 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import (
     alifestd_to_working_format,
+)
+from phyloframe.legacy._alifestd_screen_trait_defined_clades_fitch_asexual import (
+    _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path,
+    _alifestd_screen_trait_defined_clades_fitch_asexual_slow_path,
 )
 
 from ._impl import enforce_dtype_stability_pandas
@@ -1169,3 +1174,39 @@ def test_unresolved_sibling_subtree(apply: typing.Callable, mutate: bool):
 
     if not mutate:
         assert original_df.equals(phylogeny_df)
+
+
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_lexicaseselection.csv"),
+        pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
+    ],
+)
+@pytest.mark.parametrize("seed", range(4))
+def test_fast_slow_path_direct_comparison(
+    phylogeny_df: pd.DataFrame, seed: int
+):
+    phylogeny_df = alifestd_to_working_format(phylogeny_df)
+    rng = np.random.default_rng(seed)
+    trait_set = rng.integers(0, 3, size=len(phylogeny_df))
+    mask_trait_absent = trait_set == 1
+    mask_trait_present = trait_set == 2
+
+    ft_set = (mask_trait_absent + 2 * mask_trait_present).astype(np.uint8)
+    fast_result = (
+        _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
+            phylogeny_df["ancestor_id"].to_numpy(),
+            ft_set.copy(),
+        )
+    )
+    slow_result = (
+        _alifestd_screen_trait_defined_clades_fitch_asexual_slow_path(
+            phylogeny_df.copy(),
+            ft_set.copy(),
+            progress_wrap=lambda x: x,
+        )
+    )
+
+    np.testing.assert_array_equal(fast_result, slow_result)
