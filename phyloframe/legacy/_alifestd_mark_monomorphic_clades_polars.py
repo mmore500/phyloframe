@@ -91,14 +91,14 @@ def alifestd_mark_monomorphic_clades_polars(
         .select(
             trait_by[0]
             if len(trait_by) == 1
-            else pl.struct(trait_by).rank("dense")
+            else pl.struct(trait_by).rank(method="dense")
         )
         .collect()
         .to_series()
     )
     # numpy converts nullable ints to float64, merging values above 2**53
     if trait_values.dtype.is_integer() and trait_values.has_nulls():
-        trait_values = trait_values.rank("dense")
+        trait_values = trait_values.rank(method="dense")
 
     phylogeny_df = alifestd_mask_monomorphic_clades_polars(
         phylogeny_df,
