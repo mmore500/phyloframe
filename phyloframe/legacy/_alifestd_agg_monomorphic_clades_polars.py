@@ -205,11 +205,11 @@ Otherwise, no action is taken.
 - Use `--trait-mask` to consider only values of taxa marked by a boolean
 column, e.g., `--trait-mask is_leaf` to consider only leaf values.
 
-- Use `--agg` to specify aggregations, named by their output column (e.g.,
-via `.alias`), e.g.,
-`--agg 'pl.col("is_leaf").sum().alias("clade_size")'`,
-`--agg 'pl.col("origin_time").first()'`, or
-`--agg 'pl.col("origin_time").max().alias("origin_time_last")'`.
+- Use `--named-aggs` to specify aggregations as a Python dict expression
+mapping output column names to polars expressions, e.g.,
+`--named-aggs 'dict(clade_size=pl.col("is_leaf").sum(),
+origin_time=pl.col("origin_time").first(),
+origin_time_last=pl.col("origin_time").max())'`.
 
 - Output retains 'id', 'ancestor_id', 'ancestor_list', and `--by` columns,
 plus aggregation results; other columns are discarded. `--by` columns are
@@ -266,15 +266,13 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--agg",
-        action="append",
-        dest="aggs",
+        "--named-aggs",
+        default="{}",
         type=str,
-        default=[],
         help=(
-            "Python expression evaluating to a polars aggregation, with "
-            "polars available as `pl`. "
-            "Specify multiple aggregations by using this flag multiple times."
+            "Python expression evaluating to a dict of output column names to "
+            "polars aggregations, with polars available as `pl` "
+            "(default: {})."
         ),
     )
     return parser
@@ -286,10 +284,7 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
 
-    named_aggs = {
-        expr.meta.output_name(): expr
-        for expr in (eval(agg, {"pl": pl}) for agg in args.aggs)  # nosec B307
-    }
+    named_aggs = eval(args.named_aggs, {"pl": pl})  # nosec B307
 
     with log_context_duration(
         "phyloframe.legacy._alifestd_agg_monomorphic_clades_polars",

@@ -53,12 +53,12 @@ def test_cli(input_csv_with_trait, ext, trait_mask, tmp_path):
             "trait",
             *trait_mask,
             "--drop-topological-sensitivity",
-            "--agg",
-            'pl.col("is_leaf").sum().alias("clade_size")',
-            "--agg",
-            'pl.col("origin_time").first().alias("origin_time_first")',
-            "--agg",
-            'pl.col("origin_time").max().alias("origin_time_last")',
+            "--named-aggs",
+            "dict("
+            'clade_size=pl.col("is_leaf").sum(), '
+            'origin_time_first=pl.col("origin_time").first(), '
+            'origin_time_last=pl.col("origin_time").max()'
+            ")",
             output_file,
         ],
         check=True,
@@ -89,16 +89,16 @@ def test_cli_create_parser():
             "b",
             "--trait-mask",
             "is_leaf",
-            "--agg",
-            "pl.len()",
+            "--named-aggs",
+            "dict(n=pl.len())",
         ]
     )
     assert args.by == ["a", "b"]
     assert args.trait_mask == "is_leaf"
-    assert args.aggs == ["pl.len()"]
+    assert args.named_aggs == "dict(n=pl.len())"
     args, __ = parser.parse_known_args([])
     assert args.by == []
     assert args.trait_mask is None
-    assert args.aggs == []
+    assert args.named_aggs == "{}"
     assert not args.ignore_topological_sensitivity
     assert not args.drop_topological_sensitivity
