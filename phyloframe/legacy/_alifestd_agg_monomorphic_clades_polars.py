@@ -128,7 +128,8 @@ def alifestd_agg_monomorphic_clades_polars(
         by = [*by]
 
     structure_cols = {"id", "ancestor_id", "ancestor_list"}
-    if overwritten := structure_cols & {*named_aggs}:
+    overwritten = structure_cols & {*named_aggs}
+    if overwritten:
         raise ValueError(f"named_aggs may not overwrite {overwritten}")
 
     logging.info(
@@ -173,7 +174,15 @@ def alifestd_agg_monomorphic_clades_polars(
         .group_by(group_col, *(col for col in by if col not in named_aggs))
         .agg()
     )
-    aggregated_df = phylogeny_df.group_by(group_col).agg(
+    # group members are in topological order, so first is the group's root;
+    # groups appear in order of their roots
+    structure_aggs = {
+        col: pl.col(col).first()
+        for col in schema_names
+        if col in structure_cols
+    }
+    aggregated_df = phylogeny_df.group_by(group_col, maintain_order=True).agg(
+        **structure_aggs,
         is_monomorphic_clade=pl.col(mono_col).first(),
         **named_aggs,
     )
@@ -181,13 +190,9 @@ def alifestd_agg_monomorphic_clades_polars(
     logging.info(
         "- alifestd_agg_monomorphic_clades_polars: collapsing...",
     )
-    return (
-        phylogeny_df.filter(pl.col(group_col) == pl.col("id"))
-        .drop(*({*schema_names} - structure_cols), mono_col)
-        .join(by_keys_df, on=group_col, how="left", maintain_order="left")
-        .join(aggregated_df, on=group_col, how="left", maintain_order="left")
-        .drop(group_col)
-    )
+    return aggregated_df.join(
+        by_keys_df, on=group_col, how="left", maintain_order="left"
+    ).select(*structure_aggs, *by, pl.exclude(*structure_aggs, *by, group_col))
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
