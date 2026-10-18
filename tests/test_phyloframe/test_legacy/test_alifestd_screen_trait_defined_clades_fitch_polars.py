@@ -85,7 +85,7 @@ def test_simple_tree(apply: typing.Callable):
     ].to_list() == [False, False, True, False, True, False, False]
 
 
-def test_expr_and_mark_as():
+def test_expr_and_mark_as_with_nulls():
     df_pl = pl.DataFrame(
         {
             "id": [0, 1, 2, 3, 4, 5, 6],
@@ -93,12 +93,13 @@ def test_expr_and_mark_as():
             "trait": [None, -1, None, -1, 1, 1, 1],
         }
     )
-    res = alifestd_screen_trait_defined_clades_fitch_polars(
-        df_pl,
-        mask_trait_absent=pl.col("trait") == -1,
-        mask_trait_present=pl.col("trait") == 1,
-        mark_as="is_mdc",
-    )
+    with pytest.warns(UserWarning, match="null"):
+        res = alifestd_screen_trait_defined_clades_fitch_polars(
+            df_pl,
+            mask_trait_absent=pl.col("trait") == -1,
+            mask_trait_present=pl.col("trait") == 1,
+            mark_as="is_mdc",
+        )
     assert res["is_mdc"].to_list() == [
         False,
         False,

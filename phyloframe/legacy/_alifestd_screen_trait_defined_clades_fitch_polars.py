@@ -3,6 +3,7 @@ import functools
 import logging
 import os
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -53,10 +54,10 @@ def alifestd_screen_trait_defined_clades_fitch_polars(
         topologically sorted ids.
     mask_trait_absent : str or polars.Expr
         Column name or boolean expression marking taxa observed to lack the
-        trait. Null values are treated as unobserved.
+        trait. Null values are treated as unobserved, with a warning.
     mask_trait_present : str or polars.Expr
         Column name or boolean expression marking taxa observed to have the
-        trait. Null values are treated as unobserved.
+        trait. Null values are treated as unobserved, with a warning.
 
         Taxa marked neither absent nor present are unobserved, and have
         their trait state inferred. For instance, &'ing with `is_leaf` (see
@@ -115,18 +116,25 @@ def alifestd_screen_trait_defined_clades_fitch_polars(
         phylogeny_df.lazy()
         .select(
             pl.col("ancestor_id"),
-            mask_trait_absent.cast(pl.Boolean)
-            .fill_null(False)
-            .alias("mask_trait_absent"),
-            mask_trait_present.cast(pl.Boolean)
-            .fill_null(False)
-            .alias("mask_trait_present"),
+            mask_trait_absent.cast(pl.Boolean).alias("mask_trait_absent"),
+            mask_trait_present.cast(pl.Boolean).alias("mask_trait_present"),
         )
         .collect()
     )
+    for mask_name in "mask_trait_absent", "mask_trait_present":
+        if selected[mask_name].has_nulls():
+            warnings.warn(
+                f"{mask_name} contains null values, "
+                "which will be treated as unobserved (False).",
+            )
+
     ancestor_ids = selected["ancestor_id"].to_numpy()
-    mask_trait_absent = selected["mask_trait_absent"].to_numpy()
-    mask_trait_present = selected["mask_trait_present"].to_numpy()
+    mask_trait_absent = (
+        selected["mask_trait_absent"].fill_null(False).to_numpy()
+    )
+    mask_trait_present = (
+        selected["mask_trait_present"].fill_null(False).to_numpy()
+    )
     del selected
 
     if (mask_trait_absent & mask_trait_present).any():

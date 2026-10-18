@@ -34,17 +34,14 @@ def _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
     for idx_r, ancestor_id in enumerate(ancestor_ids[::-1]):
         idx = num_nodes - 1 - idx_r
         if ft_set[idx] == 0:
-            if ft_num0s[idx] == ft_num1s[idx]:
-                # trait set is intersection if nonempty, else union
-                if ft_intersect[idx] != 0:
-                    ft_set[idx] = ft_intersect[idx]
-                else:
-                    ft_set[idx] = ft_union[idx]
             # if majority of children have trait absent/present, set that
-            elif ft_num0s[idx] > ft_num1s[idx]:
+            if ft_num0s[idx] > ft_num1s[idx]:
                 ft_set[idx] = 1
-            else:
+            elif ft_num1s[idx] > ft_num0s[idx]:
                 ft_set[idx] = 2
+            else:
+                # trait set is intersection if nonempty, else union
+                ft_set[idx] = ft_intersect[idx] or ft_union[idx]
 
         if ancestor_id != idx:  # exclude genesis cases
             ft_num0s[ancestor_id] += ft_set[idx] & 1
@@ -73,10 +70,13 @@ def _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
 
 def _alifestd_screen_trait_defined_clades_fitch_asexual_slow_path(
     phylogeny_df: pd.DataFrame,
+    ft_set: np.ndarray,
     progress_wrap: typing.Callable,
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_screen_trait_defined_clades_fitch_asexual`."""
+    phylogeny_df["fitch_trait_set"] = ft_set.astype(int)
+
     saved_id_order = None
     if not alifestd_is_topologically_sorted(phylogeny_df):
         saved_id_order = phylogeny_df["id"].to_numpy(copy=True)
@@ -221,16 +221,15 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
         phylogeny_df = phylogeny_df.copy()
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+    ft_set = (mask_trait_absent + 2 * mask_trait_present).astype(np.uint8)
     if alifestd_is_working_format_asexual(phylogeny_df, mutate=True):
         return _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
             pd.to_numeric(phylogeny_df["ancestor_id"]).to_numpy(),
-            (mask_trait_absent + 2 * mask_trait_present).astype(np.uint8),
+            ft_set,
         )
     else:
-        phylogeny_df["fitch_trait_set"] = (
-            mask_trait_absent + 2 * mask_trait_present
-        )
         return _alifestd_screen_trait_defined_clades_fitch_asexual_slow_path(
             phylogeny_df,
+            ft_set,
             progress_wrap=progress_wrap,
         )

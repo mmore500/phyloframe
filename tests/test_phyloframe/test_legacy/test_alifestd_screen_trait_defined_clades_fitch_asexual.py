@@ -1194,17 +1194,17 @@ def test_fast_slow_path_direct_comparison(
     mask_trait_absent = trait_set == 1
     mask_trait_present = trait_set == 2
 
+    ft_set = (mask_trait_absent + 2 * mask_trait_present).astype(np.uint8)
     fast_result = (
         _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
-            (mask_trait_absent + 2 * mask_trait_present).astype(np.uint8),
+            ft_set.copy(),
         )
     )
-    slow_df = phylogeny_df.copy()
-    slow_df["fitch_trait_set"] = mask_trait_absent + 2 * mask_trait_present
     slow_result = (
         _alifestd_screen_trait_defined_clades_fitch_asexual_slow_path(
-            slow_df,
+            phylogeny_df.copy(),
+            ft_set.copy(),
             progress_wrap=lambda x: x,
         )
     )
