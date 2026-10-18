@@ -40,8 +40,8 @@ def alifestd_screen_trait_defined_clades_fitch_polars(
 
     Marks nodes where the trait is gained, i.e., nodes inferred to have the
     trait whose parent is inferred not to. At polytomies, ambiguity is
-    resolved by majority vote among children. Default root state is assumed
-    to be trait absent.
+    resolved by majority vote among children. Ambiguous root state is
+    resolved as trait absent.
 
     Only supports asexual phylogenies.
 
@@ -116,8 +116,8 @@ def alifestd_screen_trait_defined_clades_fitch_polars(
         phylogeny_df.lazy()
         .select(
             pl.col("ancestor_id"),
-            mask_trait_absent.cast(pl.Boolean).alias("mask_trait_absent"),
-            mask_trait_present.cast(pl.Boolean).alias("mask_trait_present"),
+            mask_trait_absent=mask_trait_absent.cast(pl.Boolean),
+            mask_trait_present=mask_trait_present.cast(pl.Boolean),
         )
         .collect()
     )
@@ -161,7 +161,7 @@ _raw_description = f"""\
 Perform a maximum parsimony screen for trait-defined clades using Fitch's
 algorithm, marking nodes where the trait is gained.
 
-Default root state is assumed to be trait absent.
+Ambiguous root state is resolved as trait absent.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.

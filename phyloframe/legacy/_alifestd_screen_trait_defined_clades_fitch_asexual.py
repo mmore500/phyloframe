@@ -44,8 +44,8 @@ def _alifestd_screen_trait_defined_clades_fitch_asexual_fast_path(
                 ft_set[idx] = ft_intersect[idx] or ft_union[idx]
 
         if ancestor_id != idx:  # exclude genesis cases
-            ft_num0s[ancestor_id] += ft_set[idx] & 1
-            ft_num1s[ancestor_id] += ft_set[idx] >> 1
+            ft_num0s[ancestor_id] += bool(ft_set[idx] & 1)
+            ft_num1s[ancestor_id] += bool(ft_set[idx] & 2)
             ft_intersect[ancestor_id] &= ft_set[idx]
             ft_union[ancestor_id] |= ft_set[idx]
 
@@ -203,7 +203,7 @@ def alifestd_screen_trait_defined_clades_fitch_asexual(
 
     Pass tqdm or equivalent as `progress_wrap` to display a progress bar.
 
-    Default root state is assumed to be False.
+    Ambiguous root state is resolved as trait absent.
 
     Returns a numpy array of bool with the same length as the input DataFrame,
     with array elements as the number of nodes in the clade that have the
