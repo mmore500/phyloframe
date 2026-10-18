@@ -174,8 +174,6 @@ def alifestd_agg_monomorphic_clades_polars(
         .group_by(group_col, *sorted({*by} - {*named_aggs}))
         .agg()
     )
-    # group members are in topological order, so first is the group's root;
-    # groups appear in order of their roots
     structure_aggs = {
         col: pl.col(col).first()
         for col in sorted(structure_cols & {*schema_names})
