@@ -72,13 +72,13 @@ def alifestd_agg_monomorphic_clades_polars(
 
     To instead keep the group root's values for all columns while overriding
     some, take `first` over all columns except structural and `by` columns,
-    e.g., for `by="trait"`,
+    e.g., for `by="mytrait"`,
 
         named_aggs={
             **{
                 col: pl.col(col).first()
                 for col in phylogeny_df.columns
-                if col not in ("id", "ancestor_id", "ancestor_list", "trait")
+                if col not in ("id", "ancestor_id", "ancestor_list", "mytrait")
             },
             "origin_time": pl.col("origin_time").max(),
         }
