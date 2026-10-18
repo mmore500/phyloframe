@@ -27,7 +27,7 @@ def alifestd_mark_founder_id_polars(
     each entry's lineage (inclusive) marked by `founder_mask`.
 
     Entries with no marked taxon along their lineage are marked as their own
-    founder. If all taxa are marked, `founder_id` is equivalent to `root_id`.
+    founder.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
