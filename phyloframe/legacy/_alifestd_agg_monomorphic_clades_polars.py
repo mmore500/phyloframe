@@ -185,7 +185,11 @@ def alifestd_agg_monomorphic_clades_polars(
         "- alifestd_agg_monomorphic_clades_polars: collapsing...",
     )
     return aggregated_df.join(
-        by_keys_df, on=group_col, how="left", maintain_order="left"
+        by_keys_df,
+        on=group_col,
+        how="left",
+        maintain_order="left",
+        validate="1:1",  # monomorphic groups have one shared by value
     ).drop(group_col)
 
 

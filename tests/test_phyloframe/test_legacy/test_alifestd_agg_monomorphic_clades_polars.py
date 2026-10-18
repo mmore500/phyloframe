@@ -455,3 +455,25 @@ def test_alifestd_agg_monomorphic_clades_polars_reference(
                 values[group_considered[0]] if group_considered else None
             )
         assert res[col].to_list() == expected
+
+
+@pytest.mark.parametrize("dtype", [pl.Int64, pl.UInt64])
+def test_alifestd_agg_monomorphic_clades_polars_nullable_large_ints(dtype):
+    # nullable ints convert to float64 in numpy, merging values above 2**53
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "trait": pl.Series([None, 2**60, 2**60 + 1], dtype=dtype),
+            "has_trait": [False, True, True],
+        }
+    )
+    res = alifestd_agg_monomorphic_clades_polars(
+        df,
+        by="trait",
+        trait_mask="has_trait",
+        named_aggs={"n": pl.col("has_trait").sum()},
+    )
+    assert res["id"].to_list() == [0, 1, 2]
+    assert res["trait"].to_list() == [None, 2**60, 2**60 + 1]
+    assert res["n"].to_list() == [0, 1, 1]

@@ -94,12 +94,10 @@ def alifestd_mark_monomorphic_clades_polars(
         .collect()
         .to_series()
         .to_numpy(),
+        # dense rank encodes values exactly; e.g., numpy conversion of
+        # nullable ints goes through float64, merging values above 2**53
         trait_values=phylogeny_df.lazy()
-        .select(
-            trait_by[0]
-            if len(trait_by) == 1
-            else pl.struct(trait_by).rank("dense")
-        )
+        .select(pl.struct(trait_by).rank("dense"))
         .collect()
         .to_series()
         .to_numpy(),

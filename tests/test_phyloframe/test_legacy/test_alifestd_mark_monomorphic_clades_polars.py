@@ -288,3 +288,24 @@ def test_alifestd_mark_monomorphic_clades_polars_single_column_nulls(dtype):
     )
     res = alifestd_mark_monomorphic_clades_polars(df, "t")
     assert res["alifestd_mark_monomorphic_clades_polars"].all()
+
+
+@pytest.mark.parametrize("dtype", [pl.Int64, pl.UInt64])
+@pytest.mark.parametrize("trait_by", [["t"], ["t", "other"]])
+def test_alifestd_mark_monomorphic_clades_polars_nullable_large_ints(
+    dtype, trait_by: list
+):
+    # nullable ints convert to float64 in numpy, merging values above 2**53
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "t": pl.Series([None, 2**60, 2**60 + 1], dtype=dtype),
+            "other": [0, 0, 0],
+            "has_trait": [False, True, True],
+        }
+    )
+    res = alifestd_mark_monomorphic_clades_polars(
+        df, trait_by, trait_mask="has_trait", mark_as="is_mono"
+    )
+    assert res["is_mono"].to_list() == [False, True, True]
