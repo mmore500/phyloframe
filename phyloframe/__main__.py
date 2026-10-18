@@ -177,6 +177,7 @@ $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_asexual
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_polars
 $ python3 -m phyloframe.legacy._alifestd_reroot_at_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_reroot_at_id_polars
+$ python3 -m phyloframe.legacy._alifestd_screen_trait_defined_clades_fitch_polars
 $ python3 -m phyloframe.legacy._alifestd_sort_children_asexual
 $ python3 -m phyloframe.legacy._alifestd_sort_children_polars
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies

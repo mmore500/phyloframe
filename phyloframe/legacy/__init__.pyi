@@ -603,6 +603,9 @@ from ._alifestd_screen_trait_defined_clades_fisher_asexual import (
 from ._alifestd_screen_trait_defined_clades_fitch_asexual import (
     alifestd_screen_trait_defined_clades_fitch_asexual,
 )
+from ._alifestd_screen_trait_defined_clades_fitch_polars import (
+    alifestd_screen_trait_defined_clades_fitch_polars,
+)
 from ._alifestd_screen_trait_defined_clades_naive_asexual import (
     alifestd_screen_trait_defined_clades_naive_asexual,
 )
@@ -969,6 +972,7 @@ __all__ = [
     "alifestd_sample_triplet_comparisons_asexual",
     "alifestd_screen_trait_defined_clades_fisher_asexual",
     "alifestd_screen_trait_defined_clades_fitch_asexual",
+    "alifestd_screen_trait_defined_clades_fitch_polars",
     "alifestd_screen_trait_defined_clades_naive_asexual",
     "alifestd_sort_children_asexual",
     "alifestd_sort_children_polars",
