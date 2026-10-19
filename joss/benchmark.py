@@ -64,6 +64,7 @@ OPERATIONS = [
     "csv_bytes",
     "csv_gzip_bytes",
     "parquet_bytes",
+    "parquet_minified_bytes",
     "feather_bytes",
 ]
 # Operations whose return value is a byte count (not a timing).
@@ -75,6 +76,7 @@ BYTE_VALUE_OPS = frozenset(
         "csv_bytes",
         "csv_gzip_bytes",
         "parquet_bytes",
+        "parquet_minified_bytes",
         "feather_bytes",
     }
 )
@@ -380,10 +382,8 @@ class PhyloframeBench:
         return df
 
     def _get_export_df(self):
-        """Get df with id column dropped and dtypes shrunk for export."""
-        df = self._ensure_df()
-        df = df.drop("id")
-        return df.select(self._pl.all().shrink_dtype())
+        """Get df with id column dropped for export."""
+        return self._ensure_df().drop("id")
 
     def parse_newick(self):
         self._df = self._do_from_newick(self._newick)
@@ -488,6 +488,13 @@ class PhyloframeBench:
 
     def parquet_bytes(self):
         df = self._get_export_df()
+        buf = io.BytesIO()
+        df.write_parquet(buf)
+        return buf.tell()
+
+    def parquet_minified_bytes(self):
+        df = self._ensure_df()
+        df = self._pfl.alifestd_minify_polars(df)
         buf = io.BytesIO()
         df.write_parquet(buf)
         return buf.tell()
