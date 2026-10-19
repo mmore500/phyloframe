@@ -64,6 +64,7 @@ OPERATIONS = [
     "csv_bytes",
     "csv_gzip_bytes",
     "parquet_bytes",
+    "parquet_minified_bytes",
     "feather_bytes",
 ]
 # Operations whose return value is a byte count (not a timing).
@@ -75,6 +76,7 @@ BYTE_VALUE_OPS = frozenset(
         "csv_bytes",
         "csv_gzip_bytes",
         "parquet_bytes",
+        "parquet_minified_bytes",
         "feather_bytes",
     }
 )
@@ -488,6 +490,14 @@ class PhyloframeBench:
 
     def parquet_bytes(self):
         df = self._get_export_df()
+        buf = io.BytesIO()
+        df.write_parquet(buf)
+        return buf.tell()
+
+    def parquet_minified_bytes(self):
+        df = self._ensure_df()
+        df = self._pfl.alifestd_minify_polars(df)
+        df = df.select(self._pl.all().shrink_dtype())
         buf = io.BytesIO()
         df.write_parquet(buf)
         return buf.tell()
