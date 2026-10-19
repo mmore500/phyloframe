@@ -382,10 +382,8 @@ class PhyloframeBench:
         return df
 
     def _get_export_df(self):
-        """Get df with id column dropped and dtypes shrunk for export."""
-        df = self._ensure_df()
-        df = df.drop("id")
-        return df.select(self._pl.all().shrink_dtype())
+        """Get df with id column dropped for export."""
+        return self._ensure_df().drop("id")
 
     def parse_newick(self):
         self._df = self._do_from_newick(self._newick)
@@ -497,7 +495,6 @@ class PhyloframeBench:
     def parquet_minified_bytes(self):
         df = self._ensure_df()
         df = self._pfl.alifestd_minify_polars(df)
-        df = df.select(self._pl.all().shrink_dtype())
         buf = io.BytesIO()
         df.write_parquet(buf)
         return buf.tell()
