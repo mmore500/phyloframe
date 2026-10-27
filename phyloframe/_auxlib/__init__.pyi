@@ -4,6 +4,7 @@ from ._add_bool_arg import add_bool_arg
 from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
+from ._calibrate_exposure import calibrate_exposure
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -13,6 +14,7 @@ from ._delegate_polars_implementation import delegate_polars_implementation
 from ._estimate_binomial_p import estimate_binomial_p
 from ._eval_kwargs import eval_kwargs
 from ._fit_fblr import fit_fblr
+from ._fit_gain_selection_exposure import fit_gain_selection_exposure
 from ._format_cli_description import format_cli_description
 from ._get_package_name import get_package_name
 from ._get_phyloframe_version import get_phyloframe_version
@@ -51,6 +53,7 @@ __all__ = [
     "add_compression_cli_arg",
     "all_unique",
     "begin_prod_logging",
+    "calibrate_exposure",
     "coerce_to_pandas",
     "coerce_to_polars",
     "collapse_nonleading_whitespace",
@@ -60,6 +63,7 @@ __all__ = [
     "estimate_binomial_p",
     "eval_kwargs",
     "fit_fblr",
+    "fit_gain_selection_exposure",
     "format_cli_description",
     "get_package_name",
     "get_phyloframe_version",
