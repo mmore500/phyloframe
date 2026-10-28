@@ -12,7 +12,8 @@ def _tgs_calc_nll(
     gain_rate: float,
     rate: float,
 ) -> typing.Tuple[float, float, float]:
-    """Implementation detail for `tgs_fit`.
+    """Implementation detail for `tgs_fit`, where tgs stands for trait
+    gain/selection.
 
     Returns negative log likelihood and its derivatives with respect to log
     gain rate and to `rate` (selection minus loss rate).
@@ -53,6 +54,9 @@ def tgs_fit(
 ) -> typing.Tuple[float, float, float]:
     """Maximum likelihood fit of a binary trait's gain rate and net
     selection from how often lineages carry it after known exposures.
+
+    Here, tgs stands for trait gain/selection, marking utilities specific to
+    this estimator.
 
     A lineage observed after `exposure` time units, starting without the
     trait, carries the trait with probability

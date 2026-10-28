@@ -141,7 +141,7 @@ def alifestd_mask_leaf_trait_inherited_asexual(
     )
 
     if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df.reset_index(drop=True, inplace=True)
+        phylogeny_df = phylogeny_df.reset_index(drop=True)
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
@@ -152,5 +152,4 @@ def alifestd_mask_leaf_trait_inherited_asexual(
     parent_monomorphic = phylogeny_df.loc[ancestor_ids, temp_col].to_numpy()
     phylogeny_df[mark_as] &= parent_monomorphic & ~is_root
 
-    phylogeny_df.drop(columns=[temp_col], inplace=True)
-    return phylogeny_df
+    return phylogeny_df.drop(columns=[temp_col])
