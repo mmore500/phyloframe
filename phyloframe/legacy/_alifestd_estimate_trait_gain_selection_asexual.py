@@ -11,10 +11,9 @@ from scipy import stats
 from .._auxlib._estimate_standardized_rate_ratios import (
     estimate_standardized_rate_ratios,
 )
-from .._auxlib._iter_block_bootstrap_weights import (
-    iter_block_bootstrap_weights,
-)
+from .._auxlib._jit import jit
 from .._auxlib._tgs_fit import tgs_fit
+from .._auxlib._with_rng_state_context import with_rng_state_context
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
@@ -34,8 +33,10 @@ def _tgs_bin_leaves(
     num_calibration_pendant_length_cells: int,
     num_calibration_time_cells: int,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
-    """Trait gain/selection (tgs) implementation detail for
+    """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
+
+    Here, tgs stands for trait gain/selection.
 
     Returns flat (time, length) bin of each leaf, and calibration group of
     each bin. Bins have equal width; calibration groups are time bins
@@ -80,8 +81,10 @@ def _tgs_fit_traits(
     calibration_group_ids: np.ndarray,
     loss_rate: float,
 ) -> np.ndarray:
-    """Trait gain/selection (tgs) implementation detail for
+    """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
+
+    Here, tgs stands for trait gain/selection.
 
     Returns array of shape (num_traits, 4): gain rate, selection,
     likelihood-ratio statistic, and gain ratio versus neutral traits.
@@ -121,25 +124,44 @@ def _tgs_fit_traits(
     return res
 
 
+@jit(nopython=True)
+def _tgs_draw_blocks(num_blocks: int, num_bootstrap: int) -> np.ndarray:
+    """Implementation detail for `_tgs_bootstrap`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns array of shape (num_bootstrap, num_blocks) of times each block
+    is drawn, resampling blocks with replacement. Jitted so that seeding via
+    `with_rng_state_context` applies.
+    """
+    return np.random.multinomial(
+        num_blocks, np.full(num_blocks, 1 / num_blocks), size=num_bootstrap
+    )
+
+
 def _tgs_bootstrap(
     fit_kwargs: dict,
     leaf_blocks: np.ndarray,
     num_bootstrap: int,
-    seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> np.ndarray:
-    """Trait gain/selection (tgs) implementation detail for
+    """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
+
+    Here, tgs stands for trait gain/selection.
 
     Returns array of shape (num_bootstrap, num_traits, 4) of fits to block
     bootstrap resamples; see `_tgs_fit_traits`.
     """
+    # each replicate weights leaves by their block's draws, rather than
+    # copying resampled leaves
+    block_draws = _tgs_draw_blocks(leaf_blocks.max() + 1, num_bootstrap)
     jobs = (
-        joblib.delayed(_tgs_fit_traits)(leaf_weights=weights, **fit_kwargs)
-        for weights in iter_block_bootstrap_weights(
-            leaf_blocks, num_bootstrap, seed=seed
+        joblib.delayed(_tgs_fit_traits)(
+            leaf_weights=draws[leaf_blocks].astype(np.float64), **fit_kwargs
         )
+        for draws in block_draws
     )
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
         return np.array(joblib.Parallel()(progress_wrap(jobs)))
@@ -149,20 +171,21 @@ def _tgs_summarize_bootstrap(
     point: pd.DataFrame,
     reps: np.ndarray,
 ) -> pd.DataFrame:
-    """Trait gain/selection (tgs) implementation detail for
+    """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
+
+    Here, tgs stands for trait gain/selection.
 
     Returns bootstrap standard errors, z-scores, and p-values, given point
     estimates and replicate fits.
     """
     # replicates resampling no carriers of a trait leave selection undefined
-    # and gain ratio zero, so exclude them
+    # and gain ratio zero, so exclude them; gain ratio is also undefined
+    # without neutral traits, which does not make a replicate degenerate
+    selection_reps = reps[:, :, 1]
     with np.errstate(divide="ignore"):
-        selection_reps = reps[:, :, 1]
         log_gain_ratio_reps = np.log(reps[:, :, 3])
-    is_degenerate = ~(
-        np.isfinite(selection_reps) & np.isfinite(log_gain_ratio_reps)
-    )
+    is_degenerate = ~np.isfinite(selection_reps)
     num_degenerate = is_degenerate.sum(axis=0)
     if num_degenerate.any():
         counts = ", ".join(
@@ -216,9 +239,11 @@ def _tgs_impl(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
-    """Trait gain/selection (tgs) implementation detail for
+    """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual` and
     `alifestd_estimate_trait_gain_selection_polars`.
+
+    Here, tgs stands for trait gain/selection.
 
     Takes per-node arrays for a phylogeny with contiguous, topologically
     sorted ids and no unifurcations: ancestor ids, origin times, boolean
@@ -295,11 +320,15 @@ def _tgs_impl(
         res[
             ["gain_rate", "selection", "selection_lrt_naive", "gain_ratio"]
         ] = _tgs_fit_traits(leaf_weights=np.ones(len(leaf_bins)), **fit_kwargs)
-        reps = _tgs_bootstrap(
+        bootstrap = (
+            with_rng_state_context(seed)(_tgs_bootstrap)
+            if seed is not None
+            else _tgs_bootstrap
+        )
+        reps = bootstrap(
             fit_kwargs,
             leaf_blocks,
             num_bootstrap=num_bootstrap,
-            seed=seed,
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         )

@@ -41,14 +41,17 @@ def calc_binomial_nll(
         Normalized binomial log probability mass function.
     """
     finfo = np.finfo(np.float64)
-    unclipped_p = np.asarray(p, dtype=np.float64)
-    p = np.clip(unclipped_p, finfo.tiny, 1 - finfo.epsneg)
+    raw_p = np.asarray(p, dtype=np.float64)
+    clipped_p = np.clip(raw_p, finfo.tiny, 1 - finfo.epsneg)
     num_failures = num_trials - num_successes
 
     nll = -np.sum(
-        special.xlogy(num_successes, p) + special.xlog1py(num_failures, -p)
+        special.xlogy(num_successes, clipped_p)
+        + special.xlog1py(num_failures, -clipped_p)
     )
     dnll_dp = np.where(
-        p != unclipped_p, 0.0, num_failures / (1 - p) - num_successes / p
+        clipped_p != raw_p,
+        0.0,
+        num_failures / (1 - clipped_p) - num_successes / clipped_p,
     )
     return float(nll), dnll_dp

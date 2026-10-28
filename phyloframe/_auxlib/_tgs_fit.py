@@ -1,10 +1,20 @@
-import functools
 import typing
 
 import numpy as np
 from scipy import optimize, special
 
 from ._calc_binomial_nll import calc_binomial_nll
+
+
+class TgsFitResult(typing.NamedTuple):
+    """Result of `tgs_fit`.
+
+    Here, tgs stands for trait gain/selection.
+    """
+
+    gain_rate: float
+    selection: float
+    selection_lrt_naive: float
 
 
 def _tgs_calc_nll(
@@ -14,16 +24,16 @@ def _tgs_calc_nll(
     gain_rate: float,
     rate: float,
 ) -> typing.Tuple[float, float, float]:
-    """Implementation detail for `tgs_fit`, where tgs stands for trait
-    gain/selection.
+    """Implementation detail for `tgs_fit`.
+
+    Here, tgs stands for trait gain/selection.
 
     Returns negative log likelihood and its derivatives with respect to log
     gain rate and to `rate` (selection minus loss rate).
     """
     cx = rate * pendant_length
-    g = pendant_length * special.exprel(
-        cx
-    )  # expm1(cx) / rate, finite at rate = 0
+    # expm1(cx) / rate, finite at rate = 0
+    g = pendant_length * special.exprel(cx)
     small = np.abs(cx) < 1e-6  # use series expansion of dg near rate = 0
     dg = np.where(
         small,
@@ -41,7 +51,7 @@ def tgs_fit(
     pendant_length: np.ndarray,
     *,
     loss_rate: float = 0.0,
-) -> typing.Tuple[float, float, float]:
+) -> TgsFitResult:
     """Maximum likelihood fit of a binary trait's gain rate and net
     selection from how often leaves carry it, given their pendant branch
     lengths.
@@ -83,9 +93,11 @@ def tgs_fit(
 
     Returns
     -------
-    typing.Tuple[float, float, float]
-        Estimated gain rate, estimated selection (negative for a cost), and
-        likelihood-ratio statistic for selection = 0.
+    TgsFitResult
+        Named tuple of `gain_rate`, the estimated gain rate; `selection`,
+        the estimated selection (negative for a cost); and
+        `selection_lrt_naive`, the likelihood-ratio statistic for
+        selection = 0.
 
         The likelihood-ratio statistic treats bins as independent, so it
         overstates significance when lineages are correlated (e.g., through
@@ -115,7 +127,7 @@ def tgs_fit(
     keep = num_trials > 0
     n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
     if not len(n) or not k.sum():
-        return 0.0, np.nan, np.nan
+        return TgsFitResult(0.0, np.nan, np.nan)
 
     # optimize selection in units of 1 / mean pendant length, for conditioning
     unit = 1.0 / np.average(x, weights=n)
@@ -132,8 +144,7 @@ def tgs_fit(
         )
         return res, np.array([dlog_gain])
 
-    minimize = functools.partial(
-        optimize.minimize,
+    minimize_kwargs = dict(
         jac=True,
         method="L-BFGS-B",
         options=dict(ftol=1e-15, gtol=1e-10, maxiter=1000),
@@ -141,14 +152,14 @@ def tgs_fit(
     x0 = np.array([np.log(k.sum() / (n * x).sum()), -0.3])
     best = min(
         (
-            minimize(nll, start)
+            optimize.minimize(nll, start, **minimize_kwargs)
             for start in (x0, x0 + [0.0, 0.3], x0 + [0.0, -1.5])
         ),
         key=lambda res: res.fun,
     )
-    null = minimize(null_nll, best.x[:1])
-    return (
-        float(np.exp(best.x[0])),
-        float(best.x[1] * unit),
-        float(2 * (null.fun - best.fun)),
+    null = optimize.minimize(null_nll, best.x[:1], **minimize_kwargs)
+    return TgsFitResult(
+        gain_rate=float(np.exp(best.x[0])),
+        selection=float(best.x[1] * unit),
+        selection_lrt_naive=float(2 * (null.fun - best.fun)),
     )

@@ -22,7 +22,6 @@ from ._get_package_name import get_package_name
 from ._get_phyloframe_version import get_phyloframe_version
 from ._is_in_coverage_run import is_in_coverage_run
 from ._is_subset import is_subset
-from ._iter_block_bootstrap_weights import iter_block_bootstrap_weights
 from ._jit import jit
 from ._jit_TypingError import jit_TypingError
 from ._jit_numba_dict_t import jit_numba_dict_t
@@ -42,7 +41,7 @@ from ._preserve_id_dtypes import preserve_id_dtypes
 from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
 from ._seed_random import seed_random
 from ._textwrap_respect_indents import textwrap_respect_indents
-from ._tgs_fit import tgs_fit
+from ._tgs_fit import TgsFitResult, tgs_fit
 from ._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
@@ -53,6 +52,7 @@ from ._write_text_with_compression import write_text_with_compression
 __all__ = [
     "GetAttrLaunderShim",
     "RngStateContext",
+    "TgsFitResult",
     "add_bool_arg",
     "add_compression_cli_arg",
     "all_unique",
@@ -73,7 +73,6 @@ __all__ = [
     "get_phyloframe_version",
     "is_in_coverage_run",
     "is_subset",
-    "iter_block_bootstrap_weights",
     "jit",
     "jit_TypingError",
     "jit_numba_dict_t",
