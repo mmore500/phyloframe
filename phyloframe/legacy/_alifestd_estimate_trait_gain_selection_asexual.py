@@ -1,4 +1,5 @@
 import functools
+import logging
 import operator
 import typing
 import warnings
@@ -12,7 +13,7 @@ from .._auxlib._estimate_standardized_rate_ratios import (
     estimate_standardized_rate_ratios,
 )
 from .._auxlib._jit import jit
-from .._auxlib._tgs_fit import tgs_fit
+from .._auxlib._tgs_fit import TgsFitResult, tgs_fit
 from .._auxlib._with_rng_state_context import with_rng_state_context
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from ._alifestd_mark_num_children_asexual import (
@@ -24,14 +25,18 @@ from ._alifestd_mask_leaf_trait_inherited_asexual import (
 )
 from ._alifestd_to_working_format import alifestd_to_working_format
 
+# columns of per-trait fits from `_tgs_fit_traits`, where tgs stands for trait
+# gain/selection
+_tgs_columns = (*TgsFitResult._fields, "gain_ratio")
+
 
 def _tgs_bin_leaves(
     leaf_times: np.ndarray,
     pendant_lengths: np.ndarray,
     min_time: float,
     num_pendant_length_bins: int,
-    num_calibration_pendant_length_cells: int,
-    num_calibration_time_cells: int,
+    num_calibration_pendant_length_groups: int,
+    num_calibration_time_groups: int,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
@@ -46,7 +51,7 @@ def _tgs_bin_leaves(
     time_bins = np.digitize(
         leaf_times,
         np.linspace(
-            min_time, leaf_times.max(), num_calibration_time_cells + 1
+            min_time, leaf_times.max(), num_calibration_time_groups + 1
         )[1:-1],
     )
     length_bins = np.digitize(
@@ -57,14 +62,14 @@ def _tgs_bin_leaves(
     )
     length_quantiles = np.quantile(
         length_bins,
-        np.linspace(0, 1, num_calibration_pendant_length_cells + 1)[1:-1],
+        np.linspace(0, 1, num_calibration_pendant_length_groups + 1)[1:-1],
     )
     length_groups = np.digitize(
         np.arange(num_pendant_length_bins), np.unique(length_quantiles)
     )
     group_ids = (
-        np.arange(num_calibration_time_cells)[:, None]
-        * num_calibration_pendant_length_cells
+        np.arange(num_calibration_time_groups)[:, None]
+        * num_calibration_pendant_length_groups
         + length_groups
     )
     return time_bins * num_pendant_length_bins + length_bins, group_ids.ravel()
@@ -86,8 +91,8 @@ def _tgs_fit_traits(
 
     Here, tgs stands for trait gain/selection.
 
-    Returns array of shape (num_traits, 4): gain rate, selection,
-    likelihood-ratio statistic, and gain ratio versus neutral traits.
+    Returns array of shape (num_traits, len(_tgs_columns)), with columns
+    named by `_tgs_columns`.
     """
     bincount = functools.partial(
         np.bincount, minlength=len(calibration_group_ids)
@@ -101,27 +106,35 @@ def _tgs_fit_traits(
         )
         for leaves, carriers in zip(trait_leaves, trait_carriers)
     ]
+    # leave each trait out of its own neutral reference
+    refs = [
+        sorted(set(neutral_traits) - {trait}) for trait in range(len(counts))
+    ]
 
-    res = np.empty((len(counts), 4))
+    fits = []
     for trait, (n, k, pendant_length_sum) in enumerate(counts):
-        # leave focal trait out of its own reference
-        refs = [r for r in neutral_traits if r != trait]
         pendant_length = np.divide(
             pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
         )
         if calibrate:
             pendant_length *= estimate_standardized_rate_ratios(
-                sum(counts[r][1] for r in refs),
-                sum(counts[r][2] for r in refs),
+                sum(counts[r][1] for r in refs[trait]),
+                sum(counts[r][2] for r in refs[trait]),
                 calibration_group_ids,
             )
-        res[trait, :3] = tgs_fit(n, k, pendant_length, loss_rate=loss_rate)
+        fits.append(tgs_fit(n, k, pendant_length, loss_rate=loss_rate))
 
-    for trait in range(len(counts)):
-        refs = [r for r in neutral_traits if r != trait]
-        res[trait, 3] = res[trait, 0] / res[refs, 0].mean() if refs else np.nan
-
-    return res
+    # normalize each gain rate by the mean gain rate of its neutral reference
+    gain_rates = np.array([fit.gain_rate for fit in fits])
+    gain_ratios = [
+        gain_rates[trait] / gain_rates[refs[trait]].mean()
+        if refs[trait]
+        else np.nan
+        for trait in range(len(fits))
+    ]
+    return np.column_stack(
+        [np.reshape(fits, (len(fits), len(TgsFitResult._fields))), gain_ratios]
+    )
 
 
 @jit(nopython=True)
@@ -182,9 +195,11 @@ def _tgs_summarize_bootstrap(
     # replicates resampling no carriers of a trait leave selection undefined
     # and gain ratio zero, so exclude them; gain ratio is also undefined
     # without neutral traits, which does not make a replicate degenerate
-    selection_reps = reps[:, :, 1]
+    selection_reps = reps[:, :, _tgs_columns.index("selection")]
     with np.errstate(divide="ignore"):
-        log_gain_ratio_reps = np.log(reps[:, :, 3])
+        log_gain_ratio_reps = np.log(
+            reps[:, :, _tgs_columns.index("gain_ratio")]
+        )
     is_degenerate = ~np.isfinite(selection_reps)
     num_degenerate = is_degenerate.sum(axis=0)
     if num_degenerate.any():
@@ -233,8 +248,8 @@ def _tgs_impl(
     loss_rate: float,
     min_leaf_origin_time: float,
     num_pendant_length_bins: int,
-    num_calibration_pendant_length_cells: int,
-    num_calibration_time_cells: int,
+    num_calibration_pendant_length_groups: int,
+    num_calibration_time_groups: int,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
@@ -254,6 +269,12 @@ def _tgs_impl(
     ).tolist()
     if calibrate and len(neutral_traits) < 2:
         raise ValueError("calibration requires at least two neutral traits")
+    for trait in neutral_traits:
+        logging.info(
+            "- alifestd_estimate_trait_gain_selection_asexual: "
+            f"excluding trait {trait_names[trait]} from its own neutral "
+            "reference",
+        )
 
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     origin_time = np.asarray(origin_time, dtype=np.float64)
@@ -288,7 +309,7 @@ def _tgs_impl(
         },
     )
     if not is_used.any():  # no informative leaves, so nothing to fit
-        reps = np.full((num_bootstrap, len(res), 4), np.nan)
+        reps = np.full((num_bootstrap, len(res), len(_tgs_columns)), np.nan)
     else:
         if block_ids is None:
             leaf_blocks = np.arange(is_used.sum())
@@ -304,8 +325,8 @@ def _tgs_impl(
             length[is_used],
             min_time=np.nanmin(origin_time),
             num_pendant_length_bins=num_pendant_length_bins,
-            num_calibration_pendant_length_cells=num_calibration_pendant_length_cells,
-            num_calibration_time_cells=num_calibration_time_cells,
+            num_calibration_pendant_length_groups=num_calibration_pendant_length_groups,
+            num_calibration_time_groups=num_calibration_time_groups,
         )
         fit_kwargs = dict(
             leaf_bins=leaf_bins,
@@ -317,9 +338,19 @@ def _tgs_impl(
             calibration_group_ids=group_ids,
             loss_rate=loss_rate,
         )
-        res[
-            ["gain_rate", "selection", "selection_lrt_naive", "gain_ratio"]
-        ] = _tgs_fit_traits(leaf_weights=np.ones(len(leaf_bins)), **fit_kwargs)
+        logging.info(
+            "- alifestd_estimate_trait_gain_selection_asexual: "
+            f"fitting {len(trait_masks)} traits to {len(leaf_bins)} leaves...",
+        )
+        res[list(_tgs_columns)] = _tgs_fit_traits(
+            leaf_weights=np.ones(len(leaf_bins)), **fit_kwargs
+        )
+        if num_bootstrap:
+            logging.info(
+                "- alifestd_estimate_trait_gain_selection_asexual: "
+                f"fitting {num_bootstrap} bootstrap replicates "
+                f"over {leaf_blocks.max() + 1} blocks...",
+            )
         bootstrap = (
             with_rng_state_context(seed)(_tgs_bootstrap)
             if seed is not None
@@ -351,8 +382,8 @@ def alifestd_estimate_trait_gain_selection_asexual(
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
     num_pendant_length_bins: int = 800,
-    num_calibration_pendant_length_cells: int = 12,
-    num_calibration_time_cells: int = 8,
+    num_calibration_pendant_length_groups: int = 12,
+    num_calibration_time_groups: int = 8,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = lambda x: x,
@@ -386,8 +417,9 @@ def alifestd_estimate_trait_gain_selection_asexual(
         Indices of traits known to be neutral. Gain ratios are reported
         relative to their mean gain rate (leaving the focal trait out).
     calibrate : bool, default False
-        If True, rescale exposure in each (pendant length, leaf origin time)
-        cell by the rate ratio of `neutral_traits` gains there (see
+        If True, rescale pendant lengths by the rate ratio of
+        `neutral_traits` gains within each calibration group, i.e., each
+        pairing of a pendant length group and a leaf origin time group (see
         `estimate_standardized_rate_ratios`), so that distortion of branch
         lengths shared with neutral traits (e.g., from tree reconstruction)
         cancels.
@@ -407,17 +439,17 @@ def alifestd_estimate_trait_gain_selection_asexual(
         Number of equal-width pendant length bins. Binning bounds fit cost
         independent of leaf count; the default keeps bin width under 0.2%
         of the longest pendant branch, so binning error is negligible.
-    num_calibration_pendant_length_cells : int, default 12
+    num_calibration_pendant_length_groups : int, default 12
         Number of approximately equal-occupancy pendant length groups for
         calibration.
-    num_calibration_time_cells : int, default 8
+    num_calibration_time_groups : int, default 8
         Number of equal-width leaf origin time groups for calibration.
 
-        Calibration cell defaults are heuristic: 12 x 8 = 96 cells is
-        coarse enough for each to accrue many neutral gains, yet resolves
-        distortion that varies with pendant length and with depth. More
-        cells reduce bias from within-cell variation in distortion, at the
-        cost of noisier calibration.
+        Calibration group defaults are heuristic: 12 x 8 = 96 calibration
+        groups is coarse enough for each to accrue many neutral gains, yet
+        resolves distortion that varies with pendant length and with depth.
+        More groups reduce bias from within-group variation in distortion,
+        at the cost of noisier calibration.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
@@ -507,8 +539,8 @@ def alifestd_estimate_trait_gain_selection_asexual(
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
         num_pendant_length_bins=num_pendant_length_bins,
-        num_calibration_pendant_length_cells=num_calibration_pendant_length_cells,
-        num_calibration_time_cells=num_calibration_time_cells,
+        num_calibration_pendant_length_groups=num_calibration_pendant_length_groups,
+        num_calibration_time_groups=num_calibration_time_groups,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,

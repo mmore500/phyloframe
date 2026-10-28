@@ -48,8 +48,8 @@ def alifestd_estimate_trait_gain_selection_polars(
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
     num_pendant_length_bins: int = 800,
-    num_calibration_pendant_length_cells: int = 12,
-    num_calibration_time_cells: int = 8,
+    num_calibration_pendant_length_groups: int = 12,
+    num_calibration_time_groups: int = 8,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = lambda x: x,
@@ -88,8 +88,9 @@ def alifestd_estimate_trait_gain_selection_polars(
         reported relative to their mean gain rate (leaving the focal trait
         out).
     calibrate : bool, default False
-        If True, rescale exposure in each (pendant length, leaf origin time)
-        cell by the rate ratio of `neutral_traits` gains there, so that
+        If True, rescale pendant lengths by the rate ratio of
+        `neutral_traits` gains within each calibration group, i.e., each
+        pairing of a pendant length group and a leaf origin time group, so that
         distortion of branch lengths shared with neutral traits (e.g., from
         tree reconstruction) cancels.
     block_ids : str or polars.Expr, optional
@@ -106,10 +107,10 @@ def alifestd_estimate_trait_gain_selection_polars(
         Leaves originating earlier are excluded.
     num_pendant_length_bins : int, default 800
         Number of equal-width pendant length bins.
-    num_calibration_pendant_length_cells : int, default 12
+    num_calibration_pendant_length_groups : int, default 12
         Number of approximately equal-occupancy pendant length groups for
         calibration.
-    num_calibration_time_cells : int, default 8
+    num_calibration_time_groups : int, default 8
         Number of equal-width leaf origin time groups for calibration.
 
         See `alifestd_estimate_trait_gain_selection_asexual` for rationale
@@ -187,13 +188,13 @@ def alifestd_estimate_trait_gain_selection_polars(
             pl.col("ancestor_id"),
             pl.col("origin_time"),
             *(
-                mask.cast(pl.Boolean).alias(f"trait{i}")
+                mask.cast(pl.Boolean).alias(f"__alifestd_tgs_trait{i}")
                 for i, mask in enumerate(trait_masks)
             ),
             *(
                 []
                 if block_ids is None
-                else [block_ids.alias("alifestd_block_ids")]
+                else [block_ids.alias("__alifestd_tgs_block_ids")]
             ),
         )
         .collect()
@@ -201,7 +202,8 @@ def alifestd_estimate_trait_gain_selection_polars(
 
     trait_arrays = [
         _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
-            selected[f"trait{i}"].to_numpy(), name=f"trait mask {name}"
+            selected[f"__alifestd_tgs_trait{i}"].to_numpy(),
+            name=f"trait mask {name}",
         )
         for i, name in enumerate(trait_names)
     ]
@@ -217,7 +219,7 @@ def alifestd_estimate_trait_gain_selection_polars(
         block_ids=(
             None
             if block_ids is None
-            else selected["alifestd_block_ids"].to_numpy()
+            else selected["__alifestd_tgs_block_ids"].to_numpy()
         ),
         trait_names=trait_names,
         neutral_traits=neutral_traits,
@@ -226,8 +228,8 @@ def alifestd_estimate_trait_gain_selection_polars(
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
         num_pendant_length_bins=num_pendant_length_bins,
-        num_calibration_pendant_length_cells=num_calibration_pendant_length_cells,
-        num_calibration_time_cells=num_calibration_time_cells,
+        num_calibration_pendant_length_groups=num_calibration_pendant_length_groups,
+        num_calibration_time_groups=num_calibration_time_groups,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
@@ -339,13 +341,13 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Number of pendant length bins (default: 800).",
     )
     parser.add_argument(
-        "--num-calibration-pendant-length-cells",
+        "--num-calibration-pendant-length-groups",
         default=12,
         type=int,
         help="Number of pendant length calibration groups (default: 12).",
     )
     parser.add_argument(
-        "--num-calibration-time-cells",
+        "--num-calibration-time-groups",
         default=8,
         type=int,
         help="Number of leaf origin time calibration groups (default: 8).",
@@ -383,11 +385,11 @@ if __name__ == "__main__":
                     loss_rate=args.loss_rate,
                     min_leaf_origin_time=args.min_leaf_origin_time,
                     num_pendant_length_bins=args.num_pendant_length_bins,
-                    num_calibration_pendant_length_cells=(
-                        args.num_calibration_pendant_length_cells
+                    num_calibration_pendant_length_groups=(
+                        args.num_calibration_pendant_length_groups
                     ),
-                    num_calibration_time_cells=(
-                        args.num_calibration_time_cells
+                    num_calibration_time_groups=(
+                        args.num_calibration_time_groups
                     ),
                     parallel_backend=args.parallel_backend,
                 ),
