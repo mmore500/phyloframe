@@ -240,6 +240,25 @@ def test_null_block_ids_raise():
         )
 
 
+@pytest.mark.parametrize("parallel_backend", ["threading", "loky"])
+def test_parallel_backend_matches_serial(parallel_backend: str):
+    phylogeny_df, traits, blocks = _make_cherries(2_000)
+    kwargs = dict(
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        block_ids=blocks,
+        num_bootstrap=4,
+        seed=1,
+    )
+    expected = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, **kwargs
+    )
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, parallel_backend=parallel_backend, **kwargs
+    )
+    pd.testing.assert_frame_equal(res, expected)
+
+
 def test_bootstrap_rare_trait():
     phylogeny_df, traits, __ = _make_cherries(20_000)
     rare = np.zeros_like(traits[0])

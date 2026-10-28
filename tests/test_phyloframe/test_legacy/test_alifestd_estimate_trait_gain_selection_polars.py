@@ -117,3 +117,16 @@ def test_unsupported(df_pl: pl.DataFrame):
         alifestd_estimate_trait_gain_selection_polars(
             df_pl.with_columns(trait=pl.lit(True)), trait_masks=["trait"]
         )
+
+
+def test_null_trait_mask_absent():
+    df_pl = _make_cherries_polars(2_000)
+    expected = alifestd_estimate_trait_gain_selection_polars(
+        df_pl, trait_masks=["focal"]
+    )
+    nullable = pl.when(pl.col("focal")).then(True).otherwise(None)
+    with pytest.warns(UserWarning, match="null"):
+        res = alifestd_estimate_trait_gain_selection_polars(
+            df_pl, trait_masks=[nullable], trait_names=["focal"]
+        )
+    assert res.equals(expected)

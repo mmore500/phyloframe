@@ -3,7 +3,6 @@ import functools
 import logging
 import os
 import typing
-import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -28,6 +27,9 @@ from ._alifestd_has_contiguous_ids_polars import (
 )
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
+)
+from ._alifestd_mask_leaf_trait_inherited_asexual import (
+    _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -202,14 +204,12 @@ def alifestd_estimate_trait_gain_selection_polars(
         .collect()
     )
 
-    trait_arrays = []
-    for i in range(len(trait_masks)):
-        if selected[f"trait{i}"].has_nulls():
-            warnings.warn(
-                f"trait mask {trait_names[i]} contains null values, "
-                "which will be treated as trait absent (False).",
-            )
-        trait_arrays.append(selected[f"trait{i}"].fill_null(False).to_numpy())
+    trait_arrays = [
+        _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
+            selected[f"trait{i}"].to_numpy(), name=f"trait mask {name}"
+        )
+        for i, name in enumerate(trait_names)
+    ]
 
     logging.info(
         "- alifestd_estimate_trait_gain_selection_polars: "

@@ -2,7 +2,9 @@ import functools
 import typing
 
 import numpy as np
-from scipy import optimize
+from scipy import optimize, special
+
+from ._calc_binomial_nll import calc_binomial_nll
 
 
 def _tgs_calc_nll(
@@ -19,29 +21,15 @@ def _tgs_calc_nll(
     gain rate and to `rate` (selection minus loss rate).
     """
     cx = rate * exposure
-    small = np.abs(cx) < 1e-6  # use series expansion near rate = 0
-    safe_rate = np.where(small, 1.0, rate)
-    g = np.where(small, exposure * (1 + cx / 2), np.expm1(cx) / safe_rate)
+    g = exposure * special.exprel(cx)  # expm1(cx) / rate, finite at rate = 0
+    small = np.abs(cx) < 1e-6  # use series expansion of dg near rate = 0
     dg = np.where(
         small,
         exposure * exposure * (0.5 + cx / 3),
-        (exposure * np.exp(cx) - g) / safe_rate,
+        (exposure * np.exp(cx) - g) / np.where(small, 1.0, rate),
     )
-    # keep log terms finite where p leaves (0, 1), i.e., where exposure * g
-    # underflows or optimizer trial steps overshoot; gradient there is zeroed
-    finfo = np.finfo(np.float64)
-    unclipped_p = gain_rate * g
-    p = np.clip(unclipped_p, finfo.tiny, 1 - finfo.epsneg)
-    is_clipped = p != unclipped_p
-
-    nll = -np.sum(
-        num_successes * np.log(p) + (num_trials - num_successes) * np.log1p(-p)
-    )
-    dnll_dp = np.where(
-        is_clipped,
-        0.0,
-        (num_trials - num_successes) / (1 - p) - num_successes / p,
-    )
+    p = gain_rate * g
+    nll, dnll_dp = calc_binomial_nll(num_trials, num_successes, p)
     return nll, np.sum(dnll_dp * p), np.sum(dnll_dp * gain_rate * dg)
 
 

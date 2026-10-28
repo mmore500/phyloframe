@@ -11,6 +11,9 @@ from scipy import stats
 from .._auxlib._estimate_standardized_rate_ratios import (
     estimate_standardized_rate_ratios,
 )
+from .._auxlib._iter_block_bootstrap_weights import (
+    iter_block_bootstrap_weights,
+)
 from .._auxlib._tgs_fit import tgs_fit
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from ._alifestd_mark_num_children_asexual import (
@@ -128,28 +131,16 @@ def _tgs_bootstrap(
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Returns array of shape (num_bootstrap, num_traits, 4) of fits to block
-    bootstrap resamples; see
-    `_tgs_fit_traits`.
+    bootstrap resamples; see `_tgs_fit_traits`.
     """
-    num_blocks = leaf_blocks.max() + 1
-    rngs = map(
-        np.random.default_rng,
-        np.random.SeedSequence(seed).spawn(num_bootstrap),
+    jobs = (
+        joblib.delayed(_tgs_fit_traits)(leaf_weights=weights, **fit_kwargs)
+        for weights in iter_block_bootstrap_weights(
+            leaf_blocks, num_bootstrap, seed=seed
+        )
     )
-    leaf_weights = (
-        np.bincount(
-            rng.integers(0, num_blocks, num_blocks), minlength=num_blocks
-        )[leaf_blocks].astype(np.float64)
-        for rng in rngs
-    )
-    fit = (joblib.delayed if parallel_backend else lambda x: x)(
-        _tgs_fit_traits
-    )
-    jobs = (fit(leaf_weights=w, **fit_kwargs) for w in leaf_weights)
-    if parallel_backend:
-        with joblib.parallel_backend(parallel_backend, n_jobs=-1):
-            return np.array(joblib.Parallel()(progress_wrap(jobs)))
-    return np.array([*progress_wrap(jobs)])
+    with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
+        return np.array(joblib.Parallel()(progress_wrap(jobs)))
 
 
 def _tgs_summarize_bootstrap(
@@ -281,7 +272,7 @@ def _tgs_impl(
         else:
             leaf_blocks = pd.factorize(np.asarray(block_ids)[is_used])[0]
 
-        (leaf_bins, group_ids,) = _tgs_bin_leaves(
+        leaf_bins, group_ids = _tgs_bin_leaves(
             origin_time[is_used],
             length[is_used],
             min_time=np.nanmin(origin_time),
@@ -299,13 +290,9 @@ def _tgs_impl(
             calibration_group_ids=group_ids,
             loss_rate=loss_rate,
         )
-        point = _tgs_fit_traits(
-            leaf_weights=np.ones(len(leaf_bins)), **fit_kwargs
-        )
-        res["gain_rate"] = point[:, 0]
-        res["selection"] = point[:, 1]
-        res["gain_ratio"] = point[:, 3]
-        res["selection_lrt_naive"] = point[:, 2]
+        res[
+            ["gain_rate", "selection", "selection_lrt_naive", "gain_ratio"]
+        ] = _tgs_fit_traits(leaf_weights=np.ones(len(leaf_bins)), **fit_kwargs)
         reps = _tgs_bootstrap(
             fit_kwargs,
             leaf_blocks,
@@ -316,8 +303,7 @@ def _tgs_impl(
         )
 
     if num_bootstrap:
-        summary = _tgs_summarize_bootstrap
-        res = pd.concat([res, summary(res, reps)], axis=1)
+        res = pd.concat([res, _tgs_summarize_bootstrap(res, reps)], axis=1)
     return res
 
 
