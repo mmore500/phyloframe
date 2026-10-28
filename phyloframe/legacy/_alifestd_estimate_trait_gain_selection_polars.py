@@ -14,21 +14,20 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_assign_contiguous_ids_polars import (
+    alifestd_assign_contiguous_ids_polars,
+)
+from ._alifestd_collapse_unifurcations_polars import (
+    alifestd_collapse_unifurcations_polars,
+)
 from ._alifestd_estimate_trait_gain_selection_asexual import (
-    _alifestd_estimate_trait_gain_selection_asexual_impl,
+    _tgs_impl,
 )
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
-)
-from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
-from ._alifestd_mark_origin_time_delta_polars import (
-    alifestd_mark_origin_time_delta_polars,
-)
-from ._alifestd_mask_leaf_trait_inherited_asexual import (
-    _alifestd_mask_leaf_trait_inherited_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -87,14 +86,15 @@ def alifestd_estimate_trait_gain_selection_polars(
         reported relative to their mean gain rate (leaving the focal trait
         out).
     calibrate : bool, default False
-        If True, learn effective exposure for each (pendant length, leaf
-        origin time) cell from `neutral_traits`, so that distortion of
-        branch lengths shared with neutral traits (e.g., from tree
-        reconstruction) cancels.
+        If True, rescale exposure in each (pendant length, leaf origin time)
+        cell by the rate ratio of `neutral_traits` gains there, so that
+        distortion of branch lengths shared with neutral traits (e.g., from
+        tree reconstruction) cancels.
     block_ids : str or polars.Expr, optional
         Column name or expression giving each taxon's bootstrap block;
         blocks should be approximately independent (e.g., spatial tiles or
-        root lineages). Defaults to one block per leaf.
+        root lineages). Must not be null at informative leaves. Defaults to
+        one block per leaf.
     num_bootstrap : int, default 0
         Number of block bootstrap replicates for standard errors, z-scores,
         and p-values.
@@ -109,10 +109,14 @@ def alifestd_estimate_trait_gain_selection_polars(
         calibration.
     num_calibration_time_cells : int, default 8
         Number of equal-width leaf origin time groups for calibration.
+
+        See `alifestd_estimate_trait_gain_selection_asexual` for rationale
+        behind binning defaults.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
-        Pass "loky" to run bootstrap replicates in parallel with joblib.
+        joblib backend to run bootstrap replicates in parallel, e.g., "loky"
+        (processes) or "threading".
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display bootstrap progress.
 
@@ -122,7 +126,8 @@ def alifestd_estimate_trait_gain_selection_polars(
         If `phylogeny_df` has no "ancestor_id" column or if ids are
         non-contiguous or not topologically sorted.
     ValueError
-        If `calibrate` is set with fewer than two neutral traits.
+        If `calibrate` is set with fewer than two distinct neutral traits,
+        or if `block_ids` is null at an informative leaf.
 
     Returns
     -------
@@ -141,11 +146,9 @@ def alifestd_estimate_trait_gain_selection_polars(
             for i, mask in enumerate(trait_masks)
         ]
     neutral_traits = [
-        trait if isinstance(trait, int) else list(trait_names).index(trait)
+        list(trait_names).index(trait) if isinstance(trait, str) else trait
         for trait in neutral_traits
     ]
-    if calibrate and len(neutral_traits) < 2:
-        raise ValueError("calibration requires at least two neutral traits")
 
     trait_masks = [
         pl.col(mask) if isinstance(mask, str) else mask for mask in trait_masks
@@ -174,23 +177,18 @@ def alifestd_estimate_trait_gain_selection_polars(
             "non-topologically-sorted data not supported",
         )
 
-    # collect before marking leaves, as polars 2.0 streaming panics on
-    # limit(1) of the lazy origin time delta plan
-    marked = alifestd_mark_origin_time_delta_polars(
-        phylogeny_df.lazy(),
-        mark_as="alifestd_estimate_trait_gain_selection_polars_length",
-    )
-    marked = alifestd_mark_leaves_polars(
-        marked.lazy().collect(),
-        mark_as="alifestd_estimate_trait_gain_selection_polars_is_leaf",
-    )
+    if not is_empty:
+        phylogeny_df = alifestd_assign_contiguous_ids_polars(
+            alifestd_collapse_unifurcations_polars(
+                phylogeny_df, ignore_topological_sensitivity=True
+            ),
+        )
+
     selected = (
-        marked.lazy()
+        phylogeny_df.lazy()
         .select(
             pl.col("ancestor_id"),
             pl.col("origin_time"),
-            pl.col("alifestd_estimate_trait_gain_selection_polars_length"),
-            pl.col("alifestd_estimate_trait_gain_selection_polars_is_leaf"),
             *(
                 mask.cast(pl.Boolean).alias(f"trait{i}")
                 for i, mask in enumerate(trait_masks)
@@ -203,7 +201,6 @@ def alifestd_estimate_trait_gain_selection_polars(
         )
         .collect()
     )
-    del marked
 
     trait_arrays = []
     for i in range(len(trait_masks)):
@@ -214,26 +211,14 @@ def alifestd_estimate_trait_gain_selection_polars(
             )
         trait_arrays.append(selected[f"trait{i}"].fill_null(False).to_numpy())
 
-    ancestor_ids = selected["ancestor_id"].to_numpy()
     logging.info(
         "- alifestd_estimate_trait_gain_selection_polars: "
         "fitting gain and selection...",
     )
-    res = _alifestd_estimate_trait_gain_selection_asexual_impl(
+    res = _tgs_impl(
+        ancestor_ids=selected["ancestor_id"].to_numpy(),
         origin_time=selected["origin_time"].to_numpy(),
-        length=selected[
-            "alifestd_estimate_trait_gain_selection_polars_length"
-        ].to_numpy(),
-        is_leaf=selected[
-            "alifestd_estimate_trait_gain_selection_polars_is_leaf"
-        ].to_numpy(),
         trait_masks=trait_arrays,
-        inherited_masks=[
-            _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
-                ancestor_ids, trait_array
-            )
-            for trait_array in trait_arrays
-        ],
         block_ids=(
             None
             if block_ids is None
@@ -265,8 +250,8 @@ each trait as a function of pendant branch length.
 Output is one row per trait, with columns `trait`, `num_leaves`,
 `num_trait_present`, `gain_rate`, `selection`, `gain_ratio`, and
 `selection_lrt_naive`; with `--num-bootstrap`, also `selection_se`,
-`selection_z`, `selection_p`, `log_gain_ratio_se`, `gain_ratio_z`, and
-`gain_ratio_p`.
+`selection_z`, `selection_p`, `log_gain_ratio_se`, `gain_ratio_z`,
+`gain_ratio_p`, and `num_bootstrap_degenerate`.
 
 Data is assumed to be in alife standard format, with column `origin_time`.
 Only supports asexual phylogenies.
