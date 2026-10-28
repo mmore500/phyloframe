@@ -31,7 +31,7 @@ def _tgs_bin_leaves(
     num_calibration_exposure_cells: int,
     num_calibration_time_cells: int,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
-    """Implementation detail for
+    """Trait gain/selection (tgs) implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Returns flat (time, length) bin of each leaf, and calibration group of
@@ -75,7 +75,7 @@ def _tgs_fit_traits(
     calibration_group_ids: np.ndarray,
     loss_rate: float,
 ) -> np.ndarray:
-    """Implementation detail for
+    """Trait gain/selection (tgs) implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Returns array of shape (num_traits, 4): gain rate, selection,
@@ -124,7 +124,7 @@ def _tgs_bootstrap(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> np.ndarray:
-    """Implementation detail for
+    """Trait gain/selection (tgs) implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Returns array of shape (num_bootstrap, num_traits, 4) of fits to block
@@ -156,7 +156,7 @@ def _tgs_summarize_bootstrap(
     point: pd.DataFrame,
     reps: np.ndarray,
 ) -> pd.DataFrame:
-    """Implementation detail for
+    """Trait gain/selection (tgs) implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Returns bootstrap standard errors, z-scores, and p-values, given point
@@ -170,11 +170,17 @@ def _tgs_summarize_bootstrap(
     is_degenerate = ~(
         np.isfinite(selection_reps) & np.isfinite(log_gain_ratio_reps)
     )
-    if is_degenerate.any():
+    num_degenerate = is_degenerate.sum(axis=0)
+    if num_degenerate.any():
+        counts = ", ".join(
+            f"{trait} ({count} of {len(reps)})"
+            for trait, count in zip(point["trait"], num_degenerate)
+            if count
+        )
         warnings.warn(
-            "some bootstrap replicates resampled no carriers of a trait and "
-            "were excluded, so its standard errors may be underestimated; "
-            "see `num_bootstrap_degenerate`.",
+            "bootstrap replicates that resampled no trait carriers were "
+            f"excluded for traits {counts}, so their standard errors may be "
+            "underestimated.",
         )
 
     with warnings.catch_warnings():  # all-degenerate traits get nan
@@ -194,7 +200,7 @@ def _tgs_summarize_bootstrap(
             "log_gain_ratio_se": log_gain_ratio_se,
             "gain_ratio_z": gain_ratio_z,
             "gain_ratio_p": 2 * stats.norm.sf(np.abs(gain_ratio_z)),
-            "num_bootstrap_degenerate": is_degenerate.sum(axis=0),
+            "num_bootstrap_degenerate": num_degenerate,
         },
     )
 
@@ -217,7 +223,7 @@ def _tgs_impl(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
-    """Implementation detail for
+    """Trait gain/selection (tgs) implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual` and
     `alifestd_estimate_trait_gain_selection_polars`.
 

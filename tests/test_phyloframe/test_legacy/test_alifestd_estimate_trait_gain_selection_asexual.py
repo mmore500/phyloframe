@@ -244,7 +244,7 @@ def test_bootstrap_rare_trait():
     phylogeny_df, traits, __ = _make_cherries(20_000)
     rare = np.zeros_like(traits[0])
     rare[np.flatnonzero(traits[1])[0]] = True
-    with pytest.warns(UserWarning, match="bootstrap"):
+    with pytest.warns(UserWarning, match="bootstrap") as record:
         res = alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df,
             trait_masks=[rare, *traits[1:]],
@@ -253,7 +253,9 @@ def test_bootstrap_rare_trait():
             seed=1,
         )
     # one block per leaf, so replicates often resample no rare carriers
-    assert 0 < res.loc[0, "num_bootstrap_degenerate"] < 50
+    num_degenerate = res.loc[0, "num_bootstrap_degenerate"]
+    assert 0 < num_degenerate < 50
+    assert f"0 ({num_degenerate} of 50)" in str(record[0].message)
     assert (res.loc[1:, "num_bootstrap_degenerate"] == 0).all()
     assert np.isfinite(res["selection_se"]).all()
     assert np.isfinite(res["log_gain_ratio_se"]).all()
