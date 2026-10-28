@@ -4,45 +4,45 @@ from ._jit import jit
 
 
 @jit(nopython=True)
-def sample_block_bootstrap_counts(
-    num_blocks: int, num_replicates: int
+def sample_cluster_bootstrap_counts(
+    num_clusters: int, num_replicates: int
 ) -> np.ndarray:
-    """Sample how many times each block is drawn in block bootstrap
+    """Sample how many times each cluster is drawn in cluster bootstrap
     replicates.
 
-    Resampling whole blocks of correlated items (e.g., clades, spatial
+    Resampling whole clusters of correlated items (e.g., clades, spatial
     tiles, or contiguous segments of a time series), rather than individual
-    items, keeps correlation within blocks in each replicate, so bootstrap
+    items, keeps correlation within clusters in each replicate, so bootstrap
     standard errors reflect it instead of understating uncertainty as if
     items were independent.
 
-    Each replicate draws `num_blocks` blocks uniformly with replacement, so
-    a block may be drawn zero, one, or several times. Weighting each item by
-    its block's count is equivalent to resampling items block-wise, without
-    copying data.
+    Each replicate draws `num_clusters` clusters uniformly with replacement,
+    so a cluster may be drawn zero, one, or several times. Weighting each
+    item by its cluster's count is equivalent to resampling items
+    cluster-wise, without copying data.
 
     Parameters
     ----------
-    num_blocks : int
-        Number of blocks.
+    num_clusters : int
+        Number of clusters.
     num_replicates : int
         Number of bootstrap replicates.
 
     Returns
     -------
     np.ndarray
-        Integer array of shape (num_replicates, num_blocks), each row summing
-        to `num_blocks`.
+        Integer array of shape (num_replicates, num_clusters), each row summing
+        to `num_clusters`.
 
     Notes
     -----
     Draws from numpy's global random state within jit-compiled code, so
     `RngStateContext` and `with_rng_state_context` seed it.
 
-    Resampling labeled groups of correlated items is also called the
-    cluster bootstrap (Field and Welsh 2007; Cameron et al. 2008); block
-    bootstrap usually names resampling contiguous blocks of a time series
-    (Kunsch 1989) or of space (Lahiri 2003). Representing replicates as
+    Resampling labeled clusters of correlated items is the cluster bootstrap
+    (Field and Welsh 2007; Cameron et al. 2008). The closely related block
+    bootstrap resamples contiguous blocks of a time series (Kunsch 1989) or
+    of space (Lahiri 2003). Representing replicates as
     multinomial counts over the original items is the weighted bootstrap
     view of Praestgaard and Wellner (1993).
 
@@ -69,8 +69,10 @@ def sample_block_bootstrap_counts(
     21(4), 2053-2086.
     https://doi.org/10.1214/aop/1176989011
     """
-    if num_blocks == 0:
+    if num_clusters == 0:
         return np.zeros((num_replicates, 0), dtype=np.int64)
     return np.random.multinomial(
-        num_blocks, np.full(num_blocks, 1 / num_blocks), size=num_replicates
+        num_clusters,
+        np.full(num_clusters, 1 / num_clusters),
+        size=num_replicates,
     )

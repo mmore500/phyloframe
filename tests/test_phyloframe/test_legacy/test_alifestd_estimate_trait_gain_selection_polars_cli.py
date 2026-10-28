@@ -17,7 +17,7 @@ MODULE = "phyloframe.legacy._alifestd_estimate_trait_gain_selection_polars"
 
 @pytest.fixture
 def input_pqt(tmp_path):
-    """Create a parquet phylogeny with trait and block columns."""
+    """Create a parquet phylogeny with trait and cluster columns."""
     path = tmp_path / "input.pqt"
     _make_cherries_polars(5_000).write_parquet(path)
     return str(path)
@@ -62,8 +62,8 @@ def test_cli(input_pqt, ext, tmp_path):
             "n3",
             "n4",
             "--calibrate",
-            "--block-ids",
-            "block",
+            "--cluster-ids",
+            "cluster",
             "--num-bootstrap",
             "5",
             "--bootstrap-seed",

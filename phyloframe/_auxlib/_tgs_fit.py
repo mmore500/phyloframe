@@ -45,19 +45,35 @@ def _tgs_calc_nll(
     Returns negative log likelihood and its derivatives with respect to log
     gain rate and to `rate` (selection minus loss rate).
     """
-    # p = gain_rate * g, with g = (exp(rate * t) - 1) / rate for pendant
-    # length t, and dg = d g / d rate
+    # p = gain_rate * effective_length, where for pendant length t,
+    # effective_length = (exp(rate * t) - 1) / rate is the integral of
+    # exp(rate * s) over s in [0, t], i.e., pendant length weighted by how a
+    # gain's carrier lineage grows (rate > 0) or shrinks (rate < 0) afterward
     cx = rate * pendant_length
-    g = pendant_length * special.exprel(cx)  # exprel(x) = (exp(x) - 1) / x
-    small = np.abs(cx) < 1e-6  # use series expansion of dg near rate = 0
-    dg = np.where(
-        small,
-        pendant_length * pendant_length * (0.5 + cx / 3),
-        (pendant_length * np.exp(cx) - g) / np.where(small, 1.0, rate),
+    # exprel(x) = (exp(x) - 1) / x, finite at x = 0
+    effective_length = pendant_length * special.exprel(cx)
+
+    # d effective_length / d rate, from a series expansion near rate = 0,
+    # where the exact form divides by zero
+    is_near_zero_rate = np.abs(cx) < 1e-6
+    series_deriv = pendant_length * pendant_length * (0.5 + cx / 3)
+    exact_deriv = np.divide(
+        pendant_length * np.exp(cx) - effective_length,
+        rate,
+        out=np.zeros_like(cx),
+        where=~is_near_zero_rate,
     )
-    p = gain_rate * g
+    effective_length_deriv = np.where(
+        is_near_zero_rate, series_deriv, exact_deriv
+    )
+
+    p = gain_rate * effective_length
     nll, dnll_dp = calc_binomial_nll(num_trials, num_successes, p)
-    return nll, np.sum(dnll_dp * p), np.sum(dnll_dp * gain_rate * dg)
+    return (
+        nll,
+        np.sum(dnll_dp * p),
+        np.sum(dnll_dp * gain_rate * effective_length_deriv),
+    )
 
 
 def tgs_fit(
@@ -90,9 +106,10 @@ def tgs_fit(
     0 -> 1 transition rate q01, `loss_rate` to q10, and `selection` to the
     difference in net diversification rate between states, (lambda1 - mu1)
     - (lambda0 - mu0). Unlike BiSSE, which fits a full tree likelihood,
-    this model considers each pendant branch independently and
-    to first order in the trait frequency, so it scales to large trees with
-    rare traits.
+    this model considers each pendant branch independently and assumes the
+    trait is rare, so that `p` is proportional to `gain_rate` (ignoring,
+    e.g., a lineage gaining the trait more than once); this lets it scale
+    to large trees with rare traits.
 
     Parameters
     ----------
@@ -123,9 +140,9 @@ def tgs_fit(
 
         The likelihood-ratio statistic treats bins as independent, so it
         naively overstates significance when lineages are correlated (e.g.,
-        through shared ancestry or space). Prefer a block bootstrap for
+        through shared ancestry or space). Prefer a cluster bootstrap for
         inference, which resamples groups of correlated leaves together
-        (see `block_ids` and `num_bootstrap` in
+        (see `cluster_ids` and `num_bootstrap` in
         `alifestd_estimate_trait_gain_selection_asexual`).
 
     See Also
@@ -158,6 +175,8 @@ def tgs_fit(
         )
         return res, np.array([dlog_gain, drate * unit])
 
+    # under the null hypothesis of no selection (selection = 0), for the
+    # likelihood-ratio test
     def null_nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
         res, dlog_gain, __ = _tgs_calc_nll(
             n, k, x, np.exp(params[0]), -loss_rate
@@ -178,7 +197,9 @@ def tgs_fit(
         ),
         key=lambda res: res.fun,  # .fun is the minimized nll
     )
-    null = optimize.minimize(null_nll, best.x[:1], **minimize_kwargs)
+    null = optimize.minimize(  # fit gain rate alone, with selection = 0
+        null_nll, best.x[:1], **minimize_kwargs
+    )
     return TgsFitResult(
         gain_rate=float(np.exp(best.x[0])),
         selection=float(best.x[1] * unit),

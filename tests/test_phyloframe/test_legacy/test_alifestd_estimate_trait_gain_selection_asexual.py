@@ -46,13 +46,13 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
             "origin_time": origin_time,
         },
     )
-    blocks = np.arange(num_nodes) // 3 % 50
-    return phylogeny_df, traits, blocks
+    clusters = np.arange(num_nodes) // 3 % 50
+    return phylogeny_df, traits, clusters
 
 
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_recovers_gain_selection(calibrate: bool):
-    phylogeny_df, traits, blocks = _make_cherries()
+    phylogeny_df, traits, clusters = _make_cherries()
     original_df = phylogeny_df.copy()
     res = alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df,
@@ -60,7 +60,7 @@ def test_recovers_gain_selection(calibrate: bool):
         trait_names=["focal", "n1", "n2", "n3", "n4"],
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
-        block_ids=blocks,
+        cluster_ids=clusters,
         num_bootstrap=20,
         seed=1,
     )
@@ -84,10 +84,10 @@ def test_recovers_gain_selection(calibrate: bool):
 
 
 def test_row_order_invariant():
-    phylogeny_df, traits, blocks = _make_cherries(2_000)
+    phylogeny_df, traits, clusters = _make_cherries(2_000)
     kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
     expected = alifestd_estimate_trait_gain_selection_asexual(
-        phylogeny_df, trait_masks=traits, block_ids=blocks, **kwargs
+        phylogeny_df, trait_masks=traits, cluster_ids=clusters, **kwargs
     )
 
     order = np.random.default_rng(2).permutation(len(phylogeny_df))
@@ -97,7 +97,7 @@ def test_row_order_invariant():
     res = alifestd_estimate_trait_gain_selection_asexual(
         shuffled,
         trait_masks=traits[:, order],
-        block_ids=blocks[order],
+        cluster_ids=clusters[order],
         **kwargs,
     )
     pd.testing.assert_frame_equal(res, expected, rtol=1e-6)
@@ -116,7 +116,7 @@ def test_drops_inherited_and_rootward():
     )
     res = alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df,
-        trait_masks=[[0, 0, 1, 1], [0, 0, 1, 0]],
+        trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
         min_leaf_origin_time=0.0,
         num_pendant_length_bins=4,
     )
@@ -128,7 +128,7 @@ def test_drops_inherited_and_rootward():
 
     res = alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df,
-        trait_masks=[[0, 0, 1, 1], [0, 0, 1, 0]],
+        trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
         min_leaf_origin_time=3.0,
         num_pendant_length_bins=4,
     )
@@ -219,36 +219,39 @@ def test_nan_origin_time_ignored():
     pd.testing.assert_frame_equal(res, expected)
 
 
-def test_null_trait_mask_absent():
-    phylogeny_df, traits, __ = _make_cherries(2_000)
-    expected = alifestd_estimate_trait_gain_selection_asexual(
-        phylogeny_df, trait_masks=traits
-    )
-    nullable = np.where(traits, 1.0, np.nan)
-    with pytest.warns(UserWarning, match="null"):
-        res = alifestd_estimate_trait_gain_selection_asexual(
-            phylogeny_df, trait_masks=nullable
+def test_non_bool_trait_mask_raises():
+    phylogeny_df, traits, __ = _make_cherries(100)
+    with pytest.raises(NotImplementedError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, trait_masks=np.where(traits, 1.0, np.nan)
         )
-    pd.testing.assert_frame_equal(res, expected)
 
 
-def test_null_block_ids_raise():
-    phylogeny_df, traits, blocks = _make_cherries(100)
-    blocks = blocks.astype(float)
-    blocks[-1] = np.nan
+def test_trait_mask_length_mismatch_raises():
+    phylogeny_df, traits, __ = _make_cherries(100)
     with pytest.raises(ValueError):
         alifestd_estimate_trait_gain_selection_asexual(
-            phylogeny_df, trait_masks=traits, block_ids=blocks
+            phylogeny_df, trait_masks=traits[:, :-1]
+        )
+
+
+def test_null_cluster_ids_raise():
+    phylogeny_df, traits, clusters = _make_cherries(100)
+    clusters = clusters.astype(float)
+    clusters[-1] = np.nan
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, trait_masks=traits, cluster_ids=clusters
         )
 
 
 @pytest.mark.parametrize("parallel_backend", ["threading", "loky"])
 def test_parallel_backend_matches_serial(parallel_backend: str):
-    phylogeny_df, traits, blocks = _make_cherries(2_000)
+    phylogeny_df, traits, clusters = _make_cherries(2_000)
     kwargs = dict(
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
-        block_ids=blocks,
+        cluster_ids=clusters,
         num_bootstrap=4,
         seed=1,
     )
@@ -262,13 +265,13 @@ def test_parallel_backend_matches_serial(parallel_backend: str):
 
 
 def test_seed_reproducible():
-    phylogeny_df, traits, blocks = _make_cherries(2_000)
+    phylogeny_df, traits, clusters = _make_cherries(2_000)
 
     def run(seed):
         return alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df,
             trait_masks=traits,
-            block_ids=blocks,
+            cluster_ids=clusters,
             num_bootstrap=4,
             seed=seed,
         )
@@ -283,13 +286,13 @@ def test_seed_reproducible():
 
 
 def test_bootstrap_without_neutral_traits():
-    phylogeny_df, traits, blocks = _make_cherries(2_000)
+    phylogeny_df, traits, clusters = _make_cherries(2_000)
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # no degenerate-replicate warning
         res = alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df,
             trait_masks=traits,
-            block_ids=blocks,
+            cluster_ids=clusters,
             num_bootstrap=4,
             seed=1,
         )
@@ -342,7 +345,7 @@ def test_bootstrap_rare_trait():
             num_bootstrap=50,
             seed=1,
         )
-    # one block per leaf, so replicates often resample no rare carriers
+    # one cluster per leaf, so replicates often resample no rare carriers
     num_degenerate = res.loc[0, "num_bootstrap_degenerate"]
     assert 0 < num_degenerate < 50
     assert f"0 ({num_degenerate} of 50)" in str(record[0].message)

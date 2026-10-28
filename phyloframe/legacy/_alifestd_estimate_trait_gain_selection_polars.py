@@ -7,6 +7,7 @@ import typing
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
+import opytional as opyt
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -28,8 +29,8 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mask_leaf_trait_inherited_asexual import (
-    _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask,
+from ._alifestd_mask_leaf_trait_inherited_polars import (
+    _alifestd_mask_leaf_trait_inherited_polars_fill_null,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -43,7 +44,7 @@ def alifestd_estimate_trait_gain_selection_polars(
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
     calibrate: bool = False,
-    block_ids: typing.Union[str, pl.Expr, None] = None,
+    cluster_ids: typing.Union[str, pl.Expr, None] = None,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
@@ -87,19 +88,22 @@ def alifestd_estimate_trait_gain_selection_polars(
         Indices or names of traits known to be neutral. Gain ratios are
         reported relative to their mean gain rate (leaving the focal trait
         out).
+        Optional unless `calibrate` is set, which requires at least two.
+        Without neutral traits, `gain_ratio` and its statistics are nan;
+        gain rate and selection are still estimated.
     calibrate : bool, default False
         If True, rescale pendant lengths by the rate ratio of
         `neutral_traits` gains within each calibration group, i.e., each
         pairing of a pendant length group and a leaf origin time group, so that
         distortion of branch lengths shared with neutral traits (e.g., from
         tree reconstruction) cancels.
-    block_ids : str or polars.Expr, optional
-        Column name or expression giving each taxon's bootstrap block;
-        blocks should be approximately independent (e.g., spatial tiles or
+    cluster_ids : str or polars.Expr, optional
+        Column name or expression giving each taxon's bootstrap cluster;
+        clusters should be approximately independent (e.g., spatial tiles or
         root lineages). Must not be null at informative leaves. Defaults to
-        one block per leaf.
+        one cluster per leaf.
     num_bootstrap : int, default 0
-        Number of block bootstrap replicates for standard errors, z-scores,
+        Number of cluster bootstrap replicates for standard errors, z-scores,
         and p-values.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
@@ -130,7 +134,7 @@ def alifestd_estimate_trait_gain_selection_polars(
         non-contiguous or not topologically sorted.
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
-        or if `block_ids` is null at an informative leaf.
+        or if `cluster_ids` is null at an informative leaf.
 
     Returns
     -------
@@ -156,8 +160,8 @@ def alifestd_estimate_trait_gain_selection_polars(
     trait_masks = [
         pl.col(mask) if isinstance(mask, str) else mask for mask in trait_masks
     ]
-    if isinstance(block_ids, str):
-        block_ids = pl.col(block_ids)
+    if isinstance(cluster_ids, str):
+        cluster_ids = pl.col(cluster_ids)
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -191,19 +195,20 @@ def alifestd_estimate_trait_gain_selection_polars(
                 mask.cast(pl.Boolean).alias(f"__alifestd_tgs_trait{i}")
                 for i, mask in enumerate(trait_masks)
             ),
-            *(
-                []
-                if block_ids is None
-                else [block_ids.alias("__alifestd_tgs_block_ids")]
+            *opyt.apply_if_or_value(
+                cluster_ids,
+                lambda cluster_ids: [
+                    cluster_ids.alias("__alifestd_tgs_cluster_ids")
+                ],
+                [],
             ),
         )
         .collect()
     )
 
     trait_arrays = [
-        _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
-            selected[f"__alifestd_tgs_trait{i}"].to_numpy(),
-            name=f"trait mask {name}",
+        _alifestd_mask_leaf_trait_inherited_polars_fill_null(
+            selected[f"__alifestd_tgs_trait{i}"], name=f"trait mask {name}"
         )
         for i, name in enumerate(trait_names)
     ]
@@ -216,10 +221,9 @@ def alifestd_estimate_trait_gain_selection_polars(
         ancestor_ids=selected["ancestor_id"].to_numpy(),
         origin_time=selected["origin_time"].to_numpy(),
         trait_masks=trait_arrays,
-        block_ids=(
-            None
-            if block_ids is None
-            else selected["__alifestd_tgs_block_ids"].to_numpy()
+        cluster_ids=opyt.apply_if(
+            cluster_ids,
+            lambda __: selected["__alifestd_tgs_cluster_ids"].to_numpy(),
         ),
         trait_names=trait_names,
         neutral_traits=neutral_traits,
@@ -302,19 +306,19 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Calibrate branch length exposure against neutral traits.",
     )
     parser.add_argument(
-        "--block-ids",
+        "--cluster-ids",
         default=None,
         type=str,
         help=(
-            "Name of column giving each taxon's bootstrap block "
-            "(default: one block per leaf)."
+            "Name of column giving each taxon's bootstrap cluster "
+            "(default: one cluster per leaf)."
         ),
     )
     parser.add_argument(
         "--num-bootstrap",
         default=0,
         type=int,
-        help="Number of block bootstrap replicates (default: 0).",
+        help="Number of cluster bootstrap replicates (default: 0).",
     )
     parser.add_argument(
         "--bootstrap-seed",
@@ -379,7 +383,7 @@ if __name__ == "__main__":
                     trait_masks=args.trait_masks,
                     neutral_traits=args.neutral_traits,
                     calibrate=args.calibrate,
-                    block_ids=args.block_ids,
+                    cluster_ids=args.cluster_ids,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,

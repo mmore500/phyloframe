@@ -107,20 +107,17 @@ def test_not_working_format_raises(phylogeny_df: pd.DataFrame):
     [
         [np.nan, np.nan, 1.0, np.nan],
         pd.array([None, None, True, None], dtype="boolean"),
+        [0, 0, 1, 0],
     ],
 )
-def test_null_trait_mask_absent(trait_mask):
+def test_non_bool_trait_mask_raises(trait_mask):
     #     0
     #   1   2
     #       3
     phylogeny_df = pd.DataFrame(
         {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 2]}
     )
-    with pytest.warns(UserWarning, match="null"):
-        res = alifestd_mask_leaf_trait_inherited_asexual(
+    with pytest.raises(NotImplementedError):
+        alifestd_mask_leaf_trait_inherited_asexual(
             phylogeny_df, trait_mask=trait_mask
         )
-    expected = alifestd_mask_leaf_trait_inherited_asexual(
-        phylogeny_df, trait_mask=[False, False, True, False]
-    )
-    pd.testing.assert_frame_equal(res, expected)

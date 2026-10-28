@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 import pandas as pd
 
@@ -13,23 +11,22 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-def _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
+def _alifestd_mask_leaf_trait_inherited_asexual_check_mask(
     trait_mask: np.ndarray, name: str = "trait_mask"
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_mask_leaf_trait_inherited_asexual` and
     `alifestd_estimate_trait_gain_selection_asexual`.
 
-    Casts `trait_mask` to bool, treating null values as False with a
-    warning, matching polars implementations.
+    Returns `trait_mask` as an array, raising NotImplementedError unless it
+    has boolean dtype (which cannot hold nulls).
     """
-    is_null = pd.isna(np.asarray(trait_mask))
-    if is_null.any():
-        warnings.warn(
-            f"{name} contains null values, "
-            "which will be treated as trait absent (False).",
+    trait_mask = np.asarray(trait_mask)
+    if trait_mask.dtype != np.bool_:
+        raise NotImplementedError(
+            f"{name} must have boolean dtype, got {trait_mask.dtype}",
         )
-    return np.where(is_null, False, trait_mask).astype(bool)
+    return trait_mask
 
 
 def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
@@ -78,8 +75,8 @@ def alifestd_mask_leaf_trait_inherited_asexual(
         Column name for the mask.
     trait_mask : np.ndarray
         Boolean array marking nodes that have the trait, aligned with
-        `phylogeny_df.index`. Values at inner nodes are ignored. Null
-        values are treated as trait absent, with a warning.
+        `phylogeny_df.index`, with boolean dtype. Values at inner nodes
+        are ignored.
 
     Returns
     -------
@@ -89,13 +86,14 @@ def alifestd_mask_leaf_trait_inherited_asexual(
     ------
     NotImplementedError
         If `phylogeny_df` is not in working format (contiguous ids,
-        topologically sorted); see `alifestd_to_working_format`.
+        topologically sorted), see `alifestd_to_working_format`, or if
+        `trait_mask` does not have boolean dtype.
     """
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
-    trait_mask = _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
+    trait_mask = _alifestd_mask_leaf_trait_inherited_asexual_check_mask(
         trait_mask
     )
     if not alifestd_is_working_format_asexual(phylogeny_df, mutate=True):
