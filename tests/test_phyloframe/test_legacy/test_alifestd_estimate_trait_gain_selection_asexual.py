@@ -300,6 +300,36 @@ def test_bootstrap_without_neutral_traits():
     assert (res["num_bootstrap_degenerate"] == 0).all()
 
 
+@pytest.mark.parametrize(
+    "param",
+    [
+        "num_pendant_length_bins",
+        "num_calibration_pendant_length_groups",
+        "num_calibration_time_groups",
+    ],
+)
+def test_too_few_bins_raises(param: str):
+    phylogeny_df, traits, __ = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, trait_masks=traits, **{param: 0}
+        )
+
+
+def test_single_bins():
+    phylogeny_df, traits, __ = _make_cherries(2_000)
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df,
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        calibrate=True,
+        num_pendant_length_bins=1,
+        num_calibration_pendant_length_groups=1,
+        num_calibration_time_groups=1,
+    )
+    assert np.isfinite(res["gain_rate"]).all()
+
+
 def test_bootstrap_rare_trait():
     phylogeny_df, traits, __ = _make_cherries(20_000)
     rare = np.zeros_like(traits[0])

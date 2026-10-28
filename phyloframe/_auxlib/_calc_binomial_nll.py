@@ -45,6 +45,9 @@ def calc_binomial_nll(
     clipped_p = np.clip(raw_p, finfo.tiny, 1 - finfo.epsneg)
     num_failures = num_trials - num_successes
 
+    # for n trials and k successes, up to the constant -log C(n, k),
+    #   nll = -sum(k * log(p) + (n - k) * log(1 - p))
+    #   d nll / d p = (n - k) / (1 - p) - k / p
     nll = -np.sum(
         special.xlogy(num_successes, clipped_p)
         + special.xlog1py(num_failures, -clipped_p)

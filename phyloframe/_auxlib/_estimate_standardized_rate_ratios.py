@@ -2,10 +2,10 @@ import numpy as np
 
 
 def estimate_standardized_rate_ratios(
+    *,
     num_events: np.ndarray,
     exposure: np.ndarray,
     group_ids: np.ndarray,
-    *,
     pseudocount: float = 1.0,
 ) -> np.ndarray:
     """Estimate each group's event rate relative to the overall event rate,

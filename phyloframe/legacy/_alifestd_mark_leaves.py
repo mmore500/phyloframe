@@ -5,6 +5,7 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import pandas as pd
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -16,6 +17,20 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_find_leaf_ids import alifestd_find_leaf_ids
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
+
+
+def _alifestd_mark_leaves_asexual_fast_path(
+    ancestor_ids: np.ndarray,
+) -> np.ndarray:
+    """Implementation detail for `alifestd_mark_leaves`.
+
+    Returns boolean mask of leaves, given ancestor ids of a phylogeny with
+    contiguous ids.
+    """
+    return _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) == 0
 
 
 def alifestd_mark_leaves(
@@ -37,6 +52,11 @@ def alifestd_mark_leaves(
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df.reset_index(drop=True, inplace=True)
+        if "ancestor_id" in phylogeny_df:
+            phylogeny_df[mark_as] = _alifestd_mark_leaves_asexual_fast_path(
+                phylogeny_df["ancestor_id"].to_numpy(),
+            )
+            return phylogeny_df
     else:
         phylogeny_df.index = phylogeny_df["id"]
 
