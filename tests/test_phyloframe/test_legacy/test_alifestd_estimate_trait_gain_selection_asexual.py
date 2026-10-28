@@ -116,7 +116,7 @@ def test_drops_inherited_and_rootward():
         phylogeny_df,
         trait_masks=[[0, 0, 1, 1], [0, 0, 1, 0]],
         min_leaf_origin_time=0.0,
-        num_exposure_bins=4,
+        num_pendant_length_bins=4,
     )
     # both leaves carry trait 0 from above their parent, so both drop
     assert res["num_leaves"].tolist() == [0, 2]
@@ -128,7 +128,7 @@ def test_drops_inherited_and_rootward():
         phylogeny_df,
         trait_masks=[[0, 0, 1, 1], [0, 0, 1, 0]],
         min_leaf_origin_time=3.0,
-        num_exposure_bins=4,
+        num_pendant_length_bins=4,
     )
     assert res["num_leaves"].tolist() == [0, 1]
 
@@ -283,10 +283,10 @@ def test_bootstrap_rare_trait():
 def test_tgs_bin_leaves():
     leaf_bins, group_ids = _tgs_bin_leaves(
         leaf_times=np.array([1.0, 2.0, 3.0, 4.0]),
-        leaf_lengths=np.array([0.5, 1.0, 1.5, 2.0]),
+        pendant_lengths=np.array([0.5, 1.0, 1.5, 2.0]),
         min_time=0.0,
-        num_exposure_bins=4,
-        num_calibration_exposure_cells=2,
+        num_pendant_length_bins=4,
+        num_calibration_pendant_length_cells=2,
         num_calibration_time_cells=2,
     )
     # time bins [0, 2), [2, 4]; length bins of width 0.5

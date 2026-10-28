@@ -7,14 +7,14 @@ from phyloframe._auxlib._tgs_fit import _tgs_calc_nll, tgs_fit
 
 def _sample(gain_rate: float, selection: float, seed: int):
     rng = np.random.default_rng(seed)
-    exposure = np.linspace(0.5, 60.0, 120)
-    num_trials = np.full_like(exposure, 20_000)
+    pendant_length = np.linspace(0.5, 60.0, 120)
+    num_trials = np.full_like(pendant_length, 20_000)
     p = (
-        gain_rate * exposure
+        gain_rate * pendant_length
         if selection == 0
-        else gain_rate * np.expm1(selection * exposure) / selection
+        else gain_rate * np.expm1(selection * pendant_length) / selection
     )
-    return num_trials, rng.binomial(num_trials.astype(int), p), exposure
+    return num_trials, rng.binomial(num_trials.astype(int), p), pendant_length
 
 
 @pytest.mark.parametrize("gain_rate", [1e-3, 2e-3])
