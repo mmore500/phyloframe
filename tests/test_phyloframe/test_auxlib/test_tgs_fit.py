@@ -1,9 +1,8 @@
 import numpy as np
 import pytest
+from scipy import optimize
 
-from phyloframe._auxlib._tgs_fit import (
-    tgs_fit,
-)
+from phyloframe._auxlib._tgs_fit import _tgs_calc_nll, tgs_fit
 
 
 def _sample(gain_rate: float, selection: float, seed: int):
@@ -50,3 +49,25 @@ def test_empty_bins_ignored():
     expected = tgs_fit(n, k, x)
     res = tgs_fit(np.append(n, 0), np.append(k, 0), np.append(x, 0.0))
     assert res == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("rate", [-0.1, -1e-8, 0.0, 1e-8, 0.05])
+def test_tgs_calc_nll_gradient(rate: float):
+    n, k, x = _sample(1e-3, -0.05, seed=3)
+
+    def nll(params):
+        return _tgs_calc_nll(n, k, x, np.exp(params[0]), params[1])[0]
+
+    def grad(params):
+        return _tgs_calc_nll(n, k, x, np.exp(params[0]), params[1])[1:]
+
+    params = np.array([np.log(1e-3), rate])
+    expected = optimize.approx_fprime(params, nll, [1e-6, 1e-9])
+    np.testing.assert_allclose(grad(params), expected, rtol=1e-4)
+
+
+def test_tgs_calc_nll_continuous_at_zero_rate():
+    n, k, x = _sample(1e-3, 0.0, seed=4)
+    at_zero = _tgs_calc_nll(n, k, x, 1e-3, 0.0)
+    near_zero = _tgs_calc_nll(n, k, x, 1e-3, 1e-12)
+    np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)

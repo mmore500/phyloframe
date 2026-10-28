@@ -4,6 +4,7 @@ from ._add_bool_arg import add_bool_arg
 from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
+from ._calc_binomial_nll import calc_binomial_nll
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -21,6 +22,7 @@ from ._get_package_name import get_package_name
 from ._get_phyloframe_version import get_phyloframe_version
 from ._is_in_coverage_run import is_in_coverage_run
 from ._is_subset import is_subset
+from ._iter_block_bootstrap_weights import iter_block_bootstrap_weights
 from ._jit import jit
 from ._jit_TypingError import jit_TypingError
 from ._jit_numba_dict_t import jit_numba_dict_t
@@ -55,6 +57,7 @@ __all__ = [
     "add_compression_cli_arg",
     "all_unique",
     "begin_prod_logging",
+    "calc_binomial_nll",
     "coerce_to_pandas",
     "coerce_to_polars",
     "collapse_nonleading_whitespace",
@@ -70,6 +73,7 @@ __all__ = [
     "get_phyloframe_version",
     "is_in_coverage_run",
     "is_subset",
+    "iter_block_bootstrap_weights",
     "jit",
     "jit_TypingError",
     "jit_numba_dict_t",
