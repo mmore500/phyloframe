@@ -39,6 +39,7 @@ from ._log_memory_usage import log_memory_usage
 from ._pairwise import pairwise
 from ._preserve_id_dtypes import preserve_id_dtypes
 from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
+from ._sample_block_bootstrap_counts import sample_block_bootstrap_counts
 from ._seed_random import seed_random
 from ._textwrap_respect_indents import textwrap_respect_indents
 from ._tgs_fit import TgsFitResult, tgs_fit
@@ -88,6 +89,7 @@ __all__ = [
     "pairwise",
     "preserve_id_dtypes",
     "preserve_id_dtypes_polars",
+    "sample_block_bootstrap_counts",
     "seed_random",
     "textwrap_respect_indents",
     "tgs_fit",

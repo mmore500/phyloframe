@@ -18,11 +18,12 @@ class TgsFitResult(typing.NamedTuple):
         unit pendant length; 0.0 if no leaf carries the trait.
     selection : float
         Estimated net selection on the trait, the rate at which a carrier
-        lineage's weight changes relative to a non-carrier's (negative for a
-        cost); nan if no leaf carries the trait.
+        lineage's expected number of sampled descendants grows relative to
+        a non-carrier's (negative for a cost); nan if no leaf carries the
+        trait.
     selection_lrt_naive : float
-        Likelihood-ratio statistic for selection = 0, treating bins as
-        independent; nan if no leaf carries the trait.
+        Likelihood-ratio test (LRT) statistic for selection = 0, naively
+        treating bins as independent; nan if no leaf carries the trait.
     """
 
     gain_rate: float
@@ -79,8 +80,9 @@ def tgs_fit(
 
         p = gain_rate * (exp(c * t) - 1) / c,  c = selection - loss_rate
 
-    i.e., gains arrive at constant `gain_rate` and each carrier lineage's
-    weight then changes at rate `c`. At `c` = 0, `p` grows linearly in
+    i.e., gains arrive at constant `gain_rate`, after which a carrier
+    lineage's expected number of sampled descendants, relative to a
+    non-carrier's, changes at rate `c`. At `c` = 0, `p` grows linearly in
     `t`; under a cost (`c` < 0), it saturates at ~`gain_rate` / |`c`|.
 
     In BiSSE terms (Maddison et al. 2007), `gain_rate` corresponds to the
@@ -110,12 +112,15 @@ def tgs_fit(
     TgsFitResult
         Named tuple of `gain_rate`, the estimated gain rate; `selection`,
         the estimated selection (negative for a cost); and
-        `selection_lrt_naive`, the likelihood-ratio statistic for
+        `selection_lrt_naive`, the likelihood-ratio test (LRT) statistic for
         selection = 0.
 
         The likelihood-ratio statistic treats bins as independent, so it
-        overstates significance when lineages are correlated (e.g., through
-        shared ancestry or space); prefer a block bootstrap for inference.
+        naively overstates significance when lineages are correlated (e.g.,
+        through shared ancestry or space). Prefer a block bootstrap for
+        inference, which resamples groups of correlated leaves together
+        (see `block_ids` and `num_bootstrap` in
+        `alifestd_estimate_trait_gain_selection_asexual`).
 
     See Also
     --------

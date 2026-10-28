@@ -6,28 +6,25 @@ import warnings
 
 import joblib
 import numpy as np
+import opytional as opyt
 import pandas as pd
 from scipy import stats
 
 from .._auxlib._estimate_standardized_rate_ratios import (
     estimate_standardized_rate_ratios,
 )
-from .._auxlib._jit import jit
+from .._auxlib._sample_block_bootstrap_counts import (
+    sample_block_bootstrap_counts,
+)
 from .._auxlib._tgs_fit import TgsFitResult, tgs_fit
 from .._auxlib._with_rng_state_context import with_rng_state_context
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
-from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
-)
+from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._alifestd_mask_leaf_trait_inherited_asexual import (
     _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask,
     _alifestd_mask_leaf_trait_inherited_asexual_fast_path,
 )
 from ._alifestd_to_working_format import alifestd_to_working_format
-
-# columns of per-trait fits from `_tgs_fit_traits`, where tgs stands for trait
-# gain/selection
-_tgs_columns = (*TgsFitResult._fields, "gain_ratio")
 
 
 def _tgs_bin_leaves(
@@ -48,6 +45,9 @@ def _tgs_bin_leaves(
     crossed with runs of length bins holding approximately equal leaf
     counts.
     """
+    # digitize against interior edges only ([1:-1]), so that values at either
+    # end land in the first or last bin rather than outside; with one bin,
+    # there are no interior edges and every value lands in bin 0
     time_bins = np.digitize(
         leaf_times,
         np.linspace(
@@ -67,10 +67,11 @@ def _tgs_bin_leaves(
     length_groups = np.digitize(
         np.arange(num_pendant_length_bins), np.unique(length_quantiles)
     )
-    group_ids = (
-        np.arange(num_calibration_time_groups)[:, None]
-        * num_calibration_pendant_length_groups
-        + length_groups
+    # calibration group of each (time bin, length bin), in flat bin order
+    group_ids = np.add.outer(
+        np.arange(num_calibration_time_groups)
+        * num_calibration_pendant_length_groups,
+        length_groups,
     )
     return time_bins * num_pendant_length_bins + length_bins, group_ids.ravel()
 
@@ -81,18 +82,20 @@ def _tgs_fit_traits(
     leaf_weights: np.ndarray,
     trait_leaves: typing.Sequence[np.ndarray],
     trait_carriers: typing.Sequence[np.ndarray],
+    trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
     calibration_group_ids: np.ndarray,
     loss_rate: float,
-) -> np.ndarray:
+    log_calibration: bool = False,
+) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
-    Returns array of shape (num_traits, len(_tgs_columns)), with columns
-    named by `_tgs_columns`.
+    Returns one row per trait, with columns of `TgsFitResult` plus
+    `gain_ratio`, the gain rate relative to neutral traits.
     """
     bincount = functools.partial(
         np.bincount, minlength=len(calibration_group_ids)
@@ -117,39 +120,31 @@ def _tgs_fit_traits(
             pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
         )
         if calibrate:
-            pendant_length *= estimate_standardized_rate_ratios(
-                sum(counts[r][1] for r in refs[trait]),
-                sum(counts[r][2] for r in refs[trait]),
-                calibration_group_ids,
+            ratios = estimate_standardized_rate_ratios(
+                num_events=sum(counts[r][1] for r in refs[trait]),
+                exposure=sum(counts[r][2] for r in refs[trait]),
+                group_ids=calibration_group_ids,
             )
+            if log_calibration and (n > 0).any():
+                low, mid, high = np.quantile(ratios[n > 0], [0, 0.5, 1])
+                logging.info(
+                    "- alifestd_estimate_trait_gain_selection_asexual: "
+                    f"calibrating trait {trait_names[trait]}, rescaling "
+                    f"pendant lengths by {low:.3g} to {high:.3g} "
+                    f"(median {mid:.3g})",
+                )
+            pendant_length *= ratios
         fits.append(tgs_fit(n, k, pendant_length, loss_rate=loss_rate))
 
     # normalize each gain rate by the mean gain rate of its neutral reference
-    gain_rates = np.array([fit.gain_rate for fit in fits])
-    gain_ratios = [
-        gain_rates[trait] / gain_rates[refs[trait]].mean()
+    res = pd.DataFrame(fits, columns=TgsFitResult._fields)
+    res["gain_ratio"] = [
+        res["gain_rate"][trait] / res["gain_rate"][refs[trait]].mean()
         if refs[trait]
         else np.nan
-        for trait in range(len(fits))
+        for trait in range(len(res))
     ]
-    return np.column_stack(
-        [np.reshape(fits, (len(fits), len(TgsFitResult._fields))), gain_ratios]
-    )
-
-
-@jit(nopython=True)
-def _tgs_draw_blocks(num_blocks: int, num_bootstrap: int) -> np.ndarray:
-    """Implementation detail for `_tgs_bootstrap`.
-
-    Here, tgs stands for trait gain/selection.
-
-    Returns array of shape (num_bootstrap, num_blocks) of times each block
-    is drawn, resampling blocks with replacement. Jitted so that seeding via
-    `with_rng_state_context` applies.
-    """
-    return np.random.multinomial(
-        num_blocks, np.full(num_blocks, 1 / num_blocks), size=num_bootstrap
-    )
+    return res
 
 
 def _tgs_bootstrap(
@@ -158,31 +153,34 @@ def _tgs_bootstrap(
     num_bootstrap: int,
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
-) -> np.ndarray:
+) -> typing.List[pd.DataFrame]:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
-    Returns array of shape (num_bootstrap, num_traits, 4) of fits to block
-    bootstrap resamples; see `_tgs_fit_traits`.
+    Returns fits to block bootstrap resamples, one dataframe per replicate;
+    see `_tgs_fit_traits`.
     """
-    # each replicate weights leaves by their block's draws, rather than
-    # copying resampled leaves
-    block_draws = _tgs_draw_blocks(leaf_blocks.max() + 1, num_bootstrap)
+    # each replicate weights leaves by how many times their block was drawn
+    # (0, 1, 2, ..., not a binary mask), which is equivalent to copying the
+    # leaves of each drawn block
+    block_counts = sample_block_bootstrap_counts(
+        leaf_blocks.max() + 1, num_bootstrap
+    )
     jobs = (
         joblib.delayed(_tgs_fit_traits)(
-            leaf_weights=draws[leaf_blocks].astype(np.float64), **fit_kwargs
+            leaf_weights=counts[leaf_blocks].astype(np.float64), **fit_kwargs
         )
-        for draws in block_draws
+        for counts in block_counts
     )
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
-        return np.array(joblib.Parallel()(progress_wrap(jobs)))
+        return joblib.Parallel()(progress_wrap(jobs))
 
 
 def _tgs_summarize_bootstrap(
     point: pd.DataFrame,
-    reps: np.ndarray,
+    reps: typing.Sequence[pd.DataFrame],
 ) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
@@ -195,11 +193,10 @@ def _tgs_summarize_bootstrap(
     # replicates resampling no carriers of a trait leave selection undefined
     # and gain ratio zero, so exclude them; gain ratio is also undefined
     # without neutral traits, which does not make a replicate degenerate
-    selection_reps = reps[:, :, _tgs_columns.index("selection")]
+    # (selection is still estimable)
+    selection_reps = np.array([rep["selection"] for rep in reps])
     with np.errstate(divide="ignore"):
-        log_gain_ratio_reps = np.log(
-            reps[:, :, _tgs_columns.index("gain_ratio")]
-        )
+        log_gain_ratio_reps = np.log([rep["gain_ratio"] for rep in reps])
     is_degenerate = ~np.isfinite(selection_reps)
     num_degenerate = is_degenerate.sum(axis=0)
     if num_degenerate.any():
@@ -214,26 +211,27 @@ def _tgs_summarize_bootstrap(
             "underestimated.",
         )
 
-    with warnings.catch_warnings():  # all-degenerate traits get nan
-        warnings.simplefilter("ignore", RuntimeWarning)
-        selection_se, log_gain_ratio_se = (
-            np.nanstd(np.where(is_degenerate, np.nan, x), axis=0, ddof=1)
-            for x in (selection_reps, log_gain_ratio_reps)
-        )
+    def bootstrap_se(x: np.ndarray) -> np.ndarray:
+        with warnings.catch_warnings():  # all-degenerate traits get nan
+            warnings.simplefilter("ignore", RuntimeWarning)
+            return np.nanstd(
+                np.where(is_degenerate, np.nan, x), axis=0, ddof=1
+            )
 
-    selection_z = point["selection"] / selection_se
-    gain_ratio_z = np.log(point["gain_ratio"]) / log_gain_ratio_se
-    return pd.DataFrame(
-        {
-            "selection_se": selection_se,
-            "selection_z": selection_z,
-            "selection_p": 2 * stats.norm.sf(np.abs(selection_z)),
-            "log_gain_ratio_se": log_gain_ratio_se,
-            "gain_ratio_z": gain_ratio_z,
-            "gain_ratio_p": 2 * stats.norm.sf(np.abs(gain_ratio_z)),
-            "num_bootstrap_degenerate": num_degenerate,
-        },
+    def two_sided_p(z: pd.Series) -> np.ndarray:
+        return 2 * stats.norm.sf(np.abs(z))
+
+    res = pd.DataFrame(index=point.index)
+    res["selection_se"] = bootstrap_se(selection_reps)
+    res["selection_z"] = point["selection"] / res["selection_se"]
+    res["selection_p"] = two_sided_p(res["selection_z"])
+    res["log_gain_ratio_se"] = bootstrap_se(log_gain_ratio_reps)
+    res["gain_ratio_z"] = (
+        np.log(point["gain_ratio"]) / res["log_gain_ratio_se"]
     )
+    res["gain_ratio_p"] = two_sided_p(res["gain_ratio_z"])
+    res["num_bootstrap_degenerate"] = num_degenerate
+    return res
 
 
 def _tgs_impl(
@@ -264,23 +262,34 @@ def _tgs_impl(
     sorted ids and no unifurcations: ancestor ids, origin times, boolean
     trait masks, and bootstrap blocks.
     """
+    for name, value in (
+        ("num_pendant_length_bins", num_pendant_length_bins),
+        (
+            "num_calibration_pendant_length_groups",
+            num_calibration_pendant_length_groups,
+        ),
+        ("num_calibration_time_groups", num_calibration_time_groups),
+    ):
+        if value < 1:
+            raise ValueError(f"{name} must be at least 1, got {value}")
+
     neutral_traits = np.unique(
         np.arange(len(trait_masks))[list(map(operator.index, neutral_traits))]
     ).tolist()
     if calibrate and len(neutral_traits) < 2:
         raise ValueError("calibration requires at least two neutral traits")
-    for trait in neutral_traits:
+    if neutral_traits:
         logging.info(
             "- alifestd_estimate_trait_gain_selection_asexual: "
-            f"excluding trait {trait_names[trait]} from its own neutral "
-            "reference",
+            f"excluding each of {len(neutral_traits)} neutral traits from "
+            "its own neutral reference",
         )
 
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     origin_time = np.asarray(origin_time, dtype=np.float64)
     length = origin_time - origin_time[ancestor_ids]
     is_used = (
-        (_alifestd_mark_num_children_asexual_fast_path(ancestor_ids) == 0)
+        _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
         & (length > 0)  # excludes root leaves and nan
         & (origin_time >= min_leaf_origin_time)
     )
@@ -309,7 +318,7 @@ def _tgs_impl(
         },
     )
     if not is_used.any():  # no informative leaves, so nothing to fit
-        reps = np.full((num_bootstrap, len(res), len(_tgs_columns)), np.nan)
+        reps = [res] * num_bootstrap
     else:
         if block_ids is None:
             leaf_blocks = np.arange(is_used.sum())
@@ -333,6 +342,7 @@ def _tgs_impl(
             pendant_lengths=length[is_used],
             trait_leaves=trait_leaves,
             trait_carriers=trait_carriers,
+            trait_names=trait_names,
             neutral_traits=neutral_traits,
             calibrate=calibrate,
             calibration_group_ids=group_ids,
@@ -342,19 +352,22 @@ def _tgs_impl(
             "- alifestd_estimate_trait_gain_selection_asexual: "
             f"fitting {len(trait_masks)} traits to {len(leaf_bins)} leaves...",
         )
-        res[list(_tgs_columns)] = _tgs_fit_traits(
-            leaf_weights=np.ones(len(leaf_bins)), **fit_kwargs
+        point = _tgs_fit_traits(
+            leaf_weights=np.ones(len(leaf_bins)),
+            log_calibration=True,
+            **fit_kwargs,
         )
+        res[list(point.columns)] = point
         if num_bootstrap:
             logging.info(
                 "- alifestd_estimate_trait_gain_selection_asexual: "
                 f"fitting {num_bootstrap} bootstrap replicates "
                 f"over {leaf_blocks.max() + 1} blocks...",
             )
-        bootstrap = (
-            with_rng_state_context(seed)(_tgs_bootstrap)
-            if seed is not None
-            else _tgs_bootstrap
+        bootstrap = opyt.apply_if_or_value(
+            seed,
+            lambda seed: with_rng_state_context(seed)(_tgs_bootstrap),
+            _tgs_bootstrap,
         )
         reps = bootstrap(
             fit_kwargs,
@@ -507,19 +520,14 @@ def alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df = phylogeny_df.copy()
 
     # stash per-node inputs as columns, so they follow any reordering
-    trait_cols = [
-        f"alifestd_estimate_trait_gain_selection_asexual_trait{i}"
-        for i in range(num_traits)
-    ]
-    for col, mask, name in zip(trait_cols, trait_masks, trait_names):
+    for i, (mask, name) in enumerate(zip(trait_masks, trait_names)):
         phylogeny_df[
-            col
+            f"__alifestd_tgs_trait{i}"
         ] = _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
             mask, name=f"trait mask {name}"
         )
-    block_col = "alifestd_estimate_trait_gain_selection_asexual_block"
     if block_ids is not None:
-        phylogeny_df[block_col] = np.asarray(block_ids)
+        phylogeny_df["__alifestd_tgs_block_ids"] = np.asarray(block_ids)
 
     phylogeny_df = alifestd_collapse_unifurcations(
         phylogeny_df, mutate=True, ignore_topological_sensitivity=True
@@ -528,9 +536,14 @@ def alifestd_estimate_trait_gain_selection_asexual(
     return _tgs_impl(
         ancestor_ids=phylogeny_df["ancestor_id"].to_numpy(),
         origin_time=phylogeny_df["origin_time"].to_numpy(),
-        trait_masks=[phylogeny_df[col].to_numpy() for col in trait_cols],
+        trait_masks=[
+            phylogeny_df[f"__alifestd_tgs_trait{i}"].to_numpy()
+            for i in range(num_traits)
+        ],
         block_ids=(
-            None if block_ids is None else phylogeny_df[block_col].to_numpy()
+            None
+            if block_ids is None
+            else phylogeny_df["__alifestd_tgs_block_ids"].to_numpy()
         ),
         trait_names=trait_names,
         neutral_traits=neutral_traits,

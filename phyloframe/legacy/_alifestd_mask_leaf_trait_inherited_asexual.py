@@ -6,9 +6,7 @@ import pandas as pd
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
-from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
-)
+from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._alifestd_mask_monomorphic_clades_asexual import (
     _alifestd_mask_monomorphic_clades_asexual_fast_path,
 )
@@ -40,7 +38,7 @@ def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_mask_leaf_trait_inherited_asexual`."""
-    is_leaf = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) == 0
+    is_leaf = _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
     is_present = is_leaf & trait_mask
     # a clade is monomorphic with respect to leaf trait values if all its
     # leaves share one value
