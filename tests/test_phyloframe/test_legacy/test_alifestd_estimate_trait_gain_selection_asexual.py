@@ -327,8 +327,8 @@ def test_tgs_bin_leaves():
         pendant_lengths=np.array([0.5, 1.0, 1.5, 2.0]),
         min_time=0.0,
         num_pendant_length_bins=4,
-        num_calibration_pendant_length_cells=2,
-        num_calibration_time_cells=2,
+        num_calibration_pendant_length_groups=2,
+        num_calibration_time_groups=2,
     )
     # time bins [0, 2), [2, 4]; length bins of width 0.5
     np.testing.assert_array_equal(leaf_bins, [1, 6, 7, 7])

@@ -10,6 +10,19 @@ class TgsFitResult(typing.NamedTuple):
     """Result of `tgs_fit`.
 
     Here, tgs stands for trait gain/selection.
+
+    Attributes
+    ----------
+    gain_rate : float
+        Estimated rate at which non-carrier lineages gain the trait, per
+        unit pendant length; 0.0 if no leaf carries the trait.
+    selection : float
+        Estimated net selection on the trait, the rate at which a carrier
+        lineage's weight changes relative to a non-carrier's (negative for a
+        cost); nan if no leaf carries the trait.
+    selection_lrt_naive : float
+        Likelihood-ratio statistic for selection = 0, treating bins as
+        independent; nan if no leaf carries the trait.
     """
 
     gain_rate: float
@@ -31,9 +44,10 @@ def _tgs_calc_nll(
     Returns negative log likelihood and its derivatives with respect to log
     gain rate and to `rate` (selection minus loss rate).
     """
+    # p = gain_rate * g, with g = (exp(rate * t) - 1) / rate for pendant
+    # length t, and dg = d g / d rate
     cx = rate * pendant_length
-    # expm1(cx) / rate, finite at rate = 0
-    g = pendant_length * special.exprel(cx)
+    g = pendant_length * special.exprel(cx)  # exprel(x) = (exp(x) - 1) / x
     small = np.abs(cx) < 1e-6  # use series expansion of dg near rate = 0
     dg = np.where(
         small,
@@ -103,12 +117,6 @@ def tgs_fit(
         overstates significance when lineages are correlated (e.g., through
         shared ancestry or space); prefer a block bootstrap for inference.
 
-    Notes
-    -----
-    Not a GLM, as `p` is nonlinear in `c`, so the negative log likelihood
-    and its analytic gradient are minimized directly with L-BFGS-B, from
-    several starting points.
-
     See Also
     --------
     alifestd_estimate_trait_gain_selection_asexual :
@@ -126,7 +134,7 @@ def tgs_fit(
 
     keep = num_trials > 0
     n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
-    if not len(n) or not k.sum():
+    if not keep.any() or not num_successes.any():
         return TgsFitResult(0.0, np.nan, np.nan)
 
     # optimize selection in units of 1 / mean pendant length, for conditioning
@@ -144,18 +152,24 @@ def tgs_fit(
         )
         return res, np.array([dlog_gain])
 
+    # L-BFGS-B minimizes a differentiable nonlinear function (optionally
+    # under box constraints); jac=True as nll returns its own gradient
     minimize_kwargs = dict(
         jac=True,
         method="L-BFGS-B",
         options=dict(ftol=1e-15, gtol=1e-10, maxiter=1000),
     )
-    x0 = np.array([np.log(k.sum() / (n * x).sum()), -0.3])
+    # start log gain rate at its neutral estimate, carriers per unit pendant
+    # length; start selection, in units of 1 / mean pendant length, at no
+    # cost, a mild cost, and a strong cost, keeping the best fit in case the
+    # optimizer stalls in a local minimum
+    log_gain0 = np.log(k.sum() / (n * x).sum())
     best = min(
         (
-            optimize.minimize(nll, start, **minimize_kwargs)
-            for start in (x0, x0 + [0.0, 0.3], x0 + [0.0, -1.5])
+            optimize.minimize(nll, [log_gain0, selection0], **minimize_kwargs)
+            for selection0 in (-0.3, 0.0, -1.8)
         ),
-        key=lambda res: res.fun,
+        key=lambda res: res.fun,  # .fun is the minimized nll
     )
     null = optimize.minimize(null_nll, best.x[:1], **minimize_kwargs)
     return TgsFitResult(
