@@ -71,3 +71,13 @@ def test_tgs_calc_nll_continuous_at_zero_rate():
     at_zero = _tgs_calc_nll(n, k, x, 1e-3, 0.0)
     near_zero = _tgs_calc_nll(n, k, x, 1e-3, 1e-12)
     np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)
+
+
+def test_result_fields():
+    res = tgs_fit(*_sample(1e-3, -0.05, seed=5))
+    gain, sel, lrt = res
+    assert (res.gain_rate, res.selection, res.selection_lrt_naive) == (
+        gain,
+        sel,
+        lrt,
+    )

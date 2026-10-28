@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -257,6 +259,45 @@ def test_parallel_backend_matches_serial(parallel_backend: str):
         phylogeny_df, parallel_backend=parallel_backend, **kwargs
     )
     pd.testing.assert_frame_equal(res, expected)
+
+
+def test_seed_reproducible():
+    phylogeny_df, traits, blocks = _make_cherries(2_000)
+
+    def run(seed):
+        return alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=traits,
+            block_ids=blocks,
+            num_bootstrap=4,
+            seed=seed,
+        )
+
+    np.random.seed(5)
+    expected_state = np.random.get_state()[1].copy()
+    res1, res2, res3 = run(1), run(1), run(2)
+    # seeded runs leave global rng state untouched
+    np.testing.assert_array_equal(np.random.get_state()[1], expected_state)
+    pd.testing.assert_frame_equal(res1, res2)
+    assert not res1["selection_se"].equals(res3["selection_se"])
+
+
+def test_bootstrap_without_neutral_traits():
+    phylogeny_df, traits, blocks = _make_cherries(2_000)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # no degenerate-replicate warning
+        res = alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=traits,
+            block_ids=blocks,
+            num_bootstrap=4,
+            seed=1,
+        )
+    # gain ratio is undefined, but selection still gets standard errors
+    assert np.isnan(res["gain_ratio"]).all()
+    assert np.isnan(res["log_gain_ratio_se"]).all()
+    assert np.isfinite(res["selection_se"]).all()
+    assert (res["num_bootstrap_degenerate"] == 0).all()
 
 
 def test_bootstrap_rare_trait():
