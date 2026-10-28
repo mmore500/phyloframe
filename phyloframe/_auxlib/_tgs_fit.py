@@ -66,6 +66,7 @@ def tgs_fit(
     pendant_length: np.ndarray,
     *,
     loss_rate: float = 0.0,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
 ) -> TgsFitResult:
     """Maximum likelihood fit of a binary trait's gain rate and net
     selection from how often leaves carry it, given their pendant branch
@@ -106,6 +107,11 @@ def tgs_fit(
     loss_rate : float, default 0.0
         Known trait loss rate; with few carriers, loss and cost are
         confounded, so loss is fixed rather than fit.
+    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for selection, in units of 1 / mean pendant length;
+        the best of the resulting fits is kept. Defaults span no cost, a
+        mild cost, and a strong cost, under which carrier frequency
+        saturates within about half a mean pendant length.
 
     Returns
     -------
@@ -132,6 +138,7 @@ def tgs_fit(
     Maddison, W. P., Midford, P. E., and Otto, S. P. (2007). Estimating a
     binary character's effect on speciation and extinction. Systematic
     Biology, 56(5), 701-710.
+    https://doi.org/10.1080/10635150701607033
     """
     num_trials = np.asarray(num_trials, dtype=np.float64).ravel()
     num_successes = np.asarray(num_successes, dtype=np.float64).ravel()
@@ -157,22 +164,17 @@ def tgs_fit(
         )
         return res, np.array([dlog_gain])
 
-    # L-BFGS-B minimizes a differentiable nonlinear function (optionally
-    # under box constraints); jac=True as nll returns its own gradient
-    minimize_kwargs = dict(
-        jac=True,
-        method="L-BFGS-B",
-        options=dict(ftol=1e-15, gtol=1e-10, maxiter=1000),
-    )
+    # L-BFGS-B minimizes a differentiable nonlinear function using its
+    # gradient; jac=True as nll returns its own gradient
+    minimize_kwargs = dict(jac=True, method="L-BFGS-B")
     # start log gain rate at its neutral estimate, carriers per unit pendant
-    # length; start selection, in units of 1 / mean pendant length, at no
-    # cost, a mild cost, and a strong cost, keeping the best fit in case the
-    # optimizer stalls in a local minimum
+    # length, and selection at each of `selection_starts`, keeping the best
+    # fit in case the optimizer stalls in a local minimum
     log_gain0 = np.log(k.sum() / (n * x).sum())
     best = min(
         (
             optimize.minimize(nll, [log_gain0, selection0], **minimize_kwargs)
-            for selection0 in (-0.3, 0.0, -1.8)
+            for selection0 in selection_starts
         ),
         key=lambda res: res.fun,  # .fun is the minimized nll
     )
