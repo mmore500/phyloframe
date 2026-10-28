@@ -3,6 +3,9 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import alifestd_estimate_trait_gain_selection_asexual
+from phyloframe.legacy._alifestd_estimate_trait_gain_selection_asexual import (
+    _tgs_bin_leaves,
+)
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
@@ -139,3 +142,135 @@ def test_calibrate_requires_neutral():
             calibrate=True,
             neutral_traits=[1],
         )
+
+
+def test_neutral_traits_normalized():
+    phylogeny_df, traits, __ = _make_cherries(2_000)
+    kwargs = dict(trait_masks=traits, calibrate=True)
+    expected = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, neutral_traits=[1, 2, 3, 4], **kwargs
+    )
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, neutral_traits=[-1, -2, -3, -4, 4], **kwargs
+    )
+    pd.testing.assert_frame_equal(res, expected)
+
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, neutral_traits=[1, 1], **kwargs
+        )
+
+
+def test_unifurcations_bypassed():
+    phylogeny_df, traits, __ = _make_cherries(2_000)
+    expected = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, trait_masks=traits, neutral_traits=[1, 2, 3, 4]
+    )
+
+    # insert a knuckle midway along each pendant branch
+    leaves = phylogeny_df.index[
+        ~phylogeny_df["id"].isin(phylogeny_df["ancestor_id"])
+    ]
+    knuckles = phylogeny_df.loc[leaves].copy()
+    knuckles["id"] = np.arange(len(knuckles)) + len(phylogeny_df)
+    knuckles["origin_time"] = (
+        knuckles["origin_time"]
+        + phylogeny_df.loc[knuckles["ancestor_id"], "origin_time"].to_numpy()
+    ) / 2
+    knuckled_df = phylogeny_df.copy()
+    knuckled_df.loc[leaves, "ancestor_id"] = knuckles["id"].to_numpy()
+    knuckled_df = pd.concat([knuckled_df, knuckles], ignore_index=True)
+    knuckled_traits = np.hstack([traits, traits[:, leaves]])
+
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        knuckled_df, trait_masks=knuckled_traits, neutral_traits=[1, 2, 3, 4]
+    )
+    pd.testing.assert_frame_equal(res, expected)
+
+
+def test_nan_origin_time_ignored():
+    phylogeny_df, traits, __ = _make_cherries(2_000)
+    kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
+    expected = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, trait_masks=traits, **kwargs
+    )
+
+    # add a disconnected root with unknown origin time
+    nan_df = pd.concat(
+        [
+            phylogeny_df,
+            pd.DataFrame(
+                {
+                    "id": [len(phylogeny_df)],
+                    "ancestor_id": [len(phylogeny_df)],
+                    "origin_time": [np.nan],
+                },
+            ),
+        ],
+        ignore_index=True,
+    )
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        nan_df,
+        trait_masks=np.hstack([traits, np.ones((5, 1), dtype=bool)]),
+        **kwargs,
+    )
+    pd.testing.assert_frame_equal(res, expected)
+
+
+def test_null_trait_mask_absent():
+    phylogeny_df, traits, __ = _make_cherries(2_000)
+    expected = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, trait_masks=traits
+    )
+    nullable = np.where(traits, 1.0, np.nan)
+    with pytest.warns(UserWarning, match="null"):
+        res = alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, trait_masks=nullable
+        )
+    pd.testing.assert_frame_equal(res, expected)
+
+
+def test_null_block_ids_raise():
+    phylogeny_df, traits, blocks = _make_cherries(100)
+    blocks = blocks.astype(float)
+    blocks[-1] = np.nan
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, trait_masks=traits, block_ids=blocks
+        )
+
+
+def test_bootstrap_rare_trait():
+    phylogeny_df, traits, __ = _make_cherries(20_000)
+    rare = np.zeros_like(traits[0])
+    rare[np.flatnonzero(traits[1])[0]] = True
+    with pytest.warns(UserWarning, match="bootstrap"):
+        res = alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=[rare, *traits[1:]],
+            neutral_traits=[1, 2, 3, 4],
+            num_bootstrap=50,
+            seed=1,
+        )
+    # one block per leaf, so replicates often resample no rare carriers
+    assert 0 < res.loc[0, "num_bootstrap_degenerate"] < 50
+    assert (res.loc[1:, "num_bootstrap_degenerate"] == 0).all()
+    assert np.isfinite(res["selection_se"]).all()
+    assert np.isfinite(res["log_gain_ratio_se"]).all()
+
+
+def test_tgs_bin_leaves():
+    leaf_bins, group_ids = _tgs_bin_leaves(
+        leaf_times=np.array([1.0, 2.0, 3.0, 4.0]),
+        leaf_lengths=np.array([0.5, 1.0, 1.5, 2.0]),
+        min_time=0.0,
+        num_exposure_bins=4,
+        num_calibration_exposure_cells=2,
+        num_calibration_time_cells=2,
+    )
+    # time bins [0, 2), [2, 4]; length bins of width 0.5
+    np.testing.assert_array_equal(leaf_bins, [1, 6, 7, 7])
+    assert group_ids.shape == (2 * 4,)
+    # leaves fall in length bins 1, 2, 3, 3; median 2.5 splits bins into
+    # equal-occupancy groups {0, 1, 2} and {3}, crossed with time bins
+    np.testing.assert_array_equal(group_ids, [0, 0, 0, 1, 2, 2, 2, 3])

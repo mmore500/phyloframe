@@ -5,14 +5,14 @@ import numpy as np
 from scipy import optimize
 
 
-def _calc_gain_selection_exposure_nll(
+def _tgs_calc_nll(
     num_trials: np.ndarray,
     num_successes: np.ndarray,
     exposure: np.ndarray,
     gain_rate: float,
     rate: float,
 ) -> typing.Tuple[float, float, float]:
-    """Implementation detail for `fit_gain_selection_exposure`.
+    """Implementation detail for `tgs_fit`.
 
     Returns negative log likelihood and its derivatives with respect to log
     gain rate and to `rate` (selection minus loss rate).
@@ -26,9 +26,12 @@ def _calc_gain_selection_exposure_nll(
         exposure * exposure * (0.5 + cx / 3),
         (exposure * np.exp(cx) - g) / safe_rate,
     )
-    p = gain_rate * g
-    is_clipped = (p <= 1e-300) | (p >= 1 - 1e-12)
-    p = np.clip(p, 1e-300, 1 - 1e-12)
+    # keep log terms finite where p leaves (0, 1), i.e., where exposure * g
+    # underflows or optimizer trial steps overshoot; gradient there is zeroed
+    finfo = np.finfo(np.float64)
+    unclipped_p = gain_rate * g
+    p = np.clip(unclipped_p, finfo.tiny, 1 - finfo.epsneg)
+    is_clipped = p != unclipped_p
 
     nll = -np.sum(
         num_successes * np.log(p) + (num_trials - num_successes) * np.log1p(-p)
@@ -41,15 +44,15 @@ def _calc_gain_selection_exposure_nll(
     return nll, np.sum(dnll_dp * p), np.sum(dnll_dp * gain_rate * dg)
 
 
-def fit_gain_selection_exposure(
+def tgs_fit(
     num_trials: np.ndarray,
     num_successes: np.ndarray,
     exposure: np.ndarray,
     *,
     loss_rate: float = 0.0,
 ) -> typing.Tuple[float, float, float]:
-    """Maximum likelihood fit of trait gain rate and net selection from
-    binomial counts observed at known exposures.
+    """Maximum likelihood fit of a binary trait's gain rate and net
+    selection from how often lineages carry it after known exposures.
 
     A lineage observed after `exposure` time units, starting without the
     trait, carries the trait with probability
@@ -59,6 +62,14 @@ def fit_gain_selection_exposure(
     i.e., gains arrive at constant `gain_rate` and each carrier lineage's
     weight then changes at rate `c`. At `c` = 0, `p` grows linearly in
     exposure; under a cost (`c` < 0), it saturates at ~`gain_rate` / |`c`|.
+
+    In BiSSE terms (Maddison et al. 2007), `gain_rate` corresponds to the
+    0 -> 1 transition rate q01, `loss_rate` to q10, and `selection` to the
+    difference in net diversification rate between states, (lambda1 - mu1)
+    - (lambda0 - mu0). Unlike BiSSE, which fits a full tree likelihood,
+    this model considers each pendant branch (`exposure`) independently and
+    to first order in the trait frequency, so it scales to large trees with
+    rare traits.
 
     Parameters
     ----------
@@ -81,6 +92,23 @@ def fit_gain_selection_exposure(
         The likelihood-ratio statistic treats bins as independent, so it
         overstates significance when lineages are correlated (e.g., through
         shared ancestry or space); prefer a block bootstrap for inference.
+
+    Notes
+    -----
+    Not a GLM, as `p` is nonlinear in `c`, so the negative log likelihood
+    and its analytic gradient are minimized directly with L-BFGS-B, from
+    several starting points.
+
+    See Also
+    --------
+    alifestd_estimate_trait_gain_selection_asexual :
+        Applies this fit to leaf pendant branches of a phylogeny.
+
+    References
+    ----------
+    Maddison, W. P., Midford, P. E., and Otto, S. P. (2007). Estimating a
+    binary character's effect on speciation and extinction. Systematic
+    Biology, 56(5), 701-710.
     """
     num_trials = np.asarray(num_trials, dtype=np.float64).ravel()
     num_successes = np.asarray(num_successes, dtype=np.float64).ravel()
@@ -95,13 +123,13 @@ def fit_gain_selection_exposure(
     unit = 1.0 / np.average(x, weights=n)
 
     def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
-        res, dlog_gain, drate = _calc_gain_selection_exposure_nll(
+        res, dlog_gain, drate = _tgs_calc_nll(
             n, k, x, np.exp(params[0]), params[1] * unit - loss_rate
         )
         return res, np.array([dlog_gain, drate * unit])
 
     def null_nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
-        res, dlog_gain, __ = _calc_gain_selection_exposure_nll(
+        res, dlog_gain, __ = _tgs_calc_nll(
             n, k, x, np.exp(params[0]), -loss_rate
         )
         return res, np.array([dlog_gain])

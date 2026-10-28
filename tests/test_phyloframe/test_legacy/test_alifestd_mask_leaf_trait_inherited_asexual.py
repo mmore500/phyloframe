@@ -97,3 +97,27 @@ def test_unsorted_noncontiguous():
         trait_mask=trait_mask[order],
     ).set_index("id")["alifestd_mask_leaf_trait_inherited_asexual"]
     assert [res[i * 10 + 3] for i in range(9)] == expected.tolist()
+
+
+@pytest.mark.parametrize(
+    "trait_mask",
+    [
+        [np.nan, np.nan, 1.0, np.nan],
+        pd.array([None, None, True, None], dtype="boolean"),
+    ],
+)
+def test_null_trait_mask_absent(trait_mask):
+    #     0
+    #   1   2
+    #       3
+    phylogeny_df = pd.DataFrame(
+        {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 2]}
+    )
+    with pytest.warns(UserWarning, match="null"):
+        res = alifestd_mask_leaf_trait_inherited_asexual(
+            phylogeny_df, trait_mask=trait_mask
+        )
+    expected = alifestd_mask_leaf_trait_inherited_asexual(
+        phylogeny_df, trait_mask=[False, False, True, False]
+    )
+    pd.testing.assert_frame_equal(res, expected)

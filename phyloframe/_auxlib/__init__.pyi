@@ -4,7 +4,6 @@ from ._add_bool_arg import add_bool_arg
 from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
-from ._calibrate_exposure import calibrate_exposure
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -12,9 +11,11 @@ from ._configure_prod_logging import configure_prod_logging
 from ._count_leading_blanks import count_leading_blanks
 from ._delegate_polars_implementation import delegate_polars_implementation
 from ._estimate_binomial_p import estimate_binomial_p
+from ._estimate_standardized_rate_ratios import (
+    estimate_standardized_rate_ratios,
+)
 from ._eval_kwargs import eval_kwargs
 from ._fit_fblr import fit_fblr
-from ._fit_gain_selection_exposure import fit_gain_selection_exposure
 from ._format_cli_description import format_cli_description
 from ._get_package_name import get_package_name
 from ._get_phyloframe_version import get_phyloframe_version
@@ -39,6 +40,7 @@ from ._preserve_id_dtypes import preserve_id_dtypes
 from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
 from ._seed_random import seed_random
 from ._textwrap_respect_indents import textwrap_respect_indents
+from ._tgs_fit import tgs_fit
 from ._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
@@ -53,7 +55,6 @@ __all__ = [
     "add_compression_cli_arg",
     "all_unique",
     "begin_prod_logging",
-    "calibrate_exposure",
     "coerce_to_pandas",
     "coerce_to_polars",
     "collapse_nonleading_whitespace",
@@ -61,9 +62,9 @@ __all__ = [
     "count_leading_blanks",
     "delegate_polars_implementation",
     "estimate_binomial_p",
+    "estimate_standardized_rate_ratios",
     "eval_kwargs",
     "fit_fblr",
-    "fit_gain_selection_exposure",
     "format_cli_description",
     "get_package_name",
     "get_phyloframe_version",
@@ -86,6 +87,7 @@ __all__ = [
     "preserve_id_dtypes_polars",
     "seed_random",
     "textwrap_respect_indents",
+    "tgs_fit",
     "unfurl_lineage_with_contiguous_ids",
     "warn_once",
     "with_rng_state_context",
