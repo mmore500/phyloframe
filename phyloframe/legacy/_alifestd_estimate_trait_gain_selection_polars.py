@@ -166,20 +166,15 @@ def alifestd_estimate_trait_gain_selection_polars(
             "supports asexual phylogenies.",
         )
 
-    is_empty = phylogeny_df.lazy().limit(1).collect().is_empty()
-    if not is_empty and not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-contiguous ids not supported",
-        )
-
-    if not is_empty and not alifestd_is_topologically_sorted_polars(
-        phylogeny_df,
-    ):
-        raise NotImplementedError(
-            "non-topologically-sorted data not supported",
-        )
-
-    if not is_empty:
+    if not phylogeny_df.lazy().limit(1).collect().is_empty():
+        if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+            raise NotImplementedError(
+                "non-contiguous ids not supported",
+            )
+        if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+            raise NotImplementedError(
+                "non-topologically-sorted data not supported",
+            )
         phylogeny_df = alifestd_assign_contiguous_ids_polars(
             alifestd_collapse_unifurcations_polars(
                 phylogeny_df, ignore_topological_sensitivity=True

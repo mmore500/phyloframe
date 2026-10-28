@@ -33,9 +33,11 @@ def iter_block_bootstrap_weights(
     """
     block_ids = np.asarray(block_ids)
     num_blocks = block_ids.max() + 1 if block_ids.size else 0
+    # multinomial needs at least one category; with none, draw 0 from 1
+    pvals = np.full(max(num_blocks, 1), 1 / max(num_blocks, 1))
     for seed_seq in np.random.SeedSequence(seed).spawn(num_replicates):
-        draws = np.random.default_rng(seed_seq).integers(
-            0, num_blocks, num_blocks
+        # times each block is drawn, in num_blocks draws with replacement
+        block_weights = np.random.default_rng(seed_seq).multinomial(
+            num_blocks, pvals
         )
-        block_weights = np.bincount(draws, minlength=num_blocks)
         yield block_weights[block_ids].astype(np.float64)
