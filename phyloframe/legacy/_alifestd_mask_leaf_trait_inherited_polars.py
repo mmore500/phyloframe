@@ -3,9 +3,11 @@ import functools
 import logging
 import os
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -19,12 +21,29 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mask_leaf_trait_inherited_asexual import (
-    _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask,
     _alifestd_mask_leaf_trait_inherited_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
+
+
+def _alifestd_mask_leaf_trait_inherited_polars_fill_null(
+    trait_mask: pl.Series, name: str = "trait_mask"
+) -> np.ndarray:
+    """Implementation detail for
+    `alifestd_mask_leaf_trait_inherited_polars` and
+    `alifestd_estimate_trait_gain_selection_polars`.
+
+    Returns boolean `trait_mask` as an array, treating null values as False
+    with a warning.
+    """
+    if trait_mask.has_nulls():
+        warnings.warn(
+            f"{name} contains null values, "
+            "which will be treated as trait absent (False).",
+        )
+    return trait_mask.fill_null(False).to_numpy()
 
 
 def alifestd_mask_leaf_trait_inherited_polars(
@@ -109,8 +128,8 @@ def alifestd_mask_leaf_trait_inherited_polars(
     )
     result = _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
         selected["ancestor_id"].to_numpy(),
-        _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
-            selected["trait_mask"].to_numpy()
+        _alifestd_mask_leaf_trait_inherited_polars_fill_null(
+            selected["trait_mask"]
         ),
     )
 
