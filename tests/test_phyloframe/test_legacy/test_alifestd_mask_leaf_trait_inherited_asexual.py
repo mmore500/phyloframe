@@ -82,21 +82,24 @@ def test_root_leaf():
     assert res.loc[2, "alifestd_mask_leaf_trait_inherited_asexual"]
 
 
-def test_unsorted_noncontiguous():
-    phylogeny_df = _make_tree()
-    trait_mask = np.array([0, 0, 0, 0, 1, 1, 0, 1, 1], dtype=bool)
-    expected = alifestd_mask_leaf_trait_inherited_asexual(
-        phylogeny_df, trait_mask=trait_mask
-    ).set_index("id")["alifestd_mask_leaf_trait_inherited_asexual"]
-
-    phylogeny_df["id"] = phylogeny_df["id"] * 10 + 3
-    phylogeny_df["ancestor_id"] = phylogeny_df["ancestor_id"] * 10 + 3
-    order = np.random.default_rng(1).permutation(9)
-    res = alifestd_mask_leaf_trait_inherited_asexual(
-        phylogeny_df.iloc[order].reset_index(drop=True),
-        trait_mask=trait_mask[order],
-    ).set_index("id")["alifestd_mask_leaf_trait_inherited_asexual"]
-    assert [res[i * 10 + 3] for i in range(9)] == expected.tolist()
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        pytest.param(  # noncontiguous ids
+            pd.DataFrame({"id": [3, 13, 23], "ancestor_id": [3, 3, 3]}),
+            id="noncontiguous",
+        ),
+        pytest.param(  # child 0 listed before its parent 1
+            pd.DataFrame({"id": [0, 1, 2], "ancestor_id": [1, 1, 1]}),
+            id="unsorted",
+        ),
+    ],
+)
+def test_not_working_format_raises(phylogeny_df: pd.DataFrame):
+    with pytest.raises(NotImplementedError):
+        alifestd_mask_leaf_trait_inherited_asexual(
+            phylogeny_df, trait_mask=np.zeros(3, dtype=bool)
+        )
 
 
 @pytest.mark.parametrize(

@@ -3,7 +3,6 @@ import functools
 import logging
 import os
 import typing
-import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -20,6 +19,7 @@ from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
 from ._alifestd_mask_leaf_trait_inherited_asexual import (
+    _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask,
     _alifestd_mask_leaf_trait_inherited_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
@@ -107,15 +107,11 @@ def alifestd_mask_leaf_trait_inherited_polars(
         )
         .collect()
     )
-    if selected["trait_mask"].has_nulls():
-        warnings.warn(
-            "trait_mask contains null values, "
-            "which will be treated as trait absent (False).",
-        )
-
     result = _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
         selected["ancestor_id"].to_numpy(),
-        selected["trait_mask"].fill_null(False).to_numpy(),
+        _alifestd_mask_leaf_trait_inherited_asexual_coerce_mask(
+            selected["trait_mask"].to_numpy()
+        ),
     )
 
     return phylogeny_df.with_columns(
