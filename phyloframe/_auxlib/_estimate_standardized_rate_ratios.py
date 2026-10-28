@@ -49,6 +49,7 @@ def estimate_standardized_rate_ratios(
     Clayton, D., and Kaldor, J. (1987). Empirical Bayes estimates of
     age-standardized relative risks for use in disease mapping. Biometrics,
     43(3), 671-681.
+    https://doi.org/10.2307/2532003
     """
     num_events = np.asarray(num_events, dtype=np.float64)
     exposure = np.asarray(exposure, dtype=np.float64)

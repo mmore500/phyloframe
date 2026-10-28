@@ -81,3 +81,12 @@ def test_result_fields():
         sel,
         lrt,
     )
+
+
+@pytest.mark.parametrize("selection_starts", [(0.0,), (-1.8,), (-0.3, 0.0)])
+def test_selection_starts(selection_starts):
+    data = _sample(1e-3, -0.05, seed=6)
+    expected = tgs_fit(*data)
+    res = tgs_fit(*data, selection_starts=selection_starts)
+    assert res.selection == pytest.approx(expected.selection, rel=1e-3)
+    assert res.gain_rate == pytest.approx(expected.gain_rate, rel=1e-3)
