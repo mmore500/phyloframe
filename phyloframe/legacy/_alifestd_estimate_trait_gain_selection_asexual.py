@@ -28,10 +28,10 @@ from ._alifestd_to_working_format import alifestd_to_working_format
 
 def _tgs_bin_leaves(
     leaf_times: np.ndarray,
-    leaf_lengths: np.ndarray,
+    pendant_lengths: np.ndarray,
     min_time: float,
-    num_exposure_bins: int,
-    num_calibration_exposure_cells: int,
+    num_pendant_length_bins: int,
+    num_calibration_pendant_length_cells: int,
     num_calibration_time_cells: int,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Trait gain/selection (tgs) implementation detail for
@@ -49,27 +49,29 @@ def _tgs_bin_leaves(
         )[1:-1],
     )
     length_bins = np.digitize(
-        leaf_lengths,
-        np.linspace(0, leaf_lengths.max(), num_exposure_bins + 1)[1:-1],
+        pendant_lengths,
+        np.linspace(0, pendant_lengths.max(), num_pendant_length_bins + 1)[
+            1:-1
+        ],
     )
     length_quantiles = np.quantile(
         length_bins,
-        np.linspace(0, 1, num_calibration_exposure_cells + 1)[1:-1],
+        np.linspace(0, 1, num_calibration_pendant_length_cells + 1)[1:-1],
     )
     length_groups = np.digitize(
-        np.arange(num_exposure_bins), np.unique(length_quantiles)
+        np.arange(num_pendant_length_bins), np.unique(length_quantiles)
     )
     group_ids = (
         np.arange(num_calibration_time_cells)[:, None]
-        * num_calibration_exposure_cells
+        * num_calibration_pendant_length_cells
         + length_groups
     )
-    return time_bins * num_exposure_bins + length_bins, group_ids.ravel()
+    return time_bins * num_pendant_length_bins + length_bins, group_ids.ravel()
 
 
 def _tgs_fit_traits(
     leaf_bins: np.ndarray,
-    leaf_lengths: np.ndarray,
+    pendant_lengths: np.ndarray,
     leaf_weights: np.ndarray,
     trait_leaves: typing.Sequence[np.ndarray],
     trait_carriers: typing.Sequence[np.ndarray],
@@ -87,7 +89,7 @@ def _tgs_fit_traits(
     bincount = functools.partial(
         np.bincount, minlength=len(calibration_group_ids)
     )
-    weighted_lengths = leaf_weights * leaf_lengths
+    weighted_lengths = leaf_weights * pendant_lengths
     counts = [  # per bin: leaves, trait carriers, summed pendant length
         (
             bincount(leaf_bins[leaves], leaf_weights[leaves]),
@@ -98,19 +100,19 @@ def _tgs_fit_traits(
     ]
 
     res = np.empty((len(counts), 4))
-    for trait, (n, k, exposure_sum) in enumerate(counts):
+    for trait, (n, k, pendant_length_sum) in enumerate(counts):
         # leave focal trait out of its own reference
         refs = [r for r in neutral_traits if r != trait]
-        exposure = np.divide(
-            exposure_sum, n, out=np.zeros(n.shape), where=n > 0
+        pendant_length = np.divide(
+            pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
         )
         if calibrate:
-            exposure *= estimate_standardized_rate_ratios(
+            pendant_length *= estimate_standardized_rate_ratios(
                 sum(counts[r][1] for r in refs),
                 sum(counts[r][2] for r in refs),
                 calibration_group_ids,
             )
-        res[trait, :3] = tgs_fit(n, k, exposure, loss_rate=loss_rate)
+        res[trait, :3] = tgs_fit(n, k, pendant_length, loss_rate=loss_rate)
 
     for trait in range(len(counts)):
         refs = [r for r in neutral_traits if r != trait]
@@ -207,8 +209,8 @@ def _tgs_impl(
     num_bootstrap: int,
     loss_rate: float,
     min_leaf_origin_time: float,
-    num_exposure_bins: int,
-    num_calibration_exposure_cells: int,
+    num_pendant_length_bins: int,
+    num_calibration_pendant_length_cells: int,
     num_calibration_time_cells: int,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
@@ -276,13 +278,13 @@ def _tgs_impl(
             origin_time[is_used],
             length[is_used],
             min_time=np.nanmin(origin_time),
-            num_exposure_bins=num_exposure_bins,
-            num_calibration_exposure_cells=num_calibration_exposure_cells,
+            num_pendant_length_bins=num_pendant_length_bins,
+            num_calibration_pendant_length_cells=num_calibration_pendant_length_cells,
             num_calibration_time_cells=num_calibration_time_cells,
         )
         fit_kwargs = dict(
             leaf_bins=leaf_bins,
-            leaf_lengths=length[is_used],
+            pendant_lengths=length[is_used],
             trait_leaves=trait_leaves,
             trait_carriers=trait_carriers,
             neutral_traits=neutral_traits,
@@ -319,8 +321,8 @@ def alifestd_estimate_trait_gain_selection_asexual(
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
-    num_exposure_bins: int = 800,
-    num_calibration_exposure_cells: int = 12,
+    num_pendant_length_bins: int = 800,
+    num_calibration_pendant_length_cells: int = 12,
     num_calibration_time_cells: int = 8,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
@@ -372,11 +374,11 @@ def alifestd_estimate_trait_gain_selection_asexual(
         Known per-unit-time trait loss rate.
     min_leaf_origin_time : float, default -inf
         Leaves originating earlier are excluded.
-    num_exposure_bins : int, default 800
+    num_pendant_length_bins : int, default 800
         Number of equal-width pendant length bins. Binning bounds fit cost
         independent of leaf count; the default keeps bin width under 0.2%
         of the longest pendant branch, so binning error is negligible.
-    num_calibration_exposure_cells : int, default 12
+    num_calibration_pendant_length_cells : int, default 12
         Number of approximately equal-occupancy pendant length groups for
         calibration.
     num_calibration_time_cells : int, default 8
@@ -475,8 +477,8 @@ def alifestd_estimate_trait_gain_selection_asexual(
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
-        num_exposure_bins=num_exposure_bins,
-        num_calibration_exposure_cells=num_calibration_exposure_cells,
+        num_pendant_length_bins=num_pendant_length_bins,
+        num_calibration_pendant_length_cells=num_calibration_pendant_length_cells,
         num_calibration_time_cells=num_calibration_time_cells,
         seed=seed,
         parallel_backend=parallel_backend,

@@ -47,8 +47,8 @@ def alifestd_estimate_trait_gain_selection_polars(
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
-    num_exposure_bins: int = 800,
-    num_calibration_exposure_cells: int = 12,
+    num_pendant_length_bins: int = 800,
+    num_calibration_pendant_length_cells: int = 12,
     num_calibration_time_cells: int = 8,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
@@ -104,9 +104,9 @@ def alifestd_estimate_trait_gain_selection_polars(
         Known per-unit-time trait loss rate.
     min_leaf_origin_time : float, default -inf
         Leaves originating earlier are excluded.
-    num_exposure_bins : int, default 800
+    num_pendant_length_bins : int, default 800
         Number of equal-width pendant length bins.
-    num_calibration_exposure_cells : int, default 12
+    num_calibration_pendant_length_cells : int, default 12
         Number of approximately equal-occupancy pendant length groups for
         calibration.
     num_calibration_time_cells : int, default 8
@@ -225,8 +225,8 @@ def alifestd_estimate_trait_gain_selection_polars(
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
-        num_exposure_bins=num_exposure_bins,
-        num_calibration_exposure_cells=num_calibration_exposure_cells,
+        num_pendant_length_bins=num_pendant_length_bins,
+        num_calibration_pendant_length_cells=num_calibration_pendant_length_cells,
         num_calibration_time_cells=num_calibration_time_cells,
         seed=seed,
         parallel_backend=parallel_backend,
@@ -333,13 +333,13 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Exclude leaves originating earlier (default: -inf).",
     )
     parser.add_argument(
-        "--num-exposure-bins",
+        "--num-pendant-length-bins",
         default=800,
         type=int,
         help="Number of pendant length bins (default: 800).",
     )
     parser.add_argument(
-        "--num-calibration-exposure-cells",
+        "--num-calibration-pendant-length-cells",
         default=12,
         type=int,
         help="Number of pendant length calibration groups (default: 12).",
@@ -382,9 +382,9 @@ if __name__ == "__main__":
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
                     min_leaf_origin_time=args.min_leaf_origin_time,
-                    num_exposure_bins=args.num_exposure_bins,
-                    num_calibration_exposure_cells=(
-                        args.num_calibration_exposure_cells
+                    num_pendant_length_bins=args.num_pendant_length_bins,
+                    num_calibration_pendant_length_cells=(
+                        args.num_calibration_pendant_length_cells
                     ),
                     num_calibration_time_cells=(
                         args.num_calibration_time_cells

@@ -100,7 +100,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "0.001",
             "--min-leaf-origin-time",
             "5.0",
-            "--num-exposure-bins",
+            "--num-pendant-length-bins",
             "100",
             "--eager-write",
             output_file,
@@ -113,7 +113,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
         trait_masks=["focal", "n1"],
         loss_rate=0.001,
         min_leaf_origin_time=5.0,
-        num_exposure_bins=100,
+        num_pendant_length_bins=100,
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False

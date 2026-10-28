@@ -10,7 +10,7 @@ from ._calc_binomial_nll import calc_binomial_nll
 def _tgs_calc_nll(
     num_trials: np.ndarray,
     num_successes: np.ndarray,
-    exposure: np.ndarray,
+    pendant_length: np.ndarray,
     gain_rate: float,
     rate: float,
 ) -> typing.Tuple[float, float, float]:
@@ -20,13 +20,15 @@ def _tgs_calc_nll(
     Returns negative log likelihood and its derivatives with respect to log
     gain rate and to `rate` (selection minus loss rate).
     """
-    cx = rate * exposure
-    g = exposure * special.exprel(cx)  # expm1(cx) / rate, finite at rate = 0
+    cx = rate * pendant_length
+    g = pendant_length * special.exprel(
+        cx
+    )  # expm1(cx) / rate, finite at rate = 0
     small = np.abs(cx) < 1e-6  # use series expansion of dg near rate = 0
     dg = np.where(
         small,
-        exposure * exposure * (0.5 + cx / 3),
-        (exposure * np.exp(cx) - g) / np.where(small, 1.0, rate),
+        pendant_length * pendant_length * (0.5 + cx / 3),
+        (pendant_length * np.exp(cx) - g) / np.where(small, 1.0, rate),
     )
     p = gain_rate * g
     nll, dnll_dp = calc_binomial_nll(num_trials, num_successes, p)
@@ -36,41 +38,45 @@ def _tgs_calc_nll(
 def tgs_fit(
     num_trials: np.ndarray,
     num_successes: np.ndarray,
-    exposure: np.ndarray,
+    pendant_length: np.ndarray,
     *,
     loss_rate: float = 0.0,
 ) -> typing.Tuple[float, float, float]:
     """Maximum likelihood fit of a binary trait's gain rate and net
-    selection from how often lineages carry it after known exposures.
+    selection from how often leaves carry it, given their pendant branch
+    lengths.
 
     Here, tgs stands for trait gain/selection, marking utilities specific to
     this estimator.
 
-    A lineage observed after `exposure` time units, starting without the
-    trait, carries the trait with probability
+    A leaf's pendant branch starts without the trait, so pendant length is
+    an exposure window: a leaf with pendant length `t` carries the trait
+    with probability
 
-        p = gain_rate * (exp(c * exposure) - 1) / c,  c = selection - loss_rate
+        p = gain_rate * (exp(c * t) - 1) / c,  c = selection - loss_rate
 
     i.e., gains arrive at constant `gain_rate` and each carrier lineage's
     weight then changes at rate `c`. At `c` = 0, `p` grows linearly in
-    exposure; under a cost (`c` < 0), it saturates at ~`gain_rate` / |`c`|.
+    `t`; under a cost (`c` < 0), it saturates at ~`gain_rate` / |`c`|.
 
     In BiSSE terms (Maddison et al. 2007), `gain_rate` corresponds to the
     0 -> 1 transition rate q01, `loss_rate` to q10, and `selection` to the
     difference in net diversification rate between states, (lambda1 - mu1)
     - (lambda0 - mu0). Unlike BiSSE, which fits a full tree likelihood,
-    this model considers each pendant branch (`exposure`) independently and
+    this model considers each pendant branch independently and
     to first order in the trait frequency, so it scales to large trees with
     rare traits.
 
     Parameters
     ----------
     num_trials : np.ndarray
-        Number of observed lineages in each bin.
+        Number of leaves in each bin.
     num_successes : np.ndarray
-        Number of observed lineages carrying the trait in each bin.
-    exposure : np.ndarray
-        Mean exposure (e.g., pendant branch length) of each bin.
+        Number of leaves carrying the trait in each bin.
+    pendant_length : np.ndarray
+        Mean pendant branch length of each bin's leaves, optionally rescaled
+        to effective exposure (e.g., by calibration against neutral
+        traits).
     loss_rate : float, default 0.0
         Known trait loss rate; with few carriers, loss and cost are
         confounded, so loss is fixed rather than fit.
@@ -104,14 +110,14 @@ def tgs_fit(
     """
     num_trials = np.asarray(num_trials, dtype=np.float64).ravel()
     num_successes = np.asarray(num_successes, dtype=np.float64).ravel()
-    exposure = np.asarray(exposure, dtype=np.float64).ravel()
+    pendant_length = np.asarray(pendant_length, dtype=np.float64).ravel()
 
     keep = num_trials > 0
-    n, k, x = num_trials[keep], num_successes[keep], exposure[keep]
+    n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
     if not len(n) or not k.sum():
         return 0.0, np.nan, np.nan
 
-    # optimize selection in units of 1 / mean exposure, for conditioning
+    # optimize selection in units of 1 / mean pendant length, for conditioning
     unit = 1.0 / np.average(x, weights=n)
 
     def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
