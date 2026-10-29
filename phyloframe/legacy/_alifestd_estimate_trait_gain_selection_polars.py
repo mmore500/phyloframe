@@ -28,6 +28,9 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_origin_time_delta_polars import (
+    alifestd_mark_origin_time_delta_polars,
+)
 from ._alifestd_mask_leaf_trait_inherited_polars import (
     _alifestd_mask_leaf_trait_inherited_polars_fill_null,
 )
@@ -106,7 +109,9 @@ def alifestd_estimate_trait_gain_selection_polars(
         smaller ones resolve finer distortion but are noisier.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling leaves with replacement
-        and refitting, for standard errors, z-scores, and p-values.
+        and refitting, for standard errors, z-scores, and p-values. The
+        calibration neighborhood size is chosen once, on the full data, and
+        held fixed across replicates.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     min_leaf_origin_time : float, default -inf
@@ -126,8 +131,9 @@ def alifestd_estimate_trait_gain_selection_polars(
         non-contiguous or not topologically sorted.
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
-        or if `calibration_neighborhood_fractions` is empty or has a value
-        outside (0, 1].
+        if `trait_names` and `trait_masks` differ in length, or if
+        `calibration_neighborhood_fractions` is empty or has a value outside
+        (0, 1].
 
     Returns
     -------
@@ -145,6 +151,11 @@ def alifestd_estimate_trait_gain_selection_polars(
             mask if isinstance(mask, str) else str(i)
             for i, mask in enumerate(trait_masks)
         ]
+    if len(trait_names) != len(trait_masks):
+        raise ValueError(
+            f"got {len(trait_names)} trait names for "
+            f"{len(trait_masks)} trait masks",
+        )
     neutral_traits = [
         list(trait_names).index(trait) if isinstance(trait, str) else trait
         for trait in neutral_traits
@@ -162,24 +173,15 @@ def alifestd_estimate_trait_gain_selection_polars(
             "supports asexual phylogenies.",
         )
 
-    if not phylogeny_df.lazy().limit(1).collect().is_empty():
-        if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-            raise NotImplementedError(
-                "non-contiguous ids not supported",
-            )
-        if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-            raise NotImplementedError(
-                "non-topologically-sorted data not supported",
-            )
-        phylogeny_df = alifestd_assign_contiguous_ids_polars(
-            alifestd_collapse_unifurcations_polars(
-                phylogeny_df, ignore_topological_sensitivity=True
-            ),
-        )
-
+    # evaluate trait masks on the input rows, before unifurcation collapse
+    # drops and renumbers rows, keeping only the columns needed (so that,
+    # e.g., an `ancestor_list` column does not reach steps that reject it);
+    # later steps run on the collected frame, as some lazy plans here can
+    # trip a polars streaming engine panic (limit after gather)
     selected = (
         phylogeny_df.lazy()
         .select(
+            pl.col("id"),
             pl.col("ancestor_id"),
             pl.col("origin_time"),
             *(
@@ -188,6 +190,27 @@ def alifestd_estimate_trait_gain_selection_polars(
             ),
         )
         .collect()
+    )
+    if not selected.is_empty():
+        if not alifestd_has_contiguous_ids_polars(selected):
+            raise NotImplementedError(
+                "non-contiguous ids not supported",
+            )
+        if not alifestd_is_topologically_sorted_polars(selected):
+            raise NotImplementedError(
+                "non-topologically-sorted data not supported",
+            )
+        selected = (
+            alifestd_assign_contiguous_ids_polars(
+                alifestd_collapse_unifurcations_polars(
+                    selected, ignore_topological_sensitivity=True
+                ),
+            )
+            .lazy()
+            .collect()
+        )
+    selected = alifestd_mark_origin_time_delta_polars(
+        selected, mark_as="__alifestd_tgs_pendant_length"
     )
 
     trait_arrays = [
@@ -204,6 +227,7 @@ def alifestd_estimate_trait_gain_selection_polars(
     res = _tgs_impl(
         ancestor_ids=selected["ancestor_id"].to_numpy(),
         origin_time=selected["origin_time"].to_numpy(),
+        pendant_lengths=selected["__alifestd_tgs_pendant_length"].to_numpy(),
         trait_masks=trait_arrays,
         trait_names=trait_names,
         neutral_traits=neutral_traits,

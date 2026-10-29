@@ -406,3 +406,52 @@ def test_neighborhood_fractions_single_candidate():
         calibration_neighborhood_fractions=[0.1],
     )
     assert np.isfinite(res["selection"]).all()
+
+
+def test_parallel_backend_matches_serial_many_replicates():
+    # more replicates than joblib dispatches up front, so later replicates
+    # are dispatched from joblib's callback thread
+    phylogeny_df, traits = _make_cherries(500)
+    kwargs = dict(
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        num_bootstrap=96,
+        seed=1,
+    )
+    expected = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df, **kwargs
+    )
+    for backend in ("threading", "loky"):
+        res = alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, parallel_backend=backend, **kwargs
+        )
+        pd.testing.assert_frame_equal(res, expected)
+
+
+def test_bootstrap_neutral_reference_without_carriers():
+    # neutral traits with one carrier each, so some replicates resample no
+    # carriers of the focal trait's whole neutral reference
+    phylogeny_df, traits = _make_cherries(20_000)
+    rare = np.zeros_like(traits[1:3])
+    rare[0, np.flatnonzero(traits[1])[:1]] = True
+    rare[1, np.flatnonzero(traits[2])[:1]] = True
+    with pytest.warns(UserWarning, match="neutral reference"):
+        res = alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=[traits[0], *rare],
+            neutral_traits=[1, 2],
+            num_bootstrap=50,
+            seed=1,
+        )
+    # the focal trait always has carriers, but its reference sometimes not
+    assert np.isfinite(res.loc[0, "selection_se"])
+    assert 0 < res.loc[0, "num_bootstrap_degenerate"] < 50
+    assert np.isfinite(res.loc[0, "log_gain_ratio_se"])
+
+
+def test_trait_names_length_mismatch_raises():
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df, trait_masks=traits, trait_names=["a", "b"]
+        )

@@ -90,3 +90,27 @@ def test_selection_starts(selection_starts):
     res = tgs_fit(*data, selection_starts=selection_starts)
     assert res.selection == pytest.approx(expected.selection, rel=1e-3)
     assert res.gain_rate == pytest.approx(expected.gain_rate, rel=1e-3)
+
+
+def test_tgs_calc_nll_finite_for_extreme_rate():
+    # optimizer trial steps far into positive selection must not overflow
+    n, k, x = _sample(1e-3, -0.05, seed=7)
+    with np.errstate(over="raise", invalid="raise"):
+        nll, dlog_gain, drate = _tgs_calc_nll(n, k, x, 1e-3, 1e3)
+    assert np.isfinite([nll, dlog_gain, drate]).all()
+
+
+def test_no_convergence_warns(monkeypatch):
+    from scipy import optimize
+
+    def fail(*args, **kwargs):
+        res = optimize.minimize(*args, **kwargs)
+        res.success, res.message = False, "forced failure"
+        return res
+
+    monkeypatch.setattr(
+        "phyloframe._auxlib._tgs_fit.optimize",
+        type("shim", (), {"minimize": staticmethod(fail)}),
+    )
+    with pytest.warns(UserWarning, match="did not converge"):
+        tgs_fit(*_sample(1e-3, -0.05, seed=8))

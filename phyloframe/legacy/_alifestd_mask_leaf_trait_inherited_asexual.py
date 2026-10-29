@@ -1,10 +1,14 @@
 import numpy as np
 import pandas as pd
 
+from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
 from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
+)
 from ._alifestd_mask_monomorphic_clades_asexual import (
     _alifestd_mask_monomorphic_clades_asexual_fast_path,
 )
@@ -29,6 +33,30 @@ def _alifestd_mask_leaf_trait_inherited_asexual_check_mask(
     return trait_mask
 
 
+@jit(nopython=True)
+def _alifestd_mask_leaf_trait_inherited_asexual_branching_parents(
+    ancestor_ids: np.ndarray,
+    is_branching: np.ndarray,
+) -> np.ndarray:
+    """Implementation detail for
+    `alifestd_mask_leaf_trait_inherited_asexual`.
+
+    Returns each node's nearest ancestor that branches or is a root,
+    bypassing unifurcations; roots map to themselves. Assumes contiguous,
+    topologically sorted ids.
+    """
+    res = ancestor_ids.copy()
+    for idx, ancestor_id in enumerate(ancestor_ids):
+        is_root = ancestor_ids[ancestor_id] == ancestor_id
+        if (
+            ancestor_id != idx
+            and not is_branching[ancestor_id]
+            and not is_root
+        ):
+            res[idx] = res[ancestor_id]  # computed already, as sorted
+    return res
+
+
 def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
     ancestor_ids: np.ndarray,
     trait_mask: np.ndarray,
@@ -43,9 +71,14 @@ def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
         ancestor_ids, is_leaf.copy(), is_present.copy()
     )
     # a trait-carrying leaf under a monomorphic parent shares the trait with
-    # every leaf of its parent's clade
+    # every leaf of its parent's clade; unifurcations are bypassed, as a
+    # unifurcation's clade has the same leaves as its child's
+    parents = _alifestd_mask_leaf_trait_inherited_asexual_branching_parents(
+        ancestor_ids,
+        _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
+    )
     is_root = ancestor_ids == np.arange(len(ancestor_ids))
-    return is_present & is_monomorphic[ancestor_ids] & ~is_root
+    return is_present & is_monomorphic[parents] & ~is_root
 
 
 def alifestd_mask_leaf_trait_inherited_asexual(
@@ -61,7 +94,8 @@ def alifestd_mask_leaf_trait_inherited_asexual(
 
     Under parsimony, such a leaf's trait was gained above its parent node;
     other leaves with the trait gained it on their pendant branch. Root
-    leaves and leaves without the trait are marked False.
+    leaves and leaves without the trait are marked False. Unifurcations are
+    bypassed, so a leaf's parent is its nearest branching ancestor.
 
     Parameters
     ----------

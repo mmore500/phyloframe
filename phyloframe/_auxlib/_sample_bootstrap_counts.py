@@ -1,10 +1,7 @@
 import numpy as np
 
-from ._jit import jit
 
-
-@jit(nopython=True)
-def sample_bootstrap_counts(num_items: int) -> np.ndarray:
+def sample_bootstrap_counts(num_items: int, seed: int) -> np.ndarray:
     """Sample how many times each item is drawn in a given bootstrap
     replicate.
 
@@ -16,6 +13,10 @@ def sample_bootstrap_counts(num_items: int) -> np.ndarray:
     ----------
     num_items : int
         Number of items.
+    seed : int
+        Seed for this replicate's draws. Each call uses its own generator,
+        so replicates are reproducible regardless of which thread or process
+        draws them, or in what order.
 
     Returns
     -------
@@ -24,9 +25,6 @@ def sample_bootstrap_counts(num_items: int) -> np.ndarray:
 
     Notes
     -----
-    Draws from numpy's global random state within jit-compiled code, so
-    `RngStateContext` and `with_rng_state_context` seed it.
-
     Representing a replicate as multinomial counts over the original items
     is the weighted bootstrap view of Praestgaard and Wellner (1993).
 
@@ -39,4 +37,6 @@ def sample_bootstrap_counts(num_items: int) -> np.ndarray:
     """
     if num_items == 0:
         return np.zeros(0, dtype=np.int64)
-    return np.random.multinomial(num_items, np.full(num_items, 1 / num_items))
+    return np.random.default_rng(seed).multinomial(
+        num_items, np.full(num_items, 1 / num_items)
+    )

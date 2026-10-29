@@ -58,7 +58,8 @@ def alifestd_mask_leaf_trait_inherited_polars(
 
     Under parsimony, such a leaf's trait was gained above its parent node;
     other leaves with the trait gained it on their pendant branch. Root
-    leaves and leaves without the trait are marked False.
+    leaves and leaves without the trait are marked False. Unifurcations are
+    bypassed, so a leaf's parent is its nearest branching ancestor.
 
     Only supports asexual phylogenies.
 

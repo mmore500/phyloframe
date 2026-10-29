@@ -121,3 +121,64 @@ def test_non_bool_trait_mask_raises(trait_mask):
         alifestd_mask_leaf_trait_inherited_asexual(
             phylogeny_df, trait_mask=trait_mask
         )
+
+
+def test_unifurcations_bypassed():
+    #     0
+    #   1   2
+    #   3
+    # node 1 is a unifurcation, so leaf 3's parent is effectively root 0,
+    # whose leaves (2, 3) differ, so leaf 3's trait arose on its own branch
+    phylogeny_df = pd.DataFrame(
+        {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 1]}
+    )
+    res = alifestd_mask_leaf_trait_inherited_asexual(
+        phylogeny_df, trait_mask=np.array([False, False, False, True])
+    )
+    assert not res["alifestd_mask_leaf_trait_inherited_asexual"].any()
+
+    # with the trait on both leaves, root's clade is monomorphic
+    res = alifestd_mask_leaf_trait_inherited_asexual(
+        phylogeny_df, trait_mask=np.array([False, False, True, True])
+    )
+    assert res["alifestd_mask_leaf_trait_inherited_asexual"].tolist() == [
+        False,
+        False,
+        True,
+        True,
+    ]
+
+
+def test_unifurcations_match_collapsed():
+    from phyloframe.legacy import (
+        alifestd_collapse_unifurcations,
+        alifestd_to_working_format,
+    )
+
+    rng = np.random.default_rng(1)
+    num_nodes = 300
+    ancestor_ids = np.concatenate(
+        [[0], rng.integers(0, np.arange(1, num_nodes))]
+    )
+    phylogeny_df = pd.DataFrame(
+        {"id": np.arange(num_nodes), "ancestor_id": ancestor_ids}
+    )
+    trait_mask = rng.random(num_nodes) < 0.5
+    res = alifestd_mask_leaf_trait_inherited_asexual(
+        phylogeny_df, trait_mask=trait_mask
+    ).set_index("id")["alifestd_mask_leaf_trait_inherited_asexual"]
+
+    collapsed = phylogeny_df.assign(trait=trait_mask)
+    collapsed = alifestd_to_working_format(
+        alifestd_collapse_unifurcations(
+            collapsed, ignore_topological_sensitivity=True
+        ).assign(orig_id=lambda df: df["id"]),
+    )
+    expected = alifestd_mask_leaf_trait_inherited_asexual(
+        collapsed, trait_mask=collapsed["trait"].to_numpy()
+    )
+    for orig_id, mark in zip(
+        expected["orig_id"],
+        expected["alifestd_mask_leaf_trait_inherited_asexual"],
+    ):
+        assert res[orig_id] == mark

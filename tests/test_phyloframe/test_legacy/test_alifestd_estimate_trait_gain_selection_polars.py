@@ -127,3 +127,67 @@ def test_null_trait_mask_absent():
             df_pl, trait_masks=[nullable], trait_names=["focal"]
         )
     assert res.equals(expected)
+
+
+def test_ancestor_list_column():
+    df_pl = _make_cherries_polars(2_000)
+    expected = alifestd_estimate_trait_gain_selection_polars(
+        df_pl, trait_masks=["focal", "n1", "n2"], neutral_traits=["n1", "n2"]
+    )
+    with_list = df_pl.with_columns(
+        ancestor_list=pl.when(pl.col("id") == pl.col("ancestor_id"))
+        .then(pl.lit("[none]"))
+        .otherwise(pl.format("[{}]", pl.col("ancestor_id"))),
+    )
+    res = alifestd_estimate_trait_gain_selection_polars(
+        with_list,
+        trait_masks=["focal", "n1", "n2"],
+        neutral_traits=["n1", "n2"],
+    )
+    assert res.equals(expected)
+
+
+def test_id_based_mask_with_unifurcations():
+    from phyloframe.legacy import alifestd_to_working_format
+
+    phylogeny_df, traits = _make_cherries(2_000)
+    # insert a knuckle midway along each pendant branch
+    leaves = phylogeny_df.index[
+        ~phylogeny_df["id"].isin(phylogeny_df["ancestor_id"])
+    ]
+    knuckles = phylogeny_df.loc[leaves].copy()
+    knuckles["id"] = np.arange(len(knuckles)) + len(phylogeny_df)
+    knuckles["origin_time"] = (
+        knuckles["origin_time"]
+        + phylogeny_df.loc[knuckles["ancestor_id"], "origin_time"].to_numpy()
+    ) / 2
+    knuckled = phylogeny_df.assign(focal=traits[0])
+    knuckled.loc[leaves, "ancestor_id"] = knuckles["id"].to_numpy()
+    knuckled = pd.concat(
+        [knuckled, knuckles.assign(focal=False)], ignore_index=True
+    )
+    knuckled = alifestd_to_working_format(knuckled).drop(
+        columns=["ancestor_list"], errors="ignore"
+    )
+    df_pl = pl.from_pandas(knuckled)
+
+    expected = alifestd_estimate_trait_gain_selection_polars(
+        df_pl, trait_masks=["focal"]
+    )
+    carrier_ids = knuckled.loc[knuckled["focal"], "id"].tolist()
+    res = alifestd_estimate_trait_gain_selection_polars(
+        df_pl,
+        trait_masks=[pl.col("id").is_in(carrier_ids)],
+        trait_names=["focal"],
+    )
+    assert res.equals(expected)
+    assert res["num_trait_present"][0] == len(carrier_ids)
+
+
+def test_trait_names_length_mismatch_raises():
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_polars(
+            _make_cherries_polars(100),
+            trait_masks=["focal", "n1"],
+            trait_names=["focal"],
+        )

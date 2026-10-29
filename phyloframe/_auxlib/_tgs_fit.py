@@ -1,4 +1,5 @@
 import typing
+import warnings
 
 import numpy as np
 from scipy import optimize, special
@@ -49,7 +50,10 @@ def _tgs_calc_nll(
     # effective_length = (exp(rate * t) - 1) / rate is the integral of
     # exp(rate * s) over s in [0, t], i.e., pendant length weighted by how a
     # gain's carrier lineage grows (rate > 0) or shrinks (rate < 0) afterward
-    cx = rate * pendant_length
+    # cap the exponent so that optimizer trial steps far into positive
+    # selection stay finite (p is then clipped, zeroing its gradient), rather
+    # than overflowing to inf and giving nan gradients
+    cx = np.minimum(rate * pendant_length, 600.0)
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = pendant_length * special.exprel(cx)
 
@@ -190,16 +194,22 @@ def tgs_fit(
     # length, and selection at each of `selection_starts`, keeping the best
     # fit in case the optimizer stalls in a local minimum
     log_gain0 = np.log(k.sum() / (n * x).sum())
-    best = min(
-        (
-            optimize.minimize(nll, [log_gain0, selection0], **minimize_kwargs)
-            for selection0 in selection_starts
-        ),
-        key=lambda res: res.fun,  # .fun is the minimized nll
-    )
+    fits = [
+        optimize.minimize(nll, [log_gain0, selection0], **minimize_kwargs)
+        for selection0 in selection_starts
+    ]
+    # prefer fits that converged
+    converged = [fit for fit in fits if fit.success]
+    best = min(converged or fits, key=lambda res: res.fun)  # .fun is nll
     null = optimize.minimize(  # fit gain rate alone, with selection = 0
         null_nll, best.x[:1], **minimize_kwargs
     )
+    if not (converged and null.success):
+        warnings.warn(
+            "tgs_fit optimizer did not converge "
+            f"({best.message if not converged else null.message}); "
+            "estimates may be unreliable.",
+        )
     return TgsFitResult(
         gain_rate=float(np.exp(best.x[0])),
         selection=float(best.x[1] * unit),
