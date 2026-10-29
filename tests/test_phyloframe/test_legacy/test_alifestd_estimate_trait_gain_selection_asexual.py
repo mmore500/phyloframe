@@ -3,10 +3,12 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
+from scipy import sparse
 
 from phyloframe.legacy import alifestd_estimate_trait_gain_selection_asexual
 from phyloframe.legacy._alifestd_estimate_trait_gain_selection_asexual import (
-    _tgs_bin_leaves,
+    _tgs_calc_rate_ratios,
+    _tgs_select_calibration_neighborhoods,
 )
 
 
@@ -46,13 +48,12 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
             "origin_time": origin_time,
         },
     )
-    clusters = np.arange(num_nodes) // 3 % 50
-    return phylogeny_df, traits, clusters
+    return phylogeny_df, traits
 
 
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_recovers_gain_selection(calibrate: bool):
-    phylogeny_df, traits, clusters = _make_cherries()
+    phylogeny_df, traits = _make_cherries()
     original_df = phylogeny_df.copy()
     res = alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df,
@@ -60,7 +61,6 @@ def test_recovers_gain_selection(calibrate: bool):
         trait_names=["focal", "n1", "n2", "n3", "n4"],
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
-        cluster_ids=clusters,
         num_bootstrap=20,
         seed=1,
     )
@@ -84,10 +84,10 @@ def test_recovers_gain_selection(calibrate: bool):
 
 
 def test_row_order_invariant():
-    phylogeny_df, traits, clusters = _make_cherries(2_000)
+    phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
     expected = alifestd_estimate_trait_gain_selection_asexual(
-        phylogeny_df, trait_masks=traits, cluster_ids=clusters, **kwargs
+        phylogeny_df, trait_masks=traits, **kwargs
     )
 
     order = np.random.default_rng(2).permutation(len(phylogeny_df))
@@ -97,7 +97,6 @@ def test_row_order_invariant():
     res = alifestd_estimate_trait_gain_selection_asexual(
         shuffled,
         trait_masks=traits[:, order],
-        cluster_ids=clusters[order],
         **kwargs,
     )
     pd.testing.assert_frame_equal(res, expected, rtol=1e-6)
@@ -118,7 +117,6 @@ def test_drops_inherited_and_rootward():
         phylogeny_df,
         trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
         min_leaf_origin_time=0.0,
-        num_pendant_length_bins=4,
     )
     # both leaves carry trait 0 from above their parent, so both drop
     assert res["num_leaves"].tolist() == [0, 2]
@@ -130,13 +128,12 @@ def test_drops_inherited_and_rootward():
         phylogeny_df,
         trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
         min_leaf_origin_time=3.0,
-        num_pendant_length_bins=4,
     )
     assert res["num_leaves"].tolist() == [0, 1]
 
 
 def test_calibrate_requires_neutral():
-    phylogeny_df, traits, __ = _make_cherries(100)
+    phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
         alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df,
@@ -147,7 +144,7 @@ def test_calibrate_requires_neutral():
 
 
 def test_neutral_traits_normalized():
-    phylogeny_df, traits, __ = _make_cherries(2_000)
+    phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(trait_masks=traits, calibrate=True)
     expected = alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df, neutral_traits=[1, 2, 3, 4], **kwargs
@@ -164,7 +161,7 @@ def test_neutral_traits_normalized():
 
 
 def test_unifurcations_bypassed():
-    phylogeny_df, traits, __ = _make_cherries(2_000)
+    phylogeny_df, traits = _make_cherries(2_000)
     expected = alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df, trait_masks=traits, neutral_traits=[1, 2, 3, 4]
     )
@@ -191,7 +188,7 @@ def test_unifurcations_bypassed():
 
 
 def test_nan_origin_time_ignored():
-    phylogeny_df, traits, __ = _make_cherries(2_000)
+    phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
     expected = alifestd_estimate_trait_gain_selection_asexual(
         phylogeny_df, trait_masks=traits, **kwargs
@@ -220,7 +217,7 @@ def test_nan_origin_time_ignored():
 
 
 def test_non_bool_trait_mask_raises():
-    phylogeny_df, traits, __ = _make_cherries(100)
+    phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(NotImplementedError):
         alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df, trait_masks=np.where(traits, 1.0, np.nan)
@@ -228,30 +225,19 @@ def test_non_bool_trait_mask_raises():
 
 
 def test_trait_mask_length_mismatch_raises():
-    phylogeny_df, traits, __ = _make_cherries(100)
+    phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
         alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df, trait_masks=traits[:, :-1]
         )
 
 
-def test_null_cluster_ids_raise():
-    phylogeny_df, traits, clusters = _make_cherries(100)
-    clusters = clusters.astype(float)
-    clusters[-1] = np.nan
-    with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_asexual(
-            phylogeny_df, trait_masks=traits, cluster_ids=clusters
-        )
-
-
 @pytest.mark.parametrize("parallel_backend", ["threading", "loky"])
 def test_parallel_backend_matches_serial(parallel_backend: str):
-    phylogeny_df, traits, clusters = _make_cherries(2_000)
+    phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
-        cluster_ids=clusters,
         num_bootstrap=4,
         seed=1,
     )
@@ -265,13 +251,12 @@ def test_parallel_backend_matches_serial(parallel_backend: str):
 
 
 def test_seed_reproducible():
-    phylogeny_df, traits, clusters = _make_cherries(2_000)
+    phylogeny_df, traits = _make_cherries(2_000)
 
     def run(seed):
         return alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df,
             trait_masks=traits,
-            cluster_ids=clusters,
             num_bootstrap=4,
             seed=seed,
         )
@@ -286,13 +271,12 @@ def test_seed_reproducible():
 
 
 def test_bootstrap_without_neutral_traits():
-    phylogeny_df, traits, clusters = _make_cherries(2_000)
+    phylogeny_df, traits = _make_cherries(2_000)
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # no degenerate-replicate warning
         res = alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df,
             trait_masks=traits,
-            cluster_ids=clusters,
             num_bootstrap=4,
             seed=1,
         )
@@ -303,38 +287,8 @@ def test_bootstrap_without_neutral_traits():
     assert (res["num_bootstrap_degenerate"] == 0).all()
 
 
-@pytest.mark.parametrize(
-    "param",
-    [
-        "num_pendant_length_bins",
-        "num_calibration_pendant_length_groups",
-        "num_calibration_time_groups",
-    ],
-)
-def test_too_few_bins_raises(param: str):
-    phylogeny_df, traits, __ = _make_cherries(100)
-    with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_asexual(
-            phylogeny_df, trait_masks=traits, **{param: 0}
-        )
-
-
-def test_single_bins():
-    phylogeny_df, traits, __ = _make_cherries(2_000)
-    res = alifestd_estimate_trait_gain_selection_asexual(
-        phylogeny_df,
-        trait_masks=traits,
-        neutral_traits=[1, 2, 3, 4],
-        calibrate=True,
-        num_pendant_length_bins=1,
-        num_calibration_pendant_length_groups=1,
-        num_calibration_time_groups=1,
-    )
-    assert np.isfinite(res["gain_rate"]).all()
-
-
 def test_bootstrap_rare_trait():
-    phylogeny_df, traits, __ = _make_cherries(20_000)
+    phylogeny_df, traits = _make_cherries(20_000)
     rare = np.zeros_like(traits[0])
     rare[np.flatnonzero(traits[1])[0]] = True
     with pytest.warns(UserWarning, match="bootstrap") as record:
@@ -345,7 +299,7 @@ def test_bootstrap_rare_trait():
             num_bootstrap=50,
             seed=1,
         )
-    # one cluster per leaf, so replicates often resample no rare carriers
+    # with a single carrier, replicates often resample no carriers
     num_degenerate = res.loc[0, "num_bootstrap_degenerate"]
     assert 0 < num_degenerate < 50
     assert f"0 ({num_degenerate} of 50)" in str(record[0].message)
@@ -354,18 +308,101 @@ def test_bootstrap_rare_trait():
     assert np.isfinite(res["log_gain_ratio_se"]).all()
 
 
-def test_tgs_bin_leaves():
-    leaf_bins, group_ids = _tgs_bin_leaves(
-        leaf_times=np.array([1.0, 2.0, 3.0, 4.0]),
-        pendant_lengths=np.array([0.5, 1.0, 1.5, 2.0]),
-        min_time=0.0,
-        num_pendant_length_bins=4,
-        num_calibration_pendant_length_groups=2,
-        num_calibration_time_groups=2,
+def test_calibration_warns_without_neutral_gains():
+    phylogeny_df, traits = _make_cherries(2_000)
+    rare = np.zeros_like(traits[1:3])
+    rare[0, np.flatnonzero(traits[1])[:1]] = True
+    rare[1, np.flatnonzero(traits[2])[:1]] = True
+    with pytest.warns(UserWarning, match="no neutral trait gains"):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=[traits[0], *rare],
+            neutral_traits=[1, 2],
+            calibrate=True,
+        )
+
+
+def test_tgs_calc_rate_ratios_uniform():
+    # events proportional to exposure everywhere, so no correction
+    exposure = np.array([1.0, 2.0, 3.0, 4.0])
+    res = _tgs_calc_rate_ratios(
+        calibration_neighborhoods=sparse.identity(4, format="csr"),
+        num_events=0.5 * exposure,
+        exposure=exposure,
     )
-    # time bins [0, 2), [2, 4]; length bins of width 0.5
-    np.testing.assert_array_equal(leaf_bins, [1, 6, 7, 7])
-    assert group_ids.shape == (2 * 4,)
-    # leaves fall in length bins 1, 2, 3, 3; median 2.5 splits bins into
-    # equal-occupancy groups {0, 1, 2} and {3}, crossed with time bins
-    np.testing.assert_array_equal(group_ids, [0, 0, 0, 1, 2, 2, 2, 3])
+    np.testing.assert_allclose(res, 1.0)
+
+
+def test_tgs_calc_rate_ratios_local():
+    # cells 0-1 accrue events at twice the rate of cells 2-3
+    exposure = np.ones(4)
+    num_events = np.array([2.0, 2.0, 1.0, 1.0])
+    pairs = sparse.csr_matrix(
+        np.kron(np.eye(2), np.ones((2, 2)))  # neighborhoods {0, 1}, {2, 3}
+    )
+    res = _tgs_calc_rate_ratios(
+        calibration_neighborhoods=pairs,
+        num_events=num_events,
+        exposure=exposure,
+    )
+    np.testing.assert_allclose(res, [4 / 3, 4 / 3, 2 / 3, 2 / 3])
+    # one global neighborhood averages away local differences
+    res = _tgs_calc_rate_ratios(
+        calibration_neighborhoods=sparse.csr_matrix(np.ones((4, 4))),
+        num_events=num_events,
+        exposure=exposure,
+    )
+    np.testing.assert_allclose(res, 1.0)
+
+
+def test_tgs_calc_rate_ratios_no_events():
+    res = _tgs_calc_rate_ratios(
+        calibration_neighborhoods=sparse.identity(3, format="csr"),
+        num_events=np.zeros(3),
+        exposure=np.ones(3),
+    )
+    np.testing.assert_allclose(res, 1.0)
+
+
+def test_tgs_select_calibration_neighborhoods():
+    rng = np.random.default_rng(1)
+    cell_coords = rng.random((256, 2))
+    n = np.full(256, 100.0)
+    counts = [
+        (n, rng.binomial(100, 0.01, 256).astype(float), 10 * n)
+        for __ in range(3)
+    ]
+    res = _tgs_select_calibration_neighborhoods(
+        cell_coords=cell_coords,
+        neighborhood_fractions=(0.01, 0.1, 0.5),
+        counts=counts,
+        neutral_traits=[0, 1, 2],
+    )
+    assert res.shape == (256, 256)
+    # each cell belongs to its own neighborhood
+    assert (res.diagonal() == 1).all()
+    # neighborhoods are the same size
+    assert len(set(np.diff(res.indptr))) == 1
+
+
+@pytest.mark.parametrize("fractions", [(), (0.0, 0.1), (0.1, 1.5)])
+def test_invalid_neighborhood_fractions_raise(fractions):
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=traits,
+            calibration_neighborhood_fractions=fractions,
+        )
+
+
+def test_neighborhood_fractions_single_candidate():
+    phylogeny_df, traits = _make_cherries(2_000)
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df,
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        calibrate=True,
+        calibration_neighborhood_fractions=[0.1],
+    )
+    assert np.isfinite(res["selection"]).all()

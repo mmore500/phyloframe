@@ -140,9 +140,9 @@ def tgs_fit(
 
         The likelihood-ratio statistic treats bins as independent, so it
         naively overstates significance when lineages are correlated (e.g.,
-        through shared ancestry or space). Prefer a cluster bootstrap for
-        inference, which resamples groups of correlated leaves together
-        (see `cluster_ids` and `num_bootstrap` in
+        through shared ancestry or space), and ignores uncertainty in any
+        calibration of `pendant_length`. Prefer bootstrap standard errors
+        for inference (see `num_bootstrap` in
         `alifestd_estimate_trait_gain_selection_asexual`).
 
     See Also

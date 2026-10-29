@@ -17,7 +17,7 @@ MODULE = "phyloframe.legacy._alifestd_estimate_trait_gain_selection_polars"
 
 @pytest.fixture
 def input_pqt(tmp_path):
-    """Create a parquet phylogeny with trait and cluster columns."""
+    """Create a parquet phylogeny with trait columns."""
     path = tmp_path / "input.pqt"
     _make_cherries_polars(5_000).write_parquet(path)
     return str(path)
@@ -62,8 +62,6 @@ def test_cli(input_pqt, ext, tmp_path):
             "n3",
             "n4",
             "--calibrate",
-            "--cluster-ids",
-            "cluster",
             "--num-bootstrap",
             "5",
             "--bootstrap-seed",
@@ -100,8 +98,6 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "0.001",
             "--min-leaf-origin-time",
             "5.0",
-            "--num-pendant-length-bins",
-            "100",
             "--eager-write",
             output_file,
         ],
@@ -113,7 +109,6 @@ def test_cli_matches_function(input_pqt, tmp_path):
         trait_masks=["focal", "n1"],
         loss_rate=0.001,
         min_leaf_origin_time=5.0,
-        num_pendant_length_bins=100,
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False
