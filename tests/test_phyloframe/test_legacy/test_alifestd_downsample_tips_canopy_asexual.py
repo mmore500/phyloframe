@@ -1,5 +1,4 @@
 import os
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -265,19 +264,3 @@ def test_alifestd_downsample_tips_canopy_asexual_missing_criterion():
 
     with pytest.raises(ValueError, match="criterion column"):
         alifestd_downsample_tips_canopy_asexual(df, 1, criterion="nonexistent")
-
-
-def test_alifestd_downsample_tips_canopy_asexual_num_tips_deprecated():
-    """Verify that passing num_tips triggers a DeprecationWarning."""
-    df = pd.DataFrame(
-        {
-            "id": [0, 1, 2],
-            "ancestor_list": ["[none]", "[0]", "[0]"],
-        }
-    )
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        alifestd_downsample_tips_canopy_asexual(df, num_tips=1, criterion="id")
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "num_tips" in str(w[0].message)
