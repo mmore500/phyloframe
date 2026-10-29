@@ -5,7 +5,8 @@ from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
 from ._calc_binomial_nll import calc_binomial_nll
-from ._calc_kdtree_cells import calc_kdtree_cells
+from ._calc_kdtree_partitions import calc_kdtree_partitions
+from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -57,7 +58,8 @@ __all__ = [
     "all_unique",
     "begin_prod_logging",
     "calc_binomial_nll",
-    "calc_kdtree_cells",
+    "calc_kdtree_partitions",
+    "calc_neighborhood_rate_ratios",
     "coerce_to_pandas",
     "coerce_to_polars",
     "collapse_nonleading_whitespace",

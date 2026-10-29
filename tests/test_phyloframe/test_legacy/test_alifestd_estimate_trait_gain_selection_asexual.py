@@ -3,11 +3,9 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
-from scipy import sparse
 
 from phyloframe.legacy import alifestd_estimate_trait_gain_selection_asexual
 from phyloframe.legacy._alifestd_estimate_trait_gain_selection_asexual import (
-    _tgs_calc_rate_ratios,
     _tgs_select_calibration_neighborhoods,
 )
 
@@ -322,61 +320,20 @@ def test_calibration_warns_without_neutral_gains():
         )
 
 
-def test_tgs_calc_rate_ratios_uniform():
-    # events proportional to exposure everywhere, so no correction
-    exposure = np.array([1.0, 2.0, 3.0, 4.0])
-    res = _tgs_calc_rate_ratios(
-        calibration_neighborhoods=sparse.identity(4, format="csr"),
-        num_events=0.5 * exposure,
-        exposure=exposure,
-    )
-    np.testing.assert_allclose(res, 1.0)
-
-
-def test_tgs_calc_rate_ratios_local():
-    # cells 0-1 accrue events at twice the rate of cells 2-3
-    exposure = np.ones(4)
-    num_events = np.array([2.0, 2.0, 1.0, 1.0])
-    pairs = sparse.csr_matrix(
-        np.kron(np.eye(2), np.ones((2, 2)))  # neighborhoods {0, 1}, {2, 3}
-    )
-    res = _tgs_calc_rate_ratios(
-        calibration_neighborhoods=pairs,
-        num_events=num_events,
-        exposure=exposure,
-    )
-    np.testing.assert_allclose(res, [4 / 3, 4 / 3, 2 / 3, 2 / 3])
-    # one global neighborhood averages away local differences
-    res = _tgs_calc_rate_ratios(
-        calibration_neighborhoods=sparse.csr_matrix(np.ones((4, 4))),
-        num_events=num_events,
-        exposure=exposure,
-    )
-    np.testing.assert_allclose(res, 1.0)
-
-
-def test_tgs_calc_rate_ratios_no_events():
-    res = _tgs_calc_rate_ratios(
-        calibration_neighborhoods=sparse.identity(3, format="csr"),
-        num_events=np.zeros(3),
-        exposure=np.ones(3),
-    )
-    np.testing.assert_allclose(res, 1.0)
-
-
 def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
-    cell_coords = rng.random((256, 2))
+    partition_coords = rng.random((256, 2))
     n = np.full(256, 100.0)
     counts = [
         (n, rng.binomial(100, 0.01, 256).astype(float), 10 * n)
         for __ in range(3)
     ]
     res = _tgs_select_calibration_neighborhoods(
-        cell_coords=cell_coords,
+        partition_coords=partition_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
         counts=counts,
         neutral_traits=[0, 1, 2],
+        trait_names=["a", "b", "c"],
     )
     assert res.shape == (256, 256)
     # each cell belongs to its own neighborhood
@@ -454,4 +411,42 @@ def test_trait_names_length_mismatch_raises():
     with pytest.raises(ValueError):
         alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df, trait_masks=traits, trait_names=["a", "b"]
+        )
+
+
+@pytest.mark.parametrize("num_calibration_partitions", [0, 3, 1000])
+def test_num_calibration_partitions_not_power_of_two_raises(
+    num_calibration_partitions: int,
+):
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=traits,
+            num_calibration_partitions=num_calibration_partitions,
+        )
+
+
+@pytest.mark.parametrize("num_calibration_partitions", [1, 64, 2**20])
+def test_num_calibration_partitions(num_calibration_partitions: int):
+    # more partitions than leaves allow are capped, keeping 4 leaves each
+    phylogeny_df, traits = _make_cherries(2_000)
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df,
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        calibrate=True,
+        num_calibration_partitions=num_calibration_partitions,
+    )
+    assert np.isfinite(res["selection"]).all()
+
+
+def test_heldout_neutral_without_carriers_warns():
+    phylogeny_df, traits = _make_cherries(2_000)
+    with pytest.warns(UserWarning, match="does not inform"):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=[*traits, np.zeros_like(traits[0])],
+            neutral_traits=[1, 2, 5],
+            calibrate=True,
         )

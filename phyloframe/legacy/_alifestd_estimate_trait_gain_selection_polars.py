@@ -49,11 +49,14 @@ def alifestd_estimate_trait_gain_selection_polars(
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
-        0.02,
+        0.025,
         0.05,
         0.1,
-        0.2,
+        0.25,
+        0.5,
+        1.0,
     ),
+    num_calibration_partitions: int = 4096,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
@@ -102,11 +105,18 @@ def alifestd_estimate_trait_gain_selection_polars(
         than by branch length, so that distortion of branch lengths shared
         with neutral traits (e.g., from tree reconstruction) cancels. See
         `alifestd_estimate_trait_gain_selection_asexual` for details.
-    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.02, 0.05, 0.1, 0.2)
+    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of leaves.
         With `calibrate`, the candidate whose calibration best predicts
         held-out neutral traits is used. Larger neighborhoods smooth more;
-        smaller ones resolve finer distortion but are noisier.
+        smaller ones resolve finer distortion but are noisier. A fraction of
+        1.0 makes one neighborhood of all leaves, i.e., no calibration.
+    num_calibration_partitions : int, default 4096
+        Number of equal-occupancy partitions of leaves, by ranked pendant
+        length and origin time, among which calibration neighborhoods are
+        formed; a power of two. Also bins leaves for fitting, so that fit
+        cost is bounded independent of leaf count. Fewer are used if needed
+        to keep at least 4 leaves in each.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling leaves with replacement
         and refitting, for standard errors, z-scores, and p-values. The
@@ -133,7 +143,7 @@ def alifestd_estimate_trait_gain_selection_polars(
         If `calibrate` is set with fewer than two distinct neutral traits,
         if `trait_names` and `trait_masks` differ in length, or if
         `calibration_neighborhood_fractions` is empty or has a value outside
-        (0, 1].
+        (0, 1], or if `num_calibration_partitions` is not a power of two.
 
     Returns
     -------
@@ -233,6 +243,7 @@ def alifestd_estimate_trait_gain_selection_polars(
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        num_calibration_partitions=num_calibration_partitions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
@@ -309,12 +320,21 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--calibration-neighborhood-fractions",
-        default=(0.005, 0.01, 0.02, 0.05, 0.1, 0.2),
+        default=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
         nargs="+",
         type=float,
         help=(
             "Candidate calibration neighborhood sizes, as fractions of "
-            "leaves (default: 0.005 0.01 0.02 0.05 0.1 0.2)."
+            "leaves (default: 0.005 0.01 0.025 0.05 0.1 0.25 0.5 1.0)."
+        ),
+    )
+    parser.add_argument(
+        "--num-calibration-partitions",
+        default=4096,
+        type=int,
+        help=(
+            "Number of leaf partitions for calibration neighborhoods, a "
+            "power of two (default: 4096)."
         ),
     )
     parser.add_argument(
@@ -371,6 +391,7 @@ if __name__ == "__main__":
                     calibration_neighborhood_fractions=(
                         args.calibration_neighborhood_fractions
                     ),
+                    num_calibration_partitions=args.num_calibration_partitions,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,

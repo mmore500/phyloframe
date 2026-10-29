@@ -15,24 +15,6 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-def _alifestd_mask_leaf_trait_inherited_asexual_check_mask(
-    trait_mask: np.ndarray, name: str = "trait_mask"
-) -> np.ndarray:
-    """Implementation detail for
-    `alifestd_mask_leaf_trait_inherited_asexual` and
-    `alifestd_estimate_trait_gain_selection_asexual`.
-
-    Returns `trait_mask` as an array, raising NotImplementedError unless it
-    has boolean dtype (which cannot hold nulls).
-    """
-    trait_mask = np.asarray(trait_mask)
-    if trait_mask.dtype != np.bool_:
-        raise NotImplementedError(
-            f"{name} must have boolean dtype, got {trait_mask.dtype}",
-        )
-    return trait_mask
-
-
 @jit(nopython=True)
 def _alifestd_mask_leaf_trait_inherited_asexual_branching_parents(
     ancestor_ids: np.ndarray,
@@ -127,9 +109,11 @@ def alifestd_mask_leaf_trait_inherited_asexual(
         phylogeny_df = phylogeny_df.copy()
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
-    trait_mask = _alifestd_mask_leaf_trait_inherited_asexual_check_mask(
-        trait_mask
-    )
+    trait_mask = np.asarray(trait_mask)
+    if trait_mask.dtype != np.bool_:
+        raise NotImplementedError(
+            f"trait_mask must have boolean dtype, got {trait_mask.dtype}",
+        )
     if not alifestd_is_working_format_asexual(phylogeny_df, mutate=True):
         raise NotImplementedError(
             "current implementation requires phylogeny_df in working format",

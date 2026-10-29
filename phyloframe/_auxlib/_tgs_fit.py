@@ -73,11 +73,10 @@ def _tgs_calc_nll(
 
     p = gain_rate * effective_length
     nll, dnll_dp = calc_binomial_nll(num_trials, num_successes, p)
-    return (
-        nll,
-        np.sum(dnll_dp * p),
-        np.sum(dnll_dp * gain_rate * effective_length_deriv),
-    )
+    # chain rule, as d p / d log(gain_rate) = p
+    dnll_dlog_gain = np.sum(dnll_dp * p)
+    dnll_drate = np.sum(dnll_dp * gain_rate * effective_length_deriv)
+    return nll, dnll_dlog_gain, dnll_drate
 
 
 def tgs_fit(
@@ -174,16 +173,18 @@ def tgs_fit(
     unit = 1.0 / np.average(x, weights=n)
 
     def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
+        log_gain, scaled_selection = params
         res, dlog_gain, drate = _tgs_calc_nll(
-            n, k, x, np.exp(params[0]), params[1] * unit - loss_rate
+            n, k, x, np.exp(log_gain), scaled_selection * unit - loss_rate
         )
         return res, np.array([dlog_gain, drate * unit])
 
     # under the null hypothesis of no selection (selection = 0), for the
     # likelihood-ratio test
     def null_nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
+        (log_gain,) = params
         res, dlog_gain, __ = _tgs_calc_nll(
-            n, k, x, np.exp(params[0]), -loss_rate
+            n, k, x, np.exp(log_gain), -loss_rate
         )
         return res, np.array([dlog_gain])
 
@@ -193,10 +194,12 @@ def tgs_fit(
     # start log gain rate at its neutral estimate, carriers per unit pendant
     # length, and selection at each of `selection_starts`, keeping the best
     # fit in case the optimizer stalls in a local minimum
-    log_gain0 = np.log(k.sum() / (n * x).sum())
+    log_gain_start = np.log(k.sum() / (n * x).sum())
     fits = [
-        optimize.minimize(nll, [log_gain0, selection0], **minimize_kwargs)
-        for selection0 in selection_starts
+        optimize.minimize(
+            nll, [log_gain_start, selection_start], **minimize_kwargs
+        )
+        for selection_start in selection_starts
     ]
     # prefer fits that converged
     converged = [fit for fit in fits if fit.success]
@@ -204,11 +207,16 @@ def tgs_fit(
     null = optimize.minimize(  # fit gain rate alone, with selection = 0
         null_nll, best.x[:1], **minimize_kwargs
     )
-    if not (converged and null.success):
+    if not converged:
         warnings.warn(
-            "tgs_fit optimizer did not converge "
-            f"({best.message if not converged else null.message}); "
+            f"tgs_fit optimizer did not converge ({best.message}); "
             "estimates may be unreliable.",
+        )
+    if not null.success:
+        warnings.warn(
+            "tgs_fit optimizer did not converge under no selection "
+            f"({null.message}); likelihood-ratio statistic may be "
+            "unreliable.",
         )
     return TgsFitResult(
         gain_rate=float(np.exp(best.x[0])),
