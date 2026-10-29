@@ -584,17 +584,17 @@ from ._alifestd_mask_descendants_asexual import (
 from ._alifestd_mask_descendants_polars import (
     alifestd_mask_descendants_polars,
 )
-from ._alifestd_mask_leaf_trait_pendant_gain_asexual import (
-    alifestd_mask_leaf_trait_pendant_gain_asexual,
-)
-from ._alifestd_mask_leaf_trait_pendant_gain_polars import (
-    alifestd_mask_leaf_trait_pendant_gain_polars,
-)
 from ._alifestd_mask_monomorphic_clades_asexual import (
     alifestd_mask_monomorphic_clades_asexual,
 )
 from ._alifestd_mask_monomorphic_clades_polars import (
     alifestd_mask_monomorphic_clades_polars,
+)
+from ._alifestd_mask_trait_singletons_asexual import (
+    alifestd_mask_trait_singletons_asexual,
+)
+from ._alifestd_mask_trait_singletons_polars import (
+    alifestd_mask_trait_singletons_polars,
 )
 from ._alifestd_minify_asexual import alifestd_minify_asexual
 from ._alifestd_minify_polars import alifestd_minify_polars
@@ -977,10 +977,10 @@ __all__ = [
     "alifestd_mark_sister_polars",
     "alifestd_mask_descendants_asexual",
     "alifestd_mask_descendants_polars",
-    "alifestd_mask_leaf_trait_pendant_gain_asexual",
-    "alifestd_mask_leaf_trait_pendant_gain_polars",
     "alifestd_mask_monomorphic_clades_asexual",
     "alifestd_mask_monomorphic_clades_polars",
+    "alifestd_mask_trait_singletons_asexual",
+    "alifestd_mask_trait_singletons_polars",
     "alifestd_minify_asexual",
     "alifestd_minify_polars",
     "alifestd_parse_ancestor_id",

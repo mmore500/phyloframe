@@ -17,12 +17,12 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _alifestd_mask_leaf_trait_pendant_gain_asexual_stem_node_ids(
+def _alifestd_mask_trait_singletons_asexual_stem_node_ids(
     ancestor_ids: np.ndarray,
     is_branching: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_mask_leaf_trait_pendant_gain_asexual`.
+    `alifestd_mask_trait_singletons_asexual`.
 
     Returns, for each node, its stem node: the nearest ancestor that has at
     least two children (`is_branching`), where the node's lineage splits
@@ -43,12 +43,12 @@ def _alifestd_mask_leaf_trait_pendant_gain_asexual_stem_node_ids(
     return res
 
 
-def _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
+def _alifestd_mask_trait_singletons_asexual_fast_path(
     ancestor_ids: np.ndarray,
     trait_mask: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_mask_leaf_trait_pendant_gain_asexual`."""
+    `alifestd_mask_trait_singletons_asexual`."""
     is_leaf = _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
     is_present = is_leaf & trait_mask
     # a clade is monomorphic with respect to leaf trait values if all its
@@ -62,26 +62,24 @@ def _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
     # clade has the same leaves as its child's; a leaf without a stem node
     # (e.g., a root leaf) is its own, so is never marked, as there is no
     # other leaf to compare against
-    stem_node_ids = (
-        _alifestd_mask_leaf_trait_pendant_gain_asexual_stem_node_ids(
-            ancestor_ids,
-            _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
-        )
+    stem_node_ids = _alifestd_mask_trait_singletons_asexual_stem_node_ids(
+        ancestor_ids,
+        _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
     )
     return is_present & ~is_monomorphic[stem_node_ids]
 
 
 @warn_experimental
-def alifestd_mask_leaf_trait_pendant_gain_asexual(
+def alifestd_mask_trait_singletons_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    mark_as: str = "alifestd_mask_leaf_trait_pendant_gain_asexual",
+    mark_as: str = "alifestd_mask_trait_singletons_asexual",
     trait_mask: np.ndarray,
 ) -> pd.DataFrame:
-    """Mark leaves that gained a trait on their own pendant branch, i.e.,
-    leaves with the trait that is not shared by every leaf descending from
-    their parent.
+    """Mark trait singletons: leaves with a trait that is not shared by
+    every leaf descending from their parent, i.e., all-carrier clades of a
+    single leaf, which gained the trait on their own pendant branch.
 
     Under parsimony, such a leaf's trait arose on its pendant branch; a
     leaf whose trait is shared by every leaf of its parent's clade could
@@ -99,7 +97,7 @@ def alifestd_mask_leaf_trait_pendant_gain_asexual(
     mutate : bool, default False
         If False, operates on a copy of `phylogeny_df`; if True, modifies
         `phylogeny_df` in place (but still returns it).
-    mark_as : str, default "alifestd_mask_leaf_trait_pendant_gain_asexual"
+    mark_as : str, default "alifestd_mask_trait_singletons_asexual"
         Column name for the mask.
     trait_mask : np.ndarray
         Boolean array marking nodes that have the trait, aligned with
@@ -131,9 +129,7 @@ def alifestd_mask_leaf_trait_pendant_gain_asexual(
             "current implementation requires phylogeny_df in working format",
         )
 
-    phylogeny_df[
-        mark_as
-    ] = _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
+    phylogeny_df[mark_as] = _alifestd_mask_trait_singletons_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
         trait_mask,
     )

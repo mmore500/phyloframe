@@ -7,8 +7,8 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_mask_leaf_trait_pendant_gain_asexual,
-    alifestd_mask_leaf_trait_pendant_gain_polars,
+    alifestd_mask_trait_singletons_asexual,
+    alifestd_mask_trait_singletons_polars,
     alifestd_to_working_format,
 )
 
@@ -35,12 +35,12 @@ def test_empty(apply: typing.Callable):
         ),
     )
     res = (
-        alifestd_mask_leaf_trait_pendant_gain_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_singletons_polars(df_pl, trait_mask="trait")
         .lazy()
         .collect()
     )
     assert res.is_empty()
-    assert "alifestd_mask_leaf_trait_pendant_gain_polars" in res.columns
+    assert "alifestd_mask_trait_singletons_polars" in res.columns
 
 
 @apply_params
@@ -59,7 +59,7 @@ def test_simple_tree(apply: typing.Callable):
         ),
     )
     res = (
-        alifestd_mask_leaf_trait_pendant_gain_polars(
+        alifestd_mask_trait_singletons_polars(
             df_pl, trait_mask=pl.col("trait") == 1, mark_as="m"
         )
         .lazy()
@@ -73,22 +73,22 @@ def test_matches_pandas():
         pd.read_csv(f"{assets_path}/nk_ecoeaselection-workingformat.csv"),
     )
     df["trait"] = np.random.default_rng(1).random(len(df)) < 0.8
-    expected = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    expected = alifestd_mask_trait_singletons_asexual(
         df, trait_mask=df["trait"].to_numpy()
-    )["alifestd_mask_leaf_trait_pendant_gain_asexual"]
+    )["alifestd_mask_trait_singletons_asexual"]
     assert expected.any()
 
-    res = alifestd_mask_leaf_trait_pendant_gain_polars(
+    res = alifestd_mask_trait_singletons_polars(
         pl.from_pandas(df.drop(columns=["ancestor_list"])),
         trait_mask="trait",
     )
     assert (
-        res["alifestd_mask_leaf_trait_pendant_gain_polars"].to_list()
+        res["alifestd_mask_trait_singletons_polars"].to_list()
         == expected.tolist()
     )
 
 
-def test_null_warns():
+def test_null_raises():
     df_pl = pl.DataFrame(
         {
             "id": [0, 1, 2],
@@ -96,15 +96,8 @@ def test_null_warns():
             "trait": [None, True, None],
         }
     )
-    with pytest.warns(UserWarning):
-        res = alifestd_mask_leaf_trait_pendant_gain_polars(
-            df_pl, trait_mask="trait"
-        )
-    assert res["alifestd_mask_leaf_trait_pendant_gain_polars"].to_list() == [
-        False,
-        True,
-        False,
-    ]
+    with pytest.raises(NotImplementedError):
+        alifestd_mask_trait_singletons_polars(df_pl, trait_mask="trait")
 
 
 @pytest.mark.parametrize(
@@ -116,4 +109,4 @@ def test_null_warns():
 )
 def test_unsupported(df_pl: pl.DataFrame):
     with pytest.raises(NotImplementedError):
-        alifestd_mask_leaf_trait_pendant_gain_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_singletons_polars(df_pl, trait_mask="trait")

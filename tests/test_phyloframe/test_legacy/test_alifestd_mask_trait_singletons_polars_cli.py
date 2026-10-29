@@ -4,13 +4,13 @@ import subprocess
 import pandas as pd
 import pytest
 
-from phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_polars import (
+from phyloframe.legacy._alifestd_mask_trait_singletons_polars import (
     _create_parser,
 )
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
-MODULE = "phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_polars"
+MODULE = "phyloframe.legacy._alifestd_mask_trait_singletons_polars"
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ def test_cli(input_csv_with_trait, ext, tmp_path):
         else pd.read_parquet(output_file)
     )
     assert len(result_df) > 0
-    col = "alifestd_mask_leaf_trait_pendant_gain_polars"
+    col = "alifestd_mask_trait_singletons_polars"
     assert col in result_df.columns
     assert result_df[col].any()
 

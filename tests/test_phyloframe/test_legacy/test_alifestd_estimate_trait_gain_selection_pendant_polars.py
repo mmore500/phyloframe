@@ -116,17 +116,13 @@ def test_unsupported(df_pl: pl.DataFrame):
         )
 
 
-def test_null_trait_mask_absent():
+def test_null_trait_mask_raises():
     df_pl = _make_cherries_polars(2_000)
-    expected = alifestd_estimate_trait_gain_selection_pendant_polars(
-        df_pl, trait_masks=["focal"]
-    )
     nullable = pl.when(pl.col("focal")).then(True).otherwise(None)
-    with pytest.warns(UserWarning, match="null"):
-        res = alifestd_estimate_trait_gain_selection_pendant_polars(
+    with pytest.raises(NotImplementedError):
+        alifestd_estimate_trait_gain_selection_pendant_polars(
             df_pl, trait_masks=[nullable], trait_names=["focal"]
         )
-    assert res.equals(expected)
 
 
 def test_ancestor_list_column():

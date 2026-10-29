@@ -34,7 +34,7 @@ class TgsFitResult(typing.NamedTuple):
 
 
 def _tgs_calc_effective_length_deriv(
-    *, pendant_length: np.ndarray, rate: float, max_exponent: float
+    *, pendant_length: np.ndarray, rate: float, max_growth_exponent: float
 ) -> np.ndarray:
     """Implementation detail for `_tgs_calc_nll`.
 
@@ -42,7 +42,7 @@ def _tgs_calc_effective_length_deriv(
 
     Returns the derivative, with respect to `rate`, of effective length
     (exp(rate * t) - 1) / rate for each pendant length t, with rate * t
-    capped at `max_exponent`.
+    capped at `max_growth_exponent`.
 
     The exact form, (t * exp(rate * t) - effective length) / rate, loses
     precision as rate * t approaches 0, as it divides a difference of nearly
@@ -58,14 +58,14 @@ def _tgs_calc_effective_length_deriv(
     series' ~1e-13. Below it, the exact form degrades (and divides by zero
     at rate = 0), while the series improves.
     """
-    cx = np.minimum(rate * pendant_length, max_exponent)
+    cx = np.minimum(rate * pendant_length, max_growth_exponent)
     effective_length = pendant_length * special.exprel(cx)
     is_near_zero_rate = np.abs(cx) < 1e-6
     series_deriv = pendant_length * pendant_length * (0.5 + cx / 3)
     exact_deriv = np.divide(
         pendant_length * np.exp(cx) - effective_length,
         rate,
-        out=np.zeros_like(cx),
+        out=np.empty_like(cx),
         where=~is_near_zero_rate,
     )
     return np.where(is_near_zero_rate, series_deriv, exact_deriv)
@@ -78,7 +78,7 @@ def _tgs_calc_nll(
     gain_rate: float,
     rate: float,
     *,
-    max_exponent: float,
+    max_growth_exponent: float,
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `tgs_fit`.
 
@@ -86,7 +86,7 @@ def _tgs_calc_nll(
 
     Returns negative log likelihood and its derivatives with respect to log
     gain rate and to `rate` (selection minus loss rate), with rate *
-    pendant length capped at `max_exponent`.
+    pendant length capped at `max_growth_exponent`.
     """
     # p = gain_rate * effective_length, where for pendant length t,
     # effective_length = (exp(rate * t) - 1) / rate is the integral of
@@ -94,10 +94,12 @@ def _tgs_calc_nll(
     # gain's carrier lineage grows (rate > 0) or shrinks (rate < 0) afterward;
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = pendant_length * special.exprel(
-        np.minimum(rate * pendant_length, max_exponent)
+        np.minimum(rate * pendant_length, max_growth_exponent)
     )
     effective_length_deriv = _tgs_calc_effective_length_deriv(
-        pendant_length=pendant_length, rate=rate, max_exponent=max_exponent
+        pendant_length=pendant_length,
+        rate=rate,
+        max_growth_exponent=max_growth_exponent,
     )
 
     p = gain_rate * effective_length
@@ -115,10 +117,9 @@ def _tgs_fit_impl(
     pendant_length: np.ndarray,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    max_exponent: float = 600.0,
+    max_growth_exponent: float = 600.0,
 ) -> TgsFitResult:
-    """Implementation detail for `tgs_fit`, without its experimental
-    warning, for use within phyloframe.
+    """Implementation detail for `tgs_fit`.
 
     Here, tgs stands for trait gain/selection.
     """
@@ -150,7 +151,7 @@ def _tgs_fit_impl(
             x,
             np.exp(log_gain),
             scaled_selection * unit - loss_rate,
-            max_exponent=max_exponent,
+            max_growth_exponent=max_growth_exponent,
         )
         return res, np.array([dlog_gain, drate * unit])
 
@@ -159,7 +160,12 @@ def _tgs_fit_impl(
     def null_nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
         (log_gain,) = params
         res, dlog_gain, __ = _tgs_calc_nll(
-            n, k, x, np.exp(log_gain), -loss_rate, max_exponent=max_exponent
+            n,
+            k,
+            x,
+            np.exp(log_gain),
+            -loss_rate,
+            max_growth_exponent=max_growth_exponent,
         )
         return res, np.array([dlog_gain])
 
@@ -210,7 +216,7 @@ def tgs_fit(
     pendant_length: np.ndarray,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    max_exponent: float = 600.0,
+    max_growth_exponent: float = 600.0,
 ) -> TgsFitResult:
     """Maximum likelihood fit of a binary trait's gain rate and net
     selection from the fraction of leaves carrying it as a function of
@@ -256,9 +262,9 @@ def tgs_fit(
         the best of the resulting fits is kept. Defaults span no cost, a
         mild cost, and a strong cost, under which carrier frequency
         saturates within about half a mean pendant length.
-    max_exponent : float, default 600.0
-        Cap on (selection - loss rate) * pendant length, so that optimizer
-        trial steps far into positive selection stay finite (`p` is then
+    max_growth_exponent : float, default 600.0
+        Cap on the carrier growth exponent, (selection - loss rate) *
+        pendant length, in exp(c * t), so that optimizer trial steps far into positive selection stay finite (`p` is then
         clipped, zeroing its gradient), rather than overflowing to inf and
         giving nan gradients. Must be below ~709.78, where float64 exp
         overflows; the default leaves headroom for the further
@@ -301,5 +307,5 @@ def tgs_fit(
         pendant_length=pendant_length,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
-        max_exponent=max_exponent,
+        max_growth_exponent=max_growth_exponent,
     )

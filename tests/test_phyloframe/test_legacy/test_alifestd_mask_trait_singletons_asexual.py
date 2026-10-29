@@ -6,13 +6,13 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 from phyloframe.legacy import (
-    alifestd_mask_leaf_trait_pendant_gain_asexual as alifestd_mask_leaf_trait_pendant_gain_asexual_,
+    alifestd_mask_trait_singletons_asexual as alifestd_mask_trait_singletons_asexual_,
 )
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mask_leaf_trait_pendant_gain_asexual = enforce_dtype_stability_pandas(
-    alifestd_mask_leaf_trait_pendant_gain_asexual_
+alifestd_mask_trait_singletons_asexual = enforce_dtype_stability_pandas(
+    alifestd_mask_trait_singletons_asexual_
 )
 
 
@@ -31,10 +31,10 @@ def _make_tree() -> pd.DataFrame:
 
 
 def test_empty():
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         alifestd_make_empty(), trait_mask=np.array([], dtype=bool)
     )
-    assert "alifestd_mask_leaf_trait_pendant_gain_asexual" in res.columns
+    assert "alifestd_mask_trait_singletons_asexual" in res.columns
     assert len(res) == 0
 
 
@@ -43,7 +43,7 @@ def test_simple(mutate: bool):
     phylogeny_df = _make_tree()
     original_df = phylogeny_df.copy()
     trait_mask = np.array([0, 0, 0, 0, 1, 1, 0, 1, 1], dtype=bool)
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, mutate=mutate, trait_mask=trait_mask
     )
     res.index = res["id"]
@@ -51,7 +51,7 @@ def test_simple(mutate: bool):
     # 4, 7, 8 share it with every leaf of their parent's clade
     expected = [0, 0, 0, 0, 0, 1, 0, 0, 0]
     assert res.loc[
-        range(9), "alifestd_mask_leaf_trait_pendant_gain_asexual"
+        range(9), "alifestd_mask_trait_singletons_asexual"
     ].tolist() == list(map(bool, expected))
     if not mutate:
         assert original_df.equals(phylogeny_df)
@@ -60,7 +60,7 @@ def test_simple(mutate: bool):
 def test_inner_values_ignored():
     phylogeny_df = _make_tree()
     trait_mask = np.array([1, 1, 1, 1, 0, 1, 0, 1, 1], dtype=bool)
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=trait_mask, mark_as="m"
     )
     res.index = res["id"]
@@ -73,13 +73,13 @@ def test_root_leaf():
     phylogeny_df = pd.DataFrame(
         {"id": [0, 1, 2], "ancestor_id": [0, 1, 1], "origin_time": [0, 0, 1]}
     )
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=np.array([True, False, True])
     )
     res.index = res["id"]
-    assert not res.loc[0, "alifestd_mask_leaf_trait_pendant_gain_asexual"]
+    assert not res.loc[0, "alifestd_mask_trait_singletons_asexual"]
     # 2 is the only leaf of its parent's clade, so shares its trait with it
-    assert not res.loc[2, "alifestd_mask_leaf_trait_pendant_gain_asexual"]
+    assert not res.loc[2, "alifestd_mask_trait_singletons_asexual"]
 
 
 @pytest.mark.parametrize(
@@ -97,7 +97,7 @@ def test_root_leaf():
 )
 def test_not_working_format_raises(phylogeny_df: pd.DataFrame):
     with pytest.raises(NotImplementedError):
-        alifestd_mask_leaf_trait_pendant_gain_asexual(
+        alifestd_mask_trait_singletons_asexual(
             phylogeny_df, trait_mask=np.zeros(3, dtype=bool)
         )
 
@@ -118,7 +118,7 @@ def test_non_bool_trait_mask_raises(trait_mask):
         {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 2]}
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mask_leaf_trait_pendant_gain_asexual(
+        alifestd_mask_trait_singletons_asexual(
             phylogeny_df, trait_mask=trait_mask
         )
 
@@ -132,10 +132,10 @@ def test_unifurcations_bypassed():
     phylogeny_df = pd.DataFrame(
         {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 1]}
     )
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=np.array([False, False, False, True])
     )
-    assert res["alifestd_mask_leaf_trait_pendant_gain_asexual"].tolist() == [
+    assert res["alifestd_mask_trait_singletons_asexual"].tolist() == [
         False,
         False,
         False,
@@ -143,10 +143,10 @@ def test_unifurcations_bypassed():
     ]
 
     # with the trait on both leaves, root's clade is monomorphic
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=np.array([False, False, True, True])
     )
-    assert not res["alifestd_mask_leaf_trait_pendant_gain_asexual"].any()
+    assert not res["alifestd_mask_trait_singletons_asexual"].any()
 
 
 def test_unifurcations_match_collapsed():
@@ -164,9 +164,9 @@ def test_unifurcations_match_collapsed():
         {"id": np.arange(num_nodes), "ancestor_id": ancestor_ids}
     )
     trait_mask = rng.random(num_nodes) < 0.5
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=trait_mask
-    ).set_index("id")["alifestd_mask_leaf_trait_pendant_gain_asexual"]
+    ).set_index("id")["alifestd_mask_trait_singletons_asexual"]
 
     collapsed = phylogeny_df.assign(trait=trait_mask)
     collapsed = alifestd_to_working_format(
@@ -174,12 +174,12 @@ def test_unifurcations_match_collapsed():
             collapsed, ignore_topological_sensitivity=True
         ).assign(orig_id=lambda df: df["id"]),
     )
-    expected = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    expected = alifestd_mask_trait_singletons_asexual(
         collapsed, trait_mask=collapsed["trait"].to_numpy()
     )
     for orig_id, mark in zip(
         expected["orig_id"],
-        expected["alifestd_mask_leaf_trait_pendant_gain_asexual"],
+        expected["alifestd_mask_trait_singletons_asexual"],
     ):
         assert res[orig_id] == mark
 
@@ -194,8 +194,8 @@ _FOREST_IS_BRANCHING = np.array([0, 1, 0, 0, 0, 1, 0, 0], dtype=bool)
 
 
 def test_stem_node_ids():
-    from phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_asexual import (
-        _alifestd_mask_leaf_trait_pendant_gain_asexual_stem_node_ids as stem_node_ids,
+    from phyloframe.legacy._alifestd_mask_trait_singletons_asexual import (
+        _alifestd_mask_trait_singletons_asexual_stem_node_ids as stem_node_ids,
     )
 
     res = stem_node_ids(_FOREST_ANCESTOR_IDS, _FOREST_IS_BRANCHING)
@@ -208,7 +208,7 @@ def test_no_stem_node():
     phylogeny_df = pd.DataFrame(
         {"id": [0, 1, 2], "ancestor_id": [0, 0, 1], "origin_time": [0, 1, 2]}
     )
-    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+    res = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=np.array([False, False, True])
     )
-    assert not res["alifestd_mask_leaf_trait_pendant_gain_asexual"].any()
+    assert not res["alifestd_mask_trait_singletons_asexual"].any()

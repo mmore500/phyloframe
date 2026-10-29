@@ -170,7 +170,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_polars
-$ python3 -m phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_polars
+$ python3 -m phyloframe.legacy._alifestd_mask_trait_singletons_polars
 $ python3 -m phyloframe.legacy._alifestd_minify_asexual
 $ python3 -m phyloframe.legacy._alifestd_minify_polars
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops

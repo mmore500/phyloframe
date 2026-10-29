@@ -20,9 +20,6 @@ from ._alifestd_assign_contiguous_ids_polars import (
 from ._alifestd_collapse_unifurcations_polars import (
     alifestd_collapse_unifurcations_polars,
 )
-from ._alifestd_estimate_trait_gain_selection_pendant_asexual import (
-    _tgs_impl,
-)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -32,12 +29,10 @@ from ._alifestd_is_topologically_sorted_polars import (
 from ._alifestd_mark_origin_time_delta_polars import (
     alifestd_mark_origin_time_delta_polars,
 )
-from ._alifestd_mask_leaf_trait_pendant_gain_polars import (
-    _alifestd_mask_leaf_trait_pendant_gain_polars_fill_null,
-)
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
+from ._impl import tgs_impl
 
 
 @warn_experimental
@@ -105,8 +100,7 @@ def alifestd_estimate_trait_gain_selection_pendant_polars(
         topologically sorted ids.
     trait_masks : Sequence[str or polars.Expr]
         Column names or boolean expressions marking taxa with each trait.
-        Only leaf values are used. Null values are treated as trait absent,
-        with a warning.
+        Only leaf values are used. Null values are not supported.
     trait_names : Sequence[str], optional
         Labels for output rows; defaults to column names for traits given as
         str, else trait indices.
@@ -154,8 +148,9 @@ def alifestd_estimate_trait_gain_selection_pendant_polars(
     Raises
     ------
     NotImplementedError
-        If `phylogeny_df` has no "ancestor_id" column or if ids are
-        non-contiguous or not topologically sorted.
+        If `phylogeny_df` has no "ancestor_id" column, if ids are
+        non-contiguous or not topologically sorted, or if a trait mask has
+        null values.
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
         if `trait_names` and `trait_masks` differ in length, or if
@@ -238,18 +233,20 @@ def alifestd_estimate_trait_gain_selection_pendant_polars(
         selected, mark_as="__alifestd_tgs_pendant_length"
     )
 
-    trait_arrays = [
-        _alifestd_mask_leaf_trait_pendant_gain_polars_fill_null(
-            selected[f"__alifestd_tgs_trait{i}"], name=f"trait mask {name}"
-        )
-        for i, name in enumerate(trait_names)
-    ]
+    trait_arrays = []
+    for i, name in enumerate(trait_names):
+        trait_mask = selected[f"__alifestd_tgs_trait{i}"]
+        if trait_mask.has_nulls():
+            raise NotImplementedError(
+                f"null values in trait mask {name} not supported",
+            )
+        trait_arrays.append(trait_mask.to_numpy())
 
     logging.info(
         "- alifestd_estimate_trait_gain_selection_pendant_polars: "
         "fitting gain and selection...",
     )
-    res = _tgs_impl(
+    res = tgs_impl(
         ancestor_ids=selected["ancestor_id"].to_numpy(),
         origin_time=selected["origin_time"].to_numpy(),
         pendant_lengths=selected["__alifestd_tgs_pendant_length"].to_numpy(),

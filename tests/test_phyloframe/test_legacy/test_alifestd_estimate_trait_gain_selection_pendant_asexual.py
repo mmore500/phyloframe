@@ -8,9 +8,9 @@ from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
 from phyloframe.legacy import (
     alifestd_estimate_trait_gain_selection_pendant_asexual,
 )
-from phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_asexual import (
-    _tgs_select_calibration_neighborhoods,
-    _TgsCounts,
+from phyloframe.legacy._impl import (
+    TgsCounts,
+    tgs_select_calibration_neighborhoods,
 )
 
 
@@ -332,12 +332,12 @@ def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     partition_coords = rng.random((256, 2))
     n = np.full(256, 100.0)
-    counts = _TgsCounts(
+    counts = TgsCounts(
         num_leaves=np.tile(n, (3, 1)),
         num_carriers=rng.binomial(100, 0.01, (3, 256)).astype(float),
         pendant_length_sums=np.tile(10 * n, (3, 1)),
     )
-    res = _tgs_select_calibration_neighborhoods(
+    res = tgs_select_calibration_neighborhoods(
         partition_coords=partition_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
         counts=counts,
