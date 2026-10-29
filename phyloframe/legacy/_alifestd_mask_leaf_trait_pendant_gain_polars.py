@@ -62,7 +62,9 @@ def alifestd_mask_leaf_trait_pendant_gain_polars(
     leaf whose trait is shared by every leaf of its parent's clade could
     have gained it above its parent node, so is marked False. Root leaves
     and leaves without the trait are also marked False. Unifurcations are
-    bypassed, so a leaf's parent is its nearest branching ancestor.
+    bypassed, so a leaf's parent is its stem node, the nearest ancestor
+    with at least two children; leaves without one have no other leaf to
+    compare against, so are marked False.
 
     Only supports asexual phylogenies.
 

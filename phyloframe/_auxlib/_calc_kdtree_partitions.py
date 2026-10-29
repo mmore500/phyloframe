@@ -1,64 +1,43 @@
-import typing
-
 import numpy as np
 from scipy import spatial
 
+from ._iter_kdtree_nodes import iter_kdtree_nodes
 
-def calc_kdtree_partitions(points: np.ndarray, num_levels: int) -> np.ndarray:
-    """Assign points to the partitions of a balanced k-d tree.
 
-    Recursively splitting at the median gives `2 ** num_levels` partitions
-    that hold equal numbers of points, to within one, when coordinates are
-    distinct (e.g., ranks, with ties broken).
+def calc_kdtree_partitions(points: np.ndarray, leafsize: int) -> np.ndarray:
+    """Assign points to the leaves of a balanced k-d tree.
+
+    Splitting at the median until each node holds at most `leafsize` points
+    gives partitions of `leafsize / 2` to `leafsize` points, when coordinates
+    are distinct (e.g., ranks, with ties broken).
 
     Parameters
     ----------
     points : np.ndarray
         Array of shape (num_points, num_dimensions).
-    num_levels : int
-        Number of median splits along each path from the root.
+    leafsize : int
+        Largest number of points per partition.
 
     Returns
     -------
     np.ndarray
-        Partition of each point, as integers in `range(2 ** num_levels)`.
-
-    Raises
-    ------
-    NotImplementedError
-        If there are fewer than `2 ** num_levels` points, or too few
-        distinct points to split `num_levels` times.
+        Partition of each point, as integers numbered from 0 in tree order.
 
     See Also
     --------
     scipy.spatial.cKDTree :
         Builds the tree.
+    iter_kdtree_nodes :
+        Visits its leaves in order.
     """
     points = np.asarray(points, dtype=np.float64)
-    if len(points) < 2**num_levels:
-        raise NotImplementedError(
-            f"splitting {num_levels} times requires at least "
-            f"{2 ** num_levels} points, got {len(points)}",
-        )
+    if len(points) == 0:
+        return np.zeros(0, dtype=np.int64)
 
-    # cKDTree stops splitting nodes of at most `leafsize` points; at half the
-    # target partition size, every node above `num_levels` gets split
-    leafsize = max(1, len(points) >> (num_levels + 1))
     tree = spatial.cKDTree(points, leafsize=leafsize, balanced_tree=True)
-    partitions = np.full(len(points), -1, dtype=np.int64)
-
-    def assign(node: typing.Any, level: int, partition: int) -> None:
-        if level == num_levels:
-            partitions[node.indices] = partition
-        elif node.lesser is None:
-            raise NotImplementedError(
-                f"splitting {num_levels} times requires at least "
-                f"{2 ** num_levels} distinct points",
-            )
-        else:  # number partitions by their path of lesser/greater splits
-            assign(node.lesser, level + 1, 2 * partition)
-            assign(node.greater, level + 1, 2 * partition + 1)
-
-    assign(tree.tree, 0, 0)
-    assert (partitions >= 0).all()
+    leaves = [node for node in iter_kdtree_nodes(tree) if node.lesser is None]
+    partitions = np.empty(len(points), dtype=np.int64)
+    partitions[tree.indices] = np.repeat(
+        np.arange(len(leaves)), [node.children for node in leaves]
+    )
     return partitions

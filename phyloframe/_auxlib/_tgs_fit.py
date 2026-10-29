@@ -5,6 +5,7 @@ import numpy as np
 from scipy import optimize, special
 
 from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
+from ._warn_experimental import warn_experimental
 
 
 class TgsFitResult(typing.NamedTuple):
@@ -107,6 +108,101 @@ def _tgs_calc_nll(
     return nll, dnll_dlog_gain, dnll_drate
 
 
+def _tgs_fit_impl(
+    *,
+    num_trials: np.ndarray,
+    num_successes: np.ndarray,
+    pendant_length: np.ndarray,
+    loss_rate: float = 0.0,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    max_exponent: float = 600.0,
+) -> TgsFitResult:
+    """Implementation detail for `tgs_fit`, without its experimental
+    warning, for use within phyloframe.
+
+    Here, tgs stands for trait gain/selection.
+    """
+    num_trials = np.asarray(num_trials, dtype=np.float64).ravel()
+    num_successes = np.asarray(num_successes, dtype=np.float64).ravel()
+    pendant_length = np.asarray(pendant_length, dtype=np.float64).ravel()
+
+    keep = num_trials > 0
+    n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
+    if not keep.any() or not num_successes.any():
+        warnings.warn(
+            "tgs_fit got no trait carriers, so gain rate is 0 and selection "
+            "is undefined.",
+        )
+        return TgsFitResult(
+            gain_rate=0.0, selection=np.nan, selection_lrt_naive=np.nan
+        )
+
+    # optimize selection in units of 1 / mean pendant length, so that both
+    # parameters are of order one; otherwise, with long pendant lengths,
+    # L-BFGS-B stops early on the tiny selection parameter
+    unit = 1.0 / np.average(x, weights=n)
+
+    def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
+        log_gain, scaled_selection = params
+        res, dlog_gain, drate = _tgs_calc_nll(
+            n,
+            k,
+            x,
+            np.exp(log_gain),
+            scaled_selection * unit - loss_rate,
+            max_exponent=max_exponent,
+        )
+        return res, np.array([dlog_gain, drate * unit])
+
+    # under the null hypothesis of no selection (selection = 0), for the
+    # likelihood-ratio test
+    def null_nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
+        (log_gain,) = params
+        res, dlog_gain, __ = _tgs_calc_nll(
+            n, k, x, np.exp(log_gain), -loss_rate, max_exponent=max_exponent
+        )
+        return res, np.array([dlog_gain])
+
+    minimize_kwargs = dict(
+        jac=True,  # objective function returns its own gradient
+        method="L-BFGS-B",  # gradient-based, for differentiable functions
+    )
+    # start log gain rate at its neutral estimate, carriers per unit pendant
+    # length, and selection at each of `selection_starts`, keeping the best
+    # fit in case the optimizer stalls in a local minimum
+    log_gain_start = np.log(k.sum() / (n * x).sum())
+    fits = [
+        optimize.minimize(
+            nll, [log_gain_start, selection_start], **minimize_kwargs
+        )
+        for selection_start in selection_starts
+    ]
+    # prefer converged fits
+    converged = [fit for fit in fits if fit.success]
+    best = min(converged or fits, key=lambda res: res.fun)  # .fun is nll
+    null = optimize.minimize(  # fit gain rate alone, with selection = 0
+        null_nll, best.x[:1], **minimize_kwargs
+    )
+    if not converged:
+        warnings.warn(
+            "tgs_fit optimizer did not converge from any starting point "
+            f"({best.message}); estimates may be unreliable.",
+        )
+    if not null.success:
+        warnings.warn(
+            "tgs_fit optimizer did not converge under the null hypothesis "
+            f"of no selection ({null.message}); likelihood-ratio statistic "
+            "may be unreliable.",
+        )
+    return TgsFitResult(
+        gain_rate=float(np.exp(best.x[0])),
+        selection=float(best.x[1] * unit),
+        # two-tailed, testing selection != 0 in either direction
+        selection_lrt_naive=float(2 * (null.fun - best.fun)),
+    )
+
+
+@warn_experimental
 def tgs_fit(
     *,
     num_trials: np.ndarray,
@@ -199,81 +295,11 @@ def tgs_fit(
     Biology, 56(5), 701-710.
     https://doi.org/10.1080/10635150701607033
     """
-    num_trials = np.asarray(num_trials, dtype=np.float64).ravel()
-    num_successes = np.asarray(num_successes, dtype=np.float64).ravel()
-    pendant_length = np.asarray(pendant_length, dtype=np.float64).ravel()
-
-    keep = num_trials > 0
-    n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
-    if not keep.any() or not num_successes.any():
-        warnings.warn(
-            "tgs_fit got no trait carriers, so gain rate is 0 and selection "
-            "is undefined.",
-        )
-        return TgsFitResult(
-            gain_rate=0.0, selection=np.nan, selection_lrt_naive=np.nan
-        )
-
-    # optimize selection in units of 1 / mean pendant length, so that both
-    # parameters are of order one; otherwise, with long pendant lengths,
-    # L-BFGS-B stops early on the tiny selection parameter
-    unit = 1.0 / np.average(x, weights=n)
-
-    def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
-        log_gain, scaled_selection = params
-        res, dlog_gain, drate = _tgs_calc_nll(
-            n,
-            k,
-            x,
-            np.exp(log_gain),
-            scaled_selection * unit - loss_rate,
-            max_exponent=max_exponent,
-        )
-        return res, np.array([dlog_gain, drate * unit])
-
-    # under the null hypothesis of no selection (selection = 0), for the
-    # likelihood-ratio test
-    def null_nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
-        (log_gain,) = params
-        res, dlog_gain, __ = _tgs_calc_nll(
-            n, k, x, np.exp(log_gain), -loss_rate, max_exponent=max_exponent
-        )
-        return res, np.array([dlog_gain])
-
-    minimize_kwargs = dict(
-        jac=True,  # objective function returns its own gradient
-        method="L-BFGS-B",  # gradient-based, for differentiable functions
-    )
-    # start log gain rate at its neutral estimate, carriers per unit pendant
-    # length, and selection at each of `selection_starts`, keeping the best
-    # fit in case the optimizer stalls in a local minimum
-    log_gain_start = np.log(k.sum() / (n * x).sum())
-    fits = [
-        optimize.minimize(
-            nll, [log_gain_start, selection_start], **minimize_kwargs
-        )
-        for selection_start in selection_starts
-    ]
-    # prefer converged fits
-    converged = [fit for fit in fits if fit.success]
-    best = min(converged or fits, key=lambda res: res.fun)  # .fun is nll
-    null = optimize.minimize(  # fit gain rate alone, with selection = 0
-        null_nll, best.x[:1], **minimize_kwargs
-    )
-    if not converged:
-        warnings.warn(
-            "tgs_fit optimizer did not converge from any starting point "
-            f"({best.message}); estimates may be unreliable.",
-        )
-    if not null.success:
-        warnings.warn(
-            "tgs_fit optimizer did not converge under the null hypothesis "
-            f"of no selection ({null.message}); likelihood-ratio statistic "
-            "may be unreliable.",
-        )
-    return TgsFitResult(
-        gain_rate=float(np.exp(best.x[0])),
-        selection=float(best.x[1] * unit),
-        # two-tailed, testing selection != 0 in either direction
-        selection_lrt_naive=float(2 * (null.fun - best.fun)),
+    return _tgs_fit_impl(
+        num_trials=num_trials,
+        num_successes=num_successes,
+        pendant_length=pendant_length,
+        loss_rate=loss_rate,
+        selection_starts=selection_starts,
+        max_exponent=max_exponent,
     )

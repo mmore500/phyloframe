@@ -182,3 +182,33 @@ def test_unifurcations_match_collapsed():
         expected["alifestd_mask_leaf_trait_pendant_gain_asexual"],
     ):
         assert res[orig_id] == mark
+
+
+#   0       5
+#   1      6 7
+#  2 3
+#  4
+# root 0 is unifurcating, root 5 is branching, and 2 is unifurcating
+_FOREST_ANCESTOR_IDS = np.array([0, 0, 1, 1, 2, 5, 5, 5])
+_FOREST_IS_BRANCHING = np.array([0, 1, 0, 0, 0, 1, 0, 0], dtype=bool)
+
+
+def test_stem_node_ids():
+    from phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_asexual import (
+        _alifestd_mask_leaf_trait_pendant_gain_asexual_stem_node_ids as stem_node_ids,
+    )
+
+    res = stem_node_ids(_FOREST_ANCESTOR_IDS, _FOREST_IS_BRANCHING)
+    # 0, 1, and 5 have no stem node above them, so are their own
+    assert res.tolist() == [0, 1, 1, 1, 1, 5, 5, 5]
+
+
+def test_no_stem_node():
+    # a single unbranched lineage, so leaf 2 has no clade-mate to compare
+    phylogeny_df = pd.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 0, 1], "origin_time": [0, 1, 2]}
+    )
+    res = alifestd_mask_leaf_trait_pendant_gain_asexual(
+        phylogeny_df, trait_mask=np.array([False, False, True])
+    )
+    assert not res["alifestd_mask_leaf_trait_pendant_gain_asexual"].any()

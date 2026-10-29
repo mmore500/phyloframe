@@ -9,8 +9,8 @@ def calc_binomial_nll_proxy(
     num_successes: np.ndarray,
     p: np.ndarray,
 ) -> typing.Tuple[float, np.ndarray]:
-    """Calculate a proxy for binomial negative log likelihood, equal to it
-    up to an additive constant, and its gradient with respect to success
+    """Calculate a proxy for binomial negative log likelihood (up to an
+    additive constant), and its gradient with respect to success
     probability.
 
     The result is offset from the true negative log likelihood by the summed

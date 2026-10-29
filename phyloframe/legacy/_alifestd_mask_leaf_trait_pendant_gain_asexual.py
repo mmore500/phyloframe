@@ -10,7 +10,6 @@ from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
-from ._alifestd_mark_roots import _alifestd_mark_roots_asexual_fast_path
 from ._alifestd_mask_monomorphic_clades_asexual import (
     _alifestd_mask_monomorphic_clades_asexual_fast_path,
 )
@@ -18,26 +17,29 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _alifestd_mask_leaf_trait_pendant_gain_asexual_nearest_branching_ancestors(
+def _alifestd_mask_leaf_trait_pendant_gain_asexual_stem_node_ids(
     ancestor_ids: np.ndarray,
     is_branching: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_mask_leaf_trait_pendant_gain_asexual`.
 
-    Returns, for each node, its parent, skipping over unifurcations: the
-    nearest ancestor that has at least two children (`is_branching`) or is
-    a root. Assumes contiguous, topologically sorted ids.
+    Returns, for each node, its stem node: the nearest ancestor that has at
+    least two children (`is_branching`), where the node's lineage splits
+    from its sister lineages, skipping over unifurcations. A node without
+    one (e.g., a root) is its own stem node. Assumes contiguous,
+    topologically sorted ids.
     """
-    res = ancestor_ids.copy()
+    res = np.empty_like(ancestor_ids)
     for idx, ancestor_id in enumerate(ancestor_ids):
-        is_root = ancestor_ids[ancestor_id] == ancestor_id
-        if (
-            ancestor_id != idx
-            and not is_branching[ancestor_id]
-            and not is_root
-        ):
-            res[idx] = res[ancestor_id]  # computed already, as sorted
+        if ancestor_id == idx:  # root, without ancestors
+            res[idx] = idx
+        elif is_branching[ancestor_id]:
+            res[idx] = ancestor_id
+        elif res[ancestor_id] != ancestor_id:  # computed already, as sorted
+            res[idx] = res[ancestor_id]
+        else:  # no stem node above a unifurcating ancestor
+            res[idx] = idx
     return res
 
 
@@ -54,16 +56,19 @@ def _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
     is_monomorphic = _alifestd_mask_monomorphic_clades_asexual_fast_path(
         ancestor_ids, is_leaf.copy(), is_present.copy()
     )
-    # a trait-carrying leaf under a polymorphic parent does not share the
-    # trait with every leaf of its parent's clade, so gained it on its own
-    # pendant branch; unifurcations are bypassed, as a unifurcation's clade
-    # has the same leaves as its child's
-    parents = _alifestd_mask_leaf_trait_pendant_gain_asexual_nearest_branching_ancestors(
-        ancestor_ids,
-        _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
+    # a trait-carrying leaf whose stem node's clade is polymorphic does not
+    # share the trait with every leaf of its sister lineages, so gained it on
+    # its own pendant branch; unifurcations are bypassed, as a unifurcation's
+    # clade has the same leaves as its child's; a leaf without a stem node
+    # (e.g., a root leaf) is its own, so is never marked, as there is no
+    # other leaf to compare against
+    stem_node_ids = (
+        _alifestd_mask_leaf_trait_pendant_gain_asexual_stem_node_ids(
+            ancestor_ids,
+            _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
+        )
     )
-    is_root = _alifestd_mark_roots_asexual_fast_path(ancestor_ids)
-    return is_present & ~is_monomorphic[parents] & ~is_root
+    return is_present & ~is_monomorphic[stem_node_ids]
 
 
 @warn_experimental
@@ -82,7 +87,9 @@ def alifestd_mask_leaf_trait_pendant_gain_asexual(
     leaf whose trait is shared by every leaf of its parent's clade could
     have gained it above its parent node, so is marked False. Root leaves
     and leaves without the trait are also marked False. Unifurcations are
-    bypassed, so a leaf's parent is its nearest branching ancestor.
+    bypassed, so a leaf's parent is its stem node, the nearest ancestor
+    with at least two children; leaves without one have no other leaf to
+    compare against, so are marked False.
 
     Parameters
     ----------

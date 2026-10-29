@@ -158,3 +158,10 @@ def test_tgs_calc_effective_length_deriv(rate: float):
         for t in pendant_length
     ]
     np.testing.assert_allclose(res, expected, rtol=1e-9)
+
+
+def test_warns_experimental():
+    from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
+
+    with pytest.warns(ExperimentalWarning, match="tgs_fit is experimental"):
+        _fit(*_sample(1e-3, -0.05, seed=10))

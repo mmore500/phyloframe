@@ -1,22 +1,25 @@
+import functools
 import logging
 import operator
 import typing
 import warnings
 
-import joblib
 import numpy as np
 import opytional as opyt
 import pandas as pd
 from scipy import sparse, stats
-from sklearn import neighbors
 
 from .._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
+from .._auxlib._calc_group_means import calc_group_means
 from .._auxlib._calc_kdtree_partitions import calc_kdtree_partitions
+from .._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
 from .._auxlib._calc_neighborhood_rate_ratios import (
     calc_neighborhood_rate_ratios,
 )
+from .._auxlib._calc_two_sided_normal_p import calc_two_sided_normal_p
+from .._auxlib._run_seeded_replicates import run_seeded_replicates
 from .._auxlib._sample_bootstrap_counts import sample_bootstrap_counts
-from .._auxlib._tgs_fit import TgsFitResult, tgs_fit
+from .._auxlib._tgs_fit import TgsFitResult, _tgs_fit_impl
 from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
@@ -147,29 +150,6 @@ def _tgs_calc_heldout_nll(
     return res
 
 
-def _tgs_find_calibration_neighborhoods(
-    *, partition_coords: np.ndarray, neighborhood_fraction: float
-) -> sparse.spmatrix:
-    """Implementation detail for `_tgs_select_calibration_neighborhoods`.
-
-    Here, tgs stands for trait gain/selection.
-
-    Returns partition-by-partition neighborhood membership matrix, whose row
-    `i` marks partition `i`'s nearest partitions, including itself, together
-    holding `neighborhood_fraction` of leaves.
-    """
-    num_partitions = len(partition_coords)
-    k = np.clip(
-        np.ceil(neighborhood_fraction * num_partitions), 1, num_partitions
-    )
-    # pass coordinates explicitly, so each partition is its own neighbor
-    return (
-        neighbors.NearestNeighbors(n_neighbors=int(k))
-        .fit(partition_coords)
-        .kneighbors_graph(partition_coords, mode="connectivity")
-    )
-
-
 def _tgs_select_calibration_neighborhoods(
     *,
     partition_coords: np.ndarray,
@@ -190,8 +170,11 @@ def _tgs_select_calibration_neighborhoods(
     """
     best_nll, best_neighborhoods = np.inf, None
     for fraction in neighborhood_fractions:
-        calibration_neighborhoods = _tgs_find_calibration_neighborhoods(
-            partition_coords=partition_coords, neighborhood_fraction=fraction
+        # each partition's nearest partitions, itself included, together
+        # holding `fraction` of leaves, as partitions are near-equal in size
+        calibration_neighborhoods = calc_knn_neighborhoods(
+            partition_coords,
+            num_neighbors=int(np.ceil(fraction * len(partition_coords))),
         )
         nll = _tgs_calc_heldout_nll(
             calibration_neighborhoods=calibration_neighborhoods,
@@ -303,7 +286,7 @@ def _tgs_fit_traits(
         # without carriers, skip fitting (and its warning), as callers report
         # such traits and replicates
         fits.append(
-            tgs_fit(
+            _tgs_fit_impl(
                 num_trials=n,
                 num_successes=k,
                 pendant_length=pendant_length,
@@ -366,37 +349,19 @@ def _tgs_bootstrap(
     # each replicate draws as many leaves as there are, with replacement, so
     # a leaf may be drawn zero, one, or several times; weighting each leaf by
     # its draw count in the fit is the same as refitting to the resampled
-    # leaves, without building the resampled dataset; each replicate is
-    # seeded separately, so that results do not depend on how or in what
-    # order jobs are dispatched; without a seed, draw one from the global
-    # random state
-    seed = opyt.or_else(seed, lambda: np.random.randint(2**31))
-    replicate_seeds = np.random.SeedSequence(seed).generate_state(
-        num_bootstrap
+    # leaves, without building the resampled dataset
+    replicate_fits = run_seeded_replicates(
+        functools.partial(_tgs_fit_bootstrap_replicate, fit_kwargs=fit_kwargs),
+        num_replicates=num_bootstrap,
+        seed=seed,
+        parallel_backend=parallel_backend,
+        progress_wrap=progress_wrap,
     )
-    jobs = (
-        joblib.delayed(_tgs_fit_bootstrap_replicate)(
-            seed=int(replicate_seed), fit_kwargs=fit_kwargs
-        )
-        for replicate_seed in replicate_seeds
-    )
-    with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
-        replicate_fits = joblib.Parallel()(progress_wrap(jobs))
     return pd.concat(
         replicate_fits,
         keys=range(num_bootstrap),
         names=["replicate", "trait_index"],
     )
-
-
-def _tgs_calc_two_sided_p(z: np.ndarray) -> np.ndarray:
-    """Implementation detail for `_tgs_summarize_bootstrap`.
-
-    Here, tgs stands for trait gain/selection.
-
-    Returns two-sided p-value of each z-score under a standard normal.
-    """
-    return 2 * stats.norm.sf(np.abs(z))
 
 
 def _tgs_summarize_bootstrap(
@@ -473,8 +438,8 @@ def _tgs_summarize_bootstrap(
             .to_numpy(),
         },
     )
-    res["selection_p"] = _tgs_calc_two_sided_p(res["selection_z"])
-    res["gain_ratio_p"] = _tgs_calc_two_sided_p(res["gain_ratio_z"])
+    res["selection_p"] = calc_two_sided_normal_p(res["selection_z"])
+    res["gain_ratio_p"] = calc_two_sided_normal_p(res["gain_ratio_z"])
     return res[
         [
             "selection_se",
@@ -542,8 +507,12 @@ def _tgs_partition_leaves(
     num_levels = int(
         max(0, min(np.log2(max_partitions), np.log2(num_leaves / 4)))
     )
-    leaf_partitions = calc_kdtree_partitions(leaf_ranks, num_levels)
     num_partitions = 2**num_levels
+    # median splitting stops exactly `num_levels` levels down, as nodes there
+    # hold at most this many leaves and nodes above, with at least 4 per
+    # partition, hold more
+    partition_size = -(-num_leaves // num_partitions)  # ceiling division
+    leaf_partitions = calc_kdtree_partitions(leaf_ranks, partition_size)
     partition_sizes = np.bincount(leaf_partitions, minlength=num_partitions)
     logging.info(
         "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
@@ -551,12 +520,8 @@ def _tgs_partition_leaves(
         f"({num_levels} levels of splits), of sizes "
         f"{np.unique(partition_sizes).tolist()}",
     )
-    partition_coords = np.column_stack(
-        [
-            np.bincount(leaf_partitions, x, minlength=num_partitions)
-            / np.maximum(partition_sizes, 1)
-            for x in leaf_ranks.T
-        ],
+    partition_coords = calc_group_means(
+        leaf_partitions, leaf_ranks, num_groups=num_partitions
     )
     return leaf_partitions, num_partitions, partition_coords
 
@@ -751,8 +716,8 @@ def _tgs_impl(
         & (pendant_lengths > 0)  # excludes root leaves and nan
         & (origin_time >= min_leaf_origin_time)
     )
-    # for each trait, informative leaves whose trait state reflects their own
-    # pendant branch rather than inheritance, and the carriers among them
+    # for each trait, informative leaves whose pendant branch started without
+    # the trait, and the pendant gains among them
     trait_leaves, trait_carriers = [], []
     for trait_mask in trait_masks:
         leaves, carriers = _tgs_find_trait_leaves(
@@ -943,7 +908,8 @@ def alifestd_estimate_trait_gain_selection_pendant_asexual(
     Notes
     -----
     Unifurcations are bypassed, so pendant branches span from leaves to
-    their nearest branching ancestor. Leaves with zero or undefined pendant
+    their stem node, the nearest ancestor with at least two children.
+    Leaves with zero or undefined pendant
     length (including root leaves) are excluded. Under sparse sampling,
     selection estimates the change rate of a reconstructed carrier
     lineage's weight, roughly the difference in per-lineage net growth;
