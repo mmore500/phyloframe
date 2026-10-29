@@ -8,7 +8,7 @@ from scipy import sparse
 from phyloframe.legacy import alifestd_estimate_trait_gain_selection_asexual
 from phyloframe.legacy._alifestd_estimate_trait_gain_selection_asexual import (
     _tgs_calc_rate_ratios,
-    _tgs_select_neighbours,
+    _tgs_select_calibration_neighborhoods,
 )
 
 
@@ -326,7 +326,7 @@ def test_tgs_calc_rate_ratios_uniform():
     # events proportional to exposure everywhere, so no correction
     exposure = np.array([1.0, 2.0, 3.0, 4.0])
     res = _tgs_calc_rate_ratios(
-        neighbours=sparse.identity(4, format="csr"),
+        calibration_neighborhoods=sparse.identity(4, format="csr"),
         num_events=0.5 * exposure,
         exposure=exposure,
     )
@@ -338,15 +338,17 @@ def test_tgs_calc_rate_ratios_local():
     exposure = np.ones(4)
     num_events = np.array([2.0, 2.0, 1.0, 1.0])
     pairs = sparse.csr_matrix(
-        np.kron(np.eye(2), np.ones((2, 2)))  # neighbourhoods {0, 1}, {2, 3}
+        np.kron(np.eye(2), np.ones((2, 2)))  # neighborhoods {0, 1}, {2, 3}
     )
     res = _tgs_calc_rate_ratios(
-        neighbours=pairs, num_events=num_events, exposure=exposure
+        calibration_neighborhoods=pairs,
+        num_events=num_events,
+        exposure=exposure,
     )
     np.testing.assert_allclose(res, [4 / 3, 4 / 3, 2 / 3, 2 / 3])
-    # one global neighbourhood averages away local differences
+    # one global neighborhood averages away local differences
     res = _tgs_calc_rate_ratios(
-        neighbours=sparse.csr_matrix(np.ones((4, 4))),
+        calibration_neighborhoods=sparse.csr_matrix(np.ones((4, 4))),
         num_events=num_events,
         exposure=exposure,
     )
@@ -355,14 +357,14 @@ def test_tgs_calc_rate_ratios_local():
 
 def test_tgs_calc_rate_ratios_no_events():
     res = _tgs_calc_rate_ratios(
-        neighbours=sparse.identity(3, format="csr"),
+        calibration_neighborhoods=sparse.identity(3, format="csr"),
         num_events=np.zeros(3),
         exposure=np.ones(3),
     )
     np.testing.assert_allclose(res, 1.0)
 
 
-def test_tgs_select_neighbours():
+def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     cell_coords = rng.random((256, 2))
     n = np.full(256, 100.0)
@@ -370,11 +372,37 @@ def test_tgs_select_neighbours():
         (n, rng.binomial(100, 0.01, 256).astype(float), 10 * n)
         for __ in range(3)
     ]
-    res = _tgs_select_neighbours(
-        cell_coords=cell_coords, counts=counts, neutral_traits=[0, 1, 2]
+    res = _tgs_select_calibration_neighborhoods(
+        cell_coords=cell_coords,
+        neighborhood_fractions=(0.01, 0.1, 0.5),
+        counts=counts,
+        neutral_traits=[0, 1, 2],
     )
     assert res.shape == (256, 256)
-    # each cell belongs to its own neighbourhood
+    # each cell belongs to its own neighborhood
     assert (res.diagonal() == 1).all()
-    # neighbourhoods are the same size
+    # neighborhoods are the same size
     assert len(set(np.diff(res.indptr))) == 1
+
+
+@pytest.mark.parametrize("fractions", [(), (0.0, 0.1), (0.1, 1.5)])
+def test_invalid_neighborhood_fractions_raise(fractions):
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_estimate_trait_gain_selection_asexual(
+            phylogeny_df,
+            trait_masks=traits,
+            calibration_neighborhood_fractions=fractions,
+        )
+
+
+def test_neighborhood_fractions_single_candidate():
+    phylogeny_df, traits = _make_cherries(2_000)
+    res = alifestd_estimate_trait_gain_selection_asexual(
+        phylogeny_df,
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        calibrate=True,
+        calibration_neighborhood_fractions=[0.1],
+    )
+    assert np.isfinite(res["selection"]).all()

@@ -32,10 +32,6 @@ def sample_bootstrap_counts(num_items: int) -> np.ndarray:
 
     References
     ----------
-    Efron, B. (1979). Bootstrap methods: another look at the jackknife.
-    Annals of Statistics, 7(1), 1-26.
-    https://doi.org/10.1214/aos/1176344552
-
     Praestgaard, J., and Wellner, J. A. (1993). Exchangeably weighted
     bootstraps of the general empirical process. Annals of Probability,
     21(4), 2053-2086.

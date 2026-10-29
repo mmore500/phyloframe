@@ -43,6 +43,14 @@ def alifestd_estimate_trait_gain_selection_polars(
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
     calibrate: bool = False,
+    calibration_neighborhood_fractions: typing.Sequence[float] = (
+        0.005,
+        0.01,
+        0.02,
+        0.05,
+        0.1,
+        0.2,
+    ),
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
@@ -91,6 +99,11 @@ def alifestd_estimate_trait_gain_selection_polars(
         than by branch length, so that distortion of branch lengths shared
         with neutral traits (e.g., from tree reconstruction) cancels. See
         `alifestd_estimate_trait_gain_selection_asexual` for details.
+    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.02, 0.05, 0.1, 0.2)
+        Candidate calibration neighborhood sizes, as fractions of leaves.
+        With `calibrate`, the candidate whose calibration best predicts
+        held-out neutral traits is used. Larger neighborhoods smooth more;
+        smaller ones resolve finer distortion but are noisier.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling leaves with replacement
         and refitting, for standard errors, z-scores, and p-values.
@@ -112,7 +125,9 @@ def alifestd_estimate_trait_gain_selection_polars(
         If `phylogeny_df` has no "ancestor_id" column or if ids are
         non-contiguous or not topologically sorted.
     ValueError
-        If `calibrate` is set with fewer than two distinct neutral traits.
+        If `calibrate` is set with fewer than two distinct neutral traits,
+        or if `calibration_neighborhood_fractions` is empty or has a value
+        outside (0, 1].
 
     Returns
     -------
@@ -193,6 +208,7 @@ def alifestd_estimate_trait_gain_selection_polars(
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
+        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
@@ -268,6 +284,16 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Measure pendant length by neutral trait gains.",
     )
     parser.add_argument(
+        "--calibration-neighborhood-fractions",
+        default=(0.005, 0.01, 0.02, 0.05, 0.1, 0.2),
+        nargs="+",
+        type=float,
+        help=(
+            "Candidate calibration neighborhood sizes, as fractions of "
+            "leaves (default: 0.005 0.01 0.02 0.05 0.1 0.2)."
+        ),
+    )
+    parser.add_argument(
         "--num-bootstrap",
         default=0,
         type=int,
@@ -318,6 +344,9 @@ if __name__ == "__main__":
                     trait_masks=args.trait_masks,
                     neutral_traits=args.neutral_traits,
                     calibrate=args.calibrate,
+                    calibration_neighborhood_fractions=(
+                        args.calibration_neighborhood_fractions
+                    ),
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
