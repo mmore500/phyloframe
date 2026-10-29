@@ -10,6 +10,7 @@ import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
+from .._auxlib._experimental import experimental
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
@@ -39,6 +40,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
+@experimental
 def alifestd_estimate_trait_gain_selection_polars(
     phylogeny_df: pl.DataFrame,
     *,

@@ -1,4 +1,3 @@
-import functools
 import logging
 import operator
 import typing
@@ -16,6 +15,7 @@ from .._auxlib._calc_kdtree_partitions import calc_kdtree_partitions
 from .._auxlib._calc_neighborhood_rate_ratios import (
     calc_neighborhood_rate_ratios,
 )
+from .._auxlib._experimental import experimental
 from .._auxlib._sample_bootstrap_counts import sample_bootstrap_counts
 from .._auxlib._tgs_fit import TgsFitResult, tgs_fit
 from .._auxlib._with_rng_state_context import with_rng_state_context
@@ -29,9 +29,20 @@ from ._alifestd_mask_leaf_trait_inherited_asexual import (
 )
 from ._alifestd_to_working_format import alifestd_to_working_format
 
-# per-trait counts in each partition: leaves, trait carriers, and summed
-# pendant length; tgs stands for trait gain/selection
-_TgsCounts = typing.Tuple[np.ndarray, np.ndarray, np.ndarray]
+
+class _TgsCounts(typing.NamedTuple):
+    """Implementation detail for
+    `alifestd_estimate_trait_gain_selection_asexual`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Per-trait (weighted) counts in each partition, as arrays of shape
+    (num_traits, num_partitions).
+    """
+
+    num_leaves: np.ndarray
+    num_carriers: np.ndarray
+    pendant_length_sums: np.ndarray
 
 
 def _tgs_count_traits(
@@ -42,7 +53,7 @@ def _tgs_count_traits(
     leaf_weights: np.ndarray,
     trait_leaves: typing.Sequence[np.ndarray],
     trait_carriers: typing.Sequence[np.ndarray],
-) -> typing.List[_TgsCounts]:
+) -> _TgsCounts:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
@@ -51,22 +62,33 @@ def _tgs_count_traits(
     Returns, per trait, (weighted) counts of leaves and of trait carriers,
     and summed pendant length, in each partition.
     """
-    bincount = functools.partial(np.bincount, minlength=num_partitions)
-    weighted_lengths = leaf_weights * pendant_lengths
-    return [
-        (
-            bincount(leaf_partitions[leaves], leaf_weights[leaves]),
-            bincount(leaf_partitions[carriers], leaf_weights[carriers]),
-            bincount(leaf_partitions[leaves], weighted_lengths[leaves]),
-        )
-        for leaves, carriers in zip(trait_leaves, trait_carriers)
-    ]
+    shape = (len(trait_leaves), num_partitions)
+
+    def count(leaf_sets: typing.Sequence[np.ndarray], weights: np.ndarray):
+        return np.array(
+            [
+                np.bincount(
+                    leaf_partitions[leaves],
+                    weights[leaves],
+                    minlength=num_partitions,
+                )
+                for leaves in leaf_sets
+            ],
+        ).reshape(shape)
+
+    return _TgsCounts(
+        num_leaves=count(trait_leaves, leaf_weights),
+        num_carriers=count(trait_carriers, leaf_weights),
+        pendant_length_sums=count(
+            trait_leaves, leaf_weights * pendant_lengths
+        ),
+    )
 
 
 def _tgs_calc_reference_rate_ratios(
     *,
     calibration_neighborhoods: sparse.spmatrix,
-    counts: typing.Sequence[_TgsCounts],
+    counts: _TgsCounts,
     refs: typing.Sequence[int],
 ) -> np.ndarray:
     """Implementation detail for
@@ -79,15 +101,15 @@ def _tgs_calc_reference_rate_ratios(
     """
     return calc_neighborhood_rate_ratios(
         neighborhoods=calibration_neighborhoods,
-        num_events=sum(counts[ref][1] for ref in refs),
-        exposure=sum(counts[ref][2] for ref in refs),
+        num_events=counts.num_carriers[refs].sum(axis=0),
+        exposure=counts.pendant_length_sums[refs].sum(axis=0),
     )
 
 
 def _tgs_calc_heldout_nll(
     *,
     calibration_neighborhoods: sparse.spmatrix,
-    counts: typing.Sequence[_TgsCounts],
+    counts: _TgsCounts,
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
 ) -> float:
@@ -101,9 +123,13 @@ def _tgs_calc_heldout_nll(
     """
     res = 0.0
     for trait in neutral_traits:
-        n, k, pendant_length_sum = counts[trait]
+        n = counts.num_leaves[trait]
+        k = counts.num_carriers[trait]
         pendant_length = np.divide(
-            pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
+            counts.pendant_length_sums[trait],
+            n,
+            out=np.zeros(n.shape),
+            where=n > 0,
         ) * _tgs_calc_reference_rate_ratios(
             calibration_neighborhoods=calibration_neighborhoods,
             counts=counts,
@@ -149,7 +175,7 @@ def _tgs_select_calibration_neighborhoods(
     *,
     partition_coords: np.ndarray,
     neighborhood_fractions: typing.Sequence[float],
-    counts: typing.Sequence[_TgsCounts],
+    counts: _TgsCounts,
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
 ) -> sparse.spmatrix:
@@ -188,7 +214,7 @@ def _tgs_calibrate(
     *,
     partition_coords: np.ndarray,
     neighborhood_fractions: typing.Sequence[float],
-    counts: typing.Sequence[_TgsCounts],
+    counts: _TgsCounts,
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
 ) -> sparse.spmatrix:
@@ -199,7 +225,7 @@ def _tgs_calibrate(
 
     Returns calibration neighborhoods (see
     `_tgs_select_calibration_neighborhoods`), warning about any without
-    neutral gains and logging each trait's rescaling of pendant lengths.
+    neutral gains.
     """
     calibration_neighborhoods = _tgs_select_calibration_neighborhoods(
         partition_coords=partition_coords,
@@ -208,7 +234,7 @@ def _tgs_calibrate(
         neutral_traits=neutral_traits,
         trait_names=trait_names,
     )
-    neutral_gains = sum(counts[trait][1] for trait in neutral_traits)
+    neutral_gains = counts.num_carriers[neutral_traits].sum(axis=0)
     num_empty = int((calibration_neighborhoods @ neutral_gains == 0).sum())
     if num_empty:
         warnings.warn(
@@ -218,25 +244,6 @@ def _tgs_calibrate(
             "leaves would help.",
         )
 
-    for trait, (n, __, __) in enumerate(counts):
-        if not (n > 0).any():
-            logging.info(
-                "- alifestd_estimate_trait_gain_selection_asexual: "
-                f"not calibrating trait {trait_names[trait]}, which has no "
-                "informative leaves",
-            )
-            continue
-        ratios = _tgs_calc_reference_rate_ratios(
-            calibration_neighborhoods=calibration_neighborhoods,
-            counts=counts,
-            refs=sorted(set(neutral_traits) - {trait}),
-        )[n > 0]
-        logging.info(
-            "- alifestd_estimate_trait_gain_selection_asexual: "
-            f"calibrating trait {trait_names[trait]}, rescaling pendant "
-            f"lengths by {ratios.min():.3g} to {ratios.max():.3g} (median "
-            f"{np.median(ratios):.3g})",
-        )
     return calibration_neighborhoods
 
 
@@ -251,17 +258,18 @@ def _tgs_fit_traits(
     neutral_traits: typing.Sequence[int],
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
     loss_rate: float,
-) -> pd.DataFrame:
+) -> typing.Tuple[pd.DataFrame, typing.List[typing.Optional[np.ndarray]]]:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
     Returns one row per trait, with columns of `TgsFitResult` plus
-    `gain_ratio`, the gain rate relative to neutral traits. If
-    `calibration_neighborhoods` is given, rescales each partition's pendant
-    length by the rate ratio of neutral trait gains within its
-    neighborhood.
+    `gain_ratio`, the gain rate relative to neutral traits; and, per trait,
+    the factors rescaling pendant length in partitions with its leaves
+    (None without calibration). If `calibration_neighborhoods` is given,
+    each partition's pendant length is rescaled by the rate ratio of neutral
+    trait gains within its neighborhood.
     """
     counts = _tgs_count_traits(
         leaf_partitions=leaf_partitions,
@@ -273,20 +281,26 @@ def _tgs_fit_traits(
     )
     # leave each trait out of its own neutral reference
     refs = [
-        sorted(set(neutral_traits) - {trait}) for trait in range(len(counts))
+        sorted(set(neutral_traits) - {trait})
+        for trait in range(len(trait_leaves))
     ]
 
-    fits = []
-    for trait, (n, k, pendant_length_sum) in enumerate(counts):
+    fits, calibration_factors = [], []
+    for trait, (n, k, pendant_length_sum) in enumerate(zip(*counts)):
         pendant_length = np.divide(
             pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
         )
-        if calibration_neighborhoods is not None:
-            pendant_length *= _tgs_calc_reference_rate_ratios(
-                calibration_neighborhoods=calibration_neighborhoods,
+        factors = opyt.apply_if(
+            calibration_neighborhoods,
+            lambda neighborhoods: _tgs_calc_reference_rate_ratios(
+                calibration_neighborhoods=neighborhoods,
                 counts=counts,
                 refs=refs[trait],
-            )
+            ),
+        )
+        if factors is not None:
+            pendant_length *= factors
+        calibration_factors.append(opyt.apply_if(factors, lambda f: f[n > 0]))
         # without carriers, skip fitting (and its warning), as callers report
         # such traits and replicates
         fits.append(
@@ -313,11 +327,11 @@ def _tgs_fit_traits(
         gain_rate / ref_gain_rate if ref_gain_rate > 0 else np.nan
         for gain_rate, ref_gain_rate in zip(res["gain_rate"], ref_gain_rates)
     ]
-    return res
+    return res, calibration_factors
 
 
 def _tgs_fit_bootstrap_replicate(
-    *, seed: typing.Optional[int], fit_kwargs: dict
+    *, seed: int, fit_kwargs: dict
 ) -> pd.DataFrame:
     """Implementation detail for `_tgs_bootstrap`.
 
@@ -325,15 +339,13 @@ def _tgs_fit_bootstrap_replicate(
 
     Returns fit to one bootstrap resample of leaves; see `_tgs_fit_traits`.
     """
-    sample = opyt.apply_if_or_value(
-        seed,
-        lambda seed: with_rng_state_context(seed)(sample_bootstrap_counts),
-        sample_bootstrap_counts,
+    leaf_weights = with_rng_state_context(seed)(sample_bootstrap_counts)(
+        len(fit_kwargs["leaf_partitions"])
     )
-    leaf_weights = sample(len(fit_kwargs["leaf_partitions"]))
-    return _tgs_fit_traits(
+    fits, __ = _tgs_fit_traits(
         leaf_weights=leaf_weights.astype(np.float64), **fit_kwargs
     )
+    return fits
 
 
 def _tgs_bootstrap(
@@ -357,17 +369,15 @@ def _tgs_bootstrap(
     # its draw count in the fit is the same as refitting to the resampled
     # leaves, without building the resampled dataset; each replicate is
     # seeded separately, so that results do not depend on how or in what
-    # order jobs are dispatched
-    replicate_seeds = opyt.apply_if_or_value(
-        seed,
-        lambda seed: np.random.SeedSequence(seed).generate_state(
-            num_bootstrap
-        ),
-        [None] * num_bootstrap,
+    # order jobs are dispatched; without a seed, draw one from the global
+    # random state
+    seed = opyt.or_else(seed, lambda: np.random.randint(2**31))
+    replicate_seeds = np.random.SeedSequence(seed).generate_state(
+        num_bootstrap
     )
     jobs = (
         joblib.delayed(_tgs_fit_bootstrap_replicate)(
-            seed=opyt.apply_if(replicate_seed, int), fit_kwargs=fit_kwargs
+            seed=int(replicate_seed), fit_kwargs=fit_kwargs
         )
         for replicate_seed in replicate_seeds
     )
@@ -416,19 +426,26 @@ def _tgs_summarize_bootstrap(
         np.isfinite(point["gain_ratio"].to_numpy())[trait_index]
         & ~np.isfinite(gain_ratio)
     )
-    num_degenerate = is_gain_ratio_degenerate.groupby(trait_index).sum()
-    if num_degenerate.any():
-        num_replicates = replicate_fits.index.get_level_values(0).nunique()
-        counts = ", ".join(
-            f"{trait} ({count} of {num_replicates})"
-            for trait, count in zip(point["trait"], num_degenerate)
-            if count
-        )
-        warnings.warn(
-            "bootstrap replicates that resampled no carriers of a trait, or "
-            f"of its neutral reference, were excluded for traits {counts}, "
-            "so their standard errors may be underestimated.",
-        )
+    num_replicates = replicate_fits.index.get_level_values(0).nunique()
+    for is_excluded, reason in (
+        (is_selection_degenerate, "no carriers of the trait"),
+        (
+            is_gain_ratio_degenerate & ~is_selection_degenerate,
+            "no carriers of the trait's neutral reference",
+        ),
+    ):
+        num_excluded = is_excluded.groupby(trait_index).sum()
+        if num_excluded.any():
+            counts = ", ".join(
+                f"{trait} ({count} of {num_replicates})"
+                for trait, count in zip(point["trait"], num_excluded)
+                if count
+            )
+            warnings.warn(
+                f"bootstrap replicates that resampled {reason} were excluded "
+                f"for traits {counts}, so their standard errors may be "
+                "underestimated.",
+            )
 
     # standard deviation across replicates, per trait; nan with fewer than
     # two non-excluded replicates
@@ -444,19 +461,32 @@ def _tgs_summarize_bootstrap(
         .std()
         .to_numpy()
     )
-    selection_z = point["selection"] / selection_se
-    gain_ratio_z = np.log(point["gain_ratio"]) / log_gain_ratio_se
-    return pd.DataFrame(
+    res = pd.DataFrame(
         {
             "selection_se": selection_se,
-            "selection_z": selection_z,
-            "selection_p": _tgs_calc_two_sided_p(selection_z),
+            "selection_z": point["selection"] / selection_se,
             "log_gain_ratio_se": log_gain_ratio_se,
-            "gain_ratio_z": gain_ratio_z,
-            "gain_ratio_p": _tgs_calc_two_sided_p(gain_ratio_z),
-            "num_bootstrap_degenerate": num_degenerate.to_numpy(),
+            "gain_ratio_z": np.log(point["gain_ratio"]) / log_gain_ratio_se,
+            "num_bootstrap_degenerate": is_gain_ratio_degenerate.groupby(
+                trait_index
+            )
+            .sum()
+            .to_numpy(),
         },
     )
+    res["selection_p"] = _tgs_calc_two_sided_p(res["selection_z"])
+    res["gain_ratio_p"] = _tgs_calc_two_sided_p(res["gain_ratio_z"])
+    return res[
+        [
+            "selection_se",
+            "selection_z",
+            "selection_p",
+            "log_gain_ratio_se",
+            "gain_ratio_z",
+            "gain_ratio_p",
+            "num_bootstrap_degenerate",
+        ]
+    ]
 
 
 def _tgs_find_trait_leaves(
@@ -470,19 +500,21 @@ def _tgs_find_trait_leaves(
 
     Here, tgs stands for trait gain/selection.
 
-    Returns positions, among informative leaves, of leaves whose trait
-    state arose on their own pendant branch (i.e., whose trait is not
-    shared by every leaf of their parent's clade), and of those among them
-    that carry the trait.
+    Informative leaves (`is_informative`) are those used for fitting:
+    leaves with a positive pendant branch length that originate at or after
+    `min_leaf_origin_time`. Returns positions, among informative leaves, of
+    leaves whose trait state arose on their own pendant branch (i.e., whose
+    trait is not shared by every leaf of their parent's clade), and of those
+    among them that carry the trait.
     """
     trait_mask = np.asarray(trait_mask, dtype=bool)
-    inherited = _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
+    is_inherited = _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
         ancestor_ids, trait_mask
     )
-    is_own = ~inherited[is_informative]
+    is_not_inherited = ~is_inherited[is_informative]
     return (
-        np.flatnonzero(is_own),
-        np.flatnonzero(is_own & trait_mask[is_informative]),
+        np.flatnonzero(is_not_inherited),
+        np.flatnonzero(is_not_inherited & trait_mask[is_informative]),
     )
 
 
@@ -490,7 +522,7 @@ def _tgs_partition_leaves(
     *,
     pendant_lengths: np.ndarray,
     origin_times: np.ndarray,
-    max_num_partitions: int,
+    max_partitions: int,
 ) -> typing.Tuple[np.ndarray, int, np.ndarray]:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
@@ -500,7 +532,7 @@ def _tgs_partition_leaves(
     Returns partition of each leaf, number of partitions, and each
     partition's mean coordinates, grouping leaves into equal-occupancy
     partitions by ranked pendant length and origin time. Uses up to
-    `max_num_partitions` partitions, a power of two, but keeps at least 4
+    `max_partitions` partitions, a power of two, but keeps at least 4
     leaves in each.
     """
     num_leaves = len(pendant_lengths)
@@ -511,11 +543,17 @@ def _tgs_partition_leaves(
         ],
     )
     num_levels = int(
-        max(0, min(np.log2(max_num_partitions), np.log2(num_leaves / 4)))
+        max(0, min(np.log2(max_partitions), np.log2(num_leaves / 4)))
     )
     leaf_partitions = calc_kdtree_partitions(leaf_ranks, num_levels)
     num_partitions = 2**num_levels
     partition_sizes = np.bincount(leaf_partitions, minlength=num_partitions)
+    logging.info(
+        "- alifestd_estimate_trait_gain_selection_asexual: "
+        f"partitioned {num_leaves} leaves into {num_partitions} partitions "
+        f"({num_levels} levels of splits), of sizes "
+        f"{np.unique(partition_sizes).tolist()}",
+    )
     partition_coords = np.column_stack(
         [
             np.bincount(leaf_partitions, x, minlength=num_partitions)
@@ -597,7 +635,7 @@ def _tgs_fit(
     leaf_partitions, num_partitions, partition_coords = _tgs_partition_leaves(
         pendant_lengths=pendant_lengths,
         origin_times=origin_times,
-        max_num_partitions=num_calibration_partitions,
+        max_partitions=num_calibration_partitions,
     )
     num_leaves = len(leaf_partitions)
     fit_kwargs = dict(
@@ -630,8 +668,18 @@ def _tgs_fit(
         "- alifestd_estimate_trait_gain_selection_asexual: "
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
-    point = _tgs_fit_traits(leaf_weights=np.ones(num_leaves), **fit_kwargs)
+    point, calibration_factors = _tgs_fit_traits(
+        leaf_weights=np.ones(num_leaves), **fit_kwargs
+    )
     res[list(point.columns)] = point
+    for name, factors in zip(trait_names, calibration_factors):
+        if factors is not None and len(factors):
+            logging.info(
+                "- alifestd_estimate_trait_gain_selection_asexual: "
+                f"calibrated trait {name}, rescaling pendant lengths by "
+                f"{factors.min():.3g} to {factors.max():.3g} (median "
+                f"{np.median(factors):.3g})",
+            )
     if not num_bootstrap:
         return None
 
@@ -688,8 +736,8 @@ def _tgs_impl(
             "calibration_neighborhood_fractions must be nonempty, with each "
             "in (0, 1]",
         )
-    if num_calibration_partitions < 1 or (
-        num_calibration_partitions & (num_calibration_partitions - 1)
+    if int(num_calibration_partitions).bit_count() != 1 or (
+        num_calibration_partitions < 1
     ):
         raise ValueError(
             "num_calibration_partitions must be a power of two, got "
@@ -700,7 +748,7 @@ def _tgs_impl(
     origin_time = np.asarray(origin_time, dtype=np.float64)
     pendant_lengths = np.asarray(pendant_lengths, dtype=np.float64)
     # leaves informative for fitting: those with a pendant branch to gain a
-    # trait on, originating late enough to include
+    # trait on, originating at or after `min_leaf_origin_time`
     is_informative = (
         _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
         & (pendant_lengths > 0)  # excludes root leaves and nan
@@ -758,6 +806,7 @@ def _tgs_impl(
     )
 
 
+@experimental
 def alifestd_estimate_trait_gain_selection_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,

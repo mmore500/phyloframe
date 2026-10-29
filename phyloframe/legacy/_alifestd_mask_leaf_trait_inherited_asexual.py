@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from .._auxlib._experimental import experimental
 from .._auxlib._jit import jit
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
@@ -65,6 +66,7 @@ def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
     return is_present & is_monomorphic[parents] & ~is_root
 
 
+@experimental
 def alifestd_mask_leaf_trait_inherited_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,

@@ -1,3 +1,4 @@
+from ._ExperimentalWarning import ExperimentalWarning
 from ._GetAttrLaunderShim import GetAttrLaunderShim
 from ._RngStateContext import RngStateContext
 from ._add_bool_arg import add_bool_arg
@@ -15,6 +16,7 @@ from ._count_leading_blanks import count_leading_blanks
 from ._delegate_polars_implementation import delegate_polars_implementation
 from ._estimate_binomial_p import estimate_binomial_p
 from ._eval_kwargs import eval_kwargs
+from ._experimental import experimental
 from ._fit_fblr import fit_fblr
 from ._format_cli_description import format_cli_description
 from ._get_package_name import get_package_name
@@ -50,6 +52,7 @@ from ._with_rng_state_context import with_rng_state_context
 from ._write_text_with_compression import write_text_with_compression
 
 __all__ = [
+    "ExperimentalWarning",
     "GetAttrLaunderShim",
     "RngStateContext",
     "TgsFitResult",
@@ -68,6 +71,7 @@ __all__ = [
     "delegate_polars_implementation",
     "estimate_binomial_p",
     "eval_kwargs",
+    "experimental",
     "fit_fblr",
     "format_cli_description",
     "get_package_name",

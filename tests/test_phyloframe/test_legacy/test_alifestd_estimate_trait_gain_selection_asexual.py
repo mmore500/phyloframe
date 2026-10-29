@@ -4,9 +4,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
 from phyloframe.legacy import alifestd_estimate_trait_gain_selection_asexual
 from phyloframe.legacy._alifestd_estimate_trait_gain_selection_asexual import (
     _tgs_select_calibration_neighborhoods,
+    _TgsCounts,
 )
 
 
@@ -272,6 +274,7 @@ def test_bootstrap_without_neutral_traits():
     phylogeny_df, traits = _make_cherries(2_000)
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # no degenerate-replicate warning
+        warnings.filterwarnings("ignore", category=ExperimentalWarning)
         res = alifestd_estimate_trait_gain_selection_asexual(
             phylogeny_df,
             trait_masks=traits,
@@ -300,7 +303,10 @@ def test_bootstrap_rare_trait():
     # with a single carrier, replicates often resample no carriers
     num_degenerate = res.loc[0, "num_bootstrap_degenerate"]
     assert 0 < num_degenerate < 50
-    assert f"0 ({num_degenerate} of 50)" in str(record[0].message)
+    assert any(
+        f"0 ({num_degenerate} of 50)" in str(warning.message)
+        for warning in record
+    )
     assert (res.loc[1:, "num_bootstrap_degenerate"] == 0).all()
     assert np.isfinite(res["selection_se"]).all()
     assert np.isfinite(res["log_gain_ratio_se"]).all()
@@ -324,10 +330,11 @@ def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     partition_coords = rng.random((256, 2))
     n = np.full(256, 100.0)
-    counts = [
-        (n, rng.binomial(100, 0.01, 256).astype(float), 10 * n)
-        for __ in range(3)
-    ]
+    counts = _TgsCounts(
+        num_leaves=np.tile(n, (3, 1)),
+        num_carriers=rng.binomial(100, 0.01, (3, 256)).astype(float),
+        pendant_length_sums=np.tile(10 * n, (3, 1)),
+    )
     res = _tgs_select_calibration_neighborhoods(
         partition_coords=partition_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),

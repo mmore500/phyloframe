@@ -11,6 +11,7 @@ import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
+from .._auxlib._experimental import experimental
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
@@ -46,6 +47,7 @@ def _alifestd_mask_leaf_trait_inherited_polars_fill_null(
     return trait_mask.fill_null(False).to_numpy()
 
 
+@experimental
 def alifestd_mask_leaf_trait_inherited_polars(
     phylogeny_df: pl.DataFrame,
     *,

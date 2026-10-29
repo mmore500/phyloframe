@@ -6,6 +6,12 @@ from scipy import optimize, special
 
 from ._calc_binomial_nll import calc_binomial_nll
 
+# cap on rate * pendant length, so that optimizer trial steps far into
+# positive selection stay finite (p is then clipped, zeroing its gradient),
+# rather than overflowing to inf and giving nan gradients; tgs stands for
+# trait gain/selection
+_tgs_max_exponent = 600.0
+
 
 class TgsFitResult(typing.NamedTuple):
     """Result of `tgs_fit`.
@@ -32,6 +38,40 @@ class TgsFitResult(typing.NamedTuple):
     selection_lrt_naive: float
 
 
+def _tgs_calc_effective_length_deriv(
+    *, pendant_length: np.ndarray, rate: float
+) -> np.ndarray:
+    """Implementation detail for `_tgs_calc_nll`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns the derivative, with respect to `rate`, of effective length
+    (exp(rate * t) - 1) / rate for each pendant length t.
+
+    The exact form, (t * exp(rate * t) - effective length) / rate, loses
+    precision as rate * t approaches 0, as it divides a difference of nearly
+    equal numbers by a small rate (relative error ~1e-16 / |rate * t|).
+    There, use the Taylor series of the exponential function instead: with
+    effective length = sum over j >= 1 of rate**(j - 1) * t**j / j!, the
+    derivative is t**2 / 2 + rate * t**3 / 3 + O(rate**2), truncated with
+    relative error ~(rate * t)**2 / 4; see
+    https://en.wikipedia.org/wiki/Exponential_function#Power_series
+
+    Below the |rate * t| < 1e-6 cutoff, either form is accurate to ~1e-10.
+    """
+    cx = np.minimum(rate * pendant_length, _tgs_max_exponent)
+    effective_length = pendant_length * special.exprel(cx)
+    is_near_zero_rate = np.abs(cx) < 1e-6
+    series_deriv = pendant_length * pendant_length * (0.5 + cx / 3)
+    exact_deriv = np.divide(
+        pendant_length * np.exp(cx) - effective_length,
+        rate,
+        out=np.zeros_like(cx),
+        where=~is_near_zero_rate,
+    )
+    return np.where(is_near_zero_rate, series_deriv, exact_deriv)
+
+
 def _tgs_calc_nll(
     num_trials: np.ndarray,
     num_successes: np.ndarray,
@@ -49,29 +89,13 @@ def _tgs_calc_nll(
     # p = gain_rate * effective_length, where for pendant length t,
     # effective_length = (exp(rate * t) - 1) / rate is the integral of
     # exp(rate * s) over s in [0, t], i.e., pendant length weighted by how a
-    # gain's carrier lineage grows (rate > 0) or shrinks (rate < 0) afterward
-    # cap the exponent so that optimizer trial steps far into positive
-    # selection stay finite (p is then clipped, zeroing its gradient), rather
-    # than overflowing to inf and giving nan gradients
-    cx = np.minimum(rate * pendant_length, 600.0)
+    # gain's carrier lineage grows (rate > 0) or shrinks (rate < 0) afterward;
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
-    effective_length = pendant_length * special.exprel(cx)
-
-    # d effective_length / d rate; near rate = 0, where the exact form divides
-    # by zero, use the Taylor series of the exponential function: with
-    # effective_length = sum over j >= 1 of rate**(j - 1) * t**j / j!, the
-    # derivative is t**2 / 2 + rate * t**3 / 3 + O(rate**2)
-    # https://en.wikipedia.org/wiki/Exponential_function#Power_series
-    is_near_zero_rate = np.abs(cx) < 1e-6
-    series_deriv = pendant_length * pendant_length * (0.5 + cx / 3)
-    exact_deriv = np.divide(
-        pendant_length * np.exp(cx) - effective_length,
-        rate,
-        out=np.zeros_like(cx),
-        where=~is_near_zero_rate,
+    effective_length = pendant_length * special.exprel(
+        np.minimum(rate * pendant_length, _tgs_max_exponent)
     )
-    effective_length_deriv = np.where(
-        is_near_zero_rate, series_deriv, exact_deriv
+    effective_length_deriv = _tgs_calc_effective_length_deriv(
+        pendant_length=pendant_length, rate=rate
     )
 
     p = gain_rate * effective_length

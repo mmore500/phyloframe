@@ -122,3 +122,33 @@ def test_no_convergence_warns(monkeypatch):
 def test_keyword_only():
     with pytest.raises(TypeError):
         tgs_fit(*_sample(1e-3, -0.05, seed=9))
+
+
+@pytest.mark.parametrize(
+    "rate", [-0.1, -1e-4, -1e-7, -1e-9, 0.0, 1e-9, 1e-7, 1e-4, 0.05]
+)
+def test_tgs_calc_effective_length_deriv(rate: float):
+    from fractions import Fraction
+    from math import factorial
+
+    from phyloframe._auxlib._tgs_fit import _tgs_calc_effective_length_deriv
+
+    pendant_length = np.array([0.01, 1.0, 7.0, 30.0])
+    res = _tgs_calc_effective_length_deriv(
+        pendant_length=pendant_length, rate=rate
+    )
+    # exact derivative, from the series sum over j >= 2 of
+    # (j - 1) * rate**(j - 2) * t**j / j!
+    expected = [
+        float(
+            sum(
+                (j - 1)
+                * Fraction(rate) ** (j - 2)
+                * Fraction(t) ** j
+                / factorial(j)
+                for j in range(2, 80)
+            )
+        )
+        for t in pendant_length
+    ]
+    np.testing.assert_allclose(res, expected, rtol=1e-9)
