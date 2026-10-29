@@ -2,9 +2,11 @@ import argparse
 import functools
 import logging
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import polars as pl
 
 from .._auxlib._add_bool_arg import add_bool_arg
@@ -34,8 +36,16 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 )
 def alifestd_collapse_unifurcations_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    mark_num_collapsed_as: typing.Optional[str] = None,
 ) -> pl.DataFrame:
     """Pare record to bypass organisms with one ancestor and one descendant.
+
+    If `mark_num_collapsed_as` is provided, a column of that name is added
+    counting, for each remaining node, the number of unifurcations collapsed
+    away between it and its ancestor. If the column already exists, counts
+    accumulate onto existing values (e.g., across repeated collapses), with
+    missing values treated as zero.
 
     See Also
     --------
@@ -89,10 +99,39 @@ def alifestd_collapse_unifurcations_polars(
     logging.info(
         "- alifestd_collapse_unifurcations_polars: calculating reindex...",
     )
-    keep_filter, ancestor_ids = _collapse_unifurcations(
-        ancestor_ids.copy(),  # must copy to remove read-only flag...
-        # ... for numba compatibility
-    )
+    if mark_num_collapsed_as is None:
+        keep_filter, ancestor_ids = _collapse_unifurcations(
+            ancestor_ids.copy(),  # must copy to remove read-only flag...
+            # ... for numba compatibility
+        )
+        num_collapsed_cols = {}
+    else:
+        logging.info(
+            "- alifestd_collapse_unifurcations_polars: "
+            "collecting prior collapsed counts...",
+        )
+        keep_filter, ancestor_ids, num_collapsed = _collapse_unifurcations(
+            ancestor_ids.copy(),  # must copy to remove read-only flag...
+            # ... for numba compatibility
+            num_collapsed=(
+                phylogeny_df.lazy()
+                .select(pl.col(mark_num_collapsed_as).fill_null(0))
+                .collect()
+                .to_series()
+                .to_numpy()
+                if mark_num_collapsed_as in schema_names
+                else np.zeros(len(ancestor_ids), dtype=np.uint32)
+            ),
+        )
+        num_collapsed_cols = {
+            mark_num_collapsed_as: pl.Series(
+                num_collapsed[keep_filter], dtype=pl.UInt32
+            ).cast(  # preserve dtype
+                phylogeny_df.lazy().collect_schema()[mark_num_collapsed_as]
+                if mark_num_collapsed_as in schema_names
+                else pl.UInt32
+            ),
+        }
 
     logging.info(
         "- alifestd_collapse_unifurcations_polars: applying reindex...",
@@ -100,6 +139,7 @@ def alifestd_collapse_unifurcations_polars(
     return phylogeny_df.filter(keep_filter).with_columns(
         id=original_ids[keep_filter],
         ancestor_id=original_ids[ancestor_ids[keep_filter]],
+        **num_collapsed_cols,
     )
 
 
@@ -149,6 +189,15 @@ def _create_parser() -> argparse.ArgumentParser:
         default=False,
         help="drop topology-sensitive columns from output (default: False)",
     )
+    parser.add_argument(
+        "--mark-num-collapsed-as",
+        default=None,
+        type=str,
+        help=(
+            "output column name to count collapsed unifurcations above each "
+            "node; accumulates if column exists (default: None, not marked)"
+        ),
+    )
     return parser
 
 
@@ -169,6 +218,7 @@ if __name__ == "__main__":
                     alifestd_collapse_unifurcations_polars,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
+                    mark_num_collapsed_as=args.mark_num_collapsed_as,
                 ),
             )
     except NotImplementedError as e:

@@ -292,3 +292,133 @@ def test_alifestd_collapse_unifurcations_trunktest(
     assert alifestd_test_leaves_isomorphic_asexual(
         collapsed_df, phylogeny_df, taxon_label="id"
     )
+
+
+def _collapse_unifurcations_pandas_or_polars(
+    df: pd.DataFrame, impl: str, **kwargs
+) -> pd.DataFrame:
+    if impl == "pandas":
+        return alifestd_collapse_unifurcations(df, **kwargs)
+    else:
+        return alifestd_collapse_unifurcations_polars(
+            pl.from_pandas(df), **kwargs
+        ).to_pandas()
+
+
+@pytest.mark.parametrize("impl", ["pandas", "polars"])
+def test_alifestd_collapse_unifurcations_mark_num_collapsed(impl: str):
+    # 0 -> 1 -> 2 -> 3 -> 5 -> 6
+    #             -> 4
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6],
+            "ancestor_id": [0, 0, 1, 2, 2, 3, 5],
+        },
+    )
+    original_df = df.copy()
+    result = _collapse_unifurcations_pandas_or_polars(
+        df, impl, mark_num_collapsed_as="num_collapsed"
+    )
+    assert df.equals(original_df)
+    assert result["id"].tolist() == [0, 2, 4, 6]
+    assert result["ancestor_id"].tolist() == [0, 0, 2, 2]
+    assert result["num_collapsed"].tolist() == [0, 1, 0, 2]
+
+
+@pytest.mark.parametrize("impl", ["pandas", "polars"])
+def test_alifestd_collapse_unifurcations_mark_num_collapsed_accumulate(
+    impl: str,
+):
+    # 0 -> 1 -> 2 -> 3 -> 5 -> 6
+    #             -> 4
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6],
+            "ancestor_id": [0, 0, 1, 2, 2, 3, 5],
+            "num_collapsed": [0, 4, 1, 0, 2, 0, 3],
+        },
+    )
+    original_df = df.copy()
+    result = _collapse_unifurcations_pandas_or_polars(
+        df, impl, mark_num_collapsed_as="num_collapsed"
+    )
+    assert df.equals(original_df)
+    assert result["id"].tolist() == [0, 2, 4, 6]
+    # node 2: own 1 + collapsed node 1 (own 4, plus itself)
+    # node 4: own 2
+    # node 6: own 0 + collapsed node 5 (own 3, plus itself)
+    #     + collapsed node 3 (own 0, plus itself)
+    assert result["num_collapsed"].tolist() == [0, 6, 2, 5]
+    assert result["num_collapsed"].dtype == df["num_collapsed"].dtype
+
+
+@pytest.mark.parametrize("impl", ["pandas", "polars"])
+def test_alifestd_collapse_unifurcations_mark_num_collapsed_nulls(impl: str):
+    # 0 -> 1 -> 2
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "num_collapsed": [None, 2, None],
+        },
+    )
+    result = _collapse_unifurcations_pandas_or_polars(
+        df, impl, mark_num_collapsed_as="num_collapsed"
+    )
+    assert result["id"].tolist() == [0, 2]
+    assert result["num_collapsed"].tolist() == [0, 3]
+
+
+@pytest.mark.parametrize("impl", ["pandas", "polars"])
+def test_alifestd_collapse_unifurcations_mark_num_collapsed_repeated(
+    impl: str,
+):
+    # 0 -> 1 -> 2 -> 3
+    #                -> 4
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 1, 2, 2],
+        },
+    )
+    once = _collapse_unifurcations_pandas_or_polars(
+        df, impl, mark_num_collapsed_as="num_collapsed"
+    )
+    twice = _collapse_unifurcations_pandas_or_polars(
+        once.reset_index(drop=True),
+        impl,
+        mark_num_collapsed_as="num_collapsed",
+    )
+    assert once["num_collapsed"].tolist() == [0, 1, 0, 0]
+    assert twice["num_collapsed"].tolist() == [0, 1, 0, 0]
+
+
+@pytest.mark.parametrize("impl", ["pandas", "polars"])
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        pd.read_csv(
+            f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
+        ),
+        pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
+    ],
+)
+def test_alifestd_collapse_unifurcations_mark_num_collapsed_total(
+    phylogeny_df: pd.DataFrame, impl: str
+):
+    phylogeny_df = alifestd_to_working_format(phylogeny_df)
+    phylogeny_df = phylogeny_df.drop(columns=["ancestor_list"])
+    result = _collapse_unifurcations_pandas_or_polars(
+        phylogeny_df, impl, mark_num_collapsed_as="num_collapsed"
+    )
+    assert result["num_collapsed"].sum() == len(phylogeny_df) - len(result)
+
+
+def test_alifestd_collapse_unifurcations_mark_num_collapsed_sexual():
+    phylogeny_df = pd.read_csv(
+        f"{assets_path}/example-standard-toy-sexual-phylogeny.csv"
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_collapse_unifurcations(
+            phylogeny_df, mark_num_collapsed_as="num_collapsed"
+        )
