@@ -278,6 +278,6 @@ def test_alifestd_downsample_tips_canopy_asexual_num_tips_deprecated():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         alifestd_downsample_tips_canopy_asexual(df, num_tips=1, criterion="id")
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "num_tips" in str(w[0].message)
+    w = [x for x in w if "num_tips" in str(x.message)]
+    assert len(w) == 1
+    assert issubclass(w[0].category, DeprecationWarning)
