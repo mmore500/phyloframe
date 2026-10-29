@@ -35,15 +35,9 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _collapse_unifurcations_counted(
+def _collapse_unifurcations(
     ancestor_ids: np.ndarray,
-    num_collapsed: np.ndarray,
-) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Implementation detail for `_collapse_unifurcations`.
-
-    Also tallies, in place into `num_collapsed`, the number of collapsed
-    unifurcations bypassed between each node and its new ancestor.
-    """
+) -> typing.Tuple[np.ndarray, np.ndarray]:
     # assumes contiguous ids
 
     ref_counts = np.zeros(len(ancestor_ids), dtype=jit_numpy_uint8_t)
@@ -61,46 +55,16 @@ def _collapse_unifurcations_counted(
         if ref_counts[ancestor_id] == 1:  # root ok
             # percolate ancestor over self
             ancestor_ids[pos] = ancestor_ids[ancestor_id]
-            if ancestor_id != id_:  # exclude root
-                # count bypassed ancestor, plus any it bypassed
-                num_collapsed[pos] += num_collapsed[ancestor_id] + 1
 
     keep_filter = (ref_counts != 1) | (ancestor_ids == ids)
 
-    return keep_filter, ancestor_ids, num_collapsed
-
-
-def _collapse_unifurcations(
-    ancestor_ids: np.ndarray,
-    num_collapsed: typing.Optional[np.ndarray] = None,
-) -> typing.Tuple[np.ndarray, ...]:
-    """Calculate keep filter and percolated ancestor ids to collapse
-    unifurcations.
-
-    Assumes contiguous ids and topological sorting. Mutates `ancestor_ids`.
-
-    If `num_collapsed` is provided, also returns updated counts of collapsed
-    unifurcations bypassed between each node and its new ancestor, tallied
-    onto provided counts. Counts for removed nodes are not meaningful.
-    """
-    if num_collapsed is None:
-        keep_filter, ancestor_ids, __ = _collapse_unifurcations_counted(
-            ancestor_ids,
-            np.zeros(len(ancestor_ids), dtype=np.uint32),
-        )
-        return keep_filter, ancestor_ids
-
-    return _collapse_unifurcations_counted(
-        ancestor_ids,
-        np.array(num_collapsed, dtype=np.uint32),  # copy, so not mutated
-    )
+    return keep_filter, ancestor_ids
 
 
 def _alifestd_collapse_unifurcations_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool,
     root_ancestor_token: str,
-    mark_num_collapsed_as: typing.Optional[str],
 ) -> pd.DataFrame:
     """Optimized implementation for asexual phylogenies."""
 
@@ -120,25 +84,11 @@ def _alifestd_collapse_unifurcations_asexual(
 
     logging.info("- alifestd_collapse_unifurcations: calculating reindex...")
     assert (phylogeny_df["id"] >= phylogeny_df["ancestor_id"]).all()
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy(
-        copy=parse(pd.__version__) >= parse("3.0.0"),
+    keep_filter, ancestor_ids = _collapse_unifurcations(
+        phylogeny_df["ancestor_id"].to_numpy(
+            copy=parse(pd.__version__) >= parse("3.0.0"),
+        ),
     )
-    if mark_num_collapsed_as is None:
-        keep_filter, ancestor_ids = _collapse_unifurcations(ancestor_ids)
-    else:
-        keep_filter, ancestor_ids, num_collapsed = _collapse_unifurcations(
-            ancestor_ids,
-            num_collapsed=(
-                phylogeny_df[mark_num_collapsed_as].fillna(0).to_numpy()
-                if mark_num_collapsed_as in phylogeny_df
-                else np.zeros(len(ancestor_ids), dtype=np.uint32)
-            ),
-        )
-        phylogeny_df[mark_num_collapsed_as] = num_collapsed.astype(
-            phylogeny_df[mark_num_collapsed_as].dtype  # preserve dtype
-            if mark_num_collapsed_as in phylogeny_df
-            else num_collapsed.dtype,
-        )
 
     logging.info("- alifestd_collapse_unifurcations: applying reindex...")
     phylogeny_df = phylogeny_df.loc[keep_filter].copy()
@@ -163,8 +113,6 @@ def alifestd_collapse_unifurcations(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     root_ancestor_token: str = "none",
-    *,
-    mark_num_collapsed_as: typing.Optional[str] = None,
 ) -> pd.DataFrame:
     """Pare record to bypass organisms with one ancestor and one descendant.
 
@@ -175,12 +123,6 @@ def alifestd_collapse_unifurcations(
     the ancestor list entry for genesis organisms. For example, the token
     "None" will yield the entry "[None]" and the token "" will yield the entry
     "[]". Default "none".
-
-    If `mark_num_collapsed_as` is provided, a column of that name is added
-    counting, for each remaining node, the number of unifurcations collapsed
-    away between it and its ancestor. If the column already exists, counts
-    accumulate onto existing values (e.g., across repeated collapses), with
-    missing values treated as zero. Only supported for asexual phylogenies.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -197,11 +139,6 @@ def alifestd_collapse_unifurcations(
             phylogeny_df,
             mutate=mutate,
             root_ancestor_token=root_ancestor_token,
-            mark_num_collapsed_as=mark_num_collapsed_as,
-        )
-    elif mark_num_collapsed_as is not None:
-        raise NotImplementedError(
-            "mark_num_collapsed_as only supported for asexual phylogenies",
         )
 
     if not mutate:
@@ -286,15 +223,6 @@ def _create_parser() -> argparse.ArgumentParser:
         default=False,
         help="drop topology-sensitive columns from output (default: False)",
     )
-    parser.add_argument(
-        "--mark-num-collapsed-as",
-        default=None,
-        type=str,
-        help=(
-            "output column name to count collapsed unifurcations above each "
-            "node; accumulates if column exists (default: None, not marked)"
-        ),
-    )
     return parser
 
 
@@ -314,7 +242,6 @@ if __name__ == "__main__":
                     alifestd_collapse_unifurcations,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
-                    mark_num_collapsed_as=args.mark_num_collapsed_as,
                 ),
             ),
         )

@@ -109,29 +109,3 @@ def test_alifestd_collapse_unifurcations_cli_drop_topological_sensitivity():
         input=f"{assets}/collapse_unifurcations_testphylo.csv".encode(),
     )
     assert os.path.exists(output_file)
-
-
-def test_alifestd_collapse_unifurcations_cli_mark_num_collapsed_as():
-    output_file = "/tmp/phyloframe_alifestd_collapse_unifurcations_num_collapsed.csv"  # nosec B108
-    pathlib.Path(output_file).unlink(missing_ok=True)
-    subprocess.run(  # nosec B603
-        [
-            "python3",
-            "-m",
-            "phyloframe.legacy._alifestd_collapse_unifurcations",
-            "--mark-num-collapsed-as",
-            "num_collapsed",
-            "--eager-write",
-            output_file,
-        ],
-        check=True,
-        input=f"{assets}/collapse_unifurcations_testphylo.csv".encode(),
-    )
-    assert os.path.exists(output_file)
-    result_df = pd.read_csv(output_file)
-    assert len(result_df) > 0
-    assert "num_collapsed" in result_df.columns
-    original_df = pd.read_csv(f"{assets}/collapse_unifurcations_testphylo.csv")
-    assert result_df["num_collapsed"].sum() == len(original_df) - len(
-        result_df
-    )
