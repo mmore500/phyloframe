@@ -11,30 +11,30 @@ import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
-from .._auxlib._experimental import experimental
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mask_leaf_trait_inherited_asexual import (
-    _alifestd_mask_leaf_trait_inherited_asexual_fast_path,
+from ._alifestd_mask_leaf_trait_pendant_gain_asexual import (
+    _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 
 
-def _alifestd_mask_leaf_trait_inherited_polars_fill_null(
+def _alifestd_mask_leaf_trait_pendant_gain_polars_fill_null(
     trait_mask: pl.Series, name: str = "trait_mask"
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_mask_leaf_trait_inherited_polars` and
-    `alifestd_estimate_trait_gain_selection_polars`.
+    `alifestd_mask_leaf_trait_pendant_gain_polars` and
+    `alifestd_estimate_trait_gain_selection_pendant_polars`.
 
     Returns boolean `trait_mask` as an array, treating null values as False
     with a warning.
@@ -47,20 +47,21 @@ def _alifestd_mask_leaf_trait_inherited_polars_fill_null(
     return trait_mask.fill_null(False).to_numpy()
 
 
-@experimental
-def alifestd_mask_leaf_trait_inherited_polars(
+@warn_experimental
+def alifestd_mask_leaf_trait_pendant_gain_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_mask: typing.Union[str, pl.Expr],
-    mark_as: str = "alifestd_mask_leaf_trait_inherited_polars",
+    mark_as: str = "alifestd_mask_leaf_trait_pendant_gain_polars",
 ) -> pl.DataFrame:
-    """Mark leaves whose trait is shared by every leaf descending from their
-    parent, so that the trait need not have arisen on the leaf's own pendant
-    branch.
+    """Mark leaves that gained a trait on their own pendant branch, i.e.,
+    leaves with the trait that is not shared by every leaf descending from
+    their parent.
 
-    Under parsimony, such a leaf's trait was gained above its parent node;
-    other leaves with the trait gained it on their pendant branch. Root
-    leaves and leaves without the trait are marked False. Unifurcations are
+    Under parsimony, such a leaf's trait arose on its pendant branch; a
+    leaf whose trait is shared by every leaf of its parent's clade could
+    have gained it above its parent node, so is marked False. Root leaves
+    and leaves without the trait are also marked False. Unifurcations are
     bypassed, so a leaf's parent is its nearest branching ancestor.
 
     Only supports asexual phylogenies.
@@ -76,7 +77,7 @@ def alifestd_mask_leaf_trait_inherited_polars(
         Column name or boolean expression marking taxa with the trait.
         Values at inner nodes are ignored. Null values are treated as trait
         absent, with a warning.
-    mark_as : str, default "alifestd_mask_leaf_trait_inherited_polars"
+    mark_as : str, default "alifestd_mask_leaf_trait_pendant_gain_polars"
         Column name for the boolean mask.
 
     Raises
@@ -92,7 +93,7 @@ def alifestd_mask_leaf_trait_inherited_polars(
 
     See Also
     --------
-    alifestd_mask_leaf_trait_inherited_asexual :
+    alifestd_mask_leaf_trait_pendant_gain_asexual :
         Pandas-based implementation.
     """
     if isinstance(trait_mask, str):
@@ -102,7 +103,7 @@ def alifestd_mask_leaf_trait_inherited_polars(
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
-            "alifestd_mask_leaf_trait_inherited_polars only "
+            "alifestd_mask_leaf_trait_pendant_gain_polars only "
             "supports asexual phylogenies.",
         )
 
@@ -129,9 +130,9 @@ def alifestd_mask_leaf_trait_inherited_polars(
         )
         .collect()
     )
-    result = _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
+    result = _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
         selected["ancestor_id"].to_numpy(),
-        _alifestd_mask_leaf_trait_inherited_polars_fill_null(
+        _alifestd_mask_leaf_trait_pendant_gain_polars_fill_null(
             selected["trait_mask"]
         ),
     )
@@ -145,8 +146,8 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Mark leaves whose trait is shared by every leaf descending from their parent,
-so that the trait need not have arisen on the leaf's own pendant branch.
+Mark leaves that gained a trait on their own pendant branch, i.e., leaves with
+the trait that is not shared by every leaf descending from their parent.
 
 Root leaves and leaves without the trait are marked False.
 
@@ -163,7 +164,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_mask_leaf_trait_inherited_asexual :
+phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_asexual :
     Pandas-based implementation.
 """
 
@@ -178,7 +179,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_mask_leaf_trait_inherited_polars"
+            "phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -190,11 +191,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mark-as",
-        default="alifestd_mask_leaf_trait_inherited_polars",
+        default="alifestd_mask_leaf_trait_pendant_gain_polars",
         type=str,
         help=(
             "Column name for the boolean mask "
-            "(default: alifestd_mask_leaf_trait_inherited_polars)."
+            "(default: alifestd_mask_leaf_trait_pendant_gain_polars)."
         ),
     )
     return parser
@@ -208,13 +209,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mask_leaf_trait_inherited_polars",
+            "phyloframe.legacy._alifestd_mask_leaf_trait_pendant_gain_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_mask_leaf_trait_inherited_polars,
+                    alifestd_mask_leaf_trait_pendant_gain_polars,
                     trait_mask=args.trait_mask,
                     mark_as=args.mark_as,
                 ),

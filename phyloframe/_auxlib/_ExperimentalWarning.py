@@ -8,6 +8,6 @@ class ExperimentalWarning(UserWarning):
 
     See Also
     --------
-    experimental :
+    warn_experimental :
         Decorator that issues this warning when a function is called.
     """

@@ -59,10 +59,14 @@ def test_tgs_calc_nll_gradient(rate: float):
     n, k, x = _sample(1e-3, -0.05, seed=3)
 
     def nll(params):
-        return _tgs_calc_nll(n, k, x, np.exp(params[0]), params[1])[0]
+        return _tgs_calc_nll(
+            n, k, x, np.exp(params[0]), params[1], max_exponent=600.0
+        )[0]
 
     def grad(params):
-        return _tgs_calc_nll(n, k, x, np.exp(params[0]), params[1])[1:]
+        return _tgs_calc_nll(
+            n, k, x, np.exp(params[0]), params[1], max_exponent=600.0
+        )[1:]
 
     params = np.array([np.log(1e-3), rate])
     expected = optimize.approx_fprime(params, nll, [1e-6, 1e-9])
@@ -71,8 +75,8 @@ def test_tgs_calc_nll_gradient(rate: float):
 
 def test_tgs_calc_nll_continuous_at_zero_rate():
     n, k, x = _sample(1e-3, 0.0, seed=4)
-    at_zero = _tgs_calc_nll(n, k, x, 1e-3, 0.0)
-    near_zero = _tgs_calc_nll(n, k, x, 1e-3, 1e-12)
+    at_zero = _tgs_calc_nll(n, k, x, 1e-3, 0.0, max_exponent=600.0)
+    near_zero = _tgs_calc_nll(n, k, x, 1e-3, 1e-12, max_exponent=600.0)
     np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)
 
 
@@ -99,7 +103,9 @@ def test_tgs_calc_nll_finite_for_extreme_rate():
     # optimizer trial steps far into positive selection must not overflow
     n, k, x = _sample(1e-3, -0.05, seed=7)
     with np.errstate(over="raise", invalid="raise"):
-        nll, dlog_gain, drate = _tgs_calc_nll(n, k, x, 1e-3, 1e3)
+        nll, dlog_gain, drate = _tgs_calc_nll(
+            n, k, x, 1e-3, 1e3, max_exponent=600.0
+        )
     assert np.isfinite([nll, dlog_gain, drate]).all()
 
 
@@ -135,7 +141,7 @@ def test_tgs_calc_effective_length_deriv(rate: float):
 
     pendant_length = np.array([0.01, 1.0, 7.0, 30.0])
     res = _tgs_calc_effective_length_deriv(
-        pendant_length=pendant_length, rate=rate
+        pendant_length=pendant_length, rate=rate, max_exponent=600.0
     )
     # exact derivative, from the series sum over j >= 2 of
     # (j - 1) * rate**(j - 2) * t**j / j!

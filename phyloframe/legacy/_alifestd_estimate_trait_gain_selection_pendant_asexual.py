@@ -10,29 +10,28 @@ import pandas as pd
 from scipy import sparse, stats
 from sklearn import neighbors
 
-from .._auxlib._calc_binomial_nll import calc_binomial_nll
+from .._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from .._auxlib._calc_kdtree_partitions import calc_kdtree_partitions
 from .._auxlib._calc_neighborhood_rate_ratios import (
     calc_neighborhood_rate_ratios,
 )
-from .._auxlib._experimental import experimental
 from .._auxlib._sample_bootstrap_counts import sample_bootstrap_counts
 from .._auxlib._tgs_fit import TgsFitResult, tgs_fit
-from .._auxlib._with_rng_state_context import with_rng_state_context
+from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._alifestd_mark_origin_time_delta_asexual import (
     alifestd_mark_origin_time_delta_asexual,
 )
-from ._alifestd_mask_leaf_trait_inherited_asexual import (
-    _alifestd_mask_leaf_trait_inherited_asexual_fast_path,
+from ._alifestd_mask_leaf_trait_pendant_gain_asexual import (
+    _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path,
 )
 from ._alifestd_to_working_format import alifestd_to_working_format
 
 
 class _TgsCounts(typing.NamedTuple):
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -55,7 +54,7 @@ def _tgs_count_traits(
     trait_carriers: typing.Sequence[np.ndarray],
 ) -> _TgsCounts:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -92,7 +91,7 @@ def _tgs_calc_reference_rate_ratios(
     refs: typing.Sequence[int],
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -138,7 +137,7 @@ def _tgs_calc_heldout_nll(
         exposure = (n * pendant_length).sum()
         if k.any() and exposure:
             gain_rate = k.sum() / exposure  # neutral fit, to first order
-            res += calc_binomial_nll(n, k, gain_rate * pendant_length)[0]
+            res += calc_binomial_nll_proxy(n, k, gain_rate * pendant_length)[0]
         else:  # scores the same for every neighborhood size
             warnings.warn(
                 f"neutral trait {trait_names[trait]} has no carriers or no "
@@ -180,7 +179,7 @@ def _tgs_select_calibration_neighborhoods(
     trait_names: typing.Sequence[str],
 ) -> sparse.spmatrix:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -201,7 +200,7 @@ def _tgs_select_calibration_neighborhoods(
             trait_names=trait_names,
         )
         logging.info(
-            "- alifestd_estimate_trait_gain_selection_asexual: "
+            "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
             f"calibration neighborhoods of {fraction:.1%} of leaves give "
             f"held-out neutral negative log likelihood {nll:.1f}",
         )
@@ -219,7 +218,7 @@ def _tgs_calibrate(
     trait_names: typing.Sequence[str],
 ) -> sparse.spmatrix:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -260,7 +259,7 @@ def _tgs_fit_traits(
     loss_rate: float,
 ) -> typing.Tuple[pd.DataFrame, typing.List[typing.Optional[np.ndarray]]]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -339,8 +338,8 @@ def _tgs_fit_bootstrap_replicate(
 
     Returns fit to one bootstrap resample of leaves; see `_tgs_fit_traits`.
     """
-    leaf_weights = with_rng_state_context(seed)(sample_bootstrap_counts)(
-        len(fit_kwargs["leaf_partitions"])
+    leaf_weights = sample_bootstrap_counts(
+        len(fit_kwargs["leaf_partitions"]), rng=np.random.default_rng(seed)
     )
     fits, __ = _tgs_fit_traits(
         leaf_weights=leaf_weights.astype(np.float64), **fit_kwargs
@@ -357,7 +356,7 @@ def _tgs_bootstrap(
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -406,7 +405,7 @@ def _tgs_summarize_bootstrap(
     replicate_fits: pd.DataFrame,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -496,26 +495,24 @@ def _tgs_find_trait_leaves(
     is_informative: np.ndarray,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
     Informative leaves (`is_informative`) are those used for fitting:
     leaves with a positive pendant branch length that originate at or after
     `min_leaf_origin_time`. Returns positions, among informative leaves, of
-    leaves whose trait state arose on their own pendant branch (i.e., whose
-    trait is not shared by every leaf of their parent's clade), and of those
-    among them that carry the trait.
+    leaves whose pendant branch started without the trait (i.e., lacking it,
+    or having gained it on their pendant branch), and of those among them
+    that gained the trait on their pendant branch.
     """
     trait_mask = np.asarray(trait_mask, dtype=bool)
-    is_inherited = _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
+    is_pendant_gain = _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
         ancestor_ids, trait_mask
-    )
-    is_not_inherited = ~is_inherited[is_informative]
-    return (
-        np.flatnonzero(is_not_inherited),
-        np.flatnonzero(is_not_inherited & trait_mask[is_informative]),
-    )
+    )[is_informative]
+    # leaves without the trait could still gain it on their pendant branch
+    is_trait_leaf = is_pendant_gain | ~trait_mask[is_informative]
+    return np.flatnonzero(is_trait_leaf), np.flatnonzero(is_pendant_gain)
 
 
 def _tgs_partition_leaves(
@@ -525,7 +522,7 @@ def _tgs_partition_leaves(
     max_partitions: int,
 ) -> typing.Tuple[np.ndarray, int, np.ndarray]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -549,7 +546,7 @@ def _tgs_partition_leaves(
     num_partitions = 2**num_levels
     partition_sizes = np.bincount(leaf_partitions, minlength=num_partitions)
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_asexual: "
+        "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
         f"partitioned {num_leaves} leaves into {num_partitions} partitions "
         f"({num_levels} levels of splits), of sizes "
         f"{np.unique(partition_sizes).tolist()}",
@@ -571,7 +568,7 @@ def _tgs_init_results(
     trait_carriers: typing.Sequence[np.ndarray],
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -624,7 +621,7 @@ def _tgs_fit(
     progress_wrap: typing.Callable,
 ) -> typing.Optional[pd.DataFrame]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -665,7 +662,7 @@ def _tgs_fit(
         )
 
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_asexual: "
+        "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
     point, calibration_factors = _tgs_fit_traits(
@@ -675,7 +672,7 @@ def _tgs_fit(
     for name, factors in zip(trait_names, calibration_factors):
         if factors is not None and len(factors):
             logging.info(
-                "- alifestd_estimate_trait_gain_selection_asexual: "
+                "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
                 f"calibrated trait {name}, rescaling pendant lengths by "
                 f"{factors.min():.3g} to {factors.max():.3g} (median "
                 f"{np.median(factors):.3g})",
@@ -684,7 +681,7 @@ def _tgs_fit(
         return None
 
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_asexual: "
+        "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
         f"fitting {num_bootstrap} bootstrap replicates...",
     )
     return _tgs_bootstrap(
@@ -715,8 +712,8 @@ def _tgs_impl(
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_asexual` and
-    `alifestd_estimate_trait_gain_selection_polars`.
+    `alifestd_estimate_trait_gain_selection_pendant_asexual` and
+    `alifestd_estimate_trait_gain_selection_pendant_polars`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -806,8 +803,8 @@ def _tgs_impl(
     )
 
 
-@experimental
-def alifestd_estimate_trait_gain_selection_asexual(
+@warn_experimental
+def alifestd_estimate_trait_gain_selection_pendant_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
@@ -833,8 +830,9 @@ def alifestd_estimate_trait_gain_selection_asexual(
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = lambda x: x,
 ) -> pd.DataFrame:
-    """Estimate per-trait gain rate and net selection from how often leaves
-    carry each trait as a function of pendant branch length.
+    """Estimate per-trait gain rate and net selection from leaf pendant
+    branches only, from how the fraction of leaves carrying each trait
+    varies with pendant branch length.
 
     Each leaf's pendant branch starts without the trait (unless the trait is
     shared across the parent's whole clade, in which case the leaf is
@@ -843,8 +841,23 @@ def alifestd_estimate_trait_gain_selection_asexual(
 
         p = gain_rate * (exp(c * length) - 1) / c,  c = selection - loss_rate
 
-    which is linear in length at neutrality and saturates under a cost. See
-    `tgs_fit` for the model and its relation to BiSSE.
+    which is linear in length at neutrality and saturates under a cost.
+
+    Uses pendant branches only, in that:
+
+    - only gains on a leaf's own pendant branch are counted; leaves whose
+      trait is shared by their parent's whole clade (i.e., gained on an
+      inner branch) are dropped for that trait, so trait-defined clades
+      contribute nothing;
+    - inner branches contribute no exposure, and branching within carrier
+      clades (the rate at which they diversify) is not modeled; and
+    - each leaf is scored independently, given its pendant length, rather
+      than through a full tree likelihood (e.g., BiSSE).
+
+    Calibration also uses pendant branches only, comparing neutral traits'
+    pendant gains across leaves of similar pendant length and origin time.
+
+    See `tgs_fit` for the model and its relation to BiSSE.
 
     Parameters
     ----------
@@ -945,9 +958,9 @@ def alifestd_estimate_trait_gain_selection_asexual(
 
     See Also
     --------
-    alifestd_estimate_trait_gain_selection_polars :
+    alifestd_estimate_trait_gain_selection_pendant_polars :
         Polars-based implementation.
-    alifestd_mask_leaf_trait_inherited_asexual :
+    alifestd_mask_leaf_trait_pendant_gain_asexual :
         Marks leaves dropped for each trait.
     """
     num_traits = len(trait_masks)

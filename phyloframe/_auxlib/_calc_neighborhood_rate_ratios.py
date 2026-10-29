@@ -9,10 +9,10 @@ def calc_neighborhood_rate_ratios(
     exposure: np.ndarray,
 ) -> np.ndarray:
     """Calculate, for each item, its neighborhood's event rate relative to
-    the overall event rate.
+    the global event rate.
 
     Each item's ratio is events observed within its neighborhood divided by
-    events expected there at the overall rate, i.e., a local standardized
+    events expected there at the global rate, i.e., a local standardized
     rate ratio. Exposure is the opportunity for events to occur (e.g.,
     summed branch length, analogous to person-time).
 

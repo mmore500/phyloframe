@@ -4,17 +4,23 @@ import numpy as np
 from scipy import special
 
 
-def calc_binomial_nll(
+def calc_binomial_nll_proxy(
     num_trials: np.ndarray,
     num_successes: np.ndarray,
     p: np.ndarray,
 ) -> typing.Tuple[float, np.ndarray]:
-    """Calculate binomial negative log likelihood, up to a constant, and its
-    gradient with respect to success probability.
+    """Calculate a proxy for binomial negative log likelihood, equal to it
+    up to an additive constant, and its gradient with respect to success
+    probability.
 
-    Omits the log binomial coefficient, which does not depend on `p`, so
-    that repeated evaluation (e.g., within an optimizer) is several times
-    faster than `scipy.stats.binom.logpmf`.
+    The result is offset from the true negative log likelihood by the summed
+    log binomial coefficients, which do not depend on `p`. So, differences
+    between results for different `p` (e.g., likelihood-ratio statistics),
+    the gradient, and the minimizing `p` are all exact.
+
+    Avoids calculating log binomial coefficients, providing substantial
+    speedup over `scipy.stats.binom.logpmf` for repeated evaluation (e.g.,
+    within an optimizer).
 
     Parameters
     ----------
@@ -45,7 +51,7 @@ def calc_binomial_nll(
     clipped_p = np.clip(raw_p, finfo.tiny, 1 - finfo.epsneg)
     num_failures = num_trials - num_successes
 
-    # for n trials and k successes, up to the constant -log C(n, k),
+    # for n trials and k successes, up to the additive constant -log C(n, k),
     #   nll = -sum(k * log(p) + (n - k) * log(1 - p))
     #   d nll / d p = (n - k) / (1 - p) - k / p
     nll = -np.sum(

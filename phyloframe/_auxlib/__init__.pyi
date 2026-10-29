@@ -5,7 +5,7 @@ from ._add_bool_arg import add_bool_arg
 from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
-from ._calc_binomial_nll import calc_binomial_nll
+from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ._calc_kdtree_partitions import calc_kdtree_partitions
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._coerce_to_pandas import coerce_to_pandas
@@ -16,7 +16,6 @@ from ._count_leading_blanks import count_leading_blanks
 from ._delegate_polars_implementation import delegate_polars_implementation
 from ._estimate_binomial_p import estimate_binomial_p
 from ._eval_kwargs import eval_kwargs
-from ._experimental import experimental
 from ._fit_fblr import fit_fblr
 from ._format_cli_description import format_cli_description
 from ._get_package_name import get_package_name
@@ -47,6 +46,7 @@ from ._tgs_fit import TgsFitResult, tgs_fit
 from ._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
+from ._warn_experimental import warn_experimental
 from ._warn_once import warn_once
 from ._with_rng_state_context import with_rng_state_context
 from ._write_text_with_compression import write_text_with_compression
@@ -60,7 +60,7 @@ __all__ = [
     "add_compression_cli_arg",
     "all_unique",
     "begin_prod_logging",
-    "calc_binomial_nll",
+    "calc_binomial_nll_proxy",
     "calc_kdtree_partitions",
     "calc_neighborhood_rate_ratios",
     "coerce_to_pandas",
@@ -71,7 +71,6 @@ __all__ = [
     "delegate_polars_implementation",
     "estimate_binomial_p",
     "eval_kwargs",
-    "experimental",
     "fit_fblr",
     "format_cli_description",
     "get_package_name",
@@ -98,6 +97,7 @@ __all__ = [
     "textwrap_respect_indents",
     "tgs_fit",
     "unfurl_lineage_with_contiguous_ids",
+    "warn_experimental",
     "warn_once",
     "with_rng_state_context",
     "write_text_with_compression",

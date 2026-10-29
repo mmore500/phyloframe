@@ -6,11 +6,11 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_estimate_trait_gain_selection_asexual,
-    alifestd_estimate_trait_gain_selection_polars,
+    alifestd_estimate_trait_gain_selection_pendant_asexual,
+    alifestd_estimate_trait_gain_selection_pendant_polars,
 )
 
-from .test_alifestd_estimate_trait_gain_selection_asexual import (
+from .test_alifestd_estimate_trait_gain_selection_pendant_asexual import (
     _make_cherries,
 )
 
@@ -45,7 +45,7 @@ def test_empty(apply: typing.Callable):
             }
         ),
     )
-    res = alifestd_estimate_trait_gain_selection_polars(
+    res = alifestd_estimate_trait_gain_selection_pendant_polars(
         df_pl, trait_masks=["trait"], num_bootstrap=2
     )
     assert res["trait"].to_list() == ["trait"]
@@ -58,7 +58,7 @@ def test_empty(apply: typing.Callable):
 def test_matches_pandas(apply: typing.Callable, calibrate: bool):
     df_pl = _make_cherries_polars(5_000)
     names = ["focal", "n1", "n2", "n3", "n4"]
-    res = alifestd_estimate_trait_gain_selection_polars(
+    res = alifestd_estimate_trait_gain_selection_pendant_polars(
         apply(df_pl),
         trait_masks=names,
         neutral_traits=["n1", "n2", 3, 4],
@@ -67,7 +67,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
         seed=1,
     )
     df_pd = df_pl.to_pandas()
-    expected = alifestd_estimate_trait_gain_selection_asexual(
+    expected = alifestd_estimate_trait_gain_selection_pendant_asexual(
         df_pd,
         trait_masks=[df_pd[name].to_numpy() for name in names],
         trait_names=names,
@@ -81,7 +81,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
 
 def test_trait_expr_names():
     df_pl = _make_cherries_polars(500)
-    res = alifestd_estimate_trait_gain_selection_polars(
+    res = alifestd_estimate_trait_gain_selection_pendant_polars(
         df_pl, trait_masks=["focal", pl.col("n1") & pl.col("n2")]
     )
     assert res["trait"].to_list() == ["focal", "1"]
@@ -90,7 +90,7 @@ def test_trait_expr_names():
 
 def test_calibrate_requires_neutral():
     with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_polars(
+        alifestd_estimate_trait_gain_selection_pendant_polars(
             _make_cherries_polars(100),
             trait_masks=["focal", "n1"],
             neutral_traits=["n1"],
@@ -111,19 +111,19 @@ def test_calibrate_requires_neutral():
 )
 def test_unsupported(df_pl: pl.DataFrame):
     with pytest.raises(NotImplementedError):
-        alifestd_estimate_trait_gain_selection_polars(
+        alifestd_estimate_trait_gain_selection_pendant_polars(
             df_pl.with_columns(trait=pl.lit(True)), trait_masks=["trait"]
         )
 
 
 def test_null_trait_mask_absent():
     df_pl = _make_cherries_polars(2_000)
-    expected = alifestd_estimate_trait_gain_selection_polars(
+    expected = alifestd_estimate_trait_gain_selection_pendant_polars(
         df_pl, trait_masks=["focal"]
     )
     nullable = pl.when(pl.col("focal")).then(True).otherwise(None)
     with pytest.warns(UserWarning, match="null"):
-        res = alifestd_estimate_trait_gain_selection_polars(
+        res = alifestd_estimate_trait_gain_selection_pendant_polars(
             df_pl, trait_masks=[nullable], trait_names=["focal"]
         )
     assert res.equals(expected)
@@ -131,7 +131,7 @@ def test_null_trait_mask_absent():
 
 def test_ancestor_list_column():
     df_pl = _make_cherries_polars(2_000)
-    expected = alifestd_estimate_trait_gain_selection_polars(
+    expected = alifestd_estimate_trait_gain_selection_pendant_polars(
         df_pl, trait_masks=["focal", "n1", "n2"], neutral_traits=["n1", "n2"]
     )
     with_list = df_pl.with_columns(
@@ -139,7 +139,7 @@ def test_ancestor_list_column():
         .then(pl.lit("[none]"))
         .otherwise(pl.format("[{}]", pl.col("ancestor_id"))),
     )
-    res = alifestd_estimate_trait_gain_selection_polars(
+    res = alifestd_estimate_trait_gain_selection_pendant_polars(
         with_list,
         trait_masks=["focal", "n1", "n2"],
         neutral_traits=["n1", "n2"],
@@ -171,11 +171,11 @@ def test_id_based_mask_with_unifurcations():
     )
     df_pl = pl.from_pandas(knuckled)
 
-    expected = alifestd_estimate_trait_gain_selection_polars(
+    expected = alifestd_estimate_trait_gain_selection_pendant_polars(
         df_pl, trait_masks=["focal"]
     )
     carrier_ids = knuckled.loc[knuckled["focal"], "id"].tolist()
-    res = alifestd_estimate_trait_gain_selection_polars(
+    res = alifestd_estimate_trait_gain_selection_pendant_polars(
         df_pl,
         trait_masks=[pl.col("id").is_in(carrier_ids)],
         trait_names=["focal"],
@@ -186,7 +186,7 @@ def test_id_based_mask_with_unifurcations():
 
 def test_trait_names_length_mismatch_raises():
     with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_polars(
+        alifestd_estimate_trait_gain_selection_pendant_polars(
             _make_cherries_polars(100),
             trait_masks=["focal", "n1"],
             trait_names=["focal"],

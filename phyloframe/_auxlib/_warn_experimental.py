@@ -6,7 +6,7 @@ import warnings
 from ._ExperimentalWarning import ExperimentalWarning
 
 
-def experimental(func: typing.Callable) -> typing.Callable:
+def warn_experimental(func: typing.Callable) -> typing.Callable:
     """Decorate a function as experimental, so that calling it issues an
     `ExperimentalWarning`.
 

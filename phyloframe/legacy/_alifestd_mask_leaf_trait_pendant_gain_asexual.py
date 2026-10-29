@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from .._auxlib._experimental import experimental
 from .._auxlib._jit import jit
+from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
@@ -18,17 +18,16 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _alifestd_mask_leaf_trait_inherited_asexual_nearest_branching_ancestors(
+def _alifestd_mask_leaf_trait_pendant_gain_asexual_nearest_branching_ancestors(
     ancestor_ids: np.ndarray,
     is_branching: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_mask_leaf_trait_inherited_asexual`.
+    `alifestd_mask_leaf_trait_pendant_gain_asexual`.
 
     Returns, for each node, its parent, skipping over unifurcations: the
     nearest ancestor that has at least two children (`is_branching`) or is
-    a root. Roots map to themselves. Assumes contiguous, topologically
-    sorted ids.
+    a root. Assumes contiguous, topologically sorted ids.
     """
     res = ancestor_ids.copy()
     for idx, ancestor_id in enumerate(ancestor_ids):
@@ -42,12 +41,12 @@ def _alifestd_mask_leaf_trait_inherited_asexual_nearest_branching_ancestors(
     return res
 
 
-def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
+def _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
     ancestor_ids: np.ndarray,
     trait_mask: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_mask_leaf_trait_inherited_asexual`."""
+    `alifestd_mask_leaf_trait_pendant_gain_asexual`."""
     is_leaf = _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
     is_present = is_leaf & trait_mask
     # a clade is monomorphic with respect to leaf trait values if all its
@@ -55,32 +54,34 @@ def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
     is_monomorphic = _alifestd_mask_monomorphic_clades_asexual_fast_path(
         ancestor_ids, is_leaf.copy(), is_present.copy()
     )
-    # a trait-carrying leaf under a monomorphic parent shares the trait with
-    # every leaf of its parent's clade; unifurcations are bypassed, as a
-    # unifurcation's clade has the same leaves as its child's
-    parents = _alifestd_mask_leaf_trait_inherited_asexual_nearest_branching_ancestors(
+    # a trait-carrying leaf under a polymorphic parent does not share the
+    # trait with every leaf of its parent's clade, so gained it on its own
+    # pendant branch; unifurcations are bypassed, as a unifurcation's clade
+    # has the same leaves as its child's
+    parents = _alifestd_mask_leaf_trait_pendant_gain_asexual_nearest_branching_ancestors(
         ancestor_ids,
         _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
     )
     is_root = _alifestd_mark_roots_asexual_fast_path(ancestor_ids)
-    return is_present & is_monomorphic[parents] & ~is_root
+    return is_present & ~is_monomorphic[parents] & ~is_root
 
 
-@experimental
-def alifestd_mask_leaf_trait_inherited_asexual(
+@warn_experimental
+def alifestd_mask_leaf_trait_pendant_gain_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    mark_as: str = "alifestd_mask_leaf_trait_inherited_asexual",
+    mark_as: str = "alifestd_mask_leaf_trait_pendant_gain_asexual",
     trait_mask: np.ndarray,
 ) -> pd.DataFrame:
-    """Mark leaves whose trait is shared by every leaf descending from their
-    parent, so that the trait need not have arisen on the leaf's own pendant
-    branch.
+    """Mark leaves that gained a trait on their own pendant branch, i.e.,
+    leaves with the trait that is not shared by every leaf descending from
+    their parent.
 
-    Under parsimony, such a leaf's trait was gained above its parent node;
-    other leaves with the trait gained it on their pendant branch. Root
-    leaves and leaves without the trait are marked False. Unifurcations are
+    Under parsimony, such a leaf's trait arose on its pendant branch; a
+    leaf whose trait is shared by every leaf of its parent's clade could
+    have gained it above its parent node, so is marked False. Root leaves
+    and leaves without the trait are also marked False. Unifurcations are
     bypassed, so a leaf's parent is its nearest branching ancestor.
 
     Parameters
@@ -91,7 +92,7 @@ def alifestd_mask_leaf_trait_inherited_asexual(
     mutate : bool, default False
         If False, operates on a copy of `phylogeny_df`; if True, modifies
         `phylogeny_df` in place (but still returns it).
-    mark_as : str, default "alifestd_mask_leaf_trait_inherited_asexual"
+    mark_as : str, default "alifestd_mask_leaf_trait_pendant_gain_asexual"
         Column name for the mask.
     trait_mask : np.ndarray
         Boolean array marking nodes that have the trait, aligned with
@@ -125,7 +126,7 @@ def alifestd_mask_leaf_trait_inherited_asexual(
 
     phylogeny_df[
         mark_as
-    ] = _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
+    ] = _alifestd_mask_leaf_trait_pendant_gain_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
         trait_mask,
     )

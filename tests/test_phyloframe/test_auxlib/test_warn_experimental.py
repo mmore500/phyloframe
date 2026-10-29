@@ -3,10 +3,10 @@ import warnings
 import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
-from phyloframe._auxlib._experimental import experimental
+from phyloframe._auxlib._warn_experimental import warn_experimental
 
 
-@experimental
+@warn_experimental
 def _add(a: int, b: int = 1) -> int:
     """Add numbers."""
     return a + b
