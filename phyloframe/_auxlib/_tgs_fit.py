@@ -57,8 +57,11 @@ def _tgs_calc_nll(
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = pendant_length * special.exprel(cx)
 
-    # d effective_length / d rate, from a series expansion near rate = 0,
-    # where the exact form divides by zero
+    # d effective_length / d rate; near rate = 0, where the exact form divides
+    # by zero, use the Taylor series of the exponential function: with
+    # effective_length = sum over j >= 1 of rate**(j - 1) * t**j / j!, the
+    # derivative is t**2 / 2 + rate * t**3 / 3 + O(rate**2)
+    # (https://en.wikipedia.org/wiki/Exponential_function#Power_series)
     is_near_zero_rate = np.abs(cx) < 1e-6
     series_deriv = pendant_length * pendant_length * (0.5 + cx / 3)
     exact_deriv = np.divide(
@@ -80,10 +83,10 @@ def _tgs_calc_nll(
 
 
 def tgs_fit(
+    *,
     num_trials: np.ndarray,
     num_successes: np.ndarray,
     pendant_length: np.ndarray,
-    *,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
 ) -> TgsFitResult:
@@ -151,7 +154,9 @@ def tgs_fit(
     See Also
     --------
     alifestd_estimate_trait_gain_selection_asexual :
-        Applies this fit to leaf pendant branches of a phylogeny.
+        Applies this fit to leaf pendant branches of a phylogeny, with
+        bootstrap standard errors and optional calibration against neutral
+        traits.
 
     References
     ----------
@@ -167,9 +172,15 @@ def tgs_fit(
     keep = num_trials > 0
     n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
     if not keep.any() or not num_successes.any():
+        warnings.warn(
+            "tgs_fit got no trait carriers, so gain rate is 0 and selection "
+            "is undefined.",
+        )
         return TgsFitResult(0.0, np.nan, np.nan)
 
-    # optimize selection in units of 1 / mean pendant length, for conditioning
+    # optimize selection in units of 1 / mean pendant length, so that both
+    # parameters are of order one; otherwise, with long pendant lengths,
+    # L-BFGS-B stops early on the tiny selection parameter
     unit = 1.0 / np.average(x, weights=n)
 
     def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
@@ -209,14 +220,14 @@ def tgs_fit(
     )
     if not converged:
         warnings.warn(
-            f"tgs_fit optimizer did not converge ({best.message}); "
-            "estimates may be unreliable.",
+            "tgs_fit optimizer did not converge from any starting point "
+            f"({best.message}); estimates may be unreliable.",
         )
     if not null.success:
         warnings.warn(
-            "tgs_fit optimizer did not converge under no selection "
-            f"({null.message}); likelihood-ratio statistic may be "
-            "unreliable.",
+            "tgs_fit optimizer did not converge under the null hypothesis "
+            f"of no selection ({null.message}); likelihood-ratio statistic "
+            "may be unreliable.",
         )
     return TgsFitResult(
         gain_rate=float(np.exp(best.x[0])),

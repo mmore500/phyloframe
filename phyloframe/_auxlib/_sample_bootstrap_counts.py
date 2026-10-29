@@ -39,4 +39,6 @@ def sample_bootstrap_counts(num_items: int) -> np.ndarray:
     """
     if num_items == 0:
         return np.zeros(0, dtype=np.int64)
-    return np.random.multinomial(num_items, np.full(num_items, 1 / num_items))
+    return np.random.multinomial(
+        n=num_items, pvals=np.full(shape=num_items, fill_value=1 / num_items)
+    )

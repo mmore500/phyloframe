@@ -26,7 +26,8 @@ def calc_kdtree_partitions(points: np.ndarray, num_levels: int) -> np.ndarray:
     Raises
     ------
     NotImplementedError
-        If there are too few distinct points to split `num_levels` times.
+        If there are fewer than `2 ** num_levels` points, or too few
+        distinct points to split `num_levels` times.
 
     See Also
     --------
@@ -34,25 +35,30 @@ def calc_kdtree_partitions(points: np.ndarray, num_levels: int) -> np.ndarray:
         Builds the tree.
     """
     points = np.asarray(points, dtype=np.float64)
-    partitions = np.zeros(len(points), dtype=np.int64)
-    if num_levels == 0:
-        return partitions
+    if len(points) < 2**num_levels:
+        raise NotImplementedError(
+            f"splitting {num_levels} times requires at least "
+            f"{2 ** num_levels} points, got {len(points)}",
+        )
 
-    # tree leaves no larger than the target partitions, so splits reach
-    # num_levels
+    # cKDTree stops splitting nodes of at most `leafsize` points; at half the
+    # target partition size, every node above `num_levels` gets split
     leafsize = max(1, len(points) >> (num_levels + 1))
     tree = spatial.cKDTree(points, leafsize=leafsize, balanced_tree=True)
+    partitions = np.full(len(points), -1, dtype=np.int64)
 
     def assign(node: typing.Any, level: int, partition: int) -> None:
         if level == num_levels:
             partitions[node.indices] = partition
         elif node.lesser is None:
             raise NotImplementedError(
-                f"too few distinct points to split {num_levels} times",
+                f"splitting {num_levels} times requires at least "
+                f"{2 ** num_levels} distinct points",
             )
         else:  # number partitions by their path of lesser/greater splits
             assign(node.lesser, level + 1, 2 * partition)
             assign(node.greater, level + 1, 2 * partition + 1)
 
     assign(tree.tree, 0, 0)
+    assert (partitions >= 0).all()
     return partitions

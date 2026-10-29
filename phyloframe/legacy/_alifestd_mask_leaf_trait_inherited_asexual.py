@@ -9,6 +9,7 @@ from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
+from ._alifestd_mark_roots import _alifestd_mark_roots_asexual_fast_path
 from ._alifestd_mask_monomorphic_clades_asexual import (
     _alifestd_mask_monomorphic_clades_asexual_fast_path,
 )
@@ -16,16 +17,17 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _alifestd_mask_leaf_trait_inherited_asexual_branching_parents(
+def _alifestd_mask_leaf_trait_inherited_asexual_nearest_branching_ancestors(
     ancestor_ids: np.ndarray,
     is_branching: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_mask_leaf_trait_inherited_asexual`.
 
-    Returns each node's nearest ancestor that branches or is a root,
-    bypassing unifurcations; roots map to themselves. Assumes contiguous,
-    topologically sorted ids.
+    Returns, for each node, its parent, skipping over unifurcations: the
+    nearest ancestor that has at least two children (`is_branching`) or is
+    a root. Roots map to themselves. Assumes contiguous, topologically
+    sorted ids.
     """
     res = ancestor_ids.copy()
     for idx, ancestor_id in enumerate(ancestor_ids):
@@ -55,11 +57,11 @@ def _alifestd_mask_leaf_trait_inherited_asexual_fast_path(
     # a trait-carrying leaf under a monomorphic parent shares the trait with
     # every leaf of its parent's clade; unifurcations are bypassed, as a
     # unifurcation's clade has the same leaves as its child's
-    parents = _alifestd_mask_leaf_trait_inherited_asexual_branching_parents(
+    parents = _alifestd_mask_leaf_trait_inherited_asexual_nearest_branching_ancestors(
         ancestor_ids,
         _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
     )
-    is_root = ancestor_ids == np.arange(len(ancestor_ids))
+    is_root = _alifestd_mark_roots_asexual_fast_path(ancestor_ids)
     return is_present & is_monomorphic[parents] & ~is_root
 
 
@@ -102,7 +104,7 @@ def alifestd_mask_leaf_trait_inherited_asexual(
     ------
     NotImplementedError
         If `phylogeny_df` is not in working format (contiguous ids,
-        topologically sorted), see `alifestd_to_working_format`, or if
+        topologically sorted; see `alifestd_to_working_format`), or if
         `trait_mask` does not have boolean dtype.
     """
     if not mutate:

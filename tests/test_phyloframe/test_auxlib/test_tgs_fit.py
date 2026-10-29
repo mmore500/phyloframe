@@ -17,12 +17,14 @@ def _sample(gain_rate: float, selection: float, seed: int):
     return num_trials, rng.binomial(num_trials.astype(int), p), pendant_length
 
 
+def _fit(n, k, x, **kwargs):
+    return tgs_fit(num_trials=n, num_successes=k, pendant_length=x, **kwargs)
+
+
 @pytest.mark.parametrize("gain_rate", [1e-3, 2e-3])
 @pytest.mark.parametrize("selection", [0.0, -0.05, -0.1])
 def test_recovers_parameters(gain_rate: float, selection: float):
-    gain, sel, lrt = tgs_fit(
-        *_sample(gain_rate, selection, seed=1),
-    )
+    gain, sel, lrt = _fit(*_sample(gain_rate, selection, seed=1))
     assert gain == pytest.approx(gain_rate, rel=0.1)
     assert sel == pytest.approx(selection, abs=0.01)
     if selection == 0:
@@ -33,21 +35,22 @@ def test_recovers_parameters(gain_rate: float, selection: float):
 
 def test_loss_rate_shifts_selection():
     n, k, x = _sample(1e-3, -0.05, seed=2)
-    __, sel0, __ = tgs_fit(n, k, x)
-    __, sel1, __ = tgs_fit(n, k, x, loss_rate=0.01)
+    __, sel0, __ = _fit(n, k, x)
+    __, sel1, __ = _fit(n, k, x, loss_rate=0.01)
     assert sel1 == pytest.approx(sel0 + 0.01, abs=1e-3)
 
 
 def test_no_successes():
-    gain, sel, lrt = tgs_fit([10, 10], [0, 0], [1.0, 2.0])
+    with pytest.warns(UserWarning, match="no trait carriers"):
+        gain, sel, lrt = _fit([10, 10], [0, 0], [1.0, 2.0])
     assert gain == 0.0
     assert np.isnan(sel) and np.isnan(lrt)
 
 
 def test_empty_bins_ignored():
     n, k, x = _sample(1e-3, -0.05, seed=3)
-    expected = tgs_fit(n, k, x)
-    res = tgs_fit(np.append(n, 0), np.append(k, 0), np.append(x, 0.0))
+    expected = _fit(n, k, x)
+    res = _fit(np.append(n, 0), np.append(k, 0), np.append(x, 0.0))
     assert res == pytest.approx(expected)
 
 
@@ -74,7 +77,7 @@ def test_tgs_calc_nll_continuous_at_zero_rate():
 
 
 def test_result_fields():
-    res = tgs_fit(*_sample(1e-3, -0.05, seed=5))
+    res = _fit(*_sample(1e-3, -0.05, seed=5))
     gain, sel, lrt = res
     assert (res.gain_rate, res.selection, res.selection_lrt_naive) == (
         gain,
@@ -86,8 +89,8 @@ def test_result_fields():
 @pytest.mark.parametrize("selection_starts", [(0.0,), (-1.8,), (-0.3, 0.0)])
 def test_selection_starts(selection_starts):
     data = _sample(1e-3, -0.05, seed=6)
-    expected = tgs_fit(*data)
-    res = tgs_fit(*data, selection_starts=selection_starts)
+    expected = _fit(*data)
+    res = _fit(*data, selection_starts=selection_starts)
     assert res.selection == pytest.approx(expected.selection, rel=1e-3)
     assert res.gain_rate == pytest.approx(expected.gain_rate, rel=1e-3)
 
@@ -113,4 +116,9 @@ def test_no_convergence_warns(monkeypatch):
         type("shim", (), {"minimize": staticmethod(fail)}),
     )
     with pytest.warns(UserWarning, match="did not converge"):
-        tgs_fit(*_sample(1e-3, -0.05, seed=8))
+        _fit(*_sample(1e-3, -0.05, seed=8))
+
+
+def test_keyword_only():
+    with pytest.raises(TypeError):
+        tgs_fit(*_sample(1e-3, -0.05, seed=9))

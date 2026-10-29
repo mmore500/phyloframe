@@ -122,6 +122,29 @@ def _tgs_calc_heldout_nll(
     return res
 
 
+def _tgs_find_calibration_neighborhoods(
+    *, partition_coords: np.ndarray, neighborhood_fraction: float
+) -> sparse.spmatrix:
+    """Implementation detail for `_tgs_select_calibration_neighborhoods`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns partition-by-partition neighborhood membership matrix, whose row
+    `i` marks partition `i`'s nearest partitions, including itself, together
+    holding `neighborhood_fraction` of leaves.
+    """
+    num_partitions = len(partition_coords)
+    k = np.clip(
+        np.ceil(neighborhood_fraction * num_partitions), 1, num_partitions
+    )
+    # pass coordinates explicitly, so each partition is its own neighbor
+    return (
+        neighbors.NearestNeighbors(n_neighbors=int(k))
+        .fit(partition_coords)
+        .kneighbors_graph(partition_coords, mode="connectivity")
+    )
+
+
 def _tgs_select_calibration_neighborhoods(
     *,
     partition_coords: np.ndarray,
@@ -140,15 +163,10 @@ def _tgs_select_calibration_neighborhoods(
     each held-out neutral trait's carriers when calibrating against the
     others.
     """
-    num_partitions = len(partition_coords)
     best_nll, best_neighborhoods = np.inf, None
     for fraction in neighborhood_fractions:
-        k = int(np.clip(np.ceil(fraction * num_partitions), 1, num_partitions))
-        # pass coordinates explicitly, so each partition is its own neighbor
-        calibration_neighborhoods = (
-            neighbors.NearestNeighbors(n_neighbors=k)
-            .fit(partition_coords)
-            .kneighbors_graph(partition_coords, mode="connectivity")
+        calibration_neighborhoods = _tgs_find_calibration_neighborhoods(
+            partition_coords=partition_coords, neighborhood_fraction=fraction
         )
         nll = _tgs_calc_heldout_nll(
             calibration_neighborhoods=calibration_neighborhoods,
@@ -201,18 +219,24 @@ def _tgs_calibrate(
         )
 
     for trait, (n, __, __) in enumerate(counts):
-        if (n > 0).any():
-            ratios = _tgs_calc_reference_rate_ratios(
-                calibration_neighborhoods=calibration_neighborhoods,
-                counts=counts,
-                refs=sorted(set(neutral_traits) - {trait}),
-            )[n > 0]
+        if not (n > 0).any():
             logging.info(
                 "- alifestd_estimate_trait_gain_selection_asexual: "
-                f"calibrating trait {trait_names[trait]}, rescaling "
-                f"pendant lengths by {ratios.min():.3g} to "
-                f"{ratios.max():.3g} (median {np.median(ratios):.3g})",
+                f"not calibrating trait {trait_names[trait]}, which has no "
+                "informative leaves",
             )
+            continue
+        ratios = _tgs_calc_reference_rate_ratios(
+            calibration_neighborhoods=calibration_neighborhoods,
+            counts=counts,
+            refs=sorted(set(neutral_traits) - {trait}),
+        )[n > 0]
+        logging.info(
+            "- alifestd_estimate_trait_gain_selection_asexual: "
+            f"calibrating trait {trait_names[trait]}, rescaling pendant "
+            f"lengths by {ratios.min():.3g} to {ratios.max():.3g} (median "
+            f"{np.median(ratios):.3g})",
+        )
     return calibration_neighborhoods
 
 
@@ -263,7 +287,20 @@ def _tgs_fit_traits(
                 counts=counts,
                 refs=refs[trait],
             )
-        fits.append(tgs_fit(n, k, pendant_length, loss_rate=loss_rate))
+        # without carriers, skip fitting (and its warning), as callers report
+        # such traits and replicates
+        fits.append(
+            tgs_fit(
+                num_trials=n,
+                num_successes=k,
+                pendant_length=pendant_length,
+                loss_rate=loss_rate,
+            )
+            if k.any()
+            else TgsFitResult(
+                gain_rate=0.0, selection=np.nan, selection_lrt_naive=np.nan
+            )
+        )
 
     # normalize each gain rate by the mean gain rate of its neutral reference;
     # undefined without neutral reference traits, or if none gained the trait

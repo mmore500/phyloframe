@@ -43,5 +43,11 @@ def test_too_few_points_raises():
         calc_kdtree_partitions(np.array([[0.0, 0.0], [1.0, 1.0]]), 4)
 
 
-def test_empty():
-    assert calc_kdtree_partitions(np.empty((0, 2)), 0).shape == (0,)
+def test_too_few_distinct_points_raises():
+    with pytest.raises(NotImplementedError):
+        calc_kdtree_partitions(np.zeros((64, 2)), 4)
+
+
+def test_empty_raises():
+    with pytest.raises(NotImplementedError):
+        calc_kdtree_partitions(np.empty((0, 2)), 0)

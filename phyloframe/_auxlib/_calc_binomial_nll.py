@@ -57,4 +57,4 @@ def calc_binomial_nll(
         0.0,
         num_failures / (1 - clipped_p) - num_successes / clipped_p,
     )
-    return float(nll), dnll_dp
+    return nll, dnll_dp

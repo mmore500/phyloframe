@@ -183,11 +183,9 @@ def alifestd_estimate_trait_gain_selection_polars(
             "supports asexual phylogenies.",
         )
 
-    # evaluate trait masks on the input rows, before unifurcation collapse
-    # drops and renumbers rows, keeping only the columns needed (so that,
-    # e.g., an `ancestor_list` column does not reach steps that reject it);
-    # later steps run on the collected frame, as some lazy plans here can
-    # trip a polars streaming engine panic (limit after gather)
+    # evaluate masks before collapsing unifurcations renumbers rows, then
+    # continue eagerly to avoid https://github.com/pola-rs/polars/issues/30408
+    # TODO: stay lazy once a polars release includes the fix (after 2.1.0)
     selected = (
         phylogeny_df.lazy()
         .select(
