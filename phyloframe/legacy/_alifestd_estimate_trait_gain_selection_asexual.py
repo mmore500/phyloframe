@@ -8,14 +8,12 @@ import joblib
 import numpy as np
 import opytional as opyt
 import pandas as pd
-from scipy import stats
+from scipy import sparse, stats
+from sklearn import neighbors
 
-from .._auxlib._estimate_standardized_rate_ratios import (
-    estimate_standardized_rate_ratios,
-)
-from .._auxlib._sample_cluster_bootstrap_counts import (
-    sample_cluster_bootstrap_counts,
-)
+from .._auxlib._calc_binomial_nll import calc_binomial_nll
+from .._auxlib._calc_kdtree_cells import calc_kdtree_cells
+from .._auxlib._sample_bootstrap_counts import sample_bootstrap_counts
 from .._auxlib._tgs_fit import TgsFitResult, tgs_fit
 from .._auxlib._with_rng_state_context import with_rng_state_context
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
@@ -26,67 +24,147 @@ from ._alifestd_mask_leaf_trait_inherited_asexual import (
 )
 from ._alifestd_to_working_format import alifestd_to_working_format
 
+# candidate calibration neighbourhood sizes, as fractions of leaves; tgs
+# stands for trait gain/selection
+_tgs_neighbourhood_fractions = (0.005, 0.01, 0.02, 0.05, 0.1, 0.2)
 
-def _tgs_bin_leaves(
+
+def _tgs_count_traits(
     *,
-    leaf_times: np.ndarray,
+    leaf_cells: np.ndarray,
+    num_cells: int,
     pendant_lengths: np.ndarray,
-    min_time: float,
-    num_pendant_length_bins: int,
-    num_calibration_pendant_length_groups: int,
-    num_calibration_time_groups: int,
-) -> typing.Tuple[np.ndarray, np.ndarray]:
+    leaf_weights: np.ndarray,
+    trait_leaves: typing.Sequence[np.ndarray],
+    trait_carriers: typing.Sequence[np.ndarray],
+) -> typing.List[typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Implementation detail for
     `alifestd_estimate_trait_gain_selection_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
-    Returns flat (time, length) bin of each leaf, and calibration group of
-    each bin. Bins have equal width; calibration groups are time bins
-    crossed with runs of length bins holding approximately equal leaf
-    counts.
+    Returns, per trait, (weighted) counts of leaves and of trait carriers,
+    and summed pendant length, in each cell.
     """
-    # digitize against interior edges only ([1:-1]), so that values at either
-    # end land in the first or last bin rather than outside; with one bin,
-    # there are no interior edges and every value lands in bin 0
-    time_bins = np.digitize(
-        leaf_times,
-        np.linspace(
-            min_time, leaf_times.max(), num_calibration_time_groups + 1
-        )[1:-1],
+    bincount = functools.partial(np.bincount, minlength=num_cells)
+    weighted_lengths = leaf_weights * pendant_lengths
+    return [
+        (
+            bincount(leaf_cells[leaves], leaf_weights[leaves]),
+            bincount(leaf_cells[carriers], leaf_weights[carriers]),
+            bincount(leaf_cells[leaves], weighted_lengths[leaves]),
+        )
+        for leaves, carriers in zip(trait_leaves, trait_carriers)
+    ]
+
+
+def _tgs_calc_rate_ratios(
+    *,
+    neighbours: sparse.csr_matrix,
+    num_events: np.ndarray,
+    exposure: np.ndarray,
+) -> np.ndarray:
+    """Implementation detail for
+    `alifestd_estimate_trait_gain_selection_asexual`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns, per cell, events observed within its neighbourhood divided by
+    events expected there at the overall rate, given per-cell event counts
+    and exposure and a cell-by-cell neighbourhood membership matrix; 1.0
+    where a neighbourhood has no exposure, or there are no events at all.
+    """
+    rate = num_events.sum() / max(exposure.sum(), np.finfo(float).tiny)
+    observed = neighbours @ num_events
+    expected = rate * (neighbours @ exposure)
+    return np.divide(
+        observed, expected, out=np.ones_like(observed), where=expected > 0
     )
-    length_bins = np.digitize(
-        pendant_lengths,
-        np.linspace(0, pendant_lengths.max(), num_pendant_length_bins + 1)[
-            1:-1
-        ],
-    )
-    length_quantiles = np.quantile(
-        length_bins,
-        np.linspace(0, 1, num_calibration_pendant_length_groups + 1)[1:-1],
-    )
-    length_groups = np.digitize(
-        np.arange(num_pendant_length_bins), np.unique(length_quantiles)
-    )
-    # calibration group of each (time bin, length bin), in flat bin order
-    group_ids = np.add.outer(
-        np.arange(num_calibration_time_groups)
-        * num_calibration_pendant_length_groups,
-        length_groups,
-    )
-    return time_bins * num_pendant_length_bins + length_bins, group_ids.ravel()
+
+
+def _tgs_calc_heldout_nll(
+    *,
+    neighbours: sparse.csr_matrix,
+    counts: typing.Sequence[typing.Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    neutral_traits: typing.Sequence[int],
+) -> float:
+    """Implementation detail for `_tgs_select_neighbours`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns summed negative log likelihood of each neutral trait's carriers
+    under no selection, with pendant lengths calibrated against the other
+    neutral traits only.
+    """
+    res = 0.0
+    for trait in neutral_traits:
+        refs = [r for r in neutral_traits if r != trait]
+        n, k, pendant_length_sum = counts[trait]
+        pendant_length = np.divide(
+            pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
+        ) * _tgs_calc_rate_ratios(
+            neighbours=neighbours,
+            num_events=sum(counts[r][1] for r in refs),
+            exposure=sum(counts[r][2] for r in refs),
+        )
+        exposure = (n * pendant_length).sum()
+        if k.sum() and exposure:
+            gain_rate = k.sum() / exposure  # neutral fit, to first order
+            res += calc_binomial_nll(n, k, gain_rate * pendant_length)[0]
+    return res
+
+
+def _tgs_select_neighbours(
+    *,
+    cell_coords: np.ndarray,
+    counts: typing.Sequence[typing.Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    neutral_traits: typing.Sequence[int],
+) -> sparse.csr_matrix:
+    """Implementation detail for
+    `alifestd_estimate_trait_gain_selection_asexual`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns cell-by-cell neighbourhood membership matrix for the
+    neighbourhood size, among `_tgs_neighbourhood_fractions`, that best
+    predicts each held-out neutral trait's carriers when calibrating against
+    the others.
+    """
+    num_cells = len(cell_coords)
+    best_nll, best_neighbours = np.inf, None
+    for fraction in _tgs_neighbourhood_fractions:
+        k = int(np.clip(np.ceil(fraction * num_cells), 1, num_cells))
+        # pass coordinates explicitly, so each cell neighbours itself
+        neighbours = (
+            neighbors.NearestNeighbors(n_neighbors=k)
+            .fit(cell_coords)
+            .kneighbors_graph(cell_coords, mode="connectivity")
+            .tocsr()
+        )
+        nll = _tgs_calc_heldout_nll(
+            neighbours=neighbours, counts=counts, neutral_traits=neutral_traits
+        )
+        logging.info(
+            "- alifestd_estimate_trait_gain_selection_asexual: "
+            f"calibration neighbourhoods of {fraction:.1%} of leaves give "
+            f"held-out neutral negative log likelihood {nll:.1f}",
+        )
+        if nll < best_nll:
+            best_nll, best_neighbours = nll, neighbours
+    return best_neighbours
 
 
 def _tgs_fit_traits(
     *,
-    leaf_bins: np.ndarray,
+    leaf_cells: np.ndarray,
+    num_cells: int,
     pendant_lengths: np.ndarray,
     leaf_weights: np.ndarray,
     trait_leaves: typing.Sequence[np.ndarray],
     trait_carriers: typing.Sequence[np.ndarray],
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
-    calibration_group_ids: typing.Optional[np.ndarray],
+    neighbours: typing.Optional[sparse.csr_matrix],
     loss_rate: float,
 ) -> pd.DataFrame:
     """Implementation detail for
@@ -95,23 +173,18 @@ def _tgs_fit_traits(
     Here, tgs stands for trait gain/selection.
 
     Returns one row per trait, with columns of `TgsFitResult` plus
-    `gain_ratio`, the gain rate relative to neutral traits. Calibrates
-    pendant lengths against neutral traits if `calibration_group_ids`, the
-    calibration group of each bin, is given.
+    `gain_ratio`, the gain rate relative to neutral traits. If `neighbours`
+    is given, rescales each cell's pendant length by the rate ratio of
+    neutral trait gains within its neighbourhood.
     """
-    num_bins = opyt.apply_if_or_value(
-        calibration_group_ids, len, leaf_bins.max() + 1
+    counts = _tgs_count_traits(
+        leaf_cells=leaf_cells,
+        num_cells=num_cells,
+        pendant_lengths=pendant_lengths,
+        leaf_weights=leaf_weights,
+        trait_leaves=trait_leaves,
+        trait_carriers=trait_carriers,
     )
-    bincount = functools.partial(np.bincount, minlength=num_bins)
-    weighted_lengths = leaf_weights * pendant_lengths
-    counts = [  # per bin: leaves, trait carriers, summed pendant length
-        (
-            bincount(leaf_bins[leaves], leaf_weights[leaves]),
-            bincount(leaf_bins[carriers], leaf_weights[carriers]),
-            bincount(leaf_bins[leaves], weighted_lengths[leaves]),
-        )
-        for leaves, carriers in zip(trait_leaves, trait_carriers)
-    ]
     # leave each trait out of its own neutral reference
     refs = [
         sorted(set(neutral_traits) - {trait}) for trait in range(len(counts))
@@ -122,11 +195,11 @@ def _tgs_fit_traits(
         pendant_length = np.divide(
             pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
         )
-        if calibration_group_ids is not None:
-            ratios = estimate_standardized_rate_ratios(
+        if neighbours is not None:
+            ratios = _tgs_calc_rate_ratios(
+                neighbours=neighbours,
                 num_events=sum(counts[r][1] for r in refs[trait]),
                 exposure=sum(counts[r][2] for r in refs[trait]),
-                group_ids=calibration_group_ids,
             )
             if (n > 0).any():
                 low, mid, high = np.quantile(ratios[n > 0], [0, 0.5, 1])
@@ -153,7 +226,6 @@ def _tgs_fit_traits(
 def _tgs_bootstrap(
     *,
     fit_kwargs: dict,
-    leaf_clusters: np.ndarray,
     num_bootstrap: int,
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
@@ -163,20 +235,21 @@ def _tgs_bootstrap(
 
     Here, tgs stands for trait gain/selection.
 
-    Returns fits to cluster bootstrap resamples, one dataframe per replicate;
-    see `_tgs_fit_traits`.
+    Returns fits to bootstrap resamples of leaves, one dataframe per
+    replicate; see `_tgs_fit_traits`.
     """
-    # each replicate weights leaves by how many times their cluster was drawn
-    # (0, 1, 2, ..., not a binary mask), which is equivalent to copying the
-    # leaves of each drawn cluster
-    cluster_counts = sample_cluster_bootstrap_counts(
-        leaf_clusters.max() + 1, num_bootstrap
-    )
+    # each replicate weights leaves by how many times they were drawn
+    # (0, 1, 2, ..., not a binary mask), which is equivalent to resampling
+    # leaves with replacement; drawn lazily, one replicate at a time
+    num_leaves = len(fit_kwargs["leaf_cells"])
     jobs = (
         joblib.delayed(_tgs_fit_traits)(
-            leaf_weights=counts[leaf_clusters].astype(np.float64), **fit_kwargs
+            leaf_weights=sample_bootstrap_counts(num_leaves).astype(
+                np.float64
+            ),
+            **fit_kwargs,
         )
-        for counts in cluster_counts
+        for __ in range(num_bootstrap)
     )
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
         return joblib.Parallel()(progress_wrap(jobs))
@@ -267,16 +340,12 @@ def _tgs_impl(
     ancestor_ids: np.ndarray,
     origin_time: np.ndarray,
     trait_masks: typing.Sequence[np.ndarray],
-    cluster_ids: typing.Optional[np.ndarray],
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
     num_bootstrap: int,
     loss_rate: float,
     min_leaf_origin_time: float,
-    num_pendant_length_bins: int,
-    num_calibration_pendant_length_groups: int,
-    num_calibration_time_groups: int,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
@@ -288,19 +357,9 @@ def _tgs_impl(
     Here, tgs stands for trait gain/selection.
 
     Takes per-node arrays for a phylogeny with contiguous, topologically
-    sorted ids and no unifurcations: ancestor ids, origin times, boolean
-    trait masks, and bootstrap clusters.
+    sorted ids and no unifurcations: ancestor ids, origin times, and boolean
+    trait masks.
     """
-    for name in (
-        "num_pendant_length_bins",
-        "num_calibration_pendant_length_groups",
-        "num_calibration_time_groups",
-    ):
-        if locals()[name] < 1:
-            raise ValueError(
-                f"{name} must be at least 1, got {locals()[name]}"
-            )
-
     neutral_traits = np.unique(
         np.arange(len(trait_masks))[list(map(operator.index, neutral_traits))]
     ).tolist()
@@ -348,46 +407,91 @@ def _tgs_impl(
     if not is_used.any():  # no informative leaves, so nothing to fit
         reps = [res] * num_bootstrap
     else:
-        if cluster_ids is None:
-            leaf_clusters = np.arange(is_used.sum())
-        elif pd.isna(np.asarray(cluster_ids)[is_used]).any():
-            raise ValueError(
-                "cluster_ids must not be null at informative leaves",
-            )
-        else:
-            leaf_clusters = pd.factorize(np.asarray(cluster_ids)[is_used])[0]
-
-        leaf_bins, group_ids = _tgs_bin_leaves(
-            leaf_times=origin_time[is_used],
-            pendant_lengths=length[is_used],
-            min_time=np.nanmin(origin_time),
-            num_pendant_length_bins=num_pendant_length_bins,
-            num_calibration_pendant_length_groups=num_calibration_pendant_length_groups,
-            num_calibration_time_groups=num_calibration_time_groups,
+        # group leaves into equal-occupancy cells by ranked pendant length
+        # and origin time; cells only set numerical resolution, so make them
+        # much smaller than the smallest calibration neighbourhood (at least
+        # 20 per neighbourhood), but hold at least 4 leaves each
+        num_leaves = int(is_used.sum())
+        leaf_ranks = np.column_stack(
+            [
+                stats.rankdata(x[is_used], method="ordinal") / num_leaves
+                for x in (length, origin_time)
+            ],
         )
+        num_levels = int(
+            max(
+                0,
+                min(
+                    np.ceil(np.log2(20 / min(_tgs_neighbourhood_fractions))),
+                    np.floor(np.log2(num_leaves / 4)),
+                ),
+            ),
+        )
+        leaf_cells = calc_kdtree_cells(leaf_ranks, num_levels)
+        num_cells = 2**num_levels
         fit_kwargs = dict(
-            leaf_bins=leaf_bins,
+            leaf_cells=leaf_cells,
+            num_cells=num_cells,
             pendant_lengths=length[is_used],
             trait_leaves=trait_leaves,
             trait_carriers=trait_carriers,
             trait_names=trait_names,
             neutral_traits=neutral_traits,
-            calibration_group_ids=group_ids if calibrate else None,
+            neighbours=None,
             loss_rate=loss_rate,
         )
+        if calibrate:
+            counts = _tgs_count_traits(
+                leaf_weights=np.ones(num_leaves),
+                **{
+                    key: fit_kwargs[key]
+                    for key in (
+                        "leaf_cells",
+                        "num_cells",
+                        "pendant_lengths",
+                        "trait_leaves",
+                        "trait_carriers",
+                    )
+                },
+            )
+            cell_counts = np.maximum(
+                np.bincount(leaf_cells, minlength=num_cells), 1
+            )
+            fit_kwargs["neighbours"] = _tgs_select_neighbours(
+                cell_coords=np.column_stack(
+                    [
+                        np.bincount(leaf_cells, x, minlength=num_cells)
+                        / cell_counts
+                        for x in leaf_ranks.T
+                    ],
+                ),
+                counts=counts,
+                neutral_traits=neutral_traits,
+            )
+            num_empty = int(
+                (
+                    fit_kwargs["neighbours"]
+                    @ sum(counts[trait][1] for trait in neutral_traits)
+                    == 0
+                ).sum()
+            )
+            if num_empty:
+                warnings.warn(
+                    f"{num_empty} of {num_cells} calibration neighbourhoods "
+                    "contain no neutral trait gains, so leaves there get "
+                    "zero effective pendant length; more neutral traits or "
+                    "leaves would help.",
+                )
         logging.info(
             "- alifestd_estimate_trait_gain_selection_asexual: "
-            f"fitting {len(trait_masks)} traits to {len(leaf_bins)} leaves...",
+            f"fitting {len(trait_masks)} traits to {num_leaves} leaves...",
         )
-        point = _tgs_fit_traits(
-            leaf_weights=np.ones(len(leaf_bins)), **fit_kwargs
-        )
+        point = _tgs_fit_traits(leaf_weights=np.ones(num_leaves), **fit_kwargs)
         res[list(point.columns)] = point
         if num_bootstrap:
             logging.info(
                 "- alifestd_estimate_trait_gain_selection_asexual: "
-                f"fitting {num_bootstrap} bootstrap replicates "
-                f"over {leaf_clusters.max() + 1} clusters...",
+                f"fitting {num_bootstrap} bootstrap replicates...",
             )
         bootstrap = opyt.apply_if_or_value(
             seed,
@@ -396,7 +500,6 @@ def _tgs_impl(
         )
         reps = bootstrap(
             fit_kwargs=fit_kwargs,
-            leaf_clusters=leaf_clusters,
             num_bootstrap=num_bootstrap,
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
@@ -417,13 +520,9 @@ def alifestd_estimate_trait_gain_selection_asexual(
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[int] = (),
     calibrate: bool = False,
-    cluster_ids: typing.Optional[np.ndarray] = None,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
-    num_pendant_length_bins: int = 800,
-    num_calibration_pendant_length_groups: int = 12,
-    num_calibration_time_groups: int = 8,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = lambda x: x,
@@ -460,39 +559,22 @@ def alifestd_estimate_trait_gain_selection_asexual(
         Without neutral traits, `gain_ratio` and its statistics are nan;
         gain rate and selection are still estimated.
     calibrate : bool, default False
-        If True, rescale pendant lengths by the rate ratio of
-        `neutral_traits` gains within each calibration group, i.e., each
-        pairing of a pendant length group and a leaf origin time group (see
-        `estimate_standardized_rate_ratios`), so that distortion of branch
-        lengths shared with neutral traits (e.g., from tree reconstruction)
-        cancels.
-    cluster_ids : np.ndarray, optional
-        Bootstrap cluster of each node, aligned with `phylogeny_df.index`;
-        clusters should be approximately independent (e.g., spatial tiles or
-        root lineages). Must not be null at informative leaves. Defaults to
-        one cluster per leaf.
+        If True, rescale each leaf's pendant length by the ratio of observed
+        to expected `neutral_traits` gains among its nearest leaves in
+        pendant length and origin time (each ranked), so that distortion of
+        branch lengths shared with neutral traits (e.g., from tree
+        reconstruction) cancels. The neighbourhood size is chosen as the one
+        that best predicts each held-out neutral trait's carriers when
+        calibrating against the others. Assumes loss is negligible over a
+        pendant branch.
     num_bootstrap : int, default 0
-        Number of cluster bootstrap replicates for standard errors, z-scores,
-        and p-values.
+        Number of bootstrap replicates, resampling leaves with replacement
+        and refitting (including calibration), for standard errors,
+        z-scores, and p-values.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     min_leaf_origin_time : float, default -inf
         Leaves originating earlier are excluded.
-    num_pendant_length_bins : int, default 800
-        Number of equal-width pendant length bins. Binning bounds fit cost
-        independent of leaf count; the default keeps bin width under 0.2%
-        of the longest pendant branch, so binning error is negligible.
-    num_calibration_pendant_length_groups : int, default 12
-        Number of approximately equal-occupancy pendant length groups for
-        calibration.
-    num_calibration_time_groups : int, default 8
-        Number of equal-width leaf origin time groups for calibration.
-
-        Calibration group defaults are heuristic: 12 x 8 = 96 calibration
-        groups is coarse enough for each to accrue many neutral gains, yet
-        resolves distortion that varies with pendant length and with depth.
-        More groups reduce bias from within-group variation in distortion,
-        at the cost of noisier calibration.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
@@ -518,14 +600,17 @@ def alifestd_estimate_trait_gain_selection_asexual(
     ------
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
-        if `cluster_ids` is null at an informative leaf, if a trait mask's
-        length differs from `phylogeny_df`'s, or if a bin or group count is
-        less than 1.
+        or if a trait mask's length differs from `phylogeny_df`'s.
     NotImplementedError
         If a trait mask does not have boolean dtype.
 
     Notes
     -----
+    For speed, leaves are grouped into equal-occupancy cells by ranked
+    pendant length and origin time (see `calc_kdtree_cells`), sized well
+    below the smallest calibration neighbourhood, so that fit cost is
+    bounded independent of leaf count.
+
     Unifurcations are bypassed, so pendant branches span from leaves to
     their nearest branching ancestor. Leaves with zero or undefined pendant
     length (including root leaves) are excluded. Under sparse sampling,
@@ -533,7 +618,8 @@ def alifestd_estimate_trait_gain_selection_asexual(
     lineage's weight, roughly the difference in per-lineage net growth;
     magnitudes may be biased, but signs and rankings are informative. With
     few carriers, cost and loss are confounded, so `loss_rate` is fixed
-    rather than fit.
+    rather than fit. Bootstrap replicates resample leaves independently,
+    ignoring correlation through shared ancestry.
 
     Input dataframe is not mutated by this operation unless `mutate` set
     True. If mutate set True, operation does not occur in place; still use
@@ -577,16 +663,12 @@ def alifestd_estimate_trait_gain_selection_asexual(
         ancestor_ids=phylogeny_df["ancestor_id"].to_numpy(),
         origin_time=phylogeny_df["origin_time"].to_numpy(),
         trait_masks=[mask[rows] for mask in trait_masks],
-        cluster_ids=opyt.apply_if(cluster_ids, lambda b: np.asarray(b)[rows]),
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
-        num_pendant_length_bins=num_pendant_length_bins,
-        num_calibration_pendant_length_groups=num_calibration_pendant_length_groups,
-        num_calibration_time_groups=num_calibration_time_groups,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,

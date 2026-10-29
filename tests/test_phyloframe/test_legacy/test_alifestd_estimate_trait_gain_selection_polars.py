@@ -24,13 +24,12 @@ apply_params = pytest.mark.parametrize(
 
 
 def _make_cherries_polars(num_cherries: int) -> pl.DataFrame:
-    phylogeny_df, traits, clusters = _make_cherries(num_cherries)
+    phylogeny_df, traits = _make_cherries(num_cherries)
     return pl.from_pandas(phylogeny_df).with_columns(
         *(
             pl.Series(name, trait)
             for name, trait in zip(["focal", "n1", "n2", "n3", "n4"], traits)
         ),
-        cluster=pl.Series(clusters),
     )
 
 
@@ -64,7 +63,6 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
         trait_masks=names,
         neutral_traits=["n1", "n2", 3, 4],
         calibrate=calibrate,
-        cluster_ids="cluster",
         num_bootstrap=5,
         seed=1,
     )
@@ -75,7 +73,6 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
         trait_names=names,
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
-        cluster_ids=df_pd["cluster"].to_numpy(),
         num_bootstrap=5,
         seed=1,
     )

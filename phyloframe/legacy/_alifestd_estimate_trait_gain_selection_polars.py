@@ -7,7 +7,6 @@ import typing
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
-import opytional as opyt
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -44,13 +43,9 @@ def alifestd_estimate_trait_gain_selection_polars(
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
     calibrate: bool = False,
-    cluster_ids: typing.Union[str, pl.Expr, None] = None,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
-    num_pendant_length_bins: int = 800,
-    num_calibration_pendant_length_groups: int = 12,
-    num_calibration_time_groups: int = 8,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = lambda x: x,
@@ -92,33 +87,17 @@ def alifestd_estimate_trait_gain_selection_polars(
         Without neutral traits, `gain_ratio` and its statistics are nan;
         gain rate and selection are still estimated.
     calibrate : bool, default False
-        If True, rescale pendant lengths by the rate ratio of
-        `neutral_traits` gains within each calibration group, i.e., each
-        pairing of a pendant length group and a leaf origin time group, so that
-        distortion of branch lengths shared with neutral traits (e.g., from
-        tree reconstruction) cancels.
-    cluster_ids : str or polars.Expr, optional
-        Column name or expression giving each taxon's bootstrap cluster;
-        clusters should be approximately independent (e.g., spatial tiles or
-        root lineages). Must not be null at informative leaves. Defaults to
-        one cluster per leaf.
+        If True, measure pendant length by `neutral_traits` gains rather
+        than by branch length, so that distortion of branch lengths shared
+        with neutral traits (e.g., from tree reconstruction) cancels. See
+        `alifestd_estimate_trait_gain_selection_asexual` for details.
     num_bootstrap : int, default 0
-        Number of cluster bootstrap replicates for standard errors, z-scores,
-        and p-values.
+        Number of bootstrap replicates, resampling leaves with replacement
+        and refitting, for standard errors, z-scores, and p-values.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     min_leaf_origin_time : float, default -inf
         Leaves originating earlier are excluded.
-    num_pendant_length_bins : int, default 800
-        Number of equal-width pendant length bins.
-    num_calibration_pendant_length_groups : int, default 12
-        Number of approximately equal-occupancy pendant length groups for
-        calibration.
-    num_calibration_time_groups : int, default 8
-        Number of equal-width leaf origin time groups for calibration.
-
-        See `alifestd_estimate_trait_gain_selection_asexual` for rationale
-        behind binning defaults.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
@@ -133,8 +112,7 @@ def alifestd_estimate_trait_gain_selection_polars(
         If `phylogeny_df` has no "ancestor_id" column or if ids are
         non-contiguous or not topologically sorted.
     ValueError
-        If `calibrate` is set with fewer than two distinct neutral traits,
-        or if `cluster_ids` is null at an informative leaf.
+        If `calibrate` is set with fewer than two distinct neutral traits.
 
     Returns
     -------
@@ -160,8 +138,6 @@ def alifestd_estimate_trait_gain_selection_polars(
     trait_masks = [
         pl.col(mask) if isinstance(mask, str) else mask for mask in trait_masks
     ]
-    if isinstance(cluster_ids, str):
-        cluster_ids = pl.col(cluster_ids)
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -195,13 +171,6 @@ def alifestd_estimate_trait_gain_selection_polars(
                 mask.cast(pl.Boolean).alias(f"__alifestd_tgs_trait{i}")
                 for i, mask in enumerate(trait_masks)
             ),
-            *opyt.apply_if_or_value(
-                cluster_ids,
-                lambda cluster_ids: [
-                    cluster_ids.alias("__alifestd_tgs_cluster_ids")
-                ],
-                [],
-            ),
         )
         .collect()
     )
@@ -221,19 +190,12 @@ def alifestd_estimate_trait_gain_selection_polars(
         ancestor_ids=selected["ancestor_id"].to_numpy(),
         origin_time=selected["origin_time"].to_numpy(),
         trait_masks=trait_arrays,
-        cluster_ids=opyt.apply_if(
-            cluster_ids,
-            lambda __: selected["__alifestd_tgs_cluster_ids"].to_numpy(),
-        ),
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
-        num_pendant_length_bins=num_pendant_length_bins,
-        num_calibration_pendant_length_groups=num_calibration_pendant_length_groups,
-        num_calibration_time_groups=num_calibration_time_groups,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
@@ -303,22 +265,13 @@ def _create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--calibrate",
         action="store_true",
-        help="Calibrate branch length exposure against neutral traits.",
-    )
-    parser.add_argument(
-        "--cluster-ids",
-        default=None,
-        type=str,
-        help=(
-            "Name of column giving each taxon's bootstrap cluster "
-            "(default: one cluster per leaf)."
-        ),
+        help="Measure pendant length by neutral trait gains.",
     )
     parser.add_argument(
         "--num-bootstrap",
         default=0,
         type=int,
-        help="Number of cluster bootstrap replicates (default: 0).",
+        help="Number of bootstrap replicates (default: 0).",
     )
     parser.add_argument(
         "--bootstrap-seed",
@@ -337,24 +290,6 @@ def _create_parser() -> argparse.ArgumentParser:
         default=-np.inf,
         type=float,
         help="Exclude leaves originating earlier (default: -inf).",
-    )
-    parser.add_argument(
-        "--num-pendant-length-bins",
-        default=800,
-        type=int,
-        help="Number of pendant length bins (default: 800).",
-    )
-    parser.add_argument(
-        "--num-calibration-pendant-length-groups",
-        default=12,
-        type=int,
-        help="Number of pendant length calibration groups (default: 12).",
-    )
-    parser.add_argument(
-        "--num-calibration-time-groups",
-        default=8,
-        type=int,
-        help="Number of leaf origin time calibration groups (default: 8).",
     )
     parser.add_argument(
         "--parallel-backend",
@@ -383,18 +318,10 @@ if __name__ == "__main__":
                     trait_masks=args.trait_masks,
                     neutral_traits=args.neutral_traits,
                     calibrate=args.calibrate,
-                    cluster_ids=args.cluster_ids,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
                     min_leaf_origin_time=args.min_leaf_origin_time,
-                    num_pendant_length_bins=args.num_pendant_length_bins,
-                    num_calibration_pendant_length_groups=(
-                        args.num_calibration_pendant_length_groups
-                    ),
-                    num_calibration_time_groups=(
-                        args.num_calibration_time_groups
-                    ),
                     parallel_backend=args.parallel_backend,
                 ),
             )
