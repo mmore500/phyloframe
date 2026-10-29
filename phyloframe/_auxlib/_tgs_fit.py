@@ -61,7 +61,7 @@ def _tgs_calc_nll(
     # by zero, use the Taylor series of the exponential function: with
     # effective_length = sum over j >= 1 of rate**(j - 1) * t**j / j!, the
     # derivative is t**2 / 2 + rate * t**3 / 3 + O(rate**2)
-    # (https://en.wikipedia.org/wiki/Exponential_function#Power_series)
+    # https://en.wikipedia.org/wiki/Exponential_function#Power_series
     is_near_zero_rate = np.abs(cx) < 1e-6
     series_deriv = pendant_length * pendant_length * (0.5 + cx / 3)
     exact_deriv = np.divide(
