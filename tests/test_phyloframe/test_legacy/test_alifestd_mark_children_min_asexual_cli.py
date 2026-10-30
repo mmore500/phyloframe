@@ -4,6 +4,10 @@ import subprocess
 
 import pandas as pd
 
+from phyloframe.legacy._alifestd_mark_children_min_asexual import (
+    _create_parser,
+)
+
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 MODULE = "phyloframe.legacy._alifestd_mark_children_min_asexual"
@@ -47,3 +51,11 @@ def test_cli_csv():
     result_df = pd.read_csv(output_file)
     assert len(result_df) > 0
     assert "blueberry" in result_df.columns
+
+
+def test_create_parser():
+    parser = _create_parser()
+    args, __ = parser.parse_known_args(["--values", "v", "--no-skipna"])
+    assert args.values == "v"
+    assert args.mark_as == "children_min"
+    assert not args.skipna
