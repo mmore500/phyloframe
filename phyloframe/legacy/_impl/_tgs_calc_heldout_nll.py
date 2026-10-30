@@ -1,12 +1,13 @@
 import typing
 import warnings
 
-import numpy as np
 from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ._TgsCounts import TgsCounts
-from ._tgs_calc_reference_rate_ratios import tgs_calc_reference_rate_ratios
+from ._tgs_calc_calibrated_pendant_lengths import (
+    tgs_calc_calibrated_pendant_lengths,
+)
 
 
 def tgs_calc_heldout_nll(
@@ -28,15 +29,11 @@ def tgs_calc_heldout_nll(
     for trait in neutral_traits:
         n = counts.num_leaves[trait]
         k = counts.num_carriers[trait]
-        pendant_length = np.divide(
-            counts.pendant_length_sums[trait],
-            n,
-            out=np.zeros(n.shape),
-            where=n > 0,
-        ) * tgs_calc_reference_rate_ratios(
-            calibration_neighborhoods=calibration_neighborhoods,
+        pendant_length, __ = tgs_calc_calibrated_pendant_lengths(
             counts=counts,
-            refs=sorted(set(neutral_traits) - {trait}),
+            trait=trait,
+            neutral_traits=neutral_traits,
+            calibration_neighborhoods=calibration_neighborhoods,
         )
         exposure = (n * pendant_length).sum()
         if k.any() and exposure:

@@ -6,8 +6,11 @@ import pandas as pd
 from scipy import sparse
 
 from ..._auxlib._tgs_fit import TgsFitResult, _tgs_fit_impl
-from ._tgs_calc_reference_rate_ratios import tgs_calc_reference_rate_ratios
+from ._tgs_calc_calibrated_pendant_lengths import (
+    tgs_calc_calibrated_pendant_lengths,
+)
 from ._tgs_count_traits import tgs_count_traits
+from ._tgs_find_reference_traits import tgs_find_reference_traits
 
 
 def tgs_fit_traits(
@@ -42,27 +45,14 @@ def tgs_fit_traits(
         trait_leaves=trait_leaves,
         trait_carriers=trait_carriers,
     )
-    # leave each trait out of its own neutral reference
-    refs = [
-        sorted(set(neutral_traits) - {trait})
-        for trait in range(len(trait_leaves))
-    ]
-
     fits, calibration_factors = [], []
-    for trait, (n, k, pendant_length_sum) in enumerate(zip(*counts)):
-        pendant_length = np.divide(
-            pendant_length_sum, n, out=np.zeros(n.shape), where=n > 0
+    for trait, (n, k, __) in enumerate(zip(*counts)):
+        pendant_length, factors = tgs_calc_calibrated_pendant_lengths(
+            counts=counts,
+            trait=trait,
+            neutral_traits=neutral_traits,
+            calibration_neighborhoods=calibration_neighborhoods,
         )
-        factors = opyt.apply_if(
-            calibration_neighborhoods,
-            lambda neighborhoods: tgs_calc_reference_rate_ratios(
-                calibration_neighborhoods=neighborhoods,
-                counts=counts,
-                refs=refs[trait],
-            ),
-        )
-        if factors is not None:
-            pendant_length *= factors
         calibration_factors.append(opyt.apply_if(factors, lambda f: f[n > 0]))
         # without carriers, skip fitting (and its warning), as callers report
         # such traits and replicates
@@ -82,6 +72,10 @@ def tgs_fit_traits(
     # normalize each gain rate by the mean gain rate of its neutral reference;
     # undefined without neutral reference traits, or if none gained the trait
     res = pd.DataFrame(fits, columns=TgsFitResult._fields)
+    refs = [
+        tgs_find_reference_traits(neutral_traits=neutral_traits, trait=trait)
+        for trait in range(len(res))
+    ]
     ref_gain_rates = [
         res["gain_rate"][refs[trait]].mean() if len(refs[trait]) > 0 else 0.0
         for trait in range(len(res))

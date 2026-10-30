@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
 
-from .._auxlib._jit import jit
 from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
 from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
+from ._alifestd_mark_lineage_cummax_asexual import (
+    _alifestd_mark_lineage_cummax_asexual_fast_path,
+)
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
@@ -16,7 +18,6 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-@jit(nopython=True)
 def _alifestd_mask_trait_singletons_asexual_stem_node_ids(
     ancestor_ids: np.ndarray,
     is_branching: np.ndarray,
@@ -30,17 +31,15 @@ def _alifestd_mask_trait_singletons_asexual_stem_node_ids(
     one (e.g., a root) is its own stem node. Assumes contiguous,
     topologically sorted ids.
     """
-    res = np.empty_like(ancestor_ids)
-    for idx, ancestor_id in enumerate(ancestor_ids):
-        if ancestor_id == idx:  # root, without ancestors
-            res[idx] = idx
-        elif is_branching[ancestor_id]:
-            res[idx] = ancestor_id
-        elif res[ancestor_id] != ancestor_id:  # computed already, as sorted
-            res[idx] = res[ancestor_id]
-        else:  # no stem node above a unifurcating ancestor
-            res[idx] = idx
-    return res
+    ids = np.arange(len(ancestor_ids))
+    # ids increase along each lineage, so the running max of branching ids
+    # (else -1) is the nearest branching node at or above each node
+    nearest_branching_ids = _alifestd_mark_lineage_cummax_asexual_fast_path(
+        ancestor_ids, np.where(is_branching, ids, -1), False
+    )
+    stem_node_ids = nearest_branching_ids[ancestor_ids]
+    is_root = ancestor_ids == ids
+    return np.where(is_root | (stem_node_ids < 0), ids, stem_node_ids)
 
 
 def _alifestd_mask_trait_singletons_asexual_fast_path(
