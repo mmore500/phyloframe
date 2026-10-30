@@ -66,7 +66,7 @@ def alifestd_collapse_unifurcations_tallied_polars(
     tally = pl.col(tally_as)
     is_missing = tally.is_null()
     if schema[tally_as].is_float():
-        is_missing = is_missing | tally.is_nan()
+        is_missing |= tally.is_nan()
     if phylogeny_df.lazy().select(is_missing.any()).collect().item():
         raise NotImplementedError("NaN or null values not yet supported")
 
