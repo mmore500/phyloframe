@@ -110,6 +110,12 @@ from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from ._alifestd_collapse_unifurcations_polars import (
     alifestd_collapse_unifurcations_polars,
 )
+from ._alifestd_collapse_unifurcations_tallied_asexual import (
+    alifestd_collapse_unifurcations_tallied_asexual,
+)
+from ._alifestd_collapse_unifurcations_tallied_polars import (
+    alifestd_collapse_unifurcations_tallied_polars,
+)
 from ._alifestd_convert_root_ancestor_token import (
     alifestd_convert_root_ancestor_token,
 )
@@ -578,6 +584,8 @@ from ._alifestd_mark_sample_tips_uniform_polars import (
 )
 from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 from ._alifestd_mark_sister_polars import alifestd_mark_sister_polars
+from ._alifestd_mark_to_array import alifestd_mark_to_array
+from ._alifestd_mark_to_array_polars import alifestd_mark_to_array_polars
 from ._alifestd_mark_unifurcation_length_asexual import (
     alifestd_mark_unifurcation_length_asexual,
 )
@@ -773,6 +781,8 @@ __all__ = [
     "alifestd_collapse_trunk_polars",
     "alifestd_collapse_unifurcations",
     "alifestd_collapse_unifurcations_polars",
+    "alifestd_collapse_unifurcations_tallied_asexual",
+    "alifestd_collapse_unifurcations_tallied_polars",
     "alifestd_convert_root_ancestor_token",
     "alifestd_count_children_of_asexual",
     "alifestd_count_children_of_polars",
@@ -977,6 +987,8 @@ __all__ = [
     "alifestd_mark_sackin_index_polars",
     "alifestd_mark_sister_asexual",
     "alifestd_mark_sister_polars",
+    "alifestd_mark_to_array",
+    "alifestd_mark_to_array_polars",
     "alifestd_mask_descendants_asexual",
     "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
