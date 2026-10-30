@@ -30,6 +30,8 @@ $ python3 -m phyloframe.legacy._alifestd_collapse_trunk_asexual
 $ python3 -m phyloframe.legacy._alifestd_collapse_trunk_polars
 $ python3 -m phyloframe.legacy._alifestd_collapse_unifurcations
 $ python3 -m phyloframe.legacy._alifestd_collapse_unifurcations_polars
+$ python3 -m phyloframe.legacy._alifestd_collapse_unifurcations_tallied_asexual
+$ python3 -m phyloframe.legacy._alifestd_collapse_unifurcations_tallied_polars
 $ python3 -m phyloframe.legacy._alifestd_count_inner_nodes
 $ python3 -m phyloframe.legacy._alifestd_count_inner_nodes_polars
 $ python3 -m phyloframe.legacy._alifestd_count_leaf_nodes
