@@ -85,3 +85,11 @@ def test_non_topologically_sorted_not_implemented():
         alifestd_mark_to_array_polars(
             df, alifestd_mark_lineage_cumsum_polars, values="v"
         )
+
+
+def test_reordering_op_raises():
+    def reordering_op(phylogeny_df, mark_as):
+        return phylogeny_df.with_columns(pl.col("v").alias(mark_as)).reverse()
+
+    with pytest.raises(AssertionError):
+        alifestd_mark_to_array_polars(_make_df(), reordering_op)

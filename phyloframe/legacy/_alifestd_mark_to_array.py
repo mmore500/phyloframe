@@ -72,6 +72,9 @@ def alifestd_mark_to_array(
         phylogeny_df = phylogeny_df.copy()
 
     mark_as = "_alifestd_mark_to_array"
-    return mark_op(phylogeny_df, mutate=True, mark_as=mark_as, **kwargs)[
-        mark_as
-    ].to_numpy()
+    phylogeny_df = mark_op(
+        phylogeny_df, mutate=True, mark_as=mark_as, **kwargs
+    )
+    # marked values must remain aligned with ids
+    assert alifestd_has_contiguous_ids(phylogeny_df)
+    return phylogeny_df[mark_as].to_numpy()

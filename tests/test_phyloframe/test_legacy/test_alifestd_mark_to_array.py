@@ -87,3 +87,12 @@ def test_non_topologically_sorted_not_implemented():
         alifestd_mark_to_array(
             df, alifestd_mark_lineage_cumsum_asexual, values="v"
         )
+
+
+def test_reordering_op_raises():
+    def reordering_op(phylogeny_df, mutate, mark_as):
+        phylogeny_df[mark_as] = phylogeny_df["v"]
+        return phylogeny_df.iloc[::-1]
+
+    with pytest.raises(AssertionError):
+        alifestd_mark_to_array(_make_df(), reordering_op)

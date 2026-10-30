@@ -67,11 +67,7 @@ def alifestd_mark_to_array_polars(
         raise NotImplementedError("non-topologically-sorted not supported")
 
     mark_as = "_alifestd_mark_to_array"
-    return (
-        mark_op(phylogeny_df, mark_as=mark_as, **kwargs)
-        .lazy()
-        .select(mark_as)
-        .collect()
-        .to_series()
-        .to_numpy()
-    )
+    phylogeny_df = mark_op(phylogeny_df, mark_as=mark_as, **kwargs)
+    # marked values must remain aligned with ids
+    assert alifestd_has_contiguous_ids_polars(phylogeny_df)
+    return phylogeny_df.lazy().select(mark_as).collect().to_series().to_numpy()
