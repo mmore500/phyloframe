@@ -31,8 +31,8 @@ from ._alifestd_topological_sensitivity_warned import (
 )
 def alifestd_collapse_unifurcations_tallied_asexual(
     phylogeny_df: pd.DataFrame,
-    mutate: bool = False,
     *,
+    mutate: bool = False,
     tally_as: str = "collapsed_unifurcations",
 ) -> pd.DataFrame:
     """Pare record to bypass organisms with one ancestor and one descendant,
