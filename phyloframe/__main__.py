@@ -62,6 +62,7 @@ $ python3 -m phyloframe.legacy._alifestd_downsample_tips_uniform_asexual
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_uniform_polars
 $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity
 $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity_polars
+$ python3 -m phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_polars
 $ python3 -m phyloframe.legacy._alifestd_from_avida_spop
 $ python3 -m phyloframe.legacy._alifestd_from_newick
 $ python3 -m phyloframe.legacy._alifestd_from_newick_polars
@@ -175,6 +176,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_polars
+$ python3 -m phyloframe.legacy._alifestd_mask_trait_singletons_polars
 $ python3 -m phyloframe.legacy._alifestd_minify_asexual
 $ python3 -m phyloframe.legacy._alifestd_minify_polars
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops

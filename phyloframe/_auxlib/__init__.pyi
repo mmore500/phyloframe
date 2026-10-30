@@ -1,9 +1,16 @@
+from ._ExperimentalWarning import ExperimentalWarning
 from ._GetAttrLaunderShim import GetAttrLaunderShim
 from ._RngStateContext import RngStateContext
 from ._add_bool_arg import add_bool_arg
 from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
+from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
+from ._calc_group_means import calc_group_means
+from ._calc_kdtree_partitions import calc_kdtree_partitions
+from ._calc_knn_neighborhoods import calc_knn_neighborhoods
+from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
+from ._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -18,6 +25,7 @@ from ._get_package_name import get_package_name
 from ._get_phyloframe_version import get_phyloframe_version
 from ._is_in_coverage_run import is_in_coverage_run
 from ._is_subset import is_subset
+from ._iter_kdtree_nodes import iter_kdtree_nodes
 from ._jit import jit
 from ._jit_TypingError import jit_TypingError
 from ._jit_numba_dict_t import jit_numba_dict_t
@@ -35,22 +43,34 @@ from ._log_memory_usage import log_memory_usage
 from ._pairwise import pairwise
 from ._preserve_id_dtypes import preserve_id_dtypes
 from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
+from ._run_seeded_replicates import run_seeded_replicates
+from ._sample_bootstrap_counts import sample_bootstrap_counts
 from ._seed_random import seed_random
 from ._textwrap_respect_indents import textwrap_respect_indents
+from ._tgs_fit import TgsFitResult, tgs_fit
 from ._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
+from ._warn_experimental import warn_experimental
 from ._warn_once import warn_once
 from ._with_rng_state_context import with_rng_state_context
 from ._write_text_with_compression import write_text_with_compression
 
 __all__ = [
+    "ExperimentalWarning",
     "GetAttrLaunderShim",
     "RngStateContext",
+    "TgsFitResult",
     "add_bool_arg",
     "add_compression_cli_arg",
     "all_unique",
     "begin_prod_logging",
+    "calc_binomial_nll_proxy",
+    "calc_group_means",
+    "calc_kdtree_partitions",
+    "calc_knn_neighborhoods",
+    "calc_neighborhood_rate_ratios",
+    "calc_two_sided_normal_p",
     "coerce_to_pandas",
     "coerce_to_polars",
     "collapse_nonleading_whitespace",
@@ -65,6 +85,7 @@ __all__ = [
     "get_phyloframe_version",
     "is_in_coverage_run",
     "is_subset",
+    "iter_kdtree_nodes",
     "jit",
     "jit_TypingError",
     "jit_numba_dict_t",
@@ -80,9 +101,13 @@ __all__ = [
     "pairwise",
     "preserve_id_dtypes",
     "preserve_id_dtypes_polars",
+    "run_seeded_replicates",
+    "sample_bootstrap_counts",
     "seed_random",
     "textwrap_respect_indents",
+    "tgs_fit",
     "unfurl_lineage_with_contiguous_ids",
+    "warn_experimental",
     "warn_once",
     "with_rng_state_context",
     "write_text_with_compression",

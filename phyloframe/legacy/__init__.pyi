@@ -193,6 +193,12 @@ from ._alifestd_drop_topological_sensitivity import (
 from ._alifestd_drop_topological_sensitivity_polars import (
     alifestd_drop_topological_sensitivity_polars,
 )
+from ._alifestd_estimate_trait_gain_selection_pendant_asexual import (
+    alifestd_estimate_trait_gain_selection_pendant_asexual,
+)
+from ._alifestd_estimate_trait_gain_selection_pendant_polars import (
+    alifestd_estimate_trait_gain_selection_pendant_polars,
+)
 from ._alifestd_estimate_triplet_distance_asexual import (
     alifestd_estimate_triplet_distance_asexual,
 )
@@ -604,6 +610,12 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_mask_monomorphic_clades_polars import (
     alifestd_mask_monomorphic_clades_polars,
 )
+from ._alifestd_mask_trait_singletons_asexual import (
+    alifestd_mask_trait_singletons_asexual,
+)
+from ._alifestd_mask_trait_singletons_polars import (
+    alifestd_mask_trait_singletons_polars,
+)
 from ._alifestd_minify_asexual import alifestd_minify_asexual
 from ._alifestd_minify_polars import alifestd_minify_polars
 from ._alifestd_parse_ancestor_id import alifestd_parse_ancestor_id
@@ -832,6 +844,8 @@ __all__ = [
     "alifestd_mark_sample_tips_uniform_polars",
     "alifestd_drop_topological_sensitivity",
     "alifestd_drop_topological_sensitivity_polars",
+    "alifestd_estimate_trait_gain_selection_pendant_asexual",
+    "alifestd_estimate_trait_gain_selection_pendant_polars",
     "alifestd_estimate_triplet_distance_asexual",
     "alifestd_find_chronological_inconsistency",
     "alifestd_find_chronological_inconsistency_polars",
@@ -993,6 +1007,8 @@ __all__ = [
     "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
     "alifestd_mask_monomorphic_clades_polars",
+    "alifestd_mask_trait_singletons_asexual",
+    "alifestd_mask_trait_singletons_polars",
     "alifestd_minify_asexual",
     "alifestd_minify_polars",
     "alifestd_parse_ancestor_id",
