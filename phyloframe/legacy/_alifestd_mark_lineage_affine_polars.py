@@ -69,17 +69,10 @@ def alifestd_mark_lineage_affine_polars(
     alifestd_mark_lineage_cumsum_polars :
         Cumulative sum along each lineage.
     """
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    exprs = []
-    for operand in (scale, offset):
-        if isinstance(operand, str):
-            if operand not in schema_names:
-                raise ValueError(
-                    f"column {operand!r} not found in phylogeny_df",
-                )
-            operand = pl.col(operand)
-        exprs.append(operand.cast(pl.Float64))
-    scale_expr, offset_expr = exprs
+    scale_expr, offset_expr = (
+        pl.col(operand) if isinstance(operand, str) else operand
+        for operand in (scale, offset)
+    )
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -118,15 +111,19 @@ def alifestd_mark_lineage_affine_polars(
     logging.info(
         "- alifestd_mark_lineage_affine_polars: evaluating recurrence...",
     )
-    scale_arr = arrays["scale"].fill_null(np.nan).to_numpy()
-    offset_arr = arrays["offset"].fill_null(np.nan).to_numpy()
-    if np.isnan(scale_arr).any() or np.isnan(offset_arr).any():
-        raise NotImplementedError("NaN or null values not yet supported")
+    for series in (arrays["scale"], arrays["offset"]):
+        if series.null_count() or (
+            series.dtype.is_float() and series.is_nan().any()
+        ):
+            raise NotImplementedError("NaN or null values not yet supported")
 
+    scale_arr = arrays["scale"].to_numpy()
+    offset_arr = arrays["offset"].to_numpy()
+    dtype = np.result_type(scale_arr, offset_arr)
     result = _alifestd_mark_lineage_affine_asexual_fast_path(
         arrays["ancestor_id"].to_numpy(),
-        scale_arr,
-        offset_arr,
+        scale_arr.astype(dtype, copy=False),
+        offset_arr.astype(dtype, copy=False),
     )
 
     return phylogeny_df.with_columns(

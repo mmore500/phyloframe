@@ -94,7 +94,7 @@ def test_empty():
 
 
 def test_missing_column():
-    with pytest.raises(ValueError):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
         alifestd_mark_min_child_value_polars(_make_df(), "nope")
 
 
@@ -102,3 +102,10 @@ def test_non_contiguous_ids():
     df = pl.DataFrame({"id": [0, 2], "ancestor_id": [0, 0], "v": [1.0, 1.0]})
     with pytest.raises(NotImplementedError):
         alifestd_mark_min_child_value_polars(df, "v")
+
+
+def test_integer_dtype_preserved():
+    df = _make_df().with_columns(pl.col("v").cast(pl.Int64))
+    res = alifestd_mark_min_child_value_polars(df, "v")
+    assert res["min_child_value"].dtype.is_integer()
+    assert res["min_child_value"].to_list() == [10, 20, 20, 30, 7]

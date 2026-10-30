@@ -27,13 +27,13 @@ def _alifestd_mark_min_child_value_asexual_fast_path(
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mark_min_child_value_asexual`."""
     result = np.copy(values)
-    has_child = np.zeros(len(ancestor_ids), dtype=np.bool_)
+    seen_child = np.zeros(len(ancestor_ids), dtype=np.bool_)
     for k, anc in enumerate(ancestor_ids):
         if anc == k:
             continue
-        if not has_child[anc] or values[k] < result[anc]:
+        if not seen_child[anc] or values[k] < result[anc]:
             result[anc] = values[k]
-            has_child[anc] = True
+            seen_child[anc] = True
     return result
 
 
@@ -68,11 +68,6 @@ def alifestd_mark_min_child_value_asexual(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    if values not in phylogeny_df.columns:
-        raise ValueError(
-            f"values column {values!r} not found in phylogeny_df",
-        )
-
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
     if "ancestor_id" not in phylogeny_df.columns:
         raise NotImplementedError(
@@ -81,7 +76,7 @@ def alifestd_mark_min_child_value_asexual(
         )
 
     if phylogeny_df.empty:
-        phylogeny_df[mark_as] = phylogeny_df[values].astype(float)
+        phylogeny_df[mark_as] = phylogeny_df[values]
         return phylogeny_df
 
     if not alifestd_has_contiguous_ids(phylogeny_df):
@@ -89,13 +84,12 @@ def alifestd_mark_min_child_value_asexual(
             "non-contiguous ids not supported",
         )
 
-    values_arr = phylogeny_df[values].to_numpy(dtype=np.float64)
-    if np.isnan(values_arr).any():
+    if phylogeny_df[values].isna().any():
         raise NotImplementedError("NaN values not yet supported")
 
     phylogeny_df[mark_as] = _alifestd_mark_min_child_value_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
-        values_arr,
+        phylogeny_df[values].to_numpy(),
     )
     return phylogeny_df
 

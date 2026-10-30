@@ -100,7 +100,7 @@ def test_empty():
 
 
 def test_missing_column():
-    with pytest.raises(ValueError):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
         alifestd_mark_lineage_affine_polars(_make_df(), "nope", "a")
 
 
@@ -110,3 +110,10 @@ def test_non_contiguous_ids():
     )
     with pytest.raises(NotImplementedError):
         alifestd_mark_lineage_affine_polars(df, "m", "a")
+
+
+def test_integer_dtype_preserved():
+    df = _make_df().with_columns(pl.Series("m", [9, 2, 3, 1, 9]))
+    res = alifestd_mark_lineage_affine_polars(df, "m", "a")
+    assert res["lineage_affine"].dtype.is_integer()
+    assert res["lineage_affine"].to_list() == [1, 3, 10, 3, 5]

@@ -28,7 +28,7 @@ def _alifestd_mark_lineage_affine_asexual_fast_path(
     offset: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mark_lineage_affine_asexual`."""
-    result = np.zeros(ancestor_ids.shape[0], dtype=np.float64)
+    result = np.zeros_like(offset)
     for k, anc in enumerate(ancestor_ids):
         not_root = anc != k
         result[k] = offset[k] + scale[k] * result[anc] * not_root
@@ -70,12 +70,6 @@ def alifestd_mark_lineage_affine_asexual(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    for col in (scale, offset):
-        if col not in phylogeny_df.columns:
-            raise ValueError(
-                f"column {col!r} not found in phylogeny_df",
-            )
-
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
     if "ancestor_id" not in phylogeny_df.columns:
         raise NotImplementedError(
@@ -84,7 +78,7 @@ def alifestd_mark_lineage_affine_asexual(
         )
 
     if phylogeny_df.empty:
-        phylogeny_df[mark_as] = phylogeny_df[offset].astype(float)
+        phylogeny_df[mark_as] = phylogeny_df[offset]
         return phylogeny_df
 
     if not alifestd_has_contiguous_ids(phylogeny_df):
@@ -97,15 +91,16 @@ def alifestd_mark_lineage_affine_asexual(
             "non-topologically-sorted data not supported",
         )
 
-    scale_arr = phylogeny_df[scale].to_numpy(dtype=np.float64)
-    offset_arr = phylogeny_df[offset].to_numpy(dtype=np.float64)
-    if np.isnan(scale_arr).any() or np.isnan(offset_arr).any():
+    if phylogeny_df[scale].isna().any() or phylogeny_df[offset].isna().any():
         raise NotImplementedError("NaN values not yet supported")
 
+    scale_arr = phylogeny_df[scale].to_numpy()
+    offset_arr = phylogeny_df[offset].to_numpy()
+    dtype = np.result_type(scale_arr, offset_arr)
     phylogeny_df[mark_as] = _alifestd_mark_lineage_affine_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
-        scale_arr,
-        offset_arr,
+        scale_arr.astype(dtype, copy=False),
+        offset_arr.astype(dtype, copy=False),
     )
     return phylogeny_df
 

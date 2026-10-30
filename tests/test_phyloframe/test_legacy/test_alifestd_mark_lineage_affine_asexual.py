@@ -86,7 +86,7 @@ def test_empty():
 
 
 def test_missing_column():
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         alifestd_mark_lineage_affine_asexual(_make_df(), "m", "nope")
 
 
@@ -104,3 +104,11 @@ def test_non_topologically_sorted():
     )
     with pytest.raises(NotImplementedError):
         alifestd_mark_lineage_affine_asexual(df, "m", "a")
+
+
+def test_integer_dtype_preserved():
+    df = _make_df().astype({"m": int, "a": int})
+    df["m"] = [9, 2, 3, 1, 9]
+    res = alifestd_mark_lineage_affine_asexual(df, "m", "a")
+    assert np.issubdtype(res["lineage_affine"].dtype, np.integer)
+    np.testing.assert_array_equal(res["lineage_affine"], [1, 3, 10, 3, 5])

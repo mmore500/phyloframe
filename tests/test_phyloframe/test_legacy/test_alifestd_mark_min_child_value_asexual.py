@@ -76,7 +76,7 @@ def test_empty():
 
 
 def test_missing_column():
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         alifestd_mark_min_child_value_asexual(_make_df(), "nope")
 
 
@@ -84,3 +84,10 @@ def test_non_contiguous_ids():
     df = pd.DataFrame({"id": [0, 2], "ancestor_id": [0, 0], "v": [1.0, 1.0]})
     with pytest.raises(NotImplementedError):
         alifestd_mark_min_child_value_asexual(df, "v")
+
+
+def test_integer_dtype_preserved():
+    df = _make_df().astype({"v": int})
+    res = alifestd_mark_min_child_value_asexual(df, "v")
+    assert np.issubdtype(res["min_child_value"].dtype, np.integer)
+    np.testing.assert_array_equal(res["min_child_value"], [10, 20, 20, 30, 7])

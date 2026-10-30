@@ -6,7 +6,6 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -58,14 +57,7 @@ def alifestd_mark_min_child_value_polars(
     alifestd_mark_lineage_cummin_polars :
         Minimum along lineages, or over clades with ``reverse=True``.
     """
-    if isinstance(values, str):
-        schema_names = phylogeny_df.lazy().collect_schema().names()
-        if values not in schema_names:
-            raise ValueError(
-                f"values column {values!r} not found in phylogeny_df",
-            )
-        values = pl.col(values)
-    values_expr = values.cast(pl.Float64)
+    values_expr = pl.col(values) if isinstance(values, str) else values
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -95,13 +87,15 @@ def alifestd_mark_min_child_value_polars(
     logging.info(
         "- alifestd_mark_min_child_value_polars: aggregating children...",
     )
-    values_arr = arrays["values"].fill_null(np.nan).to_numpy()
-    if np.isnan(values_arr).any():
+    series = arrays["values"]
+    if series.null_count() or (
+        series.dtype.is_float() and series.is_nan().any()
+    ):
         raise NotImplementedError("NaN or null values not yet supported")
 
     result = _alifestd_mark_min_child_value_asexual_fast_path(
         arrays["ancestor_id"].to_numpy(),
-        values_arr,
+        series.to_numpy(),
     )
 
     return phylogeny_df.with_columns(
