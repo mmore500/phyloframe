@@ -10,6 +10,7 @@ from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 def alifestd_mark_to_array(
     phylogeny_df: pd.DataFrame,
     mark_op: typing.Callable,
+    *,
     mutate: bool = False,
     **kwargs: typing.Any,
 ) -> np.ndarray:
