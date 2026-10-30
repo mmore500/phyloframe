@@ -7,14 +7,17 @@ import pandas as pd
 def alifestd_mark_to_array(
     phylogeny_df: pd.DataFrame,
     mark_op: typing.Callable,
-    *args: typing.Any,
+    mutate: bool = False,
     **kwargs: typing.Any,
 ) -> np.ndarray:
     """Apply a Pandas-based phyloframe mark operation, returning the marked
     values as an array rather than as a new column.
 
-    Calls ``mark_op(phylogeny_df, *args, mark_as=..., **kwargs)`` under a
-    temporary column name. Input dataframe is not mutated.
+    Calls ``mark_op(phylogeny_df, mutate=True, mark_as=..., **kwargs)``
+    under a temporary column name.
+
+    Input dataframe is not mutated by this operation unless ``mutate`` set
+    True.
 
     Parameters
     ----------
@@ -23,8 +26,10 @@ def alifestd_mark_to_array(
     mark_op : Callable
         A Pandas-based mark operation taking a ``mark_as`` keyword, such as
         ``alifestd_mark_lineage_cumsum_asexual``.
-    *args, **kwargs
-        Additional arguments forwarded to ``mark_op``.
+    mutate : bool, default False
+        Are side effects on the input argument ``phylogeny_df`` allowed?
+    **kwargs
+        Additional keyword arguments forwarded to ``mark_op``.
 
     Returns
     -------
@@ -41,7 +46,9 @@ def alifestd_mark_to_array(
     >>> df = pd.DataFrame(
     ...     {"id": [0, 1, 2], "ancestor_id": [0, 0, 1], "v": [1, 2, 3]},
     ... )
-    >>> alifestd_mark_to_array(df, alifestd_mark_lineage_cumsum_asexual, "v")
+    >>> alifestd_mark_to_array(
+    ...     df, alifestd_mark_lineage_cumsum_asexual, values="v"
+    ... )
     array([1, 3, 6])
 
     See Also
@@ -49,7 +56,10 @@ def alifestd_mark_to_array(
     alifestd_mark_to_array_polars :
         Polars-based implementation.
     """
+    if not mutate:
+        phylogeny_df = phylogeny_df.copy()
+
     mark_as = "_alifestd_mark_to_array"
-    return mark_op(phylogeny_df, *args, mark_as=mark_as, **kwargs)[
+    return mark_op(phylogeny_df, mutate=True, mark_as=mark_as, **kwargs)[
         mark_as
     ].to_numpy()

@@ -24,7 +24,9 @@ def _make_df() -> pd.DataFrame:
 def test_single_column():
     df = _make_df()
     original_df = df.copy()
-    res = alifestd_mark_to_array(df, alifestd_mark_lineage_cumsum_asexual, "v")
+    res = alifestd_mark_to_array(
+        df, alifestd_mark_lineage_cumsum_asexual, values="v"
+    )
     assert isinstance(res, np.ndarray)
     np.testing.assert_array_equal(res, [1, 3, 6, 5])
     pd.testing.assert_frame_equal(df, original_df)
@@ -32,7 +34,7 @@ def test_single_column():
 
 def test_multiple_columns():
     res = alifestd_mark_to_array(
-        _make_df(), alifestd_mark_lineage_affine_asexual, "m", "v"
+        _make_df(), alifestd_mark_lineage_affine_asexual, scale="m", offset="v"
     )
     np.testing.assert_allclose(res, [1.0, 4.0, 15.0, 4.5])
 
@@ -48,7 +50,7 @@ def test_kwargs_forwarded():
     res = alifestd_mark_to_array(
         _make_df(),
         alifestd_mark_lineage_cumsum_asexual,
-        "v",
+        values="v",
         reverse=True,
     )
     np.testing.assert_array_equal(res, [10, 5, 3, 4])
@@ -56,5 +58,15 @@ def test_kwargs_forwarded():
 
 def test_empty():
     df = pd.DataFrame({"id": [], "ancestor_id": [], "v": []}, dtype=int)
-    res = alifestd_mark_to_array(df, alifestd_mark_lineage_cumsum_asexual, "v")
+    res = alifestd_mark_to_array(
+        df, alifestd_mark_lineage_cumsum_asexual, values="v"
+    )
     assert len(res) == 0
+
+
+def test_mutate():
+    df = _make_df()
+    res = alifestd_mark_to_array(
+        df, alifestd_mark_lineage_cumsum_asexual, mutate=True, values="v"
+    )
+    np.testing.assert_array_equal(res, [1, 3, 6, 5])

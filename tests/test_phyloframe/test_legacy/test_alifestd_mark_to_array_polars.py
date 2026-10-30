@@ -33,7 +33,7 @@ def _make_df() -> pl.DataFrame:
 )
 def test_single_column(apply: typing.Callable):
     res = alifestd_mark_to_array_polars(
-        apply(_make_df()), alifestd_mark_lineage_cumsum_polars, "v"
+        apply(_make_df()), alifestd_mark_lineage_cumsum_polars, values="v"
     )
     assert isinstance(res, np.ndarray)
     np.testing.assert_array_equal(res, [1, 3, 6, 5])
@@ -41,7 +41,7 @@ def test_single_column(apply: typing.Callable):
 
 def test_multiple_columns():
     res = alifestd_mark_to_array_polars(
-        _make_df(), alifestd_mark_lineage_affine_polars, "m", "v"
+        _make_df(), alifestd_mark_lineage_affine_polars, scale="m", offset="v"
     )
     np.testing.assert_allclose(res, [1.0, 4.0, 15.0, 4.5])
 
@@ -57,7 +57,7 @@ def test_kwargs_forwarded():
     res = alifestd_mark_to_array_polars(
         _make_df(),
         alifestd_mark_lineage_cumsum_polars,
-        "v",
+        values="v",
         reverse=True,
     )
     np.testing.assert_array_equal(res, [10, 5, 3, 4])
@@ -65,5 +65,7 @@ def test_kwargs_forwarded():
 
 def test_input_unchanged():
     df = _make_df()
-    alifestd_mark_to_array_polars(df, alifestd_mark_lineage_cumsum_polars, "v")
+    alifestd_mark_to_array_polars(
+        df, alifestd_mark_lineage_cumsum_polars, values="v"
+    )
     assert df.columns == ["id", "ancestor_id", "v", "m"]
