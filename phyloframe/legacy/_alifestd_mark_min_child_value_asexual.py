@@ -91,7 +91,7 @@ def alifestd_mark_min_child_value_asexual(
 
     values_arr = phylogeny_df[values].to_numpy(dtype=np.float64)
     if np.isnan(values_arr).any():
-        raise NotImplementedError("NaN values not supported")
+        raise NotImplementedError("NaN values not yet supported")
 
     phylogeny_df[mark_as] = _alifestd_mark_min_child_value_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),

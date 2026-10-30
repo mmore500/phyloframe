@@ -121,7 +121,7 @@ def alifestd_mark_lineage_affine_polars(
     scale_arr = arrays["scale"].fill_null(np.nan).to_numpy()
     offset_arr = arrays["offset"].fill_null(np.nan).to_numpy()
     if np.isnan(scale_arr).any() or np.isnan(offset_arr).any():
-        raise NotImplementedError("NaN or null values not supported")
+        raise NotImplementedError("NaN or null values not yet supported")
 
     result = _alifestd_mark_lineage_affine_asexual_fast_path(
         arrays["ancestor_id"].to_numpy(),

@@ -97,7 +97,7 @@ def alifestd_mark_min_child_value_polars(
     )
     values_arr = arrays["values"].fill_null(np.nan).to_numpy()
     if np.isnan(values_arr).any():
-        raise NotImplementedError("NaN or null values not supported")
+        raise NotImplementedError("NaN or null values not yet supported")
 
     result = _alifestd_mark_min_child_value_asexual_fast_path(
         arrays["ancestor_id"].to_numpy(),
