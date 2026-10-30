@@ -8,7 +8,6 @@ from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import pandas as pd
 
-from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._delegate_polars_implementation import (
     delegate_polars_implementation,
@@ -22,45 +21,35 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _alifestd_mark_children_min_asexual_fast_path(
+def _alifestd_mark_min_child_value_asexual_fast_path(
     ancestor_ids: np.ndarray,
     values: np.ndarray,
-    skipna: bool,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mark_children_min_asexual`."""
-    n = ancestor_ids.shape[0]
-    result = np.full(n, np.nan, dtype=np.float64)
-    has_value = np.zeros(n, dtype=np.bool_)
-    has_nan = np.zeros(n, dtype=np.bool_)
-    for k in range(n):
-        anc = ancestor_ids[k]
+    """Implementation detail for `alifestd_mark_min_child_value_asexual`."""
+    result = np.copy(values)
+    has_child = np.zeros(len(ancestor_ids), dtype=np.bool_)
+    for k, anc in enumerate(ancestor_ids):
         if anc == k:
             continue
-        value = values[k]
-        if np.isnan(value):
-            has_nan[anc] = True
-        elif not has_value[anc] or value < result[anc]:
-            result[anc] = value
-            has_value[anc] = True
-    if not skipna:
-        result[has_nan] = np.nan
+        if not has_child[anc] or values[k] < result[anc]:
+            result[anc] = values[k]
+            has_child[anc] = True
     return result
 
 
-def alifestd_mark_children_min_asexual(
+def alifestd_mark_min_child_value_asexual(
     phylogeny_df: pd.DataFrame,
     values: str,
     mutate: bool = False,
     *,
-    mark_as: str = "children_min",
-    skipna: bool = True,
+    mark_as: str = "min_child_value",
 ) -> pd.DataFrame:
     """Add column with minimum of ``values`` among each node's children.
 
-    Nodes without children (i.e., leaves) are assigned NaN.
+    Nodes without children (i.e., leaves) keep their own value.
 
     The output column name can be changed via the ``mark_as`` parameter.
-    NaN values are ignored if ``skipna`` (default), else propagate.
+    NaN values are not supported; ``NotImplementedError`` is raised.
 
     Phylogeny must be asexual and have contiguous ids; otherwise
     ``NotImplementedError`` is raised.
@@ -71,7 +60,7 @@ def alifestd_mark_children_min_asexual(
 
     See Also
     --------
-    alifestd_mark_children_min_polars :
+    alifestd_mark_min_child_value_polars :
         Polars-based implementation.
     alifestd_mark_lineage_cummin_asexual :
         Minimum along lineages, or over clades with ``reverse=True``.
@@ -87,7 +76,7 @@ def alifestd_mark_children_min_asexual(
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
     if "ancestor_id" not in phylogeny_df.columns:
         raise NotImplementedError(
-            "alifestd_mark_children_min_asexual only supports asexual "
+            "alifestd_mark_min_child_value_asexual only supports asexual "
             "phylogenies.",
         )
 
@@ -100,17 +89,20 @@ def alifestd_mark_children_min_asexual(
             "non-contiguous ids not supported",
         )
 
-    phylogeny_df[mark_as] = _alifestd_mark_children_min_asexual_fast_path(
+    values_arr = phylogeny_df[values].to_numpy(dtype=np.float64)
+    if np.isnan(values_arr).any():
+        raise NotImplementedError("NaN values not supported")
+
+    phylogeny_df[mark_as] = _alifestd_mark_min_child_value_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
-        phylogeny_df[values].to_numpy(dtype=np.float64),
-        skipna,
+        values_arr,
     )
     return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column with minimum of `values` among each node's children (NaN for leaves).
+Add column with minimum of `values` among each node's children (own value for leaves).
 
 Data is assumed to be in alife standard format.
 
@@ -131,7 +123,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_mark_children_min_asexual",
+        dfcli_module="phyloframe.legacy._alifestd_mark_min_child_value_asexual",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
@@ -142,15 +134,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mark-as",
-        default="children_min",
+        default="min_child_value",
         type=str,
-        help="output column name (default: children_min)",
-    )
-    add_bool_arg(
-        parser,
-        "skipna",
-        default=True,
-        help="ignore NaN values; use --no-skipna to propagate NaN instead",
+        help="output column name (default: min_child_value)",
     )
     return parser
 
@@ -161,17 +147,16 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
     with log_context_duration(
-        "phyloframe.legacy._alifestd_mark_children_min_asexual",
+        "phyloframe.legacy._alifestd_mark_min_child_value_asexual",
         logging.info,
     ):
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
-                    alifestd_mark_children_min_asexual,
+                    alifestd_mark_min_child_value_asexual,
                     values=args.values,
                     mark_as=args.mark_as,
-                    skipna=args.skipna,
                 ),
             ),
         )

@@ -24,38 +24,34 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 @jit(nopython=True)
 def _alifestd_mark_lineage_affine_asexual_fast_path(
     ancestor_ids: np.ndarray,
-    multipliers: np.ndarray,
-    addends: np.ndarray,
+    scale: np.ndarray,
+    offset: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mark_lineage_affine_asexual`."""
-    n = ancestor_ids.shape[0]
-    result = np.empty(n, dtype=np.float64)
-    for k in range(n):
-        anc = ancestor_ids[k]
-        if anc == k:
-            result[k] = addends[k]
-        else:
-            result[k] = multipliers[k] * result[anc] + addends[k]
+    result = np.zeros(ancestor_ids.shape[0], dtype=np.float64)
+    for k, anc in enumerate(ancestor_ids):
+        not_root = anc != k
+        result[k] = offset[k] + scale[k] * result[anc] * not_root
     return result
 
 
 def alifestd_mark_lineage_affine_asexual(
     phylogeny_df: pd.DataFrame,
-    multipliers: str,
-    addends: str,
+    scale: str,
+    offset: str,
     mutate: bool = False,
     *,
     mark_as: str = "lineage_affine",
 ) -> pd.DataFrame:
     """Add column evaluating an affine recurrence down each lineage.
 
-    The result at each node is ``multipliers * result[ancestor] + addends``,
-    and ``addends`` at roots. For example, unit ``multipliers`` give the
-    cumulative sum of ``addends`` along each lineage, and zero ``addends``
-    (except ones at roots) give the cumulative product of ``multipliers``.
+    The result at each node is ``scale * result[ancestor] + offset``,
+    and ``offset`` at roots. For example, a unit ``scale`` gives the
+    cumulative sum of ``offset`` along each lineage, and a zero ``offset``
+    (except one at roots) gives the cumulative product of ``scale``.
 
     The output column name can be changed via the ``mark_as`` parameter.
-    NaN values propagate.
+    NaN values are not supported; ``NotImplementedError`` is raised.
 
     Phylogeny must be asexual, topologically sorted, and have
     contiguous ids; otherwise ``NotImplementedError`` is raised.
@@ -74,7 +70,7 @@ def alifestd_mark_lineage_affine_asexual(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    for col in (multipliers, addends):
+    for col in (scale, offset):
         if col not in phylogeny_df.columns:
             raise ValueError(
                 f"column {col!r} not found in phylogeny_df",
@@ -88,7 +84,7 @@ def alifestd_mark_lineage_affine_asexual(
         )
 
     if phylogeny_df.empty:
-        phylogeny_df[mark_as] = phylogeny_df[addends].astype(float)
+        phylogeny_df[mark_as] = phylogeny_df[offset].astype(float)
         return phylogeny_df
 
     if not alifestd_has_contiguous_ids(phylogeny_df):
@@ -101,17 +97,22 @@ def alifestd_mark_lineage_affine_asexual(
             "non-topologically-sorted data not supported",
         )
 
+    scale_arr = phylogeny_df[scale].to_numpy(dtype=np.float64)
+    offset_arr = phylogeny_df[offset].to_numpy(dtype=np.float64)
+    if np.isnan(scale_arr).any() or np.isnan(offset_arr).any():
+        raise NotImplementedError("NaN values not supported")
+
     phylogeny_df[mark_as] = _alifestd_mark_lineage_affine_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
-        phylogeny_df[multipliers].to_numpy(dtype=np.float64),
-        phylogeny_df[addends].to_numpy(dtype=np.float64),
+        scale_arr,
+        offset_arr,
     )
     return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column evaluating affine recurrence `multipliers * result[ancestor] + addends` down each lineage (`addends` at roots).
+Add column evaluating affine recurrence `scale * result[ancestor] + offset` down each lineage (`offset` at roots).
 
 Data is assumed to be in alife standard format.
 
@@ -136,13 +137,13 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--multipliers",
+        "--scale",
         default=None,
         type=str,
         help="name of column multiplying ancestor's result",
     )
     parser.add_argument(
-        "--addends",
+        "--offset",
         default=None,
         type=str,
         help="name of column added to multiplied ancestor's result",
@@ -170,8 +171,8 @@ if __name__ == "__main__":
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
                     alifestd_mark_lineage_affine_asexual,
-                    multipliers=args.multipliers,
-                    addends=args.addends,
+                    scale=args.scale,
+                    offset=args.offset,
                     mark_as=args.mark_as,
                 ),
             ),

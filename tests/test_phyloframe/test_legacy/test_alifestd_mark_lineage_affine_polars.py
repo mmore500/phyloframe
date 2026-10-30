@@ -72,14 +72,16 @@ def test_mark_as():
     assert "lineage_affine" not in res.columns
 
 
-def test_null_propagates():
+@pytest.mark.parametrize("missing", [None, float("nan")])
+def test_missing_values_not_implemented(missing: typing.Optional[float]):
     df = _make_df().with_columns(
-        pl.when(pl.col("id") == 1).then(None).otherwise(pl.col("a")).alias("a")
+        pl.when(pl.col("id") == 1)
+        .then(pl.lit(missing, dtype=pl.Float64))
+        .otherwise(pl.col("a"))
+        .alias("a"),
     )
-    res = alifestd_mark_lineage_affine_polars(df, "m", "a")
-    values = res["lineage_affine"].to_numpy()
-    assert np.isnan(values[[1, 2]]).all()
-    assert not np.isnan(values[[0, 3, 4]]).any()
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_lineage_affine_polars(df, "m", "a")
 
 
 def test_empty():

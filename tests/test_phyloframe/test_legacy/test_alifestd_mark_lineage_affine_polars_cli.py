@@ -37,9 +37,9 @@ def test_cli_csv():
             "python3",
             "-m",
             MODULE,
-            "--multipliers",
+            "--scale",
             "origin_time",
-            "--addends",
+            "--offset",
             "origin_time",
             "--mark-as",
             "blueberry",
@@ -57,9 +57,7 @@ def test_cli_csv():
 
 def test_create_parser():
     parser = _create_parser()
-    args, __ = parser.parse_known_args(
-        ["--multipliers", "m", "--addends", "a"]
-    )
-    assert args.multipliers == "m"
-    assert args.addends == "a"
+    args, __ = parser.parse_known_args(["--scale", "m", "--offset", "a"])
+    assert args.scale == "m"
+    assert args.offset == "a"
     assert args.mark_as == "lineage_affine"

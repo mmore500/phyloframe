@@ -4,11 +4,13 @@ import subprocess
 
 import pandas as pd
 
-from phyloframe.legacy._alifestd_mark_children_min_polars import _create_parser
+from phyloframe.legacy._alifestd_mark_min_child_value_polars import (
+    _create_parser,
+)
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
-MODULE = "phyloframe.legacy._alifestd_mark_children_min_polars"
+MODULE = "phyloframe.legacy._alifestd_mark_min_child_value_polars"
 
 
 def test_cli_help():
@@ -26,9 +28,7 @@ def test_cli_version():
 
 
 def test_cli_csv():
-    output_file = (
-        "/tmp/phyloframe_alifestd_mark_children_min_polars.csv"  # nosec B108
-    )
+    output_file = "/tmp/phyloframe_alifestd_mark_min_child_value_polars.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [
@@ -53,7 +53,6 @@ def test_cli_csv():
 
 def test_create_parser():
     parser = _create_parser()
-    args, __ = parser.parse_known_args(["--values", "v", "--no-skipna"])
+    args, __ = parser.parse_known_args(["--values", "v"])
     assert args.values == "v"
-    assert args.mark_as == "children_min"
-    assert not args.skipna
+    assert args.mark_as == "min_child_value"

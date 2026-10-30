@@ -47,12 +47,12 @@ def test_mark_as():
     assert "lineage_affine" not in res.columns
 
 
-def test_nan_propagates():
+@pytest.mark.parametrize("col", ["m", "a"])
+def test_nan_not_implemented(col: str):
     df = _make_df()
-    df.loc[1, "a"] = np.nan
-    res = alifestd_mark_lineage_affine_asexual(df, "m", "a")
-    assert np.isnan(res["lineage_affine"].to_numpy()[[1, 2]]).all()
-    assert not np.isnan(res["lineage_affine"].to_numpy()[[0, 3, 4]]).any()
+    df.loc[1, col] = np.nan
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_lineage_affine_asexual(df, "m", "a")
 
 
 def test_matches_cumsum_and_cumprod():

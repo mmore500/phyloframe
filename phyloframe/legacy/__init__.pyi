@@ -306,12 +306,6 @@ from ._alifestd_mark_ancestor_origin_time_asexual import (
 from ._alifestd_mark_ancestor_origin_time_polars import (
     alifestd_mark_ancestor_origin_time_polars,
 )
-from ._alifestd_mark_children_min_asexual import (
-    alifestd_mark_children_min_asexual,
-)
-from ._alifestd_mark_children_min_polars import (
-    alifestd_mark_children_min_polars,
-)
 from ._alifestd_mark_clade_duration_asexual import (
     alifestd_mark_clade_duration_asexual,
 )
@@ -468,6 +462,12 @@ from ._alifestd_mark_max_descendant_origin_time_asexual import (
 )
 from ._alifestd_mark_max_descendant_origin_time_polars import (
     alifestd_mark_max_descendant_origin_time_polars,
+)
+from ._alifestd_mark_min_child_value_asexual import (
+    alifestd_mark_min_child_value_asexual,
+)
+from ._alifestd_mark_min_child_value_polars import (
+    alifestd_mark_min_child_value_polars,
 )
 from ._alifestd_mark_monomorphic_clades_polars import (
     alifestd_mark_monomorphic_clades_polars,
@@ -804,10 +804,10 @@ __all__ = [
     "alifestd_downsample_tips_polars",
     "alifestd_downsample_tips_uniform_asexual",
     "alifestd_downsample_tips_uniform_polars",
-    "alifestd_mark_children_min_asexual",
-    "alifestd_mark_children_min_polars",
     "alifestd_mark_lineage_affine_asexual",
     "alifestd_mark_lineage_affine_polars",
+    "alifestd_mark_min_child_value_asexual",
+    "alifestd_mark_min_child_value_polars",
     "alifestd_mark_sample_tips_asexual",
     "alifestd_mark_sample_tips_canopy_asexual",
     "alifestd_mark_sample_tips_canopy_polars",

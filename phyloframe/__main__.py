@@ -69,8 +69,6 @@ $ python3 -m phyloframe.legacy._alifestd_ladderize_asexual
 $ python3 -m phyloframe.legacy._alifestd_ladderize_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_ancestor_origin_time_polars
-$ python3 -m phyloframe.legacy._alifestd_mark_children_min_asexual
-$ python3 -m phyloframe.legacy._alifestd_mark_children_min_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_duration_ratio_sister_asexual
@@ -126,6 +124,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_min_child_value_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_min_child_value_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_monomorphic_clades_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_next_sibling_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_next_sibling_id_polars

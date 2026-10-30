@@ -29,17 +29,17 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_mark_lineage_affine_polars(
     phylogeny_df: pl.DataFrame,
-    multipliers: typing.Union[str, pl.Expr],
-    addends: typing.Union[str, pl.Expr],
+    scale: typing.Union[str, pl.Expr],
+    offset: typing.Union[str, pl.Expr],
     *,
     mark_as: str = "lineage_affine",
 ) -> pl.DataFrame:
     """Add column evaluating an affine recurrence down each lineage.
 
-    The result at each node is ``multipliers * result[ancestor] + addends``,
-    and ``addends`` at roots. For example, unit ``multipliers`` give the
-    cumulative sum of ``addends`` along each lineage, and zero ``addends``
-    (except ones at roots) give the cumulative product of ``multipliers``.
+    The result at each node is ``scale * result[ancestor] + offset``,
+    and ``offset`` at roots. For example, a unit ``scale`` gives the
+    cumulative sum of ``offset`` along each lineage, and a zero ``offset``
+    (except one at roots) gives the cumulative product of ``scale``.
 
     Parameters
     ----------
@@ -48,9 +48,9 @@ def alifestd_mark_lineage_affine_polars(
 
         Must represent an asexual phylogeny with contiguous,
         topologically sorted ids.
-    multipliers : str or polars.Expr
+    scale : str or polars.Expr
         Column name or expression multiplying the ancestor's result.
-    addends : str or polars.Expr
+    offset : str or polars.Expr
         Column name or expression added to the multiplied ancestor's
         result.
     mark_as : str, default "lineage_affine"
@@ -59,8 +59,8 @@ def alifestd_mark_lineage_affine_polars(
     Raises
     ------
     NotImplementedError
-        If `phylogeny_df` is not asexual, has non-contiguous ids, or is not
-        topologically sorted.
+        If `phylogeny_df` is not asexual, has non-contiguous ids, is not
+        topologically sorted, or operands contain NaN or null values.
 
     See Also
     --------
@@ -71,7 +71,7 @@ def alifestd_mark_lineage_affine_polars(
     """
     schema_names = phylogeny_df.lazy().collect_schema().names()
     exprs = []
-    for operand in (multipliers, addends):
+    for operand in (scale, offset):
         if isinstance(operand, str):
             if operand not in schema_names:
                 raise ValueError(
@@ -79,7 +79,7 @@ def alifestd_mark_lineage_affine_polars(
                 )
             operand = pl.col(operand)
         exprs.append(operand.cast(pl.Float64))
-    multipliers_expr, addends_expr = exprs
+    scale_expr, offset_expr = exprs
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -90,7 +90,7 @@ def alifestd_mark_lineage_affine_polars(
         )
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df.with_columns(addends_expr.alias(mark_as))
+        return phylogeny_df.with_columns(offset_expr.alias(mark_as))
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         raise NotImplementedError(
@@ -109,8 +109,8 @@ def alifestd_mark_lineage_affine_polars(
         phylogeny_df.lazy()
         .select(
             pl.col("ancestor_id"),
-            multipliers_expr.alias("multipliers"),
-            addends_expr.alias("addends"),
+            scale_expr.alias("scale"),
+            offset_expr.alias("offset"),
         )
         .collect()
     )
@@ -118,10 +118,15 @@ def alifestd_mark_lineage_affine_polars(
     logging.info(
         "- alifestd_mark_lineage_affine_polars: evaluating recurrence...",
     )
+    scale_arr = arrays["scale"].fill_null(np.nan).to_numpy()
+    offset_arr = arrays["offset"].fill_null(np.nan).to_numpy()
+    if np.isnan(scale_arr).any() or np.isnan(offset_arr).any():
+        raise NotImplementedError("NaN or null values not supported")
+
     result = _alifestd_mark_lineage_affine_asexual_fast_path(
         arrays["ancestor_id"].to_numpy(),
-        arrays["multipliers"].fill_null(np.nan).to_numpy(),
-        arrays["addends"].fill_null(np.nan).to_numpy(),
+        scale_arr,
+        offset_arr,
     )
 
     return phylogeny_df.with_columns(
@@ -134,8 +139,8 @@ _raw_description = f"""\
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Add column evaluating affine recurrence
-`multipliers * result[ancestor] + addends` down each lineage
-(`addends` at roots).
+`scale * result[ancestor] + offset` down each lineage
+(`offset` at roots).
 
 Data is assumed to be in alife standard format.
 
@@ -165,13 +170,13 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--multipliers",
+        "--scale",
         default=None,
         type=str,
         help="name of column multiplying ancestor's result",
     )
     parser.add_argument(
-        "--addends",
+        "--offset",
         default=None,
         type=str,
         help="name of column added to multiplied ancestor's result",
@@ -200,8 +205,8 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mark_lineage_affine_polars,
-                    multipliers=args.multipliers,
-                    addends=args.addends,
+                    scale=args.scale,
+                    offset=args.offset,
                     mark_as=args.mark_as,
                 ),
             )
