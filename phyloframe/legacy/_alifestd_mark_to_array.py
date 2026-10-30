@@ -3,6 +3,9 @@ import typing
 import numpy as np
 import pandas as pd
 
+from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
+
 
 def alifestd_mark_to_array(
     phylogeny_df: pd.DataFrame,
@@ -15,6 +18,10 @@ def alifestd_mark_to_array(
 
     Calls ``mark_op(phylogeny_df, mutate=True, mark_as=..., **kwargs)``
     under a temporary column name.
+
+    Phylogeny must have contiguous ids and be topologically sorted, so that
+    array positions correspond to ids; otherwise ``NotImplementedError`` is
+    raised.
 
     Input dataframe is not mutated by this operation unless ``mutate`` set
     True.
@@ -56,6 +63,11 @@ def alifestd_mark_to_array(
     alifestd_mark_to_array_polars :
         Polars-based implementation.
     """
+    if not alifestd_has_contiguous_ids(phylogeny_df):
+        raise NotImplementedError("non-contiguous ids not supported")
+    if not alifestd_is_topologically_sorted(phylogeny_df):
+        raise NotImplementedError("non-topologically-sorted not supported")
+
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 

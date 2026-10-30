@@ -3,6 +3,13 @@ import typing
 import numpy as np
 import polars as pl
 
+from ._alifestd_has_contiguous_ids_polars import (
+    alifestd_has_contiguous_ids_polars,
+)
+from ._alifestd_is_topologically_sorted_polars import (
+    alifestd_is_topologically_sorted_polars,
+)
+
 
 def alifestd_mark_to_array_polars(
     phylogeny_df: typing.Union[pl.DataFrame, pl.LazyFrame],
@@ -14,6 +21,10 @@ def alifestd_mark_to_array_polars(
 
     Calls ``mark_op(phylogeny_df, mark_as=..., **kwargs)`` under a
     temporary column name.
+
+    Phylogeny must have contiguous ids and be topologically sorted, so that
+    array positions correspond to ids; otherwise ``NotImplementedError`` is
+    raised.
 
     Parameters
     ----------
@@ -50,6 +61,11 @@ def alifestd_mark_to_array_polars(
     alifestd_mark_to_array :
         Pandas-based implementation.
     """
+    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+        raise NotImplementedError("non-contiguous ids not supported")
+    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+        raise NotImplementedError("non-topologically-sorted not supported")
+
     mark_as = "_alifestd_mark_to_array"
     return (
         mark_op(phylogeny_df, mark_as=mark_as, **kwargs)

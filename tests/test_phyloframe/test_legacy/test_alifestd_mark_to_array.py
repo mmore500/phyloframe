@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from phyloframe.legacy import (
     alifestd_mark_lineage_affine_asexual,
@@ -70,3 +71,19 @@ def test_mutate():
         df, alifestd_mark_lineage_cumsum_asexual, mutate=True, values="v"
     )
     np.testing.assert_array_equal(res, [1, 3, 6, 5])
+
+
+def test_non_contiguous_ids_not_implemented():
+    df = pd.DataFrame({"id": [0, 2], "ancestor_id": [0, 0], "v": [1, 2]})
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_to_array(
+            df, alifestd_mark_lineage_cumsum_asexual, values="v"
+        )
+
+
+def test_non_topologically_sorted_not_implemented():
+    df = pd.DataFrame({"id": [0, 1], "ancestor_id": [1, 1], "v": [1, 2]})
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_to_array(
+            df, alifestd_mark_lineage_cumsum_asexual, values="v"
+        )

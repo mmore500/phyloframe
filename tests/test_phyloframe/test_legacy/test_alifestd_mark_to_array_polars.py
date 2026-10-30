@@ -69,3 +69,19 @@ def test_input_unchanged():
         df, alifestd_mark_lineage_cumsum_polars, values="v"
     )
     assert df.columns == ["id", "ancestor_id", "v", "m"]
+
+
+def test_non_contiguous_ids_not_implemented():
+    df = pl.DataFrame({"id": [0, 2], "ancestor_id": [0, 0], "v": [1, 2]})
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_to_array_polars(
+            df, alifestd_mark_lineage_cumsum_polars, values="v"
+        )
+
+
+def test_non_topologically_sorted_not_implemented():
+    df = pl.DataFrame({"id": [0, 1], "ancestor_id": [1, 1], "v": [1, 2]})
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_to_array_polars(
+            df, alifestd_mark_lineage_cumsum_polars, values="v"
+        )
