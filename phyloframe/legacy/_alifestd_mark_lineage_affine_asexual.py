@@ -100,7 +100,7 @@ def alifestd_mark_lineage_affine_asexual(
     scale_arr = phylogeny_df[scale].to_numpy(dtype=np.float64)
     offset_arr = phylogeny_df[offset].to_numpy(dtype=np.float64)
     if np.isnan(scale_arr).any() or np.isnan(offset_arr).any():
-        raise NotImplementedError("NaN values not supported")
+        raise NotImplementedError("NaN values not yet supported")
 
     phylogeny_df[mark_as] = _alifestd_mark_lineage_affine_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
