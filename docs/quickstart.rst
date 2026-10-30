@@ -11,13 +11,13 @@ Install phyloframe with JIT acceleration (recommended):
 
 .. code-block:: bash
 
-   python3 -m pip install "phyloframe[jit]==0.13.1"
+   python3 -m pip install "phyloframe[jit]==0.14.0"
 
 Omit ``[jit]`` if you do not need Numba-based just-in-time compilation:
 
 .. code-block:: bash
 
-   python3 -m pip install "phyloframe==0.13.1"
+   python3 -m pip install "phyloframe==0.14.0"
 
 Import Convention
 =================
