@@ -12,13 +12,14 @@ import polars as pl
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
-from ._impl import tgs_impl, tgs_prepare_polars
+from ._impl import tgs_impl, tgs_prepare_polars, tgs_validate_args
 
 
 @warn_experimental
-def alifestd_estimate_trait_gain_selection_pendantmdc_polars(
+def alifestd_tgs_pendantmdc_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_masks: typing.Sequence[typing.Union[str, pl.Expr]],
@@ -41,7 +42,7 @@ def alifestd_estimate_trait_gain_selection_pendantmdc_polars(
     min_leaf_origin_time: float = -np.inf,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
-    progress_wrap: typing.Callable = lambda x: x,
+    progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and net selection from leaf pendant
     branches only, i.e., from single-leaf mutationally defined clades
@@ -98,7 +99,7 @@ def alifestd_estimate_trait_gain_selection_pendantmdc_polars(
         If True, measure pendant length by `neutral_traits` gains rather
         than by branch length, so that distortion of branch lengths shared
         with neutral traits (e.g., from tree reconstruction) cancels. See
-        `alifestd_estimate_trait_gain_selection_pendantmdc_asexual` for details.
+        `alifestd_tgs_pendantmdc_estimate_asexual` for details.
     calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of leaves.
         With `calibrate`, the candidate whose calibration best predicts
@@ -144,31 +145,35 @@ def alifestd_estimate_trait_gain_selection_pendantmdc_polars(
     -------
     polars.DataFrame
         One row per trait; see
-        `alifestd_estimate_trait_gain_selection_pendantmdc_asexual` for columns.
+        `alifestd_tgs_pendantmdc_estimate_asexual` for columns.
 
     See Also
     --------
-    alifestd_estimate_trait_gain_selection_pendantmdc_asexual :
+    alifestd_tgs_pendantmdc_estimate_asexual :
         Pandas-based implementation.
     """
-    prepared, neutral_traits = tgs_prepare_polars(
-        phylogeny_df,
+    trait_names, neutral_traits = tgs_validate_args(
         trait_masks=trait_masks,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
-        caller="alifestd_estimate_trait_gain_selection_pendantmdc_polars",
+        calibrate=calibrate,
+        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        num_calibration_partitions=num_calibration_partitions,
+    )
+    prepared = tgs_prepare_polars(
+        phylogeny_df,
+        trait_masks=trait_masks,
+        trait_names=trait_names,
+        caller="alifestd_tgs_pendantmdc_estimate_polars",
     )
 
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_pendantmdc_polars: "
+        "- alifestd_tgs_pendantmdc_estimate_polars: "
         "fitting gain and selection...",
     )
     res = tgs_impl(
-        ancestor_ids=prepared.ancestor_ids,
-        origin_time=prepared.origin_time,
-        pendant_lengths=prepared.branch_lengths,
-        trait_masks=prepared.trait_masks,
-        trait_names=prepared.trait_names,
+        prepared,
+        trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
@@ -209,7 +214,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_asexual :
+phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_asexual :
     Pandas-based implementation.
 """
 
@@ -224,7 +229,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_polars"
+            "phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -307,13 +312,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_polars",
+            "phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_estimate_trait_gain_selection_pendantmdc_polars,
+                    alifestd_tgs_pendantmdc_estimate_polars,
                     trait_masks=args.trait_masks,
                     neutral_traits=args.neutral_traits,
                     calibrate=args.calibrate,

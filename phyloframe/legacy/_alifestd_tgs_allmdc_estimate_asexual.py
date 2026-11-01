@@ -3,19 +3,20 @@ import typing
 import numpy as np
 import pandas as pd
 
+from .._auxlib._identity import identity
 from .._auxlib._warn_experimental import warn_experimental
-from ._impl import tgs_allmdc_impl, tgs_prepare_asexual
+from ._impl import tgs_allmdc_impl, tgs_prepare_asexual, tgs_validate_args
 
 
 @warn_experimental
-def alifestd_estimate_trait_gain_selection_allmdc_asexual(
+def alifestd_tgs_allmdc_estimate_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
     trait_masks: typing.Sequence[np.ndarray],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
-    neutral_traits: typing.Sequence[int] = (),
-    clade_size_groups: typing.Sequence[int] = (2, 3, 5, 9),
+    neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
+    clade_size_groups_per_doubling: int = 2,
     calibrate: bool = False,
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -30,9 +31,12 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
     num_calibration_partitions: int = 4096,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    max_growth_exponent: float = 600.0,
+    max_shift_iterations: int = 50,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
-    progress_wrap: typing.Callable = lambda x: x,
+    progress_wrap: typing.Callable = identity,
 ) -> pd.DataFrame:
     """Estimate per-trait gain rate and net selection from every branch,
     pendant and inner, from how often each branch's clade carries the trait
@@ -43,7 +47,7 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
     it on its stem branch. This estimator uses MDCs of every size, single
     leaves included.
 
-    Extends `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`, which
+    Extends `alifestd_tgs_pendantmdc_estimate_asexual`, which
     uses leaf pendant branches only, to inner branches, so that trait gains
     shared by a multi-leaf clade also inform the fit. Each branch whose
     parent's clade does not carry the trait at every leaf started without
@@ -55,7 +59,8 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
         c = selection - loss_rate
 
     where `shift` is zero for leaves and, for a branch subtending a clade of
-    several leaves, a time shared by all traits per clade-size group: the
+    several leaves, a time shared by all traits per log-scaled clade-size
+    group: the
     time a carrier clade of that size needs to grow out to its sampled
     leaves, during which a trait under cost must also persist. Gain rate and
     selection are fit per trait; shifts are fit jointly across traits.
@@ -82,15 +87,16 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
         used.
     trait_names : Sequence[str], optional
         Labels for output rows; defaults to trait indices.
-    neutral_traits : Sequence[int], default ()
-        Indices of traits known to be neutral. Gain ratios are reported
+    neutral_traits : Sequence[int or str], default ()
+        Indices or names of traits known to be neutral. Gain ratios are reported
         relative to their mean gain rate (leaving the focal trait out).
         Optional unless `calibrate` is set, which requires at least two.
-    clade_size_groups : Sequence[int], default (2, 3, 5, 9)
-        Smallest number of leaves in each clade-size group beyond single
-        leaves, strictly increasing and at least 2; each group spans up to
-        the next bound, and the last is open-ended. The default groups
-        clades of 2, 3-4, 5-8, and 9 or more leaves.
+    clade_size_groups_per_doubling : int, default 2
+        Resolution of clade-size groups beyond single leaves, as the number
+        of groups per doubling of clade size, evenly spaced within each
+        doubling, up to the largest clade. The default groups clades of 2,
+        3, 4-5, 6-7, 8-11, 12-15, 16-23, ... leaves; 1 groups them by
+        powers of two.
     calibrate : bool, default False
         If True, rescale branch lengths by neutral trait gains, as in the
         pendant estimator, separately within each clade-size group, then
@@ -113,13 +119,23 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
         fixed across replicates.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
+    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for selection, in units of 1 / mean branch length;
+        the best of the resulting fits is kept. See `tgs_fit`.
+    max_growth_exponent : float, default 600.0
+        Cap on carrier growth exponents, such as (selection - loss rate) *
+        branch length, keeping optimizer trial steps finite. See `tgs_fit`.
+    max_shift_iterations : int, default 50
+        Maximum rounds of alternately fitting traits given clade-size
+        shifts and shifts given traits; stops early on convergence.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
         joblib backend to run bootstrap replicates in parallel, e.g., "loky"
         (processes) or "threading".
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display bootstrap progress.
+        Pass tqdm or equivalent to display fit iteration and bootstrap
+        progress.
 
     Returns
     -------
@@ -129,9 +145,9 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
         and those that gained it), `num_clades` and `num_clade_gains` (the
         same for inner branches), `gain_rate`, `selection`, `gain_ratio`,
         `selection_lrt_naive`, and one `clade_size_shift_*` column per
-        clade-size group (e.g., `clade_size_shift_2`,
-        `clade_size_shift_3_4`, `clade_size_shift_9_plus`), the same in
-        every row. With bootstrap replicates, also the pendant estimator's
+        clade-size group up to the largest clade (e.g.,
+        `clade_size_shift_2`, `clade_size_shift_4_5`), the same in every
+        row, so the number of columns depends on the phylogeny. With bootstrap replicates, also the pendant estimator's
         bootstrap columns and a `clade_size_shift_*_se` column per group.
 
     Raises
@@ -140,7 +156,7 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
         If `calibrate` is set with fewer than two distinct neutral traits,
         if a trait mask's length differs from `phylogeny_df`'s, if
         `trait_names` and `trait_masks` differ in length, if
-        `clade_size_groups` is not strictly increasing from at least 2, if
+        `clade_size_groups_per_doubling` is less than 1, if
         `calibration_neighborhood_fractions` is empty or has a value outside
         (0, 1], or if `num_calibration_partitions` is not a power of two.
     NotImplementedError
@@ -161,11 +177,19 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
 
     See Also
     --------
-    alifestd_estimate_trait_gain_selection_allmdc_polars :
+    alifestd_tgs_allmdc_estimate_polars :
         Polars-based implementation.
-    alifestd_estimate_trait_gain_selection_pendantmdc_asexual :
+    alifestd_tgs_pendantmdc_estimate_asexual :
         Leaf pendant branches only.
     """
+    trait_names, neutral_traits = tgs_validate_args(
+        trait_masks=trait_masks,
+        trait_names=trait_names,
+        neutral_traits=neutral_traits,
+        calibrate=calibrate,
+        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        num_calibration_partitions=num_calibration_partitions,
+    )
     prepared = tgs_prepare_asexual(
         phylogeny_df,
         mutate,
@@ -173,18 +197,18 @@ def alifestd_estimate_trait_gain_selection_allmdc_asexual(
         trait_names=trait_names,
     )
     return tgs_allmdc_impl(
-        ancestor_ids=prepared.ancestor_ids,
-        origin_time=prepared.origin_time,
-        branch_lengths=prepared.branch_lengths,
-        trait_masks=prepared.trait_masks,
-        trait_names=prepared.trait_names,
+        prepared,
+        trait_names=trait_names,
         neutral_traits=neutral_traits,
-        clade_size_groups=clade_size_groups,
+        clade_size_groups_per_doubling=clade_size_groups_per_doubling,
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
         num_calibration_partitions=num_calibration_partitions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
+        selection_starts=selection_starts,
+        max_growth_exponent=max_growth_exponent,
+        max_shift_iterations=max_shift_iterations,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,

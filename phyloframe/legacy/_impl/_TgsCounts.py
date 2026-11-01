@@ -5,7 +5,7 @@ import numpy as np
 
 class TgsCounts(typing.NamedTuple):
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
+    `alifestd_tgs_pendantmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
 

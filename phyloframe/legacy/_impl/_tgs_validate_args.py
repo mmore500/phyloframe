@@ -6,21 +6,39 @@ import numpy as np
 
 def tgs_validate_args(
     *,
-    num_traits: int,
-    neutral_traits: typing.Sequence[int],
+    trait_masks: typing.Sequence[typing.Any],
+    trait_names: typing.Optional[typing.Sequence[str]],
+    neutral_traits: typing.Sequence[typing.Union[int, str]],
     calibrate: bool,
     calibration_neighborhood_fractions: typing.Sequence[float],
     num_calibration_partitions: int,
-) -> typing.List[int]:
+) -> typing.Tuple[typing.List[str], typing.List[int]]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual` and
-    `alifestd_estimate_trait_gain_selection_allmdc_asexual`.
+    `alifestd_tgs_pendantmdc_estimate_asexual`,
+    `alifestd_tgs_allmdc_estimate_asexual`, and their polars counterparts.
 
     Here, tgs stands for trait gain/selection.
 
-    Validates arguments shared by the trait gain/selection estimators, and
-    returns `neutral_traits` as sorted, distinct, non-negative indices.
+    Validates arguments shared by the trait gain/selection estimators.
+    Returns trait names, defaulting to column names for traits given as
+    str, else trait indices; and `neutral_traits`, given as indices or
+    trait names, as sorted, distinct, non-negative indices.
     """
+    num_traits = len(trait_masks)
+    if trait_names is None:
+        trait_names = [
+            mask if isinstance(mask, str) else str(i)
+            for i, mask in enumerate(trait_masks)
+        ]
+    trait_names = list(trait_names)
+    if len(trait_names) != num_traits:
+        raise ValueError(
+            f"got {len(trait_names)} trait names for {num_traits} trait masks",
+        )
+    neutral_traits = [
+        trait_names.index(trait) if isinstance(trait, str) else trait
+        for trait in neutral_traits
+    ]
     neutral_traits = np.unique(
         np.arange(num_traits)[list(map(operator.index, neutral_traits))]
     ).tolist()
@@ -40,4 +58,4 @@ def tgs_validate_args(
             "num_calibration_partitions must be a power of two, got "
             f"{num_calibration_partitions}",
         )
-    return neutral_traits
+    return trait_names, neutral_traits

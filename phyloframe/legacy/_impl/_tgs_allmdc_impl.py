@@ -4,203 +4,96 @@ import typing
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
+from ..._auxlib._identity import identity
 from ..._auxlib._run_seeded_replicates import run_seeded_replicates
-from .._alifestd_mark_num_leaves_asexual import (
-    _alifestd_mark_num_leaves_asexual_fast_path,
-)
-from ._tgs_count_traits import tgs_count_traits
-from ._tgs_find_trait_mdcs import tgs_find_trait_mdcs
+from ._tgs_find_allmdc_units import tgs_find_allmdc_units
 from ._tgs_fit_allmdc_bootstrap_replicate import (
     tgs_fit_allmdc_bootstrap_replicate,
 )
-from ._tgs_fit_allmdc_traits import TgsAllmdcGroup, tgs_fit_allmdc_traits
-from ._tgs_init_results import tgs_init_results
-from ._tgs_partition_leaves import tgs_partition_leaves
-from ._tgs_select_calibration_neighborhoods import (
-    tgs_select_calibration_neighborhoods,
-)
-from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
-from ._tgs_validate_args import tgs_validate_args
-
-
-def _shift_column(lower: int, upper: typing.Optional[int]) -> str:
-    """Output column name for a clade-size group's shift."""
-    if upper is None:
-        return f"clade_size_shift_{lower}_plus"
-    if upper == lower:
-        return f"clade_size_shift_{lower}"
-    return f"clade_size_shift_{lower}_{upper}"
+from ._tgs_fit_allmdc_traits import tgs_fit_allmdc_traits
+from ._tgs_init_allmdc_results import tgs_init_allmdc_results
+from ._tgs_make_allmdc_group import tgs_make_allmdc_group
+from ._tgs_name_allmdc_shifts import tgs_name_allmdc_shifts
+from ._tgs_summarize_allmdc_bootstrap import tgs_summarize_allmdc_bootstrap
 
 
 def tgs_allmdc_impl(
+    phylogeny_df: typing.Union[pd.DataFrame, pl.DataFrame],
     *,
-    ancestor_ids: np.ndarray,
-    origin_time: np.ndarray,
-    branch_lengths: np.ndarray,
-    trait_masks: typing.Sequence[np.ndarray],
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
-    clade_size_groups: typing.Sequence[int],
+    clade_size_groups_per_doubling: int,
     calibrate: bool,
     calibration_neighborhood_fractions: typing.Sequence[float],
     num_calibration_partitions: int,
     num_bootstrap: int,
     loss_rate: float,
+    selection_starts: typing.Sequence[float],
+    max_growth_exponent: float,
+    max_shift_iterations: int,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_allmdc_asexual` and
-    `alifestd_estimate_trait_gain_selection_allmdc_polars`.
+    `alifestd_tgs_allmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_polars`.
 
     Here, tgs stands for trait gain/selection.
 
-    Takes per-node arrays for a phylogeny with contiguous, topologically
-    sorted ids and no unifurcations: ancestor ids, origin times, branch
-    lengths (origin time deltas), and boolean trait masks.
+    Takes a phylogeny prepared by `tgs_prepare_asexual` or
+    `tgs_prepare_polars`, with contiguous, topologically sorted ids and no
+    unifurcations, and validated arguments (see `tgs_validate_args`).
     """
-    neutral_traits = tgs_validate_args(
-        num_traits=len(trait_masks),
-        neutral_traits=neutral_traits,
-        calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
-    )
-    lower_bounds = [int(bound) for bound in clade_size_groups]
-    if any(bound < 2 for bound in lower_bounds) or any(
-        a >= b for a, b in zip(lower_bounds, lower_bounds[1:])
-    ):
-        raise ValueError(
-            "clade_size_groups must be strictly increasing, with each at "
-            f"least 2, got {list(clade_size_groups)}",
-        )
-    num_traits = len(trait_masks)
-
-    ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
-    origin_time = np.asarray(origin_time, dtype=np.float64)
-    branch_lengths = np.asarray(branch_lengths, dtype=np.float64)
-    # branches informative for fitting: those with positive length, so with
-    # time to gain a trait on (excludes roots and nan)
-    is_informative = branch_lengths > 0
-    informative = np.flatnonzero(is_informative)
-    num_leaves = _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)
-    # group 0 holds single leaves; group j > 0, clades of at least
-    # lower_bounds[j - 1] leaves (and fewer than the next bound)
-    unit_groups = np.searchsorted(
-        lower_bounds, num_leaves[informative], side="right"
-    )
-    # (fewest, most) leaves of each group, with None for no upper bound
-    group_bounds = [(1, 1)]
-    group_bounds += [
-        (lower, upper - 1)
-        for lower, upper in zip(lower_bounds, lower_bounds[1:])
-    ]
-    group_bounds += [(lower_bounds[-1], None)] if lower_bounds else []
-    num_groups = len(group_bounds)
-    # position of each informative branch within its group
-    group_positions = np.zeros(len(informative), dtype=np.int64)
-    for j in range(num_groups):
-        is_member = unit_groups == j
-        group_positions[is_member] = np.arange(is_member.sum())
-
-    trait_units = [[None] * num_traits for __ in range(num_groups)]
-    trait_gains = [[None] * num_traits for __ in range(num_groups)]
-    for trait, trait_mask in enumerate(trait_masks):
-        units, gains = tgs_find_trait_mdcs(
-            ancestor_ids=ancestor_ids,
-            trait_mask=trait_mask,
-            is_informative=is_informative,
-        )
-        for j in range(num_groups):
-            trait_units[j][trait] = group_positions[
-                units[unit_groups[units] == j]
-            ]
-            trait_gains[j][trait] = group_positions[
-                gains[unit_groups[gains] == j]
-            ]
-
-    res = tgs_init_results(
-        trait_names=trait_names,
-        trait_leaves=trait_units[0],
-        trait_carriers=trait_gains[0],
-    )
-    res.insert(
-        3,
-        "num_clades",
-        [
-            sum(len(trait_units[j][trait]) for j in range(1, num_groups))
-            for trait in range(num_traits)
+    origin_time = phylogeny_df["origin_time"].to_numpy()
+    units = tgs_find_allmdc_units(
+        ancestor_ids=phylogeny_df["ancestor_id"].to_numpy(),
+        branch_lengths=phylogeny_df["__alifestd_tgs_branch_length"].to_numpy(),
+        trait_masks=[
+            phylogeny_df[f"__alifestd_tgs_trait{i}"].to_numpy()
+            for i in range(len(trait_names))
         ],
+        groups_per_doubling=clade_size_groups_per_doubling,
     )
-    res.insert(
-        4,
-        "num_clade_gains",
-        [
-            sum(len(trait_gains[j][trait]) for j in range(1, num_groups))
-            for trait in range(num_traits)
-        ],
-    )
-    shift_columns = [_shift_column(*bounds) for bounds in group_bounds[1:]]
-    for column in shift_columns:
-        res[column] = np.nan
+    res = tgs_init_allmdc_results(trait_names=trait_names, units=units)
+    branch_lengths = phylogeny_df["__alifestd_tgs_branch_length"].to_numpy()
 
+    # (group index, group) for each group with branches to fit
     groups = []
-    for j in range(num_groups):
-        members = informative[unit_groups == j]
-        if not len(members):
-            continue  # nothing to fit; its shift stays nan
-        lengths, times = branch_lengths[members], origin_time[members]
-        partitions, num_partitions, coords = tgs_partition_leaves(
-            pendant_lengths=lengths,
-            origin_times=times,
-            max_partitions=num_calibration_partitions,
-        )
-        neighborhoods = None
-        if calibrate:
-            counts = tgs_count_traits(
-                leaf_partitions=partitions,
-                num_partitions=num_partitions,
-                pendant_lengths=lengths,
-                leaf_weights=np.ones(len(members)),
-                trait_leaves=trait_units[j],
-                trait_carriers=trait_gains[j],
-            )
-            if not counts.num_carriers[neutral_traits].any():
-                logging.info(
-                    "- alifestd_estimate_trait_gain_selection_allmdc_asexual: "
-                    f"no neutral trait gains among clades of "
-                    f"{group_bounds[j]} leaves to calibrate against, so "
-                    "they are not used",
-                )
-                if j == 0:
-                    break  # no single-leaf neutral clock to align against
-                continue
-            neighborhoods = tgs_select_calibration_neighborhoods(
-                partition_coords=coords,
-                neighborhood_fractions=calibration_neighborhood_fractions,
-                counts=counts,
+    for j, nodes in enumerate(units.group_nodes):
+        group = (
+            tgs_make_allmdc_group(
+                branch_lengths=branch_lengths[nodes],
+                origin_times=origin_time[nodes],
+                trait_units=units.trait_units[j],
+                trait_gains=units.trait_gains[j],
                 neutral_traits=neutral_traits,
                 trait_names=trait_names,
-            )
-        groups.append(
-            (
-                j,
-                TgsAllmdcGroup(
-                    partitions=partitions,
-                    num_partitions=num_partitions,
-                    branch_lengths=lengths,
-                    trait_units=trait_units[j],
-                    trait_gains=trait_gains[j],
-                    calibration_neighborhoods=neighborhoods,
+                calibrate=calibrate,
+                calibration_neighborhood_fractions=(
+                    calibration_neighborhood_fractions
                 ),
+                num_calibration_partitions=num_calibration_partitions,
             )
+            if len(nodes)
+            else None
         )
+        if group is None:
+            logging.info(
+                "- alifestd_tgs_allmdc_estimate_asexual: clades of "
+                f"{units.group_bounds[j]} leaves have no branches to fit, or "
+                "no neutral trait gains to calibrate against, so are not used",
+            )
+        else:
+            groups.append((j, group))
 
+    shift_columns = [None] + tgs_name_allmdc_shifts(units.group_bounds)
+    fitted_columns = [shift_columns[j] for j, __ in groups]
     replicate_fits = []
+    # without single leaves, there is no neutral clock to align groups to
     if groups and groups[0][0] == 0:
-        group_ids = [j for j, __ in groups]
         finite_time = origin_time[np.isfinite(origin_time)]
         fit_kwargs = dict(
             groups=[group for __, group in groups],
@@ -209,31 +102,34 @@ def tgs_allmdc_impl(
             loss_rate=loss_rate,
             # a clade cannot take longer to grow out than the whole tree
             max_shift=float(np.ptp(finite_time)) or 1.0,
-            num_traits=num_traits,
+            num_traits=len(trait_names),
+            selection_starts=selection_starts,
+            max_growth_exponent=max_growth_exponent,
+            max_shift_iterations=max_shift_iterations,
         )
         logging.info(
-            "- alifestd_estimate_trait_gain_selection_allmdc_asexual: "
-            f"fitting {num_traits} traits to {len(informative)} branches...",
+            "- alifestd_tgs_allmdc_estimate_asexual: fitting "
+            f"{len(trait_names)} traits to {len(groups)} clade-size groups...",
         )
         point, shifts, params = tgs_fit_allmdc_traits(
-            unit_weights=[
-                np.ones(len(group.partitions)) for __, group in groups
-            ],
+            unit_weights=[np.ones(len(g.partitions)) for __, g in groups],
+            starts=None,
+            shifts_start=None,
+            progress_wrap=progress_wrap,
             **fit_kwargs,
         )
         res[list(point.columns)] = point
-        for j, shift in zip(group_ids[1:], shifts[1:]):
-            res[shift_columns[j - 1]] = shift
+        for column, shift in zip(fitted_columns[1:], shifts[1:]):
+            res[column] = shift
         if num_bootstrap:
-            logging.info(
-                "- alifestd_estimate_trait_gain_selection_allmdc_asexual: "
-                f"fitting {num_bootstrap} bootstrap replicates...",
-            )
             replicate_fits = run_seeded_replicates(
                 functools.partial(
                     tgs_fit_allmdc_bootstrap_replicate,
                     fit_kwargs=dict(
-                        fit_kwargs, starts=params, shifts_start=shifts
+                        fit_kwargs,
+                        starts=params,
+                        shifts_start=shifts,
+                        progress_wrap=identity,
                     ),
                 ),
                 num_replicates=num_bootstrap,
@@ -244,27 +140,9 @@ def tgs_allmdc_impl(
 
     if not num_bootstrap:
         return res
-    if replicate_fits:
-        fits = pd.concat(
-            [fit for fit, __ in replicate_fits],
-            keys=range(num_bootstrap),
-            names=["replicate", "trait_index"],
-        )
-        replicate_shifts = np.array([shifts for __, shifts in replicate_fits])
-    else:  # nothing to fit, so every replicate matches the empty fit
-        fits = pd.concat(
-            [res] * num_bootstrap,
-            keys=range(num_bootstrap),
-            names=["replicate", "trait_index"],
-        )
-        replicate_shifts = np.full((num_bootstrap, 0), np.nan)
-    summary = tgs_summarize_bootstrap(point=res, replicate_fits=fits)
-    res = pd.concat([res, summary], axis=1)
-    for column in shift_columns:
-        res[f"{column}_se"] = np.nan
-    if replicate_fits:
-        for k, j in enumerate(group_ids[1:], start=1):
-            values = replicate_shifts[:, k]
-            if np.isfinite(values).sum() >= 2:
-                res[f"{shift_columns[j - 1]}_se"] = np.nanstd(values, ddof=1)
-    return res
+    return tgs_summarize_allmdc_bootstrap(
+        res=res,
+        replicate_fits=replicate_fits,
+        shift_columns=fitted_columns,
+        num_bootstrap=num_bootstrap,
+    )

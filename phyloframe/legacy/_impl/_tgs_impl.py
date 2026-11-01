@@ -2,21 +2,18 @@ import typing
 
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from .._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._tgs_find_trait_leaves import tgs_find_trait_leaves
 from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
 from ._tgs_init_results import tgs_init_results
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
-from ._tgs_validate_args import tgs_validate_args
 
 
 def tgs_impl(
+    phylogeny_df: typing.Union[pd.DataFrame, pl.DataFrame],
     *,
-    ancestor_ids: np.ndarray,
-    origin_time: np.ndarray,
-    pendant_lengths: np.ndarray,
-    trait_masks: typing.Sequence[np.ndarray],
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
@@ -30,23 +27,22 @@ def tgs_impl(
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual` and
-    `alifestd_estimate_trait_gain_selection_pendantmdc_polars`.
+    `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_pendantmdc_estimate_polars`.
 
     Here, tgs stands for trait gain/selection.
 
-    Takes per-node arrays for a phylogeny with contiguous, topologically
-    sorted ids and no unifurcations: ancestor ids, origin times, pendant
-    branch lengths (origin time deltas), and boolean trait masks.
+    Takes a phylogeny prepared by `tgs_prepare_asexual` or
+    `tgs_prepare_polars`, with contiguous, topologically sorted ids and no
+    unifurcations, and validated arguments (see `tgs_validate_args`).
     """
-    neutral_traits = tgs_validate_args(
-        num_traits=len(trait_masks),
-        neutral_traits=neutral_traits,
-        calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
-    )
-
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+    origin_time = phylogeny_df["origin_time"].to_numpy()
+    pendant_lengths = phylogeny_df["__alifestd_tgs_branch_length"].to_numpy()
+    trait_masks = [
+        phylogeny_df[f"__alifestd_tgs_trait{i}"].to_numpy()
+        for i in range(len(trait_names))
+    ]
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     origin_time = np.asarray(origin_time, dtype=np.float64)
     pendant_lengths = np.asarray(pendant_lengths, dtype=np.float64)

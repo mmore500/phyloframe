@@ -3,12 +3,13 @@ import typing
 import numpy as np
 import pandas as pd
 
+from .._auxlib._identity import identity
 from .._auxlib._warn_experimental import warn_experimental
-from ._impl import tgs_impl, tgs_prepare_asexual
+from ._impl import tgs_impl, tgs_prepare_asexual, tgs_validate_args
 
 
 @warn_experimental
-def alifestd_estimate_trait_gain_selection_pendantmdc_asexual(
+def alifestd_tgs_pendantmdc_estimate_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
@@ -32,7 +33,7 @@ def alifestd_estimate_trait_gain_selection_pendantmdc_asexual(
     min_leaf_origin_time: float = -np.inf,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
-    progress_wrap: typing.Callable = lambda x: x,
+    progress_wrap: typing.Callable = identity,
 ) -> pd.DataFrame:
     """Estimate per-trait gain rate and net selection from leaf pendant
     branches only, from how the fraction of leaves carrying each trait
@@ -42,7 +43,7 @@ def alifestd_estimate_trait_gain_selection_pendantmdc_asexual(
     leaves all carry the trait, which, under parsimony without loss, gained
     it on its stem branch. This estimator uses single-leaf MDCs only (gains
     on pendant branches); see
-    `alifestd_estimate_trait_gain_selection_allmdc_asexual` for MDCs of
+    `alifestd_tgs_allmdc_estimate_asexual` for MDCs of
     every size.
 
     Each leaf's pendant branch starts without the trait (unless the trait is
@@ -170,11 +171,19 @@ def alifestd_estimate_trait_gain_selection_pendantmdc_asexual(
 
     See Also
     --------
-    alifestd_estimate_trait_gain_selection_pendantmdc_polars :
+    alifestd_tgs_pendantmdc_estimate_polars :
         Polars-based implementation.
     alifestd_mask_trait_singletons_asexual :
         Marks leaves dropped for each trait.
     """
+    trait_names, neutral_traits = tgs_validate_args(
+        trait_masks=trait_masks,
+        trait_names=trait_names,
+        neutral_traits=neutral_traits,
+        calibrate=calibrate,
+        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        num_calibration_partitions=num_calibration_partitions,
+    )
     prepared = tgs_prepare_asexual(
         phylogeny_df,
         mutate,
@@ -182,11 +191,8 @@ def alifestd_estimate_trait_gain_selection_pendantmdc_asexual(
         trait_names=trait_names,
     )
     return tgs_impl(
-        ancestor_ids=prepared.ancestor_ids,
-        origin_time=prepared.origin_time,
-        pendant_lengths=prepared.branch_lengths,
-        trait_masks=prepared.trait_masks,
-        trait_names=prepared.trait_names,
+        prepared,
+        trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,

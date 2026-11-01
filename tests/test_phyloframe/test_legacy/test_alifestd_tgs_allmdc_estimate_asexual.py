@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_estimate_trait_gain_selection_allmdc_asexual,
-    alifestd_estimate_trait_gain_selection_pendantmdc_asexual,
+    alifestd_tgs_allmdc_estimate_asexual,
+    alifestd_tgs_pendantmdc_estimate_asexual,
 )
 
 SHIFT = 15.0
@@ -62,7 +62,7 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
 def test_recovers_gain_selection_shift(calibrate: bool):
     phylogeny_df, traits = _make_cherries()
     original_df = phylogeny_df.copy()
-    res = alifestd_estimate_trait_gain_selection_allmdc_asexual(
+    res = alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df,
         trait_masks=traits,
         trait_names=["focal", "n1", "n2", "n3", "n4"],
@@ -86,9 +86,11 @@ def test_recovers_gain_selection_shift(calibrate: bool):
     assert 8.0 < focal["clade_size_shift_2"] < 20.0
     assert np.isfinite(res["clade_size_shift_2_se"]).all()
     assert res["clade_size_shift_2"].nunique() == 1
-    # cherries only, so larger clade-size groups have nothing to fit
-    assert res["clade_size_shift_3_4"].isna().all()
-    assert res["clade_size_shift_9_plus"].isna().all()
+    # cherries only, so there are no larger clade-size groups
+    assert [c for c in res.columns if c.startswith("clade_size_shift")] == [
+        "clade_size_shift_2",
+        "clade_size_shift_2_se",
+    ]
 
     neutral = res.iloc[1:]
     assert neutral["gain_ratio"].tolist() == pytest.approx([1.0] * 4, rel=0.3)
@@ -117,12 +119,8 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
     kwargs = dict(
         trait_masks=traits, neutral_traits=[1, 2, 3, 4], calibrate=calibrate
     )
-    res = alifestd_estimate_trait_gain_selection_allmdc_asexual(
-        phylogeny_df, **kwargs
-    )
-    expected = alifestd_estimate_trait_gain_selection_pendantmdc_asexual(
-        phylogeny_df, **kwargs
-    )
+    res = alifestd_tgs_allmdc_estimate_asexual(phylogeny_df, **kwargs)
+    expected = alifestd_tgs_pendantmdc_estimate_asexual(phylogeny_df, **kwargs)
     for column in ("num_leaves", "num_trait_present"):
         assert res[column].tolist() == expected[column].tolist()
     for column in ("gain_rate", "selection", "gain_ratio"):
@@ -130,7 +128,7 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
             expected[column].to_numpy(), rel=1e-4, abs=1e-8
         )
     assert (res["num_clades"] == 0).all()
-    assert res["clade_size_shift_2"].isna().all()
+    assert not any(c.startswith("clade_size_shift") for c in res.columns)
 
 
 def test_counts():
@@ -144,7 +142,7 @@ def test_counts():
             "origin_time": [0.0, 1.0, 3.0, 4.0, 2.0],
         },
     )
-    res = alifestd_estimate_trait_gain_selection_allmdc_asexual(
+    res = alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df,
         trait_masks=np.array(
             [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0], [0, 0, 1, 1, 1]],
@@ -167,7 +165,7 @@ def test_counts():
 def test_row_order_invariant():
     phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
-    expected = alifestd_estimate_trait_gain_selection_allmdc_asexual(
+    expected = alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df, trait_masks=traits, **kwargs
     )
 
@@ -175,38 +173,59 @@ def test_row_order_invariant():
     shuffled = phylogeny_df.iloc[order].reset_index(drop=True)
     shuffled["id"] += 7
     shuffled["ancestor_id"] += 7
-    res = alifestd_estimate_trait_gain_selection_allmdc_asexual(
+    res = alifestd_tgs_allmdc_estimate_asexual(
         shuffled, trait_masks=traits[:, order], **kwargs
     )
     pd.testing.assert_frame_equal(res, expected, rtol=1e-4)
 
 
-@pytest.mark.parametrize("clade_size_groups", [(1,), (3, 2), (2, 2)])
-def test_clade_size_groups_validated(clade_size_groups: tuple):
+def test_clade_size_groups_per_doubling_validated():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_allmdc_asexual(
-            phylogeny_df,
-            trait_masks=traits,
-            clade_size_groups=clade_size_groups,
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df, trait_masks=traits, clade_size_groups_per_doubling=0
         )
 
 
-def test_custom_clade_size_groups():
-    phylogeny_df, traits = _make_cherries(2_000)
-    res = alifestd_estimate_trait_gain_selection_allmdc_asexual(
-        phylogeny_df, trait_masks=traits, clade_size_groups=(2, 4)
+@pytest.mark.parametrize(
+    "groups_per_doubling, expected",
+    [
+        (1, ["clade_size_shift_2_3", "clade_size_shift_4_7"]),
+        (
+            2,
+            [
+                "clade_size_shift_2",
+                "clade_size_shift_3",
+                "clade_size_shift_4_5",
+                "clade_size_shift_6_7",
+            ],
+        ),
+    ],
+)
+def test_clade_size_groups_per_doubling(groups_per_doubling: int, expected):
+    # root over a 7-leaf caterpillar, so clades of 2 to 7 leaves
+    ancestor_id = [0, 0, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11]
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": range(14),
+            "ancestor_id": ancestor_id,
+            "origin_time": np.arange(14, dtype=float),
+        },
     )
-    assert [c for c in res.columns if c.startswith("clade_size_shift")] == [
-        "clade_size_shift_2_3",
-        "clade_size_shift_4_plus",
-    ]
+    res = alifestd_tgs_allmdc_estimate_asexual(
+        phylogeny_df,
+        trait_masks=[np.zeros(14, dtype=bool)],
+        clade_size_groups_per_doubling=groups_per_doubling,
+    )
+    assert [
+        c for c in res.columns if c.startswith("clade_size_shift")
+    ] == expected
 
 
 def test_calibrate_requires_neutral():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_allmdc_asexual(
+        alifestd_tgs_allmdc_estimate_asexual(
             phylogeny_df,
             trait_masks=traits,
             calibrate=True,
@@ -217,14 +236,14 @@ def test_calibrate_requires_neutral():
 def test_trait_mask_validated():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(NotImplementedError):
-        alifestd_estimate_trait_gain_selection_allmdc_asexual(
+        alifestd_tgs_allmdc_estimate_asexual(
             phylogeny_df, trait_masks=traits.astype(int)
         )
     with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_allmdc_asexual(
+        alifestd_tgs_allmdc_estimate_asexual(
             phylogeny_df, trait_masks=traits[:, :-1]
         )
     with pytest.raises(ValueError):
-        alifestd_estimate_trait_gain_selection_allmdc_asexual(
+        alifestd_tgs_allmdc_estimate_asexual(
             phylogeny_df, trait_masks=traits, trait_names=["a"]
         )
