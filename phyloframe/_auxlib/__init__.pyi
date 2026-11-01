@@ -11,7 +11,7 @@ from ._calc_group_means import calc_group_means
 from ._calc_kdtree_partitions import calc_kdtree_partitions
 from ._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
-from ._calc_quantile_bins import calc_quantile_bins
+from ._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ._ceil_div import ceil_div
 from ._coerce_to_pandas import coerce_to_pandas
@@ -73,8 +73,8 @@ __all__ = [
     "calc_binomial_nll_proxy",
     "calc_group_means",
     "ceil_div",
+    "calc_tiebroken_ranks",
     "run_weighted_bootstrap",
-    "calc_quantile_bins",
     "calc_geometric_bins",
     "calc_kdtree_partitions",
     "calc_knn_neighborhoods",
