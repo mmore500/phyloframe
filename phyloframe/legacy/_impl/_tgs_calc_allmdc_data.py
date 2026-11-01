@@ -18,19 +18,20 @@ def tgs_calc_allmdc_data(
     unit_weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
-) -> typing.List[typing.Dict[str, typing.Any]]:
+) -> typing.Tuple[pd.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
-    Returns, per trait, for `branches` (see `tgs_calc_branches`) and their
-    `partitioning` (see `tgs_partition_allmdc_branches`), a dict of arrays
-    over partitions with branches starting without the trait, with
+    Summarizes `branches` (see `tgs_calc_branches`) by their `partitioning`
+    (see `tgs_partition_allmdc_branches`). Returns a DataFrame with one row
+    per trait and partition with branches starting without the trait,
+    with columns `trait` (index, categorical over all traits), the
     (weighted) counts of those branches, `num_trials`, and of gains,
-    `num_successes`; their mean `lengths` (calibrated against neutral
-    traits if `calibrate`); and `survival_shares`, a sparse
-    partition-by-survival-time-bin matrix of the share of each partition's
-    branches in each bin.
+    `num_successes`, and their mean `length` (calibrated against neutral
+    traits if `calibrate`). Also returns `survival_shares`, a sparse matrix
+    with a row per DataFrame row and a column per survival-time bin, giving
+    the share of the partition's branches in each bin.
     """
     partitions = partitioning["partitions"]
     num_partitions = partitions.max() + 1
@@ -44,7 +45,7 @@ def tgs_calc_allmdc_data(
         trait_carriers=trait_gains,
     )
     shape = (num_partitions, len(partitioning["survival_bin_times"]))
-    data = []
+    frames, shares = [], []
     for trait, units in enumerate(trait_units):
         lengths, __ = tgs_calc_calibrated_pendant_lengths(
             counts=counts,
@@ -58,24 +59,27 @@ def tgs_calc_allmdc_data(
         )
         n = counts.num_leaves[trait]
         keep = n > 0
+        frames.append(
+            pd.DataFrame(
+                {
+                    "trait": trait,
+                    "num_trials": n[keep],
+                    "num_successes": counts.num_carriers[trait][keep],
+                    "length": lengths[keep],
+                },
+            ),
+        )
         # sparse, as partitions span few of many survival-time bins
-        survival_shares = sparse.csr_matrix(
+        trait_shares = sparse.csr_matrix(
             (
                 unit_weights[units],
-                (
-                    partitions[units],
-                    partitioning["survival_bins"][units],
-                ),
+                (partitions[units], partitioning["survival_bins"][units]),
             ),
             shape=shape,
         )[keep]
-        survival_shares = sparse.diags(1.0 / n[keep]) @ survival_shares
-        data.append(
-            {
-                "num_trials": n[keep],
-                "num_successes": counts.num_carriers[trait][keep],
-                "lengths": lengths[keep],
-                "survival_shares": survival_shares,
-            },
-        )
-    return data
+        shares.append(sparse.diags(1.0 / n[keep]) @ trait_shares)
+    data = pd.concat(frames, ignore_index=True)
+    data["trait"] = pd.Categorical(
+        data["trait"], categories=range(len(trait_units))
+    )
+    return data, sparse.vstack(shares, format="csr")

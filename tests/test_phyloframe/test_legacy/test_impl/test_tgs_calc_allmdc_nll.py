@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 from scipy import optimize
 
@@ -13,18 +14,21 @@ def _data():
     lengths = rng.uniform(1, 20, 6)
     shares = rng.random((6, 3))
     shares /= shares.sum(axis=1, keepdims=True)
-    data = dict(num_trials=n, num_successes=k, lengths=lengths)
-    return {**data, "survival_shares": shares}, np.array([0.0, 5.0, 30.0])
+    partitions = pd.DataFrame(
+        {"num_trials": n, "num_successes": k, "length": lengths}
+    )
+    data = dict(partitions=partitions, survival_shares=shares)
+    return data, np.array([0.0, 5.0, 30.0])
 
 
 def test_matches_pendant_without_survival_time():
     data, __ = _data()
     data["survival_shares"] = np.ones((6, 1))
-    n, k, lengths = data["num_trials"], data["num_successes"], data["lengths"]
+    n, k, lengths = data["partitions"].to_numpy().T
     res = tgs_calc_allmdc_nll(
         log_gain_rate=np.log(1e-3),
         rate=-0.05,
-        data=data,
+        **data,
         survival_bin_times=np.array([0.0]),
         growth_exponent_bound=600.0,
     )
@@ -36,7 +40,7 @@ def test_matches_pendant_without_survival_time():
 
 def test_survival_discounts():
     data, times = _data()
-    n, k, lengths = data["num_trials"], data["num_successes"], data["lengths"]
+    n, k, lengths = data["partitions"].to_numpy().T
     shares = data["survival_shares"]
     # equivalent to scaling each partition's success probability
     rate = -0.05
@@ -44,7 +48,7 @@ def test_survival_discounts():
     nll, __, __ = tgs_calc_allmdc_nll(
         log_gain_rate=np.log(1e-3),
         rate=rate,
-        data=data,
+        **data,
         survival_bin_times=times,
         growth_exponent_bound=600.0,
     )
@@ -61,7 +65,7 @@ def test_gradient(rate: float):
         return tgs_calc_allmdc_nll(
             log_gain_rate=params[0],
             rate=params[1],
-            data=data,
+            **data,
             survival_bin_times=times,
             growth_exponent_bound=600.0,
         )

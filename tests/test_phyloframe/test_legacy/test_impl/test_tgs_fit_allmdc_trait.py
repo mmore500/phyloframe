@@ -24,20 +24,24 @@ def fixture():
         calibrate_size_partition_min_neutral_gains=1,
         num_survival_time_bins=32,
     )
-    data = tgs_calc_allmdc_data(
+    data, shares = tgs_calc_allmdc_data(
         branches=branches,
         partitioning=partitioning,
         unit_weights=np.ones(len(branches)),
         neutral_traits=[1, 2],
         calibrate=False,
     )
-    return data, partitioning["survival_bin_times"]
+    by_trait = [
+        dict(partitions=partitions, survival_shares=shares[partitions.index])
+        for __, partitions in data.groupby("trait", observed=False)
+    ]
+    return by_trait, partitioning["survival_bin_times"]
 
 
 def test_recovers_focal(fixture):
     data, times = fixture
     res = tgs_fit_allmdc_trait(
-        data=data[0],
+        **data[0],
         survival_bin_times=times,
         loss_rate=0.0,
         selection_starts=(0.0, -0.3, -1.8),
@@ -51,7 +55,7 @@ def test_recovers_focal(fixture):
 def test_recovers_neutral(fixture):
     data, times = fixture
     res = tgs_fit_allmdc_trait(
-        data=data[1],
+        **data[1],
         survival_bin_times=times,
         loss_rate=0.0,
         selection_starts=(0.0,),
@@ -64,7 +68,7 @@ def test_recovers_neutral(fixture):
 def test_loss_rate_shifts_selection(fixture):
     data, times = fixture
     kwargs = dict(
-        data=data[0],
+        **data[0],
         survival_bin_times=times,
         selection_starts=(0.0, -0.3),
         growth_exponent_bound=600.0,
