@@ -4,17 +4,15 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_polars import (
+from phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_polars import (
     _create_parser,
 )
 
-from .test_alifestd_estimate_trait_gain_selection_pendant_polars import (
+from .test_alifestd_estimate_trait_gain_selection_pendantmdc_polars import (
     _make_cherries_polars,
 )
 
-MODULE = (
-    "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_polars"
-)
+MODULE = "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_polars"
 
 
 @pytest.fixture
@@ -86,7 +84,7 @@ def test_cli(input_pqt, ext, tmp_path):
 
 def test_cli_matches_function(input_pqt, tmp_path):
     from phyloframe.legacy import (
-        alifestd_estimate_trait_gain_selection_pendant_polars,
+        alifestd_estimate_trait_gain_selection_pendantmdc_polars,
     )
 
     output_file = str(tmp_path / "output.pqt")
@@ -108,7 +106,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
         check=True,
         input=input_pqt.encode(),
     )
-    expected = alifestd_estimate_trait_gain_selection_pendant_polars(
+    expected = alifestd_estimate_trait_gain_selection_pendantmdc_polars(
         pl.read_parquet(input_pqt),
         trait_masks=["focal", "n1"],
         loss_rate=0.001,

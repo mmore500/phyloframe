@@ -14,29 +14,11 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
-from ._alifestd_assign_contiguous_ids_polars import (
-    alifestd_assign_contiguous_ids_polars,
-)
-from ._alifestd_collapse_unifurcations_polars import (
-    alifestd_collapse_unifurcations_polars,
-)
-from ._alifestd_has_contiguous_ids_polars import (
-    alifestd_has_contiguous_ids_polars,
-)
-from ._alifestd_is_topologically_sorted_polars import (
-    alifestd_is_topologically_sorted_polars,
-)
-from ._alifestd_mark_origin_time_delta_polars import (
-    alifestd_mark_origin_time_delta_polars,
-)
-from ._alifestd_try_add_ancestor_id_col_polars import (
-    alifestd_try_add_ancestor_id_col_polars,
-)
-from ._impl import tgs_impl
+from ._impl import tgs_impl, tgs_prepare_polars
 
 
 @warn_experimental
-def alifestd_estimate_trait_gain_selection_pendant_polars(
+def alifestd_estimate_trait_gain_selection_pendantmdc_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_masks: typing.Sequence[typing.Union[str, pl.Expr]],
@@ -62,8 +44,9 @@ def alifestd_estimate_trait_gain_selection_pendant_polars(
     progress_wrap: typing.Callable = lambda x: x,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and net selection from leaf pendant
-    branches only, from how the fraction of leaves carrying each trait
-    varies with pendant branch length.
+    branches only, i.e., from single-leaf mutationally defined clades
+    (MDCs), from how the fraction of leaves carrying each trait varies with
+    pendant branch length.
 
     Each leaf's pendant branch starts without the trait (unless the trait is
     shared across the parent's whole clade, in which case the leaf is
@@ -115,7 +98,7 @@ def alifestd_estimate_trait_gain_selection_pendant_polars(
         If True, measure pendant length by `neutral_traits` gains rather
         than by branch length, so that distortion of branch lengths shared
         with neutral traits (e.g., from tree reconstruction) cancels. See
-        `alifestd_estimate_trait_gain_selection_pendant_asexual` for details.
+        `alifestd_estimate_trait_gain_selection_pendantmdc_asexual` for details.
     calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of leaves.
         With `calibrate`, the candidate whose calibration best predicts
@@ -161,97 +144,31 @@ def alifestd_estimate_trait_gain_selection_pendant_polars(
     -------
     polars.DataFrame
         One row per trait; see
-        `alifestd_estimate_trait_gain_selection_pendant_asexual` for columns.
+        `alifestd_estimate_trait_gain_selection_pendantmdc_asexual` for columns.
 
     See Also
     --------
-    alifestd_estimate_trait_gain_selection_pendant_asexual :
+    alifestd_estimate_trait_gain_selection_pendantmdc_asexual :
         Pandas-based implementation.
     """
-    if trait_names is None:
-        trait_names = [
-            mask if isinstance(mask, str) else str(i)
-            for i, mask in enumerate(trait_masks)
-        ]
-    if len(trait_names) != len(trait_masks):
-        raise ValueError(
-            f"got {len(trait_names)} trait names for "
-            f"{len(trait_masks)} trait masks",
-        )
-    neutral_traits = [
-        list(trait_names).index(trait) if isinstance(trait, str) else trait
-        for trait in neutral_traits
-    ]
-
-    trait_masks = [
-        pl.col(mask) if isinstance(mask, str) else mask for mask in trait_masks
-    ]
-
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    if "ancestor_id" not in schema_names:
-        raise NotImplementedError(
-            "alifestd_estimate_trait_gain_selection_pendant_polars only "
-            "supports asexual phylogenies.",
-        )
-
-    # evaluate masks before collapsing unifurcations renumbers rows, then
-    # continue eagerly to avoid https://github.com/pola-rs/polars/issues/30408
-    # TODO: stay lazy once a polars release includes the fix (after 2.1.0)
-    selected = (
-        phylogeny_df.lazy()
-        .select(
-            pl.col("id"),
-            pl.col("ancestor_id"),
-            pl.col("origin_time"),
-            *(
-                mask.cast(pl.Boolean).alias(f"__alifestd_tgs_trait{i}")
-                for i, mask in enumerate(trait_masks)
-            ),
-        )
-        .collect()
+    prepared, neutral_traits = tgs_prepare_polars(
+        phylogeny_df,
+        trait_masks=trait_masks,
+        trait_names=trait_names,
+        neutral_traits=neutral_traits,
+        caller="alifestd_estimate_trait_gain_selection_pendantmdc_polars",
     )
-    if not selected.is_empty():
-        if not alifestd_has_contiguous_ids_polars(selected):
-            raise NotImplementedError(
-                "non-contiguous ids not supported",
-            )
-        if not alifestd_is_topologically_sorted_polars(selected):
-            raise NotImplementedError(
-                "non-topologically-sorted data not supported",
-            )
-        selected = (
-            alifestd_assign_contiguous_ids_polars(
-                alifestd_collapse_unifurcations_polars(
-                    selected, ignore_topological_sensitivity=True
-                ),
-            )
-            .lazy()
-            .collect()
-        )
-    selected = alifestd_mark_origin_time_delta_polars(
-        selected, mark_as="__alifestd_tgs_pendant_length"
-    )
-
-    trait_arrays = []
-    for i, name in enumerate(trait_names):
-        trait_mask = selected[f"__alifestd_tgs_trait{i}"]
-        if trait_mask.has_nulls():
-            raise NotImplementedError(
-                f"null values in trait mask {name} not supported",
-            )
-        trait_arrays.append(trait_mask.to_numpy())
 
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_pendant_polars: "
+        "- alifestd_estimate_trait_gain_selection_pendantmdc_polars: "
         "fitting gain and selection...",
     )
     res = tgs_impl(
-        ancestor_ids=selected["ancestor_id"].to_numpy(),
-        origin_time=selected["origin_time"].to_numpy(),
-        pendant_lengths=selected["__alifestd_tgs_pendant_length"].to_numpy(),
-        trait_masks=trait_arrays,
-        trait_names=trait_names,
+        ancestor_ids=prepared.ancestor_ids,
+        origin_time=prepared.origin_time,
+        pendant_lengths=prepared.branch_lengths,
+        trait_masks=prepared.trait_masks,
+        trait_names=prepared.trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
@@ -292,7 +209,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_asexual :
+phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_asexual :
     Pandas-based implementation.
 """
 
@@ -307,7 +224,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_polars"
+            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -390,13 +307,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_polars",
+            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_estimate_trait_gain_selection_pendant_polars,
+                    alifestd_estimate_trait_gain_selection_pendantmdc_polars,
                     trait_masks=args.trait_masks,
                     neutral_traits=args.neutral_traits,
                     calibrate=args.calibrate,

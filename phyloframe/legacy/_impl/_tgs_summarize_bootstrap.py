@@ -12,7 +12,7 @@ def tgs_summarize_bootstrap(
     replicate_fits: pd.DataFrame,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
 
     Here, tgs stands for trait gain/selection.
 

@@ -16,7 +16,7 @@ def tgs_bootstrap(
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
 
     Here, tgs stands for trait gain/selection.
 

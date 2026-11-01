@@ -26,7 +26,7 @@ def tgs_fit_traits(
     loss_rate: float,
 ) -> typing.Tuple[pd.DataFrame, typing.List[typing.Optional[np.ndarray]]]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
 
     Here, tgs stands for trait gain/selection.
 

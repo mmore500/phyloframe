@@ -18,7 +18,7 @@ def tgs_calc_calibrated_pendant_lengths(
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
 ) -> typing.Tuple[np.ndarray, typing.Optional[np.ndarray]]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
 
     Here, tgs stands for trait gain/selection.
 

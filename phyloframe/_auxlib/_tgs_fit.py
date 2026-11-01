@@ -285,11 +285,11 @@ def tgs_fit(
         through shared ancestry or space), and ignores uncertainty in any
         calibration of `pendant_length`. Prefer bootstrap standard errors
         for inference (see `num_bootstrap` in
-        `alifestd_estimate_trait_gain_selection_pendant_asexual`).
+        `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`).
 
     See Also
     --------
-    alifestd_estimate_trait_gain_selection_pendant_asexual :
+    alifestd_estimate_trait_gain_selection_pendantmdc_asexual :
         Applies this fit to leaf pendant branches of a phylogeny, with
         bootstrap standard errors and optional calibration against neutral
         traits.

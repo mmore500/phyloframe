@@ -187,11 +187,17 @@ from ._alifestd_drop_topological_sensitivity import (
 from ._alifestd_drop_topological_sensitivity_polars import (
     alifestd_drop_topological_sensitivity_polars,
 )
-from ._alifestd_estimate_trait_gain_selection_pendant_asexual import (
-    alifestd_estimate_trait_gain_selection_pendant_asexual,
+from ._alifestd_estimate_trait_gain_selection_allmdc_asexual import (
+    alifestd_estimate_trait_gain_selection_allmdc_asexual,
 )
-from ._alifestd_estimate_trait_gain_selection_pendant_polars import (
-    alifestd_estimate_trait_gain_selection_pendant_polars,
+from ._alifestd_estimate_trait_gain_selection_allmdc_polars import (
+    alifestd_estimate_trait_gain_selection_allmdc_polars,
+)
+from ._alifestd_estimate_trait_gain_selection_pendantmdc_asexual import (
+    alifestd_estimate_trait_gain_selection_pendantmdc_asexual,
+)
+from ._alifestd_estimate_trait_gain_selection_pendantmdc_polars import (
+    alifestd_estimate_trait_gain_selection_pendantmdc_polars,
 )
 from ._alifestd_estimate_triplet_distance_asexual import (
     alifestd_estimate_triplet_distance_asexual,
@@ -818,8 +824,10 @@ __all__ = [
     "alifestd_mark_sample_tips_uniform_polars",
     "alifestd_drop_topological_sensitivity",
     "alifestd_drop_topological_sensitivity_polars",
-    "alifestd_estimate_trait_gain_selection_pendant_asexual",
-    "alifestd_estimate_trait_gain_selection_pendant_polars",
+    "alifestd_estimate_trait_gain_selection_allmdc_asexual",
+    "alifestd_estimate_trait_gain_selection_allmdc_polars",
+    "alifestd_estimate_trait_gain_selection_pendantmdc_asexual",
+    "alifestd_estimate_trait_gain_selection_pendantmdc_polars",
     "alifestd_estimate_triplet_distance_asexual",
     "alifestd_find_chronological_inconsistency",
     "alifestd_find_chronological_inconsistency_polars",
