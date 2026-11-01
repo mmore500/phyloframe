@@ -1,3 +1,4 @@
+import logging
 import typing
 
 import numpy as np
@@ -20,29 +21,58 @@ def tgs_partition_allmdc_branches(
     calibrate: bool,
     calibration_neighborhood_fractions: typing.Sequence[float],
     num_calibration_partitions: int,
-    clade_size_calibration_blocks: typing.Sequence[int],
+    clade_size_calibration_ratio: float,
+    min_calibration_block_neutral_gains: int,
     num_survival_time_bins: int,
 ) -> TgsAllmdcPartitioning:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
-    Splits branches into blocks by clade size: single leaves, then clades
-    of at least each of `clade_size_calibration_blocks` leaves (e.g., (2,
-    3, 5, 9) gives blocks of 1, 2, 3-4, 5-8, and 9+ leaves). Within each
-    block, partitions branches into up to `num_calibration_partitions`
-    equal-occupancy partitions by ranked length and origin time (skipping
-    either if constant) and, with `calibrate`, selects calibration
-    neighborhoods, which so never mix blocks, as neutral gains per unit
-    length may differ with clade size. Survival time is left out, as the
-    model accounts for it. Also bins survival times
+    Splits branches into blocks by clade size on a log scale, with base
+    `clade_size_calibration_ratio`: block ceil(log_ratio(clade size)), so
+    a ratio of 2 gives blocks of 1, 2, 3-4, 5-8, 9-16, ... leaves. With
+    `calibrate`, blocks go up only while each has at least
+    `min_calibration_block_neutral_gains` neutral trait gains; the first
+    block with fewer, and all larger clades, join the block below, so every
+    block has neutral gains to calibrate against.
+
+    Within each block, partitions branches into up to
+    `num_calibration_partitions` equal-occupancy partitions by ranked length
+    and origin time (skipping either if constant) and, with `calibrate`,
+    selects calibration neighborhoods, which so never mix blocks, as
+    neutral gains per unit length may differ with clade size. Survival time
+    is left out, as the model accounts for it. Also bins survival times
     into up to `num_survival_time_bins` equal-occupancy bins.
     """
-    blocks = np.searchsorted(
-        np.asarray(clade_size_calibration_blocks),
-        branches.clade_sizes,
-        side="right",
-    )
+    # tolerance keeps exact powers of the ratio, e.g., 4 for ratio 2, in
+    # the block they close despite floating point error
+    blocks = np.ceil(
+        np.log(branches.clade_sizes) / np.log(clade_size_calibration_ratio)
+        - 1e-9
+    ).astype(np.int64)
+    if calibrate:
+        neutral_gains = np.bincount(
+            blocks[
+                np.concatenate(
+                    [branches.trait_gains[r] for r in neutral_traits]
+                )
+            ],
+            minlength=blocks.max() + 1,
+        )
+        (sparse_blocks,) = np.nonzero(
+            neutral_gains < min_calibration_block_neutral_gains
+        )
+        # leaves always form their own block
+        cap = max(sparse_blocks[0] - 1, 0) if len(sparse_blocks) else None
+        if cap is not None and cap < blocks.max():
+            logging.info(
+                "- alifestd_tgs_allmdc_estimate_asexual: clade-size blocks "
+                f"above {cap} have fewer than "
+                f"{min_calibration_block_neutral_gains} neutral gains, so "
+                f"join block {cap} for calibration",
+            )
+            blocks = np.minimum(blocks, cap)
     partitions = np.empty(len(blocks), dtype=np.int64)
     neighborhoods = []
     num_partitions = 0

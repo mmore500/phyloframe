@@ -20,7 +20,8 @@ def fixture():
         calibrate=False,
         calibration_neighborhood_fractions=(1.0,),
         num_calibration_partitions=256,
-        clade_size_calibration_blocks=(2, 5),
+        clade_size_calibration_ratio=4.0,
+        min_calibration_block_neutral_gains=1,
         num_survival_time_bins=32,
     )
     data = tgs_calc_allmdc_data(

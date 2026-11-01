@@ -177,26 +177,36 @@ def test_num_survival_time_bins_validated():
         )
 
 
-@pytest.mark.parametrize("blocks", [(1,), (3, 2), (2, 2)])
-def test_clade_size_calibration_blocks_validated(blocks):
+@pytest.mark.parametrize("ratio", [1.0, 0.5, -2.0, float("nan")])
+def test_clade_size_calibration_ratio_validated(ratio: float):
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
         alifestd_tgs_allmdc_estimate_asexual(
             phylogeny_df,
             trait_masks=traits,
-            clade_size_calibration_blocks=blocks,
+            clade_size_calibration_ratio=ratio,
         )
 
 
-@pytest.mark.parametrize("blocks", [(), (2,), (2, 3, 5, 9)])
-def test_clade_size_calibration_blocks(blocks):
+def test_min_calibration_block_neutral_gains_validated():
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df,
+            trait_masks=traits,
+            min_calibration_block_neutral_gains=0,
+        )
+
+
+@pytest.mark.parametrize("ratio", [1.5, 2.0, 1e9])
+def test_clade_size_calibration_ratio(ratio: float):
     phylogeny_df, traits = _make_cherries(10_000)
     res = alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df,
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        clade_size_calibration_blocks=blocks,
+        clade_size_calibration_ratio=ratio,
     )
     assert res.loc[0, "selection"] < 0
     assert np.isfinite(res["gain_ratio"]).all()
