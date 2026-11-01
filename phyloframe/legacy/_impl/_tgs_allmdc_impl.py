@@ -3,10 +3,8 @@ import typing
 
 import numpy as np
 import pandas as pd
-import polars as pl
 
 from ._tgs_bootstrap import tgs_bootstrap
-from ._tgs_find_allmdc_branches import tgs_find_allmdc_branches
 from ._tgs_fit_allmdc_bootstrap_replicate import (
     tgs_fit_allmdc_bootstrap_replicate,
 )
@@ -17,15 +15,15 @@ from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 
 
 def tgs_allmdc_impl(
-    phylogeny_df: typing.Union[pd.DataFrame, pl.DataFrame],
+    branches: pd.DataFrame,
     *,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
-    calibration_neighborhood_fractions: typing.Sequence[float],
-    num_calibration_partitions: int,
-    clade_size_calibration_ratio: float,
-    min_calibration_block_neutral_gains: int,
+    calibrate_neighborhood_fractions: typing.Sequence[float],
+    calibrate_num_partitions: int,
+    calibrate_size_partition_ratio: float,
+    calibrate_size_partition_min_neutral_gains: int,
     num_survival_time_bins: int,
     num_bootstrap: int,
     loss_rate: float,
@@ -41,29 +39,19 @@ def tgs_allmdc_impl(
 
     Here, tgs stands for trait gain/selection.
 
-    Takes a phylogeny prepared by `tgs_prepare_asexual` or
-    `tgs_prepare_polars`, with contiguous, topologically sorted ids and no
-    unifurcations, and validated arguments (see `tgs_validate_args`).
+    Takes branches from `tgs_calc_branches` and validated arguments (see
+    `tgs_validate_args`).
     """
     if num_survival_time_bins < 1:
         raise ValueError("num_survival_time_bins must be at least 1")
-    if not clade_size_calibration_ratio > 1:
-        raise ValueError("clade_size_calibration_ratio must exceed 1")
-    if min_calibration_block_neutral_gains < 1:
+    if not calibrate_size_partition_ratio > 1:
+        raise ValueError("calibrate_size_partition_ratio must exceed 1")
+    if calibrate_size_partition_min_neutral_gains < 1:
         raise ValueError(
-            "min_calibration_block_neutral_gains must be at least 1"
+            "calibrate_size_partition_min_neutral_gains must be at least 1"
         )
-    branches = tgs_find_allmdc_branches(
-        ancestor_ids=phylogeny_df["ancestor_id"].to_numpy(),
-        origin_time=phylogeny_df["origin_time"].to_numpy(),
-        branch_lengths=phylogeny_df["__alifestd_tgs_branch_length"].to_numpy(),
-        trait_masks=[
-            phylogeny_df[f"__alifestd_tgs_trait{i}"].to_numpy()
-            for i in range(len(trait_names))
-        ],
-    )
     res = tgs_init_allmdc_results(trait_names=trait_names, branches=branches)
-    num_branches = len(branches.branch_lengths)
+    num_branches = len(branches)
     if num_branches:
         fit_kwargs = dict(
             branches=branches,
@@ -72,13 +60,13 @@ def tgs_allmdc_impl(
                 neutral_traits=neutral_traits,
                 trait_names=trait_names,
                 calibrate=calibrate,
-                calibration_neighborhood_fractions=(
-                    calibration_neighborhood_fractions
+                calibrate_neighborhood_fractions=(
+                    calibrate_neighborhood_fractions
                 ),
-                num_calibration_partitions=num_calibration_partitions,
-                clade_size_calibration_ratio=clade_size_calibration_ratio,
-                min_calibration_block_neutral_gains=(
-                    min_calibration_block_neutral_gains
+                calibrate_num_partitions=calibrate_num_partitions,
+                calibrate_size_partition_ratio=calibrate_size_partition_ratio,
+                calibrate_size_partition_min_neutral_gains=(
+                    calibrate_size_partition_min_neutral_gains
                 ),
                 num_survival_time_bins=num_survival_time_bins,
             ),

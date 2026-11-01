@@ -120,6 +120,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumprod_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumprod_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_lineage_delta_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_lineage_delta_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_monomorphic_clades_polars

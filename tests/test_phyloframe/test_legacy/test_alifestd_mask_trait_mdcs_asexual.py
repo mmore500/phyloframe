@@ -3,10 +3,14 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_make_empty,
+)
+from phyloframe.legacy import (
     alifestd_mask_trait_mdcs_asexual as alifestd_mask_trait_mdcs_asexual_,
 )
-from phyloframe.legacy import alifestd_make_empty
-from phyloframe.legacy import alifestd_mask_trait_singletons_asexual
+from phyloframe.legacy import (
+    alifestd_mask_trait_singletons_asexual,
+)
 
 from ._impl import enforce_dtype_stability_pandas
 

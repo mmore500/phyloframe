@@ -13,11 +13,11 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    trait_masks: typing.Sequence[np.ndarray],
+    trait_transitions: typing.Sequence[str],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[int] = (),
     calibrate: bool = False,
-    calibration_neighborhood_fractions: typing.Sequence[float] = (
+    calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -27,7 +27,7 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         0.5,
         1.0,
     ),
-    num_calibration_partitions: int = 4096,
+    calibrate_num_partitions: int = 4096,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
@@ -77,12 +77,18 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         Phylogeny in alife standard format, with column `origin_time`.
     mutate : bool, default False
         If True, allows mutation of the input dataframe.
-    trait_masks : Sequence[np.ndarray]
-        One boolean array per trait marking nodes with the trait, aligned
-        with `phylogeny_df.index`, with boolean dtype. Only leaf values are
-        used.
+    trait_transitions : Sequence[str]
+        Names of integer columns, one per trait, giving each node's trait
+        state transition on the branch from its parent: +1 for a gain, -1
+        for a loss, 0 for none (and, at a root, its initial state). Make
+        them from trait states at every node with
+        `alifestd_mark_lineage_delta_asexual`. For leaf data, under parsimony
+        without loss, a node has the trait if and only if every leaf of its
+        clade does, so gains fall on the stems of mutationally defined
+        clades (see `alifestd_mask_trait_mdcs_asexual`). Losses are not yet
+        supported.
     trait_names : Sequence[str], optional
-        Labels for output rows; defaults to trait indices.
+        Labels for output rows; defaults to `trait_transitions`.
     neutral_traits : Sequence[int], default ()
         Indices of traits known to be neutral. Gain ratios are reported
         relative to their mean gain rate (leaving the focal trait out).
@@ -95,16 +101,16 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         pendant length and origin time (each ranked), so that distortion of
         branch lengths shared with neutral traits (e.g., from tree
         reconstruction) cancels. The neighborhood size is chosen, among
-        `calibration_neighborhood_fractions`, as the one that best predicts
+        `calibrate_neighborhood_fractions`, as the one that best predicts
         each held-out neutral trait's carriers when calibrating against the
         others. Assumes loss is negligible over a pendant branch.
-    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+    calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of leaves.
         With `calibrate`, the candidate whose calibration best predicts
         held-out neutral traits is used. Larger neighborhoods smooth more;
         smaller ones resolve finer distortion but are noisier. A fraction of
         1.0 makes one neighborhood of all leaves, i.e., no calibration.
-    num_calibration_partitions : int, default 4096
+    calibrate_num_partitions : int, default 4096
         Number of equal-occupancy partitions of leaves, by ranked pendant
         length and origin time, among which calibration neighborhoods are
         formed; a power of two. Also bins leaves for fitting, so that fit
@@ -145,12 +151,14 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     ------
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
-        if a trait mask's length differs from `phylogeny_df`'s, if
-        `trait_names` and `trait_masks` differ in length, if
-        `calibration_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `num_calibration_partitions` is not a power of two.
+        if a `trait_transitions` column is missing or has values other than
+        +1, -1, or 0, or gives states other than 0 and 1, if
+        `trait_names` and `trait_transitions` differ in length, if
+        `calibrate_neighborhood_fractions` is empty or has a value outside
+        (0, 1], or if `calibrate_num_partitions` is not a power of two.
     NotImplementedError
-        If a trait mask does not have boolean dtype.
+        If a `trait_transitions` column is not integer, or has losses
+        (-1).
 
     Notes
     -----
@@ -177,26 +185,26 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         Marks leaves dropped for each trait.
     """
     trait_names, neutral_traits = tgs_validate_args(
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
     )
-    prepared = tgs_prepare_asexual(
+    branches = tgs_prepare_asexual(
         phylogeny_df,
         mutate,
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
     )
     return tgs_impl(
-        prepared,
+        branches,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,

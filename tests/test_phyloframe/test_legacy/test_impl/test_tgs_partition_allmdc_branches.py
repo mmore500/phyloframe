@@ -8,10 +8,10 @@ from ._simulate_allmdc_branches import simulate_allmdc_branches
 _KWARGS = dict(
     neutral_traits=[1, 2],
     trait_names=["focal", "n1", "n2"],
-    calibration_neighborhood_fractions=(0.25, 1.0),
-    num_calibration_partitions=64,
-    clade_size_calibration_ratio=4.0,
-    min_calibration_block_neutral_gains=1,
+    calibrate_neighborhood_fractions=(0.25, 1.0),
+    calibrate_num_partitions=64,
+    calibrate_size_partition_ratio=4.0,
+    calibrate_size_partition_min_neutral_gains=1,
 )
 
 
@@ -26,7 +26,9 @@ def test_partition():
     # 64 partitions in each of 3 clade-size blocks: 1, 2-4, and 5-16 leaves
     assert res.num_partitions == 3 * 64
     assert len(res.partitions) == 4_000
-    blocks = np.searchsorted([2, 5], branches.clade_sizes, side="right")
+    blocks = np.searchsorted(
+        [2, 5], branches["clade_size"].to_numpy(), side="right"
+    )
     for partition in range(res.num_partitions):
         assert len(np.unique(blocks[res.partitions == partition])) == 1
     assert res.calibration_neighborhoods is None
@@ -35,7 +37,9 @@ def test_partition():
     assert num_bins < 8
     assert res.survival_bin_times[0] == 0.0
     assert (np.diff(res.survival_bin_times) > 0).all()
-    assert (res.survival_bins[branches.clade_sizes == 1] == 0).all()
+    assert (
+        res.survival_bins[branches["clade_size"].to_numpy() == 1] == 0
+    ).all()
     assert res.survival_bins.max() == num_bins - 1
 
 
@@ -50,7 +54,9 @@ def test_calibrate():
     neighborhoods = res.calibration_neighborhoods
     assert neighborhoods.shape == (3 * 64, 3 * 64)
     # neighborhoods never mix clade-size blocks
-    blocks = np.searchsorted([2, 5], branches.clade_sizes, side="right")
+    blocks = np.searchsorted(
+        [2, 5], branches["clade_size"].to_numpy(), side="right"
+    )
     partition_blocks = np.zeros(res.num_partitions, dtype=int)
     partition_blocks[res.partitions] = blocks
     rows, cols = neighborhoods.nonzero()
@@ -69,10 +75,10 @@ def test_blocks(ratio: float, sizes):
     branches = simulate_allmdc_branches(4_000)
     clade_sizes = np.resize(sizes, 4_000)
     res = tgs_partition_allmdc_branches(
-        branches=branches._replace(clade_sizes=clade_sizes),
+        branches=branches.assign(clade_size=clade_sizes),
         calibrate=False,
         num_survival_time_bins=8,
-        **{**_KWARGS, "clade_size_calibration_ratio": ratio},
+        **{**_KWARGS, "calibrate_size_partition_ratio": ratio},
     )
     expected = {
         2.0: [0, 1, 2, 2, 3, 3, 4, 4, 5],
@@ -89,7 +95,7 @@ def test_blocks(ratio: float, sizes):
 
 def test_constant_survival_time():
     branches = simulate_allmdc_branches(1_000)
-    leaves = branches._replace(survival_times=np.zeros(1_000))
+    leaves = branches.assign(survival_time=0.0)
     res = tgs_partition_allmdc_branches(
         branches=leaves,
         calibrate=False,
@@ -103,16 +109,23 @@ def test_constant_survival_time():
 def test_sparse_blocks_join_block_below():
     branches = simulate_allmdc_branches(4_000)
     # ratio 2 gives blocks 0 (1 leaf), 1 (2), 2 (3-4), 3 (5-8), 4 (9)
-    blocks = np.ceil(np.log2(branches.clade_sizes) - 1e-9).astype(int)
+    blocks = np.ceil(np.log2(branches["clade_size"].to_numpy()) - 1e-9).astype(
+        int
+    )
     neutral_gains = np.bincount(
-        blocks[np.concatenate(branches.trait_gains[1:])], minlength=5
+        blocks[
+            np.concatenate(
+                [np.flatnonzero(branches[f"trait{i}_gain"]) for i in (1, 2)]
+            )
+        ],
+        minlength=5,
     )
     threshold = int(neutral_gains[4]) + 1  # block 4 too sparse
     assert (neutral_gains[:4] >= threshold).all()
     kwargs = {
         **_KWARGS,
-        "clade_size_calibration_ratio": 2.0,
-        "min_calibration_block_neutral_gains": threshold,
+        "calibrate_size_partition_ratio": 2.0,
+        "calibrate_size_partition_min_neutral_gains": threshold,
     }
     res = tgs_partition_allmdc_branches(
         branches=branches, calibrate=True, num_survival_time_bins=8, **kwargs

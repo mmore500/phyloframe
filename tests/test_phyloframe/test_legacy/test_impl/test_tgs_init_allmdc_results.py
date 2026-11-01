@@ -1,16 +1,20 @@
-import numpy as np
+import pandas as pd
 
-from phyloframe.legacy._impl import TgsAllmdcBranches, tgs_init_allmdc_results
+from phyloframe.legacy._impl import tgs_init_allmdc_results
 
 
 def test_init():
-    branches = TgsAllmdcBranches(
-        clade_sizes=np.array([1, 1, 2, 1, 5]),
-        branch_lengths=np.ones(5),
-        survival_times=np.zeros(5),
-        origin_times=np.zeros(5),
-        trait_units=[np.array([0, 1, 2, 3, 4]), np.array([0, 2])],
-        trait_gains=[np.array([1, 2]), np.array([], dtype=int)],
+    branches = pd.DataFrame(
+        {
+            "origin_time": 0.0,
+            "branch_length": 1.0,
+            "survival_time": 0.0,
+            "clade_size": [1, 1, 2, 1, 5],
+            "trait0_at_risk": True,
+            "trait0_gain": [False, True, True, False, False],
+            "trait1_at_risk": [True, False, True, False, False],
+            "trait1_gain": False,
+        },
     )
     res = tgs_init_allmdc_results(trait_names=["a", "b"], branches=branches)
     assert res.columns[:5].tolist() == [
@@ -25,4 +29,4 @@ def test_init():
     assert res["num_clades"].tolist() == [2, 1]
     assert res["num_clade_gains"].tolist() == [1, 0]
     assert (res["gain_rate"] == 0.0).all()
-    assert np.isnan(res["selection"]).all()
+    assert res["selection"].isna().all()

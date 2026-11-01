@@ -16,7 +16,7 @@ def tgs_fit_allmdc_bootstrap_replicate(
     `tgs_fit_allmdc_traits`, which `fit_kwargs` are passed to.
     """
     unit_weights = sample_bootstrap_counts(
-        len(fit_kwargs["partitioning"].partitions),
+        len(fit_kwargs["branches"]),
         rng=np.random.default_rng(seed),
     )
     return tgs_fit_allmdc_traits(

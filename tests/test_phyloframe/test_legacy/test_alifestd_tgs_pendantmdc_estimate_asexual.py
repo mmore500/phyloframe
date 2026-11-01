@@ -1,3 +1,4 @@
+import typing
 import warnings
 
 import numpy as np
@@ -10,6 +11,22 @@ from phyloframe.legacy._impl import (
     TgsCounts,
     tgs_select_calibration_neighborhoods,
 )
+
+from ._impl import add_trait_transitions
+
+
+def _estimate_from_masks(
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    trait_masks: typing.Sequence[np.ndarray],
+    **kwargs,
+) -> pd.DataFrame:
+    """Run the estimator on transitions reconstructed from trait masks."""
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, trait_masks)
+    return alifestd_tgs_pendantmdc_estimate_asexual(
+        phylogeny_df, mutate, trait_transitions=names, **kwargs
+    )
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
@@ -54,8 +71,7 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_recovers_gain_selection(calibrate: bool):
     phylogeny_df, traits = _make_cherries()
-    original_df = phylogeny_df.copy()
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
         trait_names=["focal", "n1", "n2", "n3", "n4"],
@@ -64,7 +80,6 @@ def test_recovers_gain_selection(calibrate: bool):
         num_bootstrap=20,
         seed=1,
     )
-    assert original_df.equals(phylogeny_df)
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_leaves"] <= 80_000).all()
 
@@ -86,15 +101,13 @@ def test_recovers_gain_selection(calibrate: bool):
 def test_row_order_invariant():
     phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
-    expected = alifestd_tgs_pendantmdc_estimate_asexual(
-        phylogeny_df, trait_masks=traits, **kwargs
-    )
+    expected = _estimate_from_masks(phylogeny_df, trait_masks=traits, **kwargs)
 
     order = np.random.default_rng(2).permutation(len(phylogeny_df))
     shuffled = phylogeny_df.iloc[order].reset_index(drop=True)
     shuffled["id"] += 7
     shuffled["ancestor_id"] += 7
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         shuffled,
         trait_masks=traits[:, order],
         **kwargs,
@@ -113,7 +126,7 @@ def test_drops_inherited_and_rootward():
             "origin_time": [0.0, 1.0, 2.0, 4.0],
         },
     )
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
         min_leaf_origin_time=0.0,
@@ -124,7 +137,7 @@ def test_drops_inherited_and_rootward():
     assert np.isnan(res.loc[0, "selection"])
     assert np.isnan(res["gain_ratio"]).all()
 
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
         min_leaf_origin_time=3.0,
@@ -135,7 +148,7 @@ def test_drops_inherited_and_rootward():
 def test_calibrate_requires_neutral():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_pendantmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
             calibrate=True,
@@ -146,23 +159,21 @@ def test_calibrate_requires_neutral():
 def test_neutral_traits_normalized():
     phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(trait_masks=traits, calibrate=True)
-    expected = alifestd_tgs_pendantmdc_estimate_asexual(
+    expected = _estimate_from_masks(
         phylogeny_df, neutral_traits=[1, 2, 3, 4], **kwargs
     )
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df, neutral_traits=[-1, -2, -3, -4, 4], **kwargs
     )
     pd.testing.assert_frame_equal(res, expected)
 
     with pytest.raises(ValueError):
-        alifestd_tgs_pendantmdc_estimate_asexual(
-            phylogeny_df, neutral_traits=[1, 1], **kwargs
-        )
+        _estimate_from_masks(phylogeny_df, neutral_traits=[1, 1], **kwargs)
 
 
 def test_unifurcations_bypassed():
     phylogeny_df, traits = _make_cherries(2_000)
-    expected = alifestd_tgs_pendantmdc_estimate_asexual(
+    expected = _estimate_from_masks(
         phylogeny_df, trait_masks=traits, neutral_traits=[1, 2, 3, 4]
     )
 
@@ -181,7 +192,7 @@ def test_unifurcations_bypassed():
     knuckled_df = pd.concat([knuckled_df, knuckles], ignore_index=True)
     knuckled_traits = np.hstack([traits, traits[:, leaves]])
 
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         knuckled_df, trait_masks=knuckled_traits, neutral_traits=[1, 2, 3, 4]
     )
     pd.testing.assert_frame_equal(res, expected)
@@ -190,9 +201,7 @@ def test_unifurcations_bypassed():
 def test_nan_origin_time_ignored():
     phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
-    expected = alifestd_tgs_pendantmdc_estimate_asexual(
-        phylogeny_df, trait_masks=traits, **kwargs
-    )
+    expected = _estimate_from_masks(phylogeny_df, trait_masks=traits, **kwargs)
 
     # add a disconnected root with unknown origin time
     nan_df = pd.concat(
@@ -208,7 +217,7 @@ def test_nan_origin_time_ignored():
         ],
         ignore_index=True,
     )
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         nan_df,
         trait_masks=np.hstack([traits, np.ones((5, 1), dtype=bool)]),
         **kwargs,
@@ -216,20 +225,75 @@ def test_nan_origin_time_ignored():
     pd.testing.assert_frame_equal(res, expected)
 
 
-def test_non_bool_trait_mask_raises():
+def test_input_not_mutated():
     phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(NotImplementedError):
-        alifestd_tgs_pendantmdc_estimate_asexual(
-            phylogeny_df, trait_masks=np.where(traits, 1.0, np.nan)
-        )
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    original_df = phylogeny_df.copy()
+    alifestd_tgs_pendantmdc_estimate_asexual(
+        phylogeny_df, trait_transitions=names
+    )
+    pd.testing.assert_frame_equal(phylogeny_df, original_df)
 
 
-def test_trait_mask_length_mismatch_raises():
-    phylogeny_df, traits = _make_cherries(100)
+def test_missing_transitions_column_raises():
+    phylogeny_df, __ = _make_cherries(100)
     with pytest.raises(ValueError):
         alifestd_tgs_pendantmdc_estimate_asexual(
-            phylogeny_df, trait_masks=traits[:, :-1]
+            phylogeny_df, trait_transitions=["absent"]
         )
+
+
+def test_float_transitions_raise():
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
+    with pytest.raises(NotImplementedError):
+        alifestd_tgs_pendantmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=names
+        )
+
+
+@pytest.mark.parametrize("value", [2, -2])
+def test_invalid_transitions_raise(value: int):
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df.loc[5, names[0]] = value
+    with pytest.raises(ValueError):
+        alifestd_tgs_pendantmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=names
+        )
+
+
+def test_repeated_gain_raises():
+    phylogeny_df, __ = _make_cherries(100)
+    # gains on cherry 1's stem and on one of its leaves give state 2 there
+    phylogeny_df["trait"] = 0
+    phylogeny_df.loc[[1, 2], "trait"] = 1
+    with pytest.raises(ValueError):
+        alifestd_tgs_pendantmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=["trait"]
+        )
+
+
+def test_losses_not_supported():
+    phylogeny_df, __ = _make_cherries(100)
+    phylogeny_df["trait"] = 0
+    phylogeny_df.loc[1, "trait"] = 1
+    phylogeny_df.loc[2, "trait"] = -1
+    with pytest.raises(NotImplementedError):
+        alifestd_tgs_pendantmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=["trait"]
+        )
+
+
+def test_trait_names_default_to_columns():
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
+    res = alifestd_tgs_pendantmdc_estimate_asexual(
+        phylogeny_df, trait_transitions=list("abcde")
+    )
+    assert res["trait"].tolist() == list("abcde")
 
 
 @pytest.mark.parametrize("parallel_backend", ["threading", "loky"])
@@ -241,8 +305,8 @@ def test_parallel_backend_matches_serial(parallel_backend: str):
         num_bootstrap=4,
         seed=1,
     )
-    expected = alifestd_tgs_pendantmdc_estimate_asexual(phylogeny_df, **kwargs)
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    expected = _estimate_from_masks(phylogeny_df, **kwargs)
+    res = _estimate_from_masks(
         phylogeny_df, parallel_backend=parallel_backend, **kwargs
     )
     pd.testing.assert_frame_equal(res, expected)
@@ -252,7 +316,7 @@ def test_seed_reproducible():
     phylogeny_df, traits = _make_cherries(2_000)
 
     def run(seed):
-        return alifestd_tgs_pendantmdc_estimate_asexual(
+        return _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
             num_bootstrap=4,
@@ -273,7 +337,7 @@ def test_bootstrap_without_neutral_traits():
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # no degenerate-replicate warning
         warnings.filterwarnings("ignore", category=ExperimentalWarning)
-        res = alifestd_tgs_pendantmdc_estimate_asexual(
+        res = _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
             num_bootstrap=4,
@@ -291,7 +355,7 @@ def test_bootstrap_rare_trait():
     rare = np.zeros_like(traits[0])
     rare[np.flatnonzero(traits[1])[0]] = True
     with pytest.warns(UserWarning, match="bootstrap") as record:
-        res = alifestd_tgs_pendantmdc_estimate_asexual(
+        res = _estimate_from_masks(
             phylogeny_df,
             trait_masks=[rare, *traits[1:]],
             neutral_traits=[1, 2, 3, 4],
@@ -316,7 +380,7 @@ def test_calibration_warns_without_neutral_gains():
     rare[0, np.flatnonzero(traits[1])[:1]] = True
     rare[1, np.flatnonzero(traits[2])[:1]] = True
     with pytest.warns(UserWarning, match="no neutral trait gains"):
-        alifestd_tgs_pendantmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=[traits[0], *rare],
             neutral_traits=[1, 2],
@@ -351,21 +415,21 @@ def test_tgs_select_calibration_neighborhoods():
 def test_invalid_neighborhood_fractions_raise(fractions):
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_pendantmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
-            calibration_neighborhood_fractions=fractions,
+            calibrate_neighborhood_fractions=fractions,
         )
 
 
 def test_neighborhood_fractions_single_candidate():
     phylogeny_df, traits = _make_cherries(2_000)
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        calibration_neighborhood_fractions=[0.1],
+        calibrate_neighborhood_fractions=[0.1],
     )
     assert np.isfinite(res["selection"]).all()
 
@@ -380,9 +444,9 @@ def test_parallel_backend_matches_serial_many_replicates():
         num_bootstrap=96,
         seed=1,
     )
-    expected = alifestd_tgs_pendantmdc_estimate_asexual(phylogeny_df, **kwargs)
+    expected = _estimate_from_masks(phylogeny_df, **kwargs)
     for backend in ("threading", "loky"):
-        res = alifestd_tgs_pendantmdc_estimate_asexual(
+        res = _estimate_from_masks(
             phylogeny_df, parallel_backend=backend, **kwargs
         )
         pd.testing.assert_frame_equal(res, expected)
@@ -396,7 +460,7 @@ def test_bootstrap_neutral_reference_without_carriers():
     rare[0, np.flatnonzero(traits[1])[:1]] = True
     rare[1, np.flatnonzero(traits[2])[:1]] = True
     with pytest.warns(UserWarning, match="neutral reference"):
-        res = alifestd_tgs_pendantmdc_estimate_asexual(
+        res = _estimate_from_masks(
             phylogeny_df,
             trait_masks=[traits[0], *rare],
             neutral_traits=[1, 2],
@@ -412,34 +476,34 @@ def test_bootstrap_neutral_reference_without_carriers():
 def test_trait_names_length_mismatch_raises():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_pendantmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df, trait_masks=traits, trait_names=["a", "b"]
         )
 
 
-@pytest.mark.parametrize("num_calibration_partitions", [0, 3, 1000])
-def test_num_calibration_partitions_not_power_of_two_raises(
-    num_calibration_partitions: int,
+@pytest.mark.parametrize("calibrate_num_partitions", [0, 3, 1000])
+def test_calibrate_num_partitions_not_power_of_two_raises(
+    calibrate_num_partitions: int,
 ):
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_pendantmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
-            num_calibration_partitions=num_calibration_partitions,
+            calibrate_num_partitions=calibrate_num_partitions,
         )
 
 
-@pytest.mark.parametrize("num_calibration_partitions", [1, 64, 2**20])
-def test_num_calibration_partitions(num_calibration_partitions: int):
+@pytest.mark.parametrize("calibrate_num_partitions", [1, 64, 2**20])
+def test_calibrate_num_partitions(calibrate_num_partitions: int):
     # more partitions than leaves allow are capped, keeping 4 leaves each
     phylogeny_df, traits = _make_cherries(2_000)
-    res = alifestd_tgs_pendantmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        num_calibration_partitions=num_calibration_partitions,
+        calibrate_num_partitions=calibrate_num_partitions,
     )
     assert np.isfinite(res["selection"]).all()
 
@@ -447,7 +511,7 @@ def test_num_calibration_partitions(num_calibration_partitions: int):
 def test_heldout_neutral_without_carriers_warns():
     phylogeny_df, traits = _make_cherries(2_000)
     with pytest.warns(UserWarning, match="does not inform"):
-        alifestd_tgs_pendantmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=[*traits, np.zeros_like(traits[0])],
             neutral_traits=[1, 2, 5],

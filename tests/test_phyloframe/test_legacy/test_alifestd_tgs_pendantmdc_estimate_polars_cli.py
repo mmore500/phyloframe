@@ -23,7 +23,7 @@ def input_pqt(tmp_path):
 
 def test_cli_help():
     subprocess.run(  # nosec B603
-        ["python3", "-m", MODULE, "--trait-masks", "focal", "--help"],
+        ["python3", "-m", MODULE, "--trait-transitions", "focal", "--help"],
         check=True,
     )
 
@@ -48,7 +48,7 @@ def test_cli(input_pqt, ext, tmp_path):
             "python3",
             "-m",
             MODULE,
-            "--trait-masks",
+            "--trait-transitions",
             "focal",
             "n1",
             "n2",
@@ -89,7 +89,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "python3",
             "-m",
             MODULE,
-            "--trait-masks",
+            "--trait-transitions",
             "focal",
             "n1",
             "--loss-rate",
@@ -104,7 +104,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
     )
     expected = alifestd_tgs_pendantmdc_estimate_polars(
         pl.read_parquet(input_pqt),
-        trait_masks=["focal", "n1"],
+        trait_transitions=["focal", "n1"],
         loss_rate=0.001,
         min_leaf_origin_time=5.0,
     )

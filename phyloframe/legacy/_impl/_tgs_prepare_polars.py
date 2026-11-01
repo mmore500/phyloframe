@@ -1,5 +1,7 @@
 import typing
 
+import numpy as np
+import pandas as pd
 import polars as pl
 
 from .._alifestd_assign_contiguous_ids_polars import (
@@ -14,84 +16,98 @@ from .._alifestd_has_contiguous_ids_polars import (
 from .._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from .._alifestd_mark_origin_time_delta_polars import (
-    alifestd_mark_origin_time_delta_polars,
-)
 from .._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
+from ._tgs_calc_branches import tgs_calc_branches
+from ._tgs_calc_trait_states import tgs_calc_trait_states
 
 
 def tgs_prepare_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_masks: typing.Sequence[typing.Union[str, pl.Expr]],
+    trait_transitions: typing.Sequence[str],
     trait_names: typing.Sequence[str],
     caller: str,
-) -> pl.DataFrame:
+) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`.
 
     Here, tgs stands for trait gain/selection.
 
-    Evaluates trait masks and bypasses unifurcations. Returns the converted
-    phylogeny with columns `ancestor_id`, `origin_time`,
-    `__alifestd_tgs_branch_length` (origin time delta from each node's
-    parent), and one boolean column `__alifestd_tgs_trait{i}` per trait
-    mask. `caller` names the calling function in error messages.
+    Sums each trait's transitions into node states (see
+    `tgs_calc_trait_states`), bypasses unifurcations, and returns the
+    phylogeny's branches (see `tgs_calc_branches`). `caller` names the
+    calling function in error messages.
     """
-    trait_masks = [
-        pl.col(mask) if isinstance(mask, str) else mask for mask in trait_masks
-    ]
-
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
             f"{caller} only supports asexual phylogenies.",
         )
+    for column in trait_transitions:
+        if column not in schema_names:
+            raise ValueError(f"phylogeny_df has no column {column}")
 
     # the streaming engine panics on some of these plans; see
     # https://github.com/pola-rs/polars/issues/30408
     # TODO: drop the engine affinity once a polars release includes the fix
     # (after 2.1.0)
     with pl.Config(engine_affinity="in-memory"):
-        # evaluate masks before collapsing unifurcations renumbers rows
-        selected = phylogeny_df.lazy().select(
-            pl.col("id"),
-            pl.col("ancestor_id"),
-            pl.col("origin_time"),
-            *(
-                mask.cast(pl.Boolean).alias(f"__alifestd_tgs_trait{i}")
-                for i, mask in enumerate(trait_masks)
-            ),
+        selected = (
+            phylogeny_df.lazy()
+            .select("id", "ancestor_id", "origin_time", *trait_transitions)
+            .collect()
         )
-        if not selected.limit(1).collect().is_empty():
-            if not alifestd_has_contiguous_ids_polars(selected):
+        if selected.is_empty():
+            return tgs_calc_branches(
+                ancestor_ids=np.zeros(0, dtype=np.int64),
+                origin_time=np.zeros(0),
+                trait_states=[np.zeros(0, dtype=np.int64)]
+                * len(trait_transitions),
+            )
+        if not alifestd_has_contiguous_ids_polars(selected):
+            raise NotImplementedError("non-contiguous ids not supported")
+        if not alifestd_is_topologically_sorted_polars(selected):
+            raise NotImplementedError(
+                "non-topologically-sorted data not supported",
+            )
+        ancestor_ids = selected["ancestor_id"].to_numpy()
+        states = []
+        for column, name in zip(trait_transitions, trait_names):
+            if selected[column].has_nulls():
                 raise NotImplementedError(
-                    "non-contiguous ids not supported",
+                    f"null values in trait transitions {name} not supported",
                 )
-            if not alifestd_is_topologically_sorted_polars(selected):
-                raise NotImplementedError(
-                    "non-topologically-sorted data not supported",
-                )
-            selected = alifestd_assign_contiguous_ids_polars(
-                alifestd_collapse_unifurcations_polars(
-                    selected, ignore_topological_sensitivity=True
+            states.append(
+                tgs_calc_trait_states(
+                    ancestor_ids=ancestor_ids,
+                    transitions=selected[column].to_numpy(),
+                    trait_name=name,
                 ),
             )
-        selected = (
-            alifestd_mark_origin_time_delta_polars(
-                selected, mark_as="__alifestd_tgs_branch_length"
+        collapsed = (
+            alifestd_assign_contiguous_ids_polars(
+                alifestd_collapse_unifurcations_polars(
+                    selected.select(
+                        "id", "ancestor_id", "origin_time"
+                    ).with_columns(
+                        pl.Series(f"__alifestd_tgs_state{i}", s)
+                        for i, s in enumerate(states)
+                    ),
+                    ignore_topological_sensitivity=True,
+                ),
             )
             .lazy()
             .collect()
         )
-
-    for i, name in enumerate(trait_names):
-        if selected[f"__alifestd_tgs_trait{i}"].has_nulls():
-            raise NotImplementedError(
-                f"null values in trait mask {name} not supported",
-            )
-    return selected
+    return tgs_calc_branches(
+        ancestor_ids=collapsed["ancestor_id"].to_numpy(),
+        origin_time=collapsed["origin_time"].to_numpy(),
+        trait_states=[
+            collapsed[f"__alifestd_tgs_state{i}"].to_numpy()
+            for i in range(len(trait_transitions))
+        ],
+    )

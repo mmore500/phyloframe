@@ -24,8 +24,8 @@ def tgs_fit_and_bootstrap(
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
-    calibration_neighborhood_fractions: typing.Sequence[float],
-    num_calibration_partitions: int,
+    calibrate_neighborhood_fractions: typing.Sequence[float],
+    calibrate_num_partitions: int,
     num_bootstrap: int,
     loss_rate: float,
     seed: typing.Optional[int],
@@ -44,7 +44,7 @@ def tgs_fit_and_bootstrap(
     leaf_partitions, num_partitions, partition_coords = tgs_partition_leaves(
         pendant_lengths=pendant_lengths,
         origin_times=origin_times,
-        max_partitions=num_calibration_partitions,
+        max_partitions=calibrate_num_partitions,
     )
     num_leaves = len(leaf_partitions)
     fit_kwargs = dict(
@@ -62,7 +62,7 @@ def tgs_fit_and_bootstrap(
             "calibration_neighborhoods"
         ] = tgs_select_calibration_neighborhoods(
             partition_coords=partition_coords,
-            neighborhood_fractions=calibration_neighborhood_fractions,
+            neighborhood_fractions=calibrate_neighborhood_fractions,
             counts=tgs_count_traits(
                 leaf_partitions=leaf_partitions,
                 num_partitions=num_partitions,

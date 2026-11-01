@@ -15,10 +15,10 @@ def _partition(branches, calibrate):
         neutral_traits=[1, 2],
         trait_names=["focal", "n1", "n2"],
         calibrate=calibrate,
-        calibration_neighborhood_fractions=(0.25, 1.0),
-        num_calibration_partitions=64,
-        clade_size_calibration_ratio=4.0,
-        min_calibration_block_neutral_gains=1,
+        calibrate_neighborhood_fractions=(0.25, 1.0),
+        calibrate_num_partitions=64,
+        calibrate_size_partition_ratio=4.0,
+        calibrate_size_partition_min_neutral_gains=1,
         num_survival_time_bins=8,
     )
 
@@ -37,14 +37,14 @@ def test_data(calibrate: bool):
     assert len(data) == 3
     for trait, (n, k, lengths, shares) in enumerate(data):
         assert n.sum() == 4_000
-        assert k.sum() == len(branches.trait_gains[trait])
+        assert k.sum() == branches[f"trait{trait}_gain"].sum()
         assert (lengths > 0).all()
         assert shares.shape == (len(n), len(partitioning.survival_bin_times))
         np.testing.assert_allclose(np.asarray(shares.sum(axis=1)).ravel(), 1.0)
     if not calibrate:
         n, __, lengths, __ = data[0]
         assert (n * lengths).sum() == pytest.approx(
-            branches.branch_lengths.sum()
+            branches["branch_length"].sum()
         )
 
 
@@ -68,11 +68,7 @@ def test_weights():
 
 def test_trait_without_units():
     branches = simulate_allmdc_branches(1_000)
-    empty = np.array([], dtype=int)
-    branches = branches._replace(
-        trait_units=[empty] + branches.trait_units[1:],
-        trait_gains=[empty] + branches.trait_gains[1:],
-    )
+    branches = branches.assign(trait0_at_risk=False, trait0_gain=False)
     (n, k, lengths, shares), *__ = tgs_calc_allmdc_data(
         branches=branches,
         partitioning=_partition(branches, False),
