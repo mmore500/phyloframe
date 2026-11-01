@@ -6,6 +6,7 @@ import pandas as pd
 
 from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_count_traits import tgs_count_traits
+from ._tgs_fit_bootstrap_replicate import tgs_fit_bootstrap_replicate
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_partition_leaves import tgs_partition_leaves
 from ._tgs_select_calibration_neighborhoods import (
@@ -98,6 +99,7 @@ def tgs_fit_and_bootstrap(
         f"fitting {num_bootstrap} bootstrap replicates...",
     )
     return tgs_bootstrap(
+        fit_replicate=tgs_fit_bootstrap_replicate,
         fit_kwargs=fit_kwargs,
         num_bootstrap=num_bootstrap,
         seed=seed,

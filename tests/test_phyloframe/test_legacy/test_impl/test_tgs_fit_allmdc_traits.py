@@ -1,40 +1,46 @@
 import numpy as np
 import pytest
 
-from phyloframe._auxlib import identity
-from phyloframe.legacy._impl import tgs_fit_allmdc_traits
-
-from ._simulate_allmdc_groups import SHIFT, simulate_allmdc_groups
-
-_KWARGS = dict(
-    neutral_traits=[1, 2],
-    calibrate=False,
-    loss_rate=0.0,
-    max_shift=100.0,
-    num_traits=3,
-    selection_starts=(0.0, -0.3, -1.8),
-    max_growth_exponent=600.0,
-    max_shift_iterations=50,
+from phyloframe.legacy._impl import (
+    tgs_fit_allmdc_traits,
+    tgs_partition_allmdc_branches,
 )
 
+from ._simulate_allmdc_branches import simulate_allmdc_branches
 
-def test_recovers():
-    groups = simulate_allmdc_groups()
-    calls = []
 
-    def progress_wrap(iterable):
-        calls.append(1)
-        return iterable
-
-    res, shifts, params = tgs_fit_allmdc_traits(
-        groups=groups,
-        unit_weights=[np.ones(len(g.partitions)) for g in groups],
-        starts=None,
-        shifts_start=None,
-        progress_wrap=progress_wrap,
-        **_KWARGS,
+def _fit(branches, calibrate=False, unit_weights=None):
+    neutral = list(range(1, len(branches.trait_units)))
+    partitioning = tgs_partition_allmdc_branches(
+        branches=branches,
+        neutral_traits=neutral,
+        trait_names=list(map(str, range(len(branches.trait_units)))),
+        calibrate=calibrate,
+        calibration_neighborhood_fractions=(0.5, 1.0),
+        num_calibration_partitions=256,
+        clade_size_calibration_blocks=(2, 5),
+        num_survival_time_bins=32,
     )
-    assert calls == [1]
+    return tgs_fit_allmdc_traits(
+        branches=branches,
+        partitioning=partitioning,
+        unit_weights=(
+            np.ones(len(branches.branch_lengths))
+            if unit_weights is None
+            else unit_weights
+        ),
+        neutral_traits=neutral,
+        calibrate=calibrate,
+        loss_rate=0.0,
+        selection_starts=(0.0, -0.3, -1.8),
+        max_growth_exponent=600.0,
+    )
+
+
+@pytest.mark.parametrize("calibrate", [False, True])
+def test_recovers(calibrate: bool):
+    # four neutral traits, so each calibrates against three others
+    res = _fit(simulate_allmdc_branches(num_neutral=4), calibrate=calibrate)
     assert list(res.columns) == [
         "gain_rate",
         "selection",
@@ -43,40 +49,28 @@ def test_recovers():
     ]
     assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.2)
     assert res.loc[0, "selection"] == pytest.approx(-0.05, abs=0.015)
-    assert shifts[0] == 0.0
-    assert shifts[1] == pytest.approx(SHIFT, abs=6.0)
-    assert params.shape == (3, 2)
-
-
-def test_group_without_gains():
-    groups = simulate_allmdc_groups((4_000, 2_000))
-    empty = groups[1]._replace(trait_gains=[np.array([], dtype=int)] * 3)
-    res, shifts, __ = tgs_fit_allmdc_traits(
-        groups=[groups[0], empty],
-        unit_weights=[np.ones(len(g.partitions)) for g in (groups[0], empty)],
-        starts=None,
-        shifts_start=None,
-        progress_wrap=identity,
-        **_KWARGS,
+    # each neutral trait's ~1,200 gains, with selection free to trade off
+    # against gain rate, leave its gain ratio uncertain by ~10%
+    assert res.loc[1:, "gain_ratio"].tolist() == pytest.approx(
+        [1.0] * 4, rel=0.3
     )
-    assert np.isnan(shifts[1])
-    assert np.isfinite(res["gain_rate"]).all()
+    assert (res.loc[1:, "selection"].abs() < 0.01).all()
 
 
 def test_trait_without_gains():
-    groups = simulate_allmdc_groups((4_000, 2_000))
-    groups = [
-        g._replace(trait_gains=[np.array([], dtype=int)] + g.trait_gains[1:])
-        for g in groups
-    ]
-    res, __, params = tgs_fit_allmdc_traits(
-        groups=groups,
-        unit_weights=[np.ones(len(g.partitions)) for g in groups],
-        starts=None,
-        shifts_start=None,
-        progress_wrap=identity,
-        **_KWARGS,
+    branches = simulate_allmdc_branches(4_000)
+    branches = branches._replace(
+        trait_gains=[np.array([], dtype=int)] + branches.trait_gains[1:]
     )
+    res = _fit(branches)
     assert res.loc[0, "gain_rate"] == 0.0
     assert np.isnan(res.loc[0, "selection"])
-    assert np.isnan(params[0]).all()
+    assert np.isfinite(res.loc[1:, "gain_rate"]).all()
+
+
+def test_weights_match_duplication():
+    branches = simulate_allmdc_branches(4_000)
+    weights = np.ones(4_000)
+    weights[::3] = 2.0
+    weighted = _fit(branches, unit_weights=weights)
+    assert not np.allclose(weighted["gain_rate"], _fit(branches)["gain_rate"])

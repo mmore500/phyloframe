@@ -2,56 +2,73 @@ import numpy as np
 import pytest
 
 from phyloframe.legacy._impl import (
-    tgs_calc_allmdc_group_data,
+    tgs_calc_allmdc_data,
     tgs_fit_allmdc_trait,
+    tgs_partition_allmdc_branches,
 )
 
-from ._simulate_allmdc_groups import SHIFT, simulate_allmdc_groups
+from ._simulate_allmdc_branches import simulate_allmdc_branches
 
 
 @pytest.fixture(scope="module")
-def data():
-    groups = simulate_allmdc_groups()
-    return tgs_calc_allmdc_group_data(
-        groups=groups,
-        unit_weights=[np.ones(len(g.partitions)) for g in groups],
+def fixture():
+    branches = simulate_allmdc_branches()
+    partitioning = tgs_partition_allmdc_branches(
+        branches=branches,
+        neutral_traits=[1, 2],
+        trait_names=["focal", "n1", "n2"],
+        calibrate=False,
+        calibration_neighborhood_fractions=(1.0,),
+        num_calibration_partitions=256,
+        clade_size_calibration_blocks=(2, 5),
+        num_survival_time_bins=32,
+    )
+    data = tgs_calc_allmdc_data(
+        branches=branches,
+        partitioning=partitioning,
+        unit_weights=np.ones(len(branches.branch_lengths)),
         neutral_traits=[1, 2],
         calibrate=False,
-        num_traits=3,
     )
+    return data, partitioning.survival_bin_times
 
 
-@pytest.mark.parametrize("start", [None, (np.log(1e-3), -0.01)])
-def test_recovers_focal(data, start):
-    log_gain_rate, selection, nll, lrt = tgs_fit_allmdc_trait(
-        trait_data=data[0],
-        shifts=np.array([0.0, SHIFT]),
+def test_recovers_focal(fixture):
+    data, times = fixture
+    res = tgs_fit_allmdc_trait(
+        data=data[0],
+        survival_bin_times=times,
         loss_rate=0.0,
-        start=start,
         selection_starts=(0.0, -0.3, -1.8),
         max_growth_exponent=600.0,
     )
-    assert np.exp(log_gain_rate) == pytest.approx(2e-3, rel=0.15)
-    assert selection == pytest.approx(-0.05, abs=0.015)
-    assert lrt > 10
-    assert np.isfinite(nll)
+    assert res.gain_rate == pytest.approx(2e-3, rel=0.15)
+    assert res.selection == pytest.approx(-0.05, abs=0.01)
+    assert res.selection_lrt_naive > 10
 
 
-def test_nan_shift_group_ignored(data):
-    with_both = tgs_fit_allmdc_trait(
-        trait_data=data[1],
-        shifts=np.array([0.0, np.nan]),
+def test_recovers_neutral(fixture):
+    data, times = fixture
+    res = tgs_fit_allmdc_trait(
+        data=data[1],
+        survival_bin_times=times,
         loss_rate=0.0,
-        start=None,
         selection_starts=(0.0,),
         max_growth_exponent=600.0,
     )
-    leaves_only = tgs_fit_allmdc_trait(
-        trait_data=[data[1][0], None],
-        shifts=np.array([0.0, 0.0]),
-        loss_rate=0.0,
-        start=None,
-        selection_starts=(0.0,),
+    assert res.gain_rate == pytest.approx(1e-3, rel=0.15)
+    assert abs(res.selection) < 0.01
+
+
+def test_loss_rate_shifts_selection(fixture):
+    data, times = fixture
+    kwargs = dict(
+        data=data[0],
+        survival_bin_times=times,
+        selection_starts=(0.0, -0.3),
         max_growth_exponent=600.0,
     )
-    np.testing.assert_allclose(with_both, leaves_only)
+    res = tgs_fit_allmdc_trait(loss_rate=0.0, **kwargs)
+    lossy = tgs_fit_allmdc_trait(loss_rate=0.01, **kwargs)
+    # fitted rate, selection - loss rate, is unchanged
+    assert lossy.selection - 0.01 == pytest.approx(res.selection, abs=1e-4)

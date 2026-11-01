@@ -77,7 +77,6 @@ def test_cli(input_pqt, ext, tmp_path):
     )
     assert result_df["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert "selection_p" in result_df.columns
-    assert "clade_size_shift_2" in result_df.columns
     assert result_df.loc[0, "gain_ratio"] > 1.0
 
 
@@ -95,10 +94,11 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "n1",
             "--loss-rate",
             "0.001",
-            "--clade-size-groups-per-doubling",
-            "1",
-            "--max-shift-iterations",
-            "20",
+            "--num-survival-time-bins",
+            "8",
+            "--clade-size-calibration-blocks",
+            "2",
+            "4",
             "--eager-write",
             output_file,
         ],
@@ -109,8 +109,8 @@ def test_cli_matches_function(input_pqt, tmp_path):
         pl.read_parquet(input_pqt),
         trait_masks=["focal", "n1"],
         loss_rate=0.001,
-        clade_size_groups_per_doubling=1,
-        max_shift_iterations=20,
+        num_survival_time_bins=8,
+        clade_size_calibration_blocks=(2, 4),
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False
