@@ -7,28 +7,34 @@ from phyloframe.legacy import (
     alifestd_mark_lineage_delta_asexual,
     alifestd_to_working_format,
 )
-from phyloframe.legacy._alifestd_mask_trait_mdcs_asexual import (
-    _alifestd_mask_trait_mdcs_asexual_clade_fast_path,
+from phyloframe.legacy._alifestd_mask_trait_mdcs_strict_asexual import (
+    _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path,
 )
 
 
 def add_trait_transitions(
     phylogeny_df: pd.DataFrame,
     trait_masks: typing.Sequence[np.ndarray],
+    names: typing.Optional[typing.Sequence[str]] = None,
 ) -> typing.Tuple[pd.DataFrame, typing.List[str]]:
     """Return a copy of `phylogeny_df` in working format with one transition
-    column per trait mask, named by trait index, and the column names.
+    column per trait mask, named by `names` (default, trait index), and the
+    column names.
 
     Reconstructs states from leaf values under parsimony without loss: a
     node has a trait if and only if every leaf of its clade does.
     """
     phylogeny_df = phylogeny_df.copy()
-    names = [str(i) for i in range(len(trait_masks))]
+    if names is None:
+        names = [str(i) for i in range(len(trait_masks))]
+    names = list(names)
     for name, mask in zip(names, trait_masks):
         phylogeny_df[name] = np.asarray(mask, dtype=bool)
     phylogeny_df = alifestd_to_working_format(phylogeny_df, mutate=True)
     for name in names:
-        phylogeny_df[name] = _alifestd_mask_trait_mdcs_asexual_clade_fast_path(
+        phylogeny_df[
+            name
+        ] = _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path(
             phylogeny_df["ancestor_id"].to_numpy(),
             phylogeny_df[name].to_numpy(),
         )

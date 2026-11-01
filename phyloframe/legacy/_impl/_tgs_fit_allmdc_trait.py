@@ -1,3 +1,4 @@
+import logging
 import typing
 import warnings
 
@@ -5,18 +6,17 @@ import numpy as np
 from scipy import optimize
 
 from ..._auxlib._tgs_fit import TgsFitResult
-from ._tgs_calc_allmdc_data import TgsAllmdcData
 from ._tgs_calc_allmdc_nll import tgs_calc_allmdc_nll
 
 
 def tgs_fit_allmdc_trait(
     *,
-    data: TgsAllmdcData,
+    data: typing.Dict[str, typing.Any],
     survival_bin_times: np.ndarray,
     loss_rate: float,
     selection_starts: typing.Sequence[float],
-    max_growth_exponent: float,
-) -> TgsFitResult:
+    growth_exponent_bound: float,
+) -> typing.Dict[str, float]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
@@ -24,9 +24,16 @@ def tgs_fit_allmdc_trait(
     Fits one trait's gain rate and selection to its partitions (see
     `tgs_calc_allmdc_data` and, for the model, `tgs_calc_allmdc_nll`),
     starting from each of `selection_starts` (in units of 1 / mean branch
-    length) and keeping the best fit, as in `tgs_fit`.
+    length) and keeping the best fit, as in `tgs_fit`. Returns a dict with
+    the fields of `TgsFitResult`; without gains, skips fitting, giving
+    zero gain rate and undefined selection.
     """
-    num_trials, num_successes, lengths, __ = data
+    num_trials, num_successes = data["num_trials"], data["num_successes"]
+    if not num_successes.any():
+        return TgsFitResult(
+            gain_rate=0.0, selection=np.nan, selection_lrt_naive=np.nan
+        )._asdict()
+    lengths = data["lengths"]
     exposure = np.sum(num_trials * lengths)
     # optimize selection in units of 1 / mean length, as in `tgs_fit`
     unit = num_trials.sum() / exposure
@@ -38,7 +45,7 @@ def tgs_fit_allmdc_trait(
             rate=scaled_selection * unit - loss_rate,
             data=data,
             survival_bin_times=survival_bin_times,
-            max_growth_exponent=max_growth_exponent,
+            growth_exponent_bound=growth_exponent_bound,
         )
         return res, np.array([dlog_gain, drate * unit])
 
@@ -69,8 +76,16 @@ def tgs_fit_allmdc_trait(
             f"hypothesis of no selection ({null.message}); likelihood-ratio "
             "statistic may be unreliable.",
         )
-    return TgsFitResult(
+    res = TgsFitResult(
         gain_rate=float(np.exp(best.x[0])),
         selection=float(best.x[1] * unit),
         selection_lrt_naive=float(2 * (null.fun - best.fun)),
     )
+    logging.debug(
+        "- alifestd_tgs_allmdc_estimate_asexual: fit "
+        f"{len(num_trials)} partitions, {len(converged)} of "
+        f"{len(selection_starts)} starts converged; best gives gain rate "
+        f"{res.gain_rate:.4g}, selection {res.selection:.4g}, negative log "
+        f"likelihood {best.fun:.4g}; null gives {null.fun:.4g}",
+    )
+    return res._asdict()

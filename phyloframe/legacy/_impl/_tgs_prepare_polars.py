@@ -27,7 +27,6 @@ def tgs_prepare_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions: typing.Sequence[str],
-    trait_names: typing.Sequence[str],
     caller: str,
 ) -> pd.DataFrame:
     """Implementation detail for
@@ -76,16 +75,16 @@ def tgs_prepare_polars(
             )
         ancestor_ids = selected["ancestor_id"].to_numpy()
         states = []
-        for column, name in zip(trait_transitions, trait_names):
+        for column in trait_transitions:
             if selected[column].has_nulls():
                 raise NotImplementedError(
-                    f"null values in trait transitions {name} not supported",
+                    f"null values in trait transitions {column} not supported",
                 )
             states.append(
                 tgs_calc_trait_states(
                     ancestor_ids=ancestor_ids,
                     transitions=selected[column].to_numpy(),
-                    trait_name=name,
+                    trait_name=column,
                 ),
             )
         collapsed = (

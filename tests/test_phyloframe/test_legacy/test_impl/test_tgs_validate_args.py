@@ -13,7 +13,6 @@ _KWARGS = dict(
 def test_default_names():
     names, neutral = tgs_validate_args(
         trait_transitions=["a", "b", "c"],
-        trait_names=None,
         neutral_traits=(),
         **_KWARGS,
     )
@@ -25,7 +24,6 @@ def test_non_column_raises():
     with pytest.raises(TypeError):
         tgs_validate_args(
             trait_transitions=["a", np.zeros(3, dtype=np.int8)],
-            trait_names=None,
             neutral_traits=(),
             **_KWARGS,
         )
@@ -34,18 +32,24 @@ def test_non_column_raises():
 def test_neutral_traits_normalized():
     names, neutral = tgs_validate_args(
         trait_transitions=["a", "b", "c", "d"],
-        trait_names=None,
-        neutral_traits=["d", 1, -1, -3],
+        neutral_traits=["d", "b", "d"],
         **_KWARGS,
     )
     assert neutral == [1, 3]
 
 
+def test_neutral_trait_index_raises():
+    with pytest.raises(TypeError):
+        tgs_validate_args(
+            trait_transitions=["a", "b"], neutral_traits=[1], **_KWARGS
+        )
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [
-        dict(trait_names=["only"]),
-        dict(neutral_traits=[0], calibrate=True),
+        dict(neutral_traits=["x"]),
+        dict(neutral_traits=["a"], calibrate=True),
         dict(calibrate_neighborhood_fractions=()),
         dict(calibrate_neighborhood_fractions=(0.0,)),
         dict(calibrate_neighborhood_fractions=(1.5,)),
@@ -58,7 +62,6 @@ def test_invalid(kwargs: dict):
         tgs_validate_args(
             **{
                 "trait_transitions": ["a", "b"],
-                "trait_names": None,
                 "neutral_traits": (),
                 **_KWARGS,
                 **kwargs,

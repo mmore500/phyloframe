@@ -34,8 +34,9 @@ def tgs_calc_branches(
       a leaf), for which a trait gained on the branch must persist to be
       seen at every leaf of its clade;
     - `clade_size`, the number of leaves below (1 for a leaf); and
-    - per trait `i`, `trait{i}_at_risk`, whether the branch started without
-      the trait, and `trait{i}_gain`, whether it gained it.
+    - per trait `i`, `trait{i}_starts_absent`, whether the branch started
+      without the trait (i.e., its parent lacks it), so could gain it on the
+      branch, and `trait{i}_gain`, whether it gained it.
     """
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     origin_time = np.asarray(origin_time, dtype=np.float64)
@@ -53,7 +54,7 @@ def tgs_calc_branches(
         )[keep],
     }
     for i, states in enumerate(trait_states):
-        is_at_risk = states[ancestor_ids] == 0
-        columns[f"trait{i}_at_risk"] = is_at_risk[keep]
-        columns[f"trait{i}_gain"] = (is_at_risk & (states == 1))[keep]
+        starts_absent = states[ancestor_ids] == 0
+        columns[f"trait{i}_starts_absent"] = starts_absent[keep]
+        columns[f"trait{i}_gain"] = (starts_absent & (states == 1))[keep]
     return pd.DataFrame(columns)

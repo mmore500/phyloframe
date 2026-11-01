@@ -11,6 +11,7 @@ from ._calc_kdtree_partitions import calc_kdtree_partitions
 from ._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._calc_two_sided_normal_p import calc_two_sided_normal_p
+from ._ceil_div import ceil_div
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -68,6 +69,7 @@ __all__ = [
     "begin_prod_logging",
     "calc_binomial_nll_proxy",
     "calc_group_means",
+    "ceil_div",
     "calc_kdtree_partitions",
     "calc_knn_neighborhoods",
     "calc_neighborhood_rate_ratios",

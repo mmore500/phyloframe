@@ -25,9 +25,9 @@ def test_branches():
     # to the latest leaf below: node 4 (time 5) for nodes 1 and 2
     assert res["survival_time"].tolist() == [4.0, 3.0, 0.0, 0.0, 0.0, 0.0]
     assert res["clade_size"].tolist() == [3, 2, 1, 1, 1, 1]
-    assert res["trait0_at_risk"].tolist() == [1, 1, 0, 0, 1, 1]
+    assert res["trait0_starts_absent"].tolist() == [1, 1, 0, 0, 1, 1]
     assert res["trait0_gain"].tolist() == [0, 1, 0, 0, 0, 0]
-    assert not res["trait1_at_risk"].any()
+    assert not res["trait1_starts_absent"].any()
     assert not res["trait1_gain"].any()
 
 

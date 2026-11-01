@@ -5,16 +5,15 @@ from scipy import special
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ..._auxlib._tgs_fit import _tgs_calc_effective_length_deriv
-from ._tgs_calc_allmdc_data import TgsAllmdcData
 
 
 def tgs_calc_allmdc_nll(
     *,
     log_gain_rate: float,
     rate: float,
-    data: TgsAllmdcData,
+    data: typing.Dict[str, typing.Any],
     survival_bin_times: np.ndarray,
-    max_growth_exponent: float,
+    growth_exponent_bound: float,
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
 
@@ -29,22 +28,23 @@ def tgs_calc_allmdc_nll(
         gain_rate * (exp(rate * t) - 1) / rate * exp(rate * u)
 
     averaging exp(rate * u) over each partition's survival-time bins, with
-    exponents capped at `max_growth_exponent`.
+    exponents capped at `growth_exponent_bound`.
     """
-    num_trials, num_successes, lengths, survival_shares = data
+    num_trials, num_successes = data["num_trials"], data["num_successes"]
+    lengths, survival_shares = data["lengths"], data["survival_shares"]
     gain_rate = np.exp(log_gain_rate)
     effective_length = lengths * special.exprel(
-        np.minimum(rate * lengths, max_growth_exponent)
+        np.minimum(rate * lengths, growth_exponent_bound)
     )
     effective_length_deriv = _tgs_calc_effective_length_deriv(
         pendant_length=lengths,
         rate=rate,
-        max_growth_exponent=max_growth_exponent,
+        growth_exponent_bound=growth_exponent_bound,
     )
     # chance a carrier lineage persists until its clade's last leaf is
     # sampled, averaged over each partition's branches
     bin_survival = np.exp(
-        np.minimum(rate * survival_bin_times, max_growth_exponent)
+        np.minimum(rate * survival_bin_times, growth_exponent_bound)
     )
     survival = survival_shares @ bin_survival
     survival_deriv = survival_shares @ (survival_bin_times * bin_survival)

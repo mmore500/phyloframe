@@ -22,8 +22,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions: typing.Sequence[str],
-    trait_names: typing.Optional[typing.Sequence[str]] = None,
-    neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
+    neutral_traits: typing.Sequence[str] = (),
     calibrate: bool = False,
     calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -42,20 +41,16 @@ def alifestd_tgs_allmdc_estimate_polars(
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    max_growth_exponent: float = 600.0,
+    growth_exponent_bound: float = 600.0,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
-    """Estimate per-trait gain rate and net selection from every branch,
-    pendant and inner, i.e., from mutationally defined clades (MDCs) of
-    every size, from how often each branch's clade carries the trait as a
-    function of branch length and survival time.
+    """Estimate per-trait gain rate and net selection from mutationally
+    defined clades (MDCs) of every size.
 
-    Each branch's gain probability is discounted for the time, measured on
-    the tree from the branch's end to its latest sampled leaf, that a
-    carrier lineage must persist to be seen at every leaf of its clade. See
-    `alifestd_tgs_allmdc_estimate_asexual` for the model.
+    See `alifestd_tgs_allmdc_estimate_asexual` for the model, other
+    parameters, returned columns, and errors raised.
 
     Only supports asexual phylogenies.
 
@@ -70,80 +65,23 @@ def alifestd_tgs_allmdc_estimate_polars(
     trait_transitions : Sequence[str]
         Names of integer columns, one per trait, giving each node's trait
         state transition on the branch from its parent: +1 for a gain, -1
-        for a loss, 0 for none (and, at a root, its initial state). Make
-        them from trait states at every node with
-        `alifestd_mark_lineage_delta_polars`. For leaf data, under parsimony
-        without loss, a node has the trait if and only if every leaf of its
-        clade does, so gains fall on the stems of mutationally defined
-        clades (see `alifestd_mask_trait_mdcs_polars`). Losses are not yet
-        supported.
-    trait_names : Sequence[str], optional
-        Labels for output rows; defaults to `trait_transitions`.
-    neutral_traits : Sequence[int or str], default ()
-        Indices or names of traits known to be neutral. Gain ratios are
-        reported relative to their mean gain rate (leaving the focal trait
-        out). Optional unless `calibrate` is set, which requires at least
-        two.
-    calibrate : bool, default False
-        If True, calibrate branch lengths against `neutral_traits` gains
-        within neighborhoods of similar branches.
-    calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
-        Candidate calibration neighborhood sizes, as fractions of branches.
-    calibrate_num_partitions : int, default 4096
-        Maximum number of partitions of each size partition's branches for
-        calibration and binning; a power of two.
-    calibrate_size_partition_ratio : float, default 2.0
-        Ratio between successive size partitions, which group branches by
-        clade size for calibration, e.g., 2 for size partitions of 1, 2,
-        3-4, 5-8, ... leaves; see
-        `alifestd_tgs_allmdc_estimate_asexual`.
-    calibrate_size_partition_min_neutral_gains : int, default 20
-        With `calibrate`, larger clades join the size partition below once
-        one would hold fewer than this many neutral trait gains; see
-        `alifestd_tgs_allmdc_estimate_asexual`.
-    num_survival_time_bins : int, default 2048
-        Number of equal-occupancy survival-time bins, over which each
-        partition's survival term is averaged.
-    num_bootstrap : int, default 0
-        Number of bootstrap replicates, resampling branches with
-        replacement and refitting.
-    loss_rate : float, default 0.0
-        Known per-unit-time trait loss rate.
-    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
-        Starting values for selection, in units of 1 / mean branch length.
-    max_growth_exponent : float, default 600.0
-        Cap on carrier growth exponents.
-    seed : int, optional
-        Seed for bootstrap resampling.
-    parallel_backend : str, optional
-        joblib backend to run bootstrap replicates in parallel, e.g., "loky"
-        (processes) or "threading".
-    progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display bootstrap progress.
-
-    Raises
-    ------
-    NotImplementedError
-        If `phylogeny_df` has no "ancestor_id" column, if ids are
-        non-contiguous or not topologically sorted, or if a
-        `trait_transitions` column is not integer, has null values, or has
-        losses (-1).
-    ValueError
-        If `calibrate` is set with fewer than two distinct neutral traits,
-        if a `trait_transitions` column is missing or has values other than
-        +1, -1, or 0, or gives states other than 0 and 1, if `trait_names`
-        and `trait_transitions` differ in length, if
-        `num_survival_time_bins` is less than 1, if
-        `calibrate_size_partition_ratio` is not greater than 1, if
-        `calibrate_size_partition_min_neutral_gains` is less than 1, if
-        `calibrate_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `calibrate_num_partitions` is not a power of two.
+        for a loss, 0 for none. Make them with
+        `alifestd_mark_lineage_delta_polars` (e.g., from
+        `alifestd_mask_trait_mdcs_strict_polars`).
 
     Returns
     -------
     polars.DataFrame
         One row per trait; see
         `alifestd_tgs_allmdc_estimate_asexual` for columns.
+
+    Raises
+    ------
+    NotImplementedError
+        If `phylogeny_df` has no "ancestor_id" column, if ids are
+        non-contiguous or not topologically sorted, or if a
+        `trait_transitions` column has null values; see also
+        `alifestd_tgs_allmdc_estimate_asexual`.
 
     See Also
     --------
@@ -154,7 +92,6 @@ def alifestd_tgs_allmdc_estimate_polars(
     """
     trait_names, neutral_traits = tgs_validate_args(
         trait_transitions=trait_transitions,
-        trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
@@ -163,7 +100,6 @@ def alifestd_tgs_allmdc_estimate_polars(
     branches = tgs_prepare_polars(
         phylogeny_df,
         trait_transitions=trait_transitions,
-        trait_names=trait_names,
         caller="alifestd_tgs_allmdc_estimate_polars",
     )
 
@@ -184,7 +120,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
-        max_growth_exponent=max_growth_exponent,
+        growth_exponent_bound=growth_exponent_bound,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
@@ -337,10 +273,10 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--max-growth-exponent",
+        "--growth-exponent-bound",
         default=600.0,
         type=float,
-        help="Cap on carrier growth exponents (default: 600.0).",
+        help="Bound on carrier growth exponents (default: 600.0).",
     )
     parser.add_argument(
         "--parallel-backend",
@@ -384,7 +320,7 @@ if __name__ == "__main__":
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
                     selection_starts=args.selection_starts,
-                    max_growth_exponent=args.max_growth_exponent,
+                    growth_exponent_bound=args.growth_exponent_bound,
                     parallel_backend=args.parallel_backend,
                 ),
             )

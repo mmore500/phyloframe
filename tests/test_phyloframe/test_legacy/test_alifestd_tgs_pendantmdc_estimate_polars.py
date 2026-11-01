@@ -61,7 +61,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
     res = alifestd_tgs_pendantmdc_estimate_polars(
         apply(df_pl),
         trait_transitions=names,
-        neutral_traits=["n1", "n2", 3, 4],
+        neutral_traits=["n1", "n2", "n3", "n4"],
         calibrate=calibrate,
         num_bootstrap=5,
         seed=1,
@@ -70,7 +70,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
     expected = alifestd_tgs_pendantmdc_estimate_asexual(
         df_pd,
         trait_transitions=names,
-        neutral_traits=[1, 2, 3, 4],
+        neutral_traits=["n1", "n2", "n3", "n4"],
         calibrate=calibrate,
         num_bootstrap=5,
         seed=1,
@@ -183,10 +183,10 @@ def test_unifurcation_transitions_credit_merged_branch():
     assert res_below["num_trait_present"][0] == traits[0].sum()
 
 
-def test_trait_names_length_mismatch_raises():
+def test_neutral_trait_not_among_transitions_raises():
     with pytest.raises(ValueError):
         alifestd_tgs_pendantmdc_estimate_polars(
             _make_cherries_polars(100),
             trait_transitions=["focal", "n1"],
-            trait_names=["focal"],
+            neutral_traits=["n2"],
         )

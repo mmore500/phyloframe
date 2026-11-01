@@ -13,7 +13,6 @@ def tgs_prepare_asexual(
     mutate: bool,
     *,
     trait_transitions: typing.Sequence[str],
-    trait_names: typing.Sequence[str],
 ) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual` and
@@ -34,11 +33,11 @@ def tgs_prepare_asexual(
         if column not in phylogeny_df:
             raise ValueError(f"phylogeny_df has no column {column}")
     phylogeny_df = alifestd_to_working_format(phylogeny_df, mutate=True)
-    for i, (column, name) in enumerate(zip(trait_transitions, trait_names)):
+    for i, column in enumerate(trait_transitions):
         phylogeny_df[f"__alifestd_tgs_state{i}"] = tgs_calc_trait_states(
             ancestor_ids=phylogeny_df["ancestor_id"].to_numpy(),
             transitions=phylogeny_df[column].to_numpy(),
-            trait_name=name,
+            trait_name=column,
         )
     phylogeny_df = alifestd_collapse_unifurcations(
         phylogeny_df, mutate=True, ignore_topological_sensitivity=True

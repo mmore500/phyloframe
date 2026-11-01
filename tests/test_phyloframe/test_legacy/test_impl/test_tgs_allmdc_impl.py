@@ -27,7 +27,7 @@ _KWARGS = dict(
 )
 _IMPL_KWARGS = dict(
     selection_starts=(0.0, -0.3, -1.8),
-    max_growth_exponent=600.0,
+    growth_exponent_bound=600.0,
     progress_wrap=identity,
 )
 
@@ -36,7 +36,7 @@ def test_matches_public():
     phylogeny_df, traits = _make_cherries(2_000)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     branches = tgs_prepare_asexual(
-        phylogeny_df, False, trait_transitions=names, trait_names=names
+        phylogeny_df, False, trait_transitions=names
     )
     res = tgs_allmdc_impl(
         branches,
@@ -48,7 +48,7 @@ def test_matches_public():
     expected = alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df,
         trait_transitions=names,
-        neutral_traits=[1, 2, 3, 4],
+        neutral_traits=names[1:],
         **_KWARGS,
     )
     pd.testing.assert_frame_equal(res, expected)

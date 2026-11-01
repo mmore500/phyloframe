@@ -1,13 +1,9 @@
 """Implementation helpers."""
 
-from ._TgsAllmdcPartitioning import TgsAllmdcPartitioning
 from ._TgsCounts import TgsCounts
 from ._tgs_allmdc_impl import tgs_allmdc_impl
 from ._tgs_bootstrap import tgs_bootstrap
-from ._tgs_calc_allmdc_data import (
-    TgsAllmdcData,
-    tgs_calc_allmdc_data,
-)
+from ._tgs_calc_allmdc_data import tgs_calc_allmdc_data
 from ._tgs_calc_allmdc_nll import tgs_calc_allmdc_nll
 from ._tgs_calc_branches import tgs_calc_branches
 from ._tgs_calc_calibrated_pendant_lengths import (
@@ -43,8 +39,6 @@ from ._tgs_validate_args import tgs_validate_args
 
 # adapted from https://stackoverflow.com/a/31079085
 __all__ = [
-    "TgsAllmdcData",
-    "TgsAllmdcPartitioning",
     "TgsCounts",
     "tgs_allmdc_impl",
     "tgs_bootstrap",

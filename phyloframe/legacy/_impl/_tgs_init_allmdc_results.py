@@ -15,10 +15,11 @@ def tgs_init_allmdc_results(
 
     Here, tgs stands for trait gain/selection.
 
-    Returns one row per trait, with counts of leaf branches at risk of
-    gaining it and of pendant gains, of inner branches (clades) at risk and
-    of inner gains, from `branches` (see `tgs_calc_branches`), and
-    estimates for a trait with no fit (no gain, undefined selection).
+    Returns one row per trait, with counts of leaf branches starting without
+    the trait and of pendant gains, and of inner branches (clades) starting
+    without it and of inner gains, from `branches` (see
+    `tgs_calc_branches`), and estimates for a trait with no fit (no gain,
+    undefined selection).
     """
     is_leaf = branches["clade_size"].to_numpy() == 1
     trait_units, trait_gains = tgs_find_trait_branches(branches)

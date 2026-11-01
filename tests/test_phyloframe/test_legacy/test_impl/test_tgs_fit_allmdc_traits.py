@@ -10,7 +10,7 @@ from ._simulate_allmdc_branches import simulate_allmdc_branches
 
 
 def _fit(branches, calibrate=False, unit_weights=None):
-    num_traits = sum(c.endswith("_at_risk") for c in branches)
+    num_traits = sum(c.endswith("_starts_absent") for c in branches)
     neutral = list(range(1, num_traits))
     partitioning = tgs_partition_allmdc_branches(
         branches=branches,
@@ -33,7 +33,7 @@ def _fit(branches, calibrate=False, unit_weights=None):
         calibrate=calibrate,
         loss_rate=0.0,
         selection_starts=(0.0, -0.3, -1.8),
-        max_growth_exponent=600.0,
+        growth_exponent_bound=600.0,
     )
 
 

@@ -14,12 +14,13 @@ def tgs_find_trait_branches(
     Here, tgs stands for trait gain/selection.
 
     Returns, per trait, positions in `branches` (see `tgs_calc_branches`)
-    of branches at risk of gaining it, and of those that gained it.
+    of branches that started without it (their parent lacks it), and of
+    those that gained it.
     """
-    num_traits = sum(column.endswith("_at_risk") for column in branches)
+    num_traits = sum(column.endswith("_starts_absent") for column in branches)
     return (
         [
-            np.flatnonzero(branches[f"trait{i}_at_risk"].to_numpy())
+            np.flatnonzero(branches[f"trait{i}_starts_absent"].to_numpy())
             for i in range(num_traits)
         ],
         [

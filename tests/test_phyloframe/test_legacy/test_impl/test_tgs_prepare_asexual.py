@@ -23,9 +23,7 @@ def _make_tree() -> pd.DataFrame:
 def test_prepare(mutate: bool):
     phylogeny_df = _make_tree()
     original_df = phylogeny_df.copy()
-    res = tgs_prepare_asexual(
-        phylogeny_df, mutate, trait_transitions=["t"], trait_names=["t"]
-    )
+    res = tgs_prepare_asexual(phylogeny_df, mutate, trait_transitions=["t"])
     if not mutate:
         pd.testing.assert_frame_equal(phylogeny_df, original_df)
     # unifurcation 1 is bypassed, so leaf 3 hangs from root 0, and the
@@ -36,25 +34,21 @@ def test_prepare(mutate: bool):
     assert by_time.loc[2.0, "branch_length"] == 2.0
     assert by_time["clade_size"].tolist() == [1, 1]
     assert by_time["survival_time"].tolist() == [0.0, 0.0]
-    assert by_time["trait0_at_risk"].all()
+    assert by_time["trait0_starts_absent"].all()
     assert by_time.loc[5.0, "trait0_gain"]
     assert not by_time.loc[2.0, "trait0_gain"]
 
 
 def test_missing_column_raises():
     with pytest.raises(ValueError):
-        tgs_prepare_asexual(
-            _make_tree(), False, trait_transitions=["x"], trait_names=["x"]
-        )
+        tgs_prepare_asexual(_make_tree(), False, trait_transitions=["x"])
 
 
 def test_unsorted_input():
     phylogeny_df = _make_tree().iloc[::-1].reset_index(drop=True)
-    res = tgs_prepare_asexual(
-        phylogeny_df, False, trait_transitions=["t"], trait_names=["t"]
-    )
+    res = tgs_prepare_asexual(phylogeny_df, False, trait_transitions=["t"])
     expected = tgs_prepare_asexual(
-        _make_tree(), False, trait_transitions=["t"], trait_names=["t"]
+        _make_tree(), False, trait_transitions=["t"]
     )
     pd.testing.assert_frame_equal(
         res.sort_values("origin_time").reset_index(drop=True),

@@ -60,7 +60,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
     res = alifestd_tgs_allmdc_estimate_polars(
         apply(df_pl),
         trait_transitions=names,
-        neutral_traits=["n1", "n2", 3, 4],
+        neutral_traits=["n1", "n2", "n3", "n4"],
         calibrate=calibrate,
         num_bootstrap=3,
         seed=1,
@@ -69,7 +69,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
     expected = alifestd_tgs_allmdc_estimate_asexual(
         df_pd,
         trait_transitions=names,
-        neutral_traits=[1, 2, 3, 4],
+        neutral_traits=["n1", "n2", "n3", "n4"],
         calibrate=calibrate,
         num_bootstrap=3,
         seed=1,

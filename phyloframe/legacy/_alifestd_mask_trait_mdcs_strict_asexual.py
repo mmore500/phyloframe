@@ -12,11 +12,11 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-def _alifestd_mask_trait_mdcs_asexual_clade_fast_path(
+def _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path(
     ancestor_ids: np.ndarray,
     trait_mask: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mask_trait_mdcs_asexual`.
+    """Implementation detail for `alifestd_mask_trait_mdcs_strict_asexual`.
 
     Returns, for each node, whether every leaf of its clade has the trait.
     Assumes contiguous, topologically sorted ids.
@@ -31,12 +31,12 @@ def _alifestd_mask_trait_mdcs_asexual_clade_fast_path(
     return is_monomorphic & representative
 
 
-def _alifestd_mask_trait_mdcs_asexual_fast_path(
+def _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
     ancestor_ids: np.ndarray,
     trait_mask: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mask_trait_mdcs_asexual`."""
-    is_all_carrier = _alifestd_mask_trait_mdcs_asexual_clade_fast_path(
+    """Implementation detail for `alifestd_mask_trait_mdcs_strict_asexual`."""
+    is_all_carrier = _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path(
         ancestor_ids, trait_mask
     )
     is_root = ancestor_ids == np.arange(len(ancestor_ids))
@@ -44,11 +44,11 @@ def _alifestd_mask_trait_mdcs_asexual_fast_path(
 
 
 @warn_experimental
-def alifestd_mask_trait_mdcs_asexual(
+def alifestd_mask_trait_mdcs_strict_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    mark_as: str = "alifestd_mask_trait_mdcs_asexual",
+    mark_as: str = "alifestd_mask_trait_mdcs_strict_asexual",
     trait_mask: np.ndarray,
 ) -> pd.DataFrame:
     """Mark the root of each mutationally defined clade (MDC): a maximal
@@ -63,6 +63,11 @@ def alifestd_mask_trait_mdcs_asexual(
     same leaves as its child's, so along a chain of unifurcations, only the
     rootmost node is marked.
 
+    Strict, as a clade qualifies only if every one of its leaves has the
+    trait. Builds on `alifestd_mask_monomorphic_clades_asexual`, which
+    marks clades whose leaves share a value, but excludes clades sharing
+    absence of the trait and marks only each maximal clade's root.
+
     Parameters
     ----------
     phylogeny_df : pd.DataFrame
@@ -71,7 +76,7 @@ def alifestd_mask_trait_mdcs_asexual(
     mutate : bool, default False
         If False, operates on a copy of `phylogeny_df`; if True, modifies
         `phylogeny_df` in place (but still returns it).
-    mark_as : str, default "alifestd_mask_trait_mdcs_asexual"
+    mark_as : str, default "alifestd_mask_trait_mdcs_strict_asexual"
         Column name for the mask.
     trait_mask : np.ndarray
         Boolean array marking nodes that have the trait, aligned with
@@ -91,7 +96,11 @@ def alifestd_mask_trait_mdcs_asexual(
 
     See Also
     --------
-    alifestd_mask_trait_mdcs_polars :
+    alifestd_mask_monomorphic_clades_asexual :
+        Marks every node whose clade's leaves share a trait value, present
+        or absent; this function marks only the rootmost node of each clade
+        whose leaves all have the trait.
+    alifestd_mask_trait_mdcs_strict_polars :
         Polars-based implementation.
     alifestd_mask_trait_singletons_asexual :
         Marks single-leaf MDCs only, bypassing unifurcations.
@@ -110,7 +119,7 @@ def alifestd_mask_trait_mdcs_asexual(
             "current implementation requires phylogeny_df in working format",
         )
 
-    phylogeny_df[mark_as] = _alifestd_mask_trait_mdcs_asexual_fast_path(
+    phylogeny_df[mark_as] = _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
         trait_mask,
     )

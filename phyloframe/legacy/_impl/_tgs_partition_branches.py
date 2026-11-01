@@ -5,6 +5,7 @@ import numpy as np
 
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_kdtree_partitions import calc_kdtree_partitions
+from ..._auxlib._ceil_div import ceil_div
 
 
 def tgs_partition_branches(
@@ -41,7 +42,7 @@ def tgs_partition_branches(
     # median splitting stops exactly `num_levels` levels down, as nodes there
     # hold at most this many branches and nodes above, with at least 4 per
     # partition, hold more
-    partition_size = -(-num_branches // num_partitions)  # ceiling division
+    partition_size = ceil_div(num_branches, num_partitions)
     partitions = calc_kdtree_partitions(ranks, partition_size)
     partition_sizes = np.bincount(partitions, minlength=num_partitions)
     logging.info(

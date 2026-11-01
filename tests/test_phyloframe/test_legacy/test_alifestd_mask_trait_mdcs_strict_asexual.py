@@ -6,7 +6,7 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 from phyloframe.legacy import (
-    alifestd_mask_trait_mdcs_asexual as alifestd_mask_trait_mdcs_asexual_,
+    alifestd_mask_trait_mdcs_strict_asexual as alifestd_mask_trait_mdcs_strict_asexual_,
 )
 from phyloframe.legacy import (
     alifestd_mask_trait_singletons_asexual,
@@ -14,8 +14,8 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mask_trait_mdcs_asexual = enforce_dtype_stability_pandas(
-    alifestd_mask_trait_mdcs_asexual_
+alifestd_mask_trait_mdcs_strict_asexual = enforce_dtype_stability_pandas(
+    alifestd_mask_trait_mdcs_strict_asexual_
 )
 
 
@@ -34,10 +34,10 @@ def _make_tree() -> pd.DataFrame:
 
 
 def test_empty():
-    res = alifestd_mask_trait_mdcs_asexual(
+    res = alifestd_mask_trait_mdcs_strict_asexual(
         alifestd_make_empty(), trait_mask=np.array([], dtype=bool)
     )
-    assert "alifestd_mask_trait_mdcs_asexual" in res.columns
+    assert "alifestd_mask_trait_mdcs_strict_asexual" in res.columns
     assert len(res) == 0
 
 
@@ -46,7 +46,7 @@ def test_simple(mutate: bool):
     phylogeny_df = _make_tree()
     original_df = phylogeny_df.copy()
     trait_mask = np.array([0, 0, 0, 0, 1, 1, 0, 1, 1], dtype=bool)
-    res = alifestd_mask_trait_mdcs_asexual(
+    res = alifestd_mask_trait_mdcs_strict_asexual(
         phylogeny_df, mutate=mutate, trait_mask=trait_mask
     )
     res.index = res["id"]
@@ -54,7 +54,7 @@ def test_simple(mutate: bool):
     # which lacks the trait; leaf 5's sibling 6 lacks it too
     expected = [0, 1, 0, 0, 0, 1, 0, 0, 0]
     assert res.loc[
-        range(9), "alifestd_mask_trait_mdcs_asexual"
+        range(9), "alifestd_mask_trait_mdcs_strict_asexual"
     ].tolist() == list(map(bool, expected))
     if not mutate:
         assert original_df.equals(phylogeny_df)
@@ -63,7 +63,7 @@ def test_simple(mutate: bool):
 def test_root_and_inner_values_ignored():
     phylogeny_df = _make_tree()
     # every leaf has the trait, so it predates the root
-    res = alifestd_mask_trait_mdcs_asexual(
+    res = alifestd_mask_trait_mdcs_strict_asexual(
         phylogeny_df,
         trait_mask=np.array([0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=bool),
         mark_as="m",
@@ -78,10 +78,10 @@ def test_unifurcation_rootmost_marked():
     phylogeny_df = pd.DataFrame(
         {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 1]}
     )
-    res = alifestd_mask_trait_mdcs_asexual(
+    res = alifestd_mask_trait_mdcs_strict_asexual(
         phylogeny_df, trait_mask=np.array([False, False, False, True])
     )
-    assert res["alifestd_mask_trait_mdcs_asexual"].tolist() == [
+    assert res["alifestd_mask_trait_mdcs_strict_asexual"].tolist() == [
         False,
         True,
         False,
@@ -104,9 +104,9 @@ def test_matches_singletons_at_leaves():
     )
     is_leaf = ~phylogeny_df["id"].isin(phylogeny_df["ancestor_id"])
     trait_mask = rng.random(len(phylogeny_df)) < 0.3
-    mdcs = alifestd_mask_trait_mdcs_asexual(
+    mdcs = alifestd_mask_trait_mdcs_strict_asexual(
         phylogeny_df, trait_mask=trait_mask
-    )["alifestd_mask_trait_mdcs_asexual"]
+    )["alifestd_mask_trait_mdcs_strict_asexual"]
     singletons = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=trait_mask
     )["alifestd_mask_trait_singletons_asexual"]
@@ -131,7 +131,7 @@ def test_matches_singletons_at_leaves():
 )
 def test_not_working_format_raises(phylogeny_df: pd.DataFrame):
     with pytest.raises(NotImplementedError):
-        alifestd_mask_trait_mdcs_asexual(
+        alifestd_mask_trait_mdcs_strict_asexual(
             phylogeny_df, trait_mask=np.zeros(3, dtype=bool)
         )
 
@@ -139,4 +139,6 @@ def test_not_working_format_raises(phylogeny_df: pd.DataFrame):
 def test_non_bool_trait_mask_raises():
     phylogeny_df = pd.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
     with pytest.raises(NotImplementedError):
-        alifestd_mask_trait_mdcs_asexual(phylogeny_df, trait_mask=[0, 1, 0])
+        alifestd_mask_trait_mdcs_strict_asexual(
+            phylogeny_df, trait_mask=[0, 1, 0]
+        )

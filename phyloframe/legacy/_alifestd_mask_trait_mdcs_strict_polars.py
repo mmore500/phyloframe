@@ -19,8 +19,8 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mask_trait_mdcs_asexual import (
-    _alifestd_mask_trait_mdcs_asexual_fast_path,
+from ._alifestd_mask_trait_mdcs_strict_asexual import (
+    _alifestd_mask_trait_mdcs_strict_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
@@ -28,11 +28,11 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 @warn_experimental
-def alifestd_mask_trait_mdcs_polars(
+def alifestd_mask_trait_mdcs_strict_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_mask: typing.Union[str, pl.Expr],
-    mark_as: str = "alifestd_mask_trait_mdcs_polars",
+    mark_as: str = "alifestd_mask_trait_mdcs_strict_polars",
 ) -> pl.DataFrame:
     """Mark the root of each mutationally defined clade (MDC): a maximal
     clade whose leaves all have a trait, i.e., a clade whose every leaf has
@@ -40,7 +40,7 @@ def alifestd_mask_trait_mdcs_polars(
 
     Under parsimony without loss, an MDC gained the trait on its stem
     branch. Roots are marked False; along a chain of unifurcations, only the
-    rootmost node is marked. See `alifestd_mask_trait_mdcs_asexual`.
+    rootmost node is marked. See `alifestd_mask_trait_mdcs_strict_asexual`.
 
     Only supports asexual phylogenies.
 
@@ -54,7 +54,7 @@ def alifestd_mask_trait_mdcs_polars(
     trait_mask : str or polars.Expr
         Column name or boolean expression marking taxa with the trait.
         Values at inner nodes are ignored. Null values are not supported.
-    mark_as : str, default "alifestd_mask_trait_mdcs_polars"
+    mark_as : str, default "alifestd_mask_trait_mdcs_strict_polars"
         Column name for the boolean mask.
 
     Raises
@@ -71,7 +71,11 @@ def alifestd_mask_trait_mdcs_polars(
 
     See Also
     --------
-    alifestd_mask_trait_mdcs_asexual :
+    alifestd_mask_monomorphic_clades_polars :
+        Marks every node whose clade's leaves share a trait value, present
+        or absent; this function marks only the rootmost node of each clade
+        whose leaves all have the trait.
+    alifestd_mask_trait_mdcs_strict_asexual :
         Pandas-based implementation.
     """
     if isinstance(trait_mask, str):
@@ -81,7 +85,7 @@ def alifestd_mask_trait_mdcs_polars(
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
-            "alifestd_mask_trait_mdcs_polars only "
+            "alifestd_mask_trait_mdcs_strict_polars only "
             "supports asexual phylogenies.",
         )
 
@@ -110,7 +114,7 @@ def alifestd_mask_trait_mdcs_polars(
     )
     if selected["trait_mask"].has_nulls():
         raise NotImplementedError("null trait_mask values not supported")
-    result = _alifestd_mask_trait_mdcs_asexual_fast_path(
+    result = _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
         selected["ancestor_id"].to_numpy(),
         selected["trait_mask"].to_numpy(),
     )
@@ -142,7 +146,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_mask_trait_mdcs_asexual :
+phyloframe.legacy._alifestd_mask_trait_mdcs_strict_asexual :
     Pandas-based implementation.
 """
 
@@ -156,7 +160,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module=("phyloframe.legacy._alifestd_mask_trait_mdcs_polars"),
+        dfcli_module=(
+            "phyloframe.legacy._alifestd_mask_trait_mdcs_strict_polars"
+        ),
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
@@ -167,11 +173,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mark-as",
-        default="alifestd_mask_trait_mdcs_polars",
+        default="alifestd_mask_trait_mdcs_strict_polars",
         type=str,
         help=(
             "Column name for the boolean mask "
-            "(default: alifestd_mask_trait_mdcs_polars)."
+            "(default: alifestd_mask_trait_mdcs_strict_polars)."
         ),
     )
     return parser
@@ -185,13 +191,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mask_trait_mdcs_polars",
+            "phyloframe.legacy._alifestd_mask_trait_mdcs_strict_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_mask_trait_mdcs_polars,
+                    alifestd_mask_trait_mdcs_strict_polars,
                     trait_mask=args.trait_mask,
                     mark_as=args.mark_as,
                 ),

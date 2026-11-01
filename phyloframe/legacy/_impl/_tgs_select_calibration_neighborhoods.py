@@ -28,7 +28,7 @@ def tgs_select_calibration_neighborhoods(
     each held-out neutral trait's carriers when calibrating against the
     others, warning about any neighborhoods without neutral gains.
     """
-    best_nll, best_neighborhoods = np.inf, None
+    best_nll, best_neighborhoods, best_fraction = np.inf, None, np.nan
     for fraction in neighborhood_fractions:
         # each partition's nearest partitions, itself included, together
         # holding `fraction` of leaves, as partitions are near-equal in size
@@ -49,9 +49,15 @@ def tgs_select_calibration_neighborhoods(
         )
         if nll < best_nll:
             best_nll, best_neighborhoods = nll, calibration_neighborhoods
+            best_fraction = fraction
 
     neutral_gains = counts.num_carriers[neutral_traits].sum(axis=0)
     num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
+    logging.info(
+        "- alifestd_tgs_pendantmdc_estimate_asexual: selected calibration "
+        f"neighborhoods of {best_fraction:.1%} of {len(partition_coords)} "
+        f"partitions, {num_empty} without neutral trait gains",
+    )
     if num_empty:
         warnings.warn(
             f"{num_empty} of {len(partition_coords)} calibration "

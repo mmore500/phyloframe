@@ -7,9 +7,9 @@ def test_find():
     branches = pd.DataFrame(
         {
             "branch_length": [1.0, 2.0, 3.0],
-            "trait0_at_risk": [True, False, True],
+            "trait0_starts_absent": [True, False, True],
             "trait0_gain": [False, False, True],
-            "trait1_at_risk": [True, True, True],
+            "trait1_starts_absent": [True, True, True],
             "trait1_gain": [True, False, False],
         },
     )
