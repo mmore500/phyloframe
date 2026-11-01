@@ -7,14 +7,12 @@ from phyloframe.legacy import (
     alifestd_tgs_pendantmdc_estimate_asexual,
 )
 
-SHIFT = 15.0
-
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
     """Root with cherries hanging off it. Each cherry's stem gains a trait
-    under the clade model with a two-leaf shift of `SHIFT`, after which both
-    leaves carry it; otherwise, each leaf gains it on its own pendant
-    branch under the pendant model.
+    under the allmdc model, surviving until its later leaf is sampled,
+    after which both leaves carry it; otherwise, each leaf gains it on its
+    own pendant branch under the pendant model.
 
     Trait 0 has twice the neutral gain rate and a cost; traits 1-4 are
     neutral.
@@ -41,8 +39,9 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
                 return gain * length
             return gain * np.expm1(selection * length) / selection
 
+        survival = pendant.max(axis=1)
         stem_gain = rng.random(num_cherries) < p(stem) * np.exp(
-            selection * SHIFT
+            selection * survival
         )
         own_gain = rng.random((num_cherries, 2)) < p(pendant)
         traits[trait, inner + 1] = stem_gain | own_gain[:, 0]
@@ -59,7 +58,7 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
 
 
 @pytest.mark.parametrize("calibrate", [False, True])
-def test_recovers_gain_selection_shift(calibrate: bool):
+def test_recovers_gain_selection(calibrate: bool):
     phylogeny_df, traits = _make_cherries()
     original_df = phylogeny_df.copy()
     res = alifestd_tgs_allmdc_estimate_asexual(
@@ -81,16 +80,8 @@ def test_recovers_gain_selection_shift(calibrate: bool):
     assert focal["selection"] == pytest.approx(-0.05, abs=0.02)
     assert focal["gain_ratio_p"] < 1e-3
     assert focal["selection_p"] < 1e-3
-    # independent gains on both leaves of a cherry also look like a stem
-    # gain under parsimony, so the shift comes out somewhat short
-    assert 8.0 < focal["clade_size_shift_2"] < 20.0
-    assert np.isfinite(res["clade_size_shift_2_se"]).all()
-    assert res["clade_size_shift_2"].nunique() == 1
-    # cherries only, so there are no larger clade-size groups
-    assert [c for c in res.columns if c.startswith("clade_size_shift")] == [
-        "clade_size_shift_2",
-        "clade_size_shift_2_se",
-    ]
+    assert np.isfinite(res["selection_se"]).all()
+    assert not any("shift" in c for c in res.columns)
 
     neutral = res.iloc[1:]
     assert neutral["gain_ratio"].tolist() == pytest.approx([1.0] * 4, rel=0.3)
@@ -128,7 +119,6 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
             expected[column].to_numpy(), rel=1e-4, abs=1e-8
         )
     assert (res["num_clades"] == 0).all()
-    assert not any(c.startswith("clade_size_shift") for c in res.columns)
 
 
 def test_counts():
@@ -179,47 +169,50 @@ def test_row_order_invariant():
     pd.testing.assert_frame_equal(res, expected, rtol=1e-4)
 
 
-def test_clade_size_groups_per_doubling_validated():
+def test_num_survival_time_bins_validated():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
         alifestd_tgs_allmdc_estimate_asexual(
-            phylogeny_df, trait_masks=traits, clade_size_groups_per_doubling=0
+            phylogeny_df, trait_masks=traits, num_survival_time_bins=0
         )
 
 
-@pytest.mark.parametrize(
-    "groups_per_doubling, expected",
-    [
-        (1, ["clade_size_shift_2_3", "clade_size_shift_4_7"]),
-        (
-            2,
-            [
-                "clade_size_shift_2",
-                "clade_size_shift_3",
-                "clade_size_shift_4_5",
-                "clade_size_shift_6_7",
-            ],
-        ),
-    ],
-)
-def test_clade_size_groups_per_doubling(groups_per_doubling: int, expected):
-    # root over a 7-leaf caterpillar, so clades of 2 to 7 leaves
-    ancestor_id = [0, 0, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11]
-    phylogeny_df = pd.DataFrame(
-        {
-            "id": range(14),
-            "ancestor_id": ancestor_id,
-            "origin_time": np.arange(14, dtype=float),
-        },
-    )
+@pytest.mark.parametrize("blocks", [(1,), (3, 2), (2, 2)])
+def test_clade_size_calibration_blocks_validated(blocks):
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df,
+            trait_masks=traits,
+            clade_size_calibration_blocks=blocks,
+        )
+
+
+@pytest.mark.parametrize("blocks", [(), (2,), (2, 3, 5, 9)])
+def test_clade_size_calibration_blocks(blocks):
+    phylogeny_df, traits = _make_cherries(10_000)
     res = alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df,
-        trait_masks=[np.zeros(14, dtype=bool)],
-        clade_size_groups_per_doubling=groups_per_doubling,
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        calibrate=True,
+        clade_size_calibration_blocks=blocks,
     )
-    assert [
-        c for c in res.columns if c.startswith("clade_size_shift")
-    ] == expected
+    assert res.loc[0, "selection"] < 0
+    assert np.isfinite(res["gain_ratio"]).all()
+
+
+@pytest.mark.parametrize("num_survival_time_bins", [1, 4, 64])
+def test_num_survival_time_bins(num_survival_time_bins: int):
+    phylogeny_df, traits = _make_cherries(10_000)
+    res = alifestd_tgs_allmdc_estimate_asexual(
+        phylogeny_df,
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        num_survival_time_bins=num_survival_time_bins,
+    )
+    assert res.loc[0, "selection"] < 0
+    assert np.isfinite(res["gain_ratio"]).all()
 
 
 def test_calibrate_requires_neutral():

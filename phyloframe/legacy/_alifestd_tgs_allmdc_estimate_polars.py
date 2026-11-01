@@ -24,7 +24,6 @@ def alifestd_tgs_allmdc_estimate_polars(
     trait_masks: typing.Sequence[typing.Union[str, pl.Expr]],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
-    clade_size_groups_per_doubling: int = 2,
     calibrate: bool = False,
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -37,11 +36,12 @@ def alifestd_tgs_allmdc_estimate_polars(
         1.0,
     ),
     num_calibration_partitions: int = 4096,
+    clade_size_calibration_blocks: typing.Sequence[int] = (2, 3, 5, 9),
+    num_survival_time_bins: int = 2048,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     max_growth_exponent: float = 600.0,
-    max_shift_iterations: int = 50,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
@@ -49,11 +49,11 @@ def alifestd_tgs_allmdc_estimate_polars(
     """Estimate per-trait gain rate and net selection from every branch,
     pendant and inner, i.e., from mutationally defined clades (MDCs) of
     every size, from how often each branch's clade carries the trait as a
-    function of branch length and clade size.
+    function of branch length and survival time.
 
-    Branches subtending multi-leaf clades are fit with a survival shift per
-    clade-size group, shared across traits, for the time a carrier clade
-    needs to grow out to its sampled leaves. See
+    Each branch's gain probability is discounted for the time, measured on
+    the tree from the branch's end to its latest sampled leaf, that a
+    carrier lineage must persist to be seen at every leaf of its clade. See
     `alifestd_tgs_allmdc_estimate_asexual` for the model.
 
     Only supports asexual phylogenies.
@@ -77,19 +77,20 @@ def alifestd_tgs_allmdc_estimate_polars(
         reported relative to their mean gain rate (leaving the focal trait
         out). Optional unless `calibrate` is set, which requires at least
         two.
-    clade_size_groups_per_doubling : int, default 2
-        Number of log-scaled clade-size groups per doubling of clade size;
-        see `alifestd_tgs_allmdc_estimate_asexual`.
     calibrate : bool, default False
         If True, calibrate branch lengths against `neutral_traits` gains
-        within each clade-size group, on the single-leaf group's neutral
-        clock.
+        within neighborhoods of similar branches.
     calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
-        Candidate calibration neighborhood sizes, as fractions of each
-        group's branches.
+        Candidate calibration neighborhood sizes, as fractions of branches.
     num_calibration_partitions : int, default 4096
-        Maximum number of partitions of each group's branches for
+        Maximum number of partitions of each clade-size block's branches for
         calibration and binning; a power of two.
+    clade_size_calibration_blocks : Sequence[int], default (2, 3, 5, 9)
+        Smallest clade size of each calibration block after single leaves;
+        see `alifestd_tgs_allmdc_estimate_asexual`.
+    num_survival_time_bins : int, default 2048
+        Number of equal-occupancy survival-time bins, over which each
+        partition's survival term is averaged.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling branches with
         replacement and refitting.
@@ -99,16 +100,13 @@ def alifestd_tgs_allmdc_estimate_polars(
         Starting values for selection, in units of 1 / mean branch length.
     max_growth_exponent : float, default 600.0
         Cap on carrier growth exponents.
-    max_shift_iterations : int, default 50
-        Maximum rounds of alternately fitting traits and clade-size shifts.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
         joblib backend to run bootstrap replicates in parallel, e.g., "loky"
         (processes) or "threading".
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display fit iteration and bootstrap
-        progress.
+        Pass tqdm or equivalent to display bootstrap progress.
 
     Raises
     ------
@@ -119,7 +117,9 @@ def alifestd_tgs_allmdc_estimate_polars(
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
         if `trait_names` and `trait_masks` differ in length, if
-        `clade_size_groups_per_doubling` is less than 1, if
+        `num_survival_time_bins` is less than 1, if
+        `clade_size_calibration_blocks` is not strictly increasing from at
+        least 2, if
         `calibration_neighborhood_fractions` is empty or has a value outside
         (0, 1], or if `num_calibration_partitions` is not a power of two.
 
@@ -159,15 +159,15 @@ def alifestd_tgs_allmdc_estimate_polars(
         prepared,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
-        clade_size_groups_per_doubling=clade_size_groups_per_doubling,
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
         num_calibration_partitions=num_calibration_partitions,
+        clade_size_calibration_blocks=clade_size_calibration_blocks,
+        num_survival_time_bins=num_survival_time_bins,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
         max_growth_exponent=max_growth_exponent,
-        max_shift_iterations=max_shift_iterations,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
@@ -180,16 +180,15 @@ _raw_description = f"""\
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Estimate per-trait gain rate and net selection from how often each branch's
-clade carries each trait as a function of branch length and clade size,
-using pendant and inner branches, with a survival shift per clade-size group
-shared across traits.
+clade carries each trait as a function of branch length and survival time
+(from the branch's end to its latest sampled leaf), using pendant and inner
+branches.
 
 Output is one row per trait, with columns `trait`, `num_leaves`,
 `num_trait_present`, `num_clades`, `num_clade_gains`, `gain_rate`,
-`selection`, `gain_ratio`, `selection_lrt_naive`, and a `clade_size_shift_*`
-column per clade-size group; with `--num-bootstrap`, also `selection_se`,
-`selection_z`, `selection_p`, `log_gain_ratio_se`, `gain_ratio_z`,
-`gain_ratio_p`, `num_bootstrap_degenerate`, and `clade_size_shift_*_se`.
+`selection`, `gain_ratio`, and `selection_lrt_naive`; with `--num-bootstrap`,
+also `selection_se`, `selection_z`, `selection_p`, `log_gain_ratio_se`,
+`gain_ratio_z`, `gain_ratio_p`, and `num_bootstrap_degenerate`.
 
 Data is assumed to be in alife standard format, with column `origin_time`.
 Only supports asexual phylogenies.
@@ -238,15 +237,6 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Names of trait columns known to be neutral (default: none).",
     )
     parser.add_argument(
-        "--clade-size-groups-per-doubling",
-        default=2,
-        type=int,
-        help=(
-            "Number of log-scaled clade-size groups per doubling of clade "
-            "size (default: 2)."
-        ),
-    )
-    parser.add_argument(
         "--calibrate",
         action="store_true",
         help="Measure branch length by neutral trait gains.",
@@ -257,9 +247,8 @@ def _create_parser() -> argparse.ArgumentParser:
         nargs="+",
         type=float,
         help=(
-            "Candidate calibration neighborhood sizes, as fractions of each "
-            "group's branches (default: 0.005 0.01 0.025 0.05 0.1 0.25 0.5 "
-            "1.0)."
+            "Candidate calibration neighborhood sizes, as fractions of "
+            "branches (default: 0.005 0.01 0.025 0.05 0.1 0.25 0.5 1.0)."
         ),
     )
     parser.add_argument(
@@ -267,9 +256,25 @@ def _create_parser() -> argparse.ArgumentParser:
         default=4096,
         type=int,
         help=(
-            "Maximum number of branch partitions per clade-size group, a "
+            "Maximum number of branch partitions per clade-size block, a "
             "power of two (default: 4096)."
         ),
+    )
+    parser.add_argument(
+        "--clade-size-calibration-blocks",
+        default=(2, 3, 5, 9),
+        nargs="*",
+        type=int,
+        help=(
+            "Smallest clade size of each calibration block after single "
+            "leaves (default: 2 3 5 9)."
+        ),
+    )
+    parser.add_argument(
+        "--num-survival-time-bins",
+        default=2048,
+        type=int,
+        help="Number of survival-time bins (default: 2048).",
     )
     parser.add_argument(
         "--num-bootstrap",
@@ -306,15 +311,6 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Cap on carrier growth exponents (default: 600.0).",
     )
     parser.add_argument(
-        "--max-shift-iterations",
-        default=50,
-        type=int,
-        help=(
-            "Maximum rounds of alternately fitting traits and clade-size "
-            "shifts (default: 50)."
-        ),
-    )
-    parser.add_argument(
         "--parallel-backend",
         default=None,
         type=str,
@@ -340,20 +336,20 @@ if __name__ == "__main__":
                     alifestd_tgs_allmdc_estimate_polars,
                     trait_masks=args.trait_masks,
                     neutral_traits=args.neutral_traits,
-                    clade_size_groups_per_doubling=(
-                        args.clade_size_groups_per_doubling
-                    ),
                     calibrate=args.calibrate,
                     calibration_neighborhood_fractions=(
                         args.calibration_neighborhood_fractions
                     ),
                     num_calibration_partitions=args.num_calibration_partitions,
+                    clade_size_calibration_blocks=(
+                        args.clade_size_calibration_blocks
+                    ),
+                    num_survival_time_bins=args.num_survival_time_bins,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
                     selection_starts=args.selection_starts,
                     max_growth_exponent=args.max_growth_exponent,
-                    max_shift_iterations=args.max_shift_iterations,
                     parallel_backend=args.parallel_backend,
                 ),
             )

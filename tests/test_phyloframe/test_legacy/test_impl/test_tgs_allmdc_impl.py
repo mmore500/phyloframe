@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_tgs_allmdc_estimate_asexual
@@ -11,6 +12,8 @@ _KWARGS = dict(
     calibrate=True,
     calibration_neighborhood_fractions=(0.25, 1.0),
     num_calibration_partitions=64,
+    clade_size_calibration_blocks=(2, 3),
+    num_survival_time_bins=16,
     num_bootstrap=2,
     loss_rate=0.0,
     seed=1,
@@ -28,10 +31,8 @@ def test_matches_public():
         prepared,
         trait_names=names,
         neutral_traits=[1, 2, 3, 4],
-        clade_size_groups_per_doubling=2,
         selection_starts=(0.0, -0.3, -1.8),
         max_growth_exponent=600.0,
-        max_shift_iterations=50,
         progress_wrap=identity,
         **_KWARGS,
     )
@@ -43,7 +44,7 @@ def test_matches_public():
         **_KWARGS,
     )
     pd.testing.assert_frame_equal(res, expected)
-    assert "clade_size_shift_2_se" in res.columns
+    assert "selection_se" in res.columns
 
 
 def test_no_branches():
@@ -59,12 +60,31 @@ def test_no_branches():
         prepared,
         trait_names=["t"],
         neutral_traits=[],
-        clade_size_groups_per_doubling=2,
         selection_starts=(0.0,),
         max_growth_exponent=600.0,
-        max_shift_iterations=5,
         progress_wrap=identity,
         **{**_KWARGS, "calibrate": False},
     )
     assert res["num_leaves"].tolist() == [0]
     assert "selection_p" in res.columns
+
+
+def test_num_survival_time_bins_validated():
+    prepared = pd.DataFrame(
+        {
+            "ancestor_id": [0],
+            "origin_time": [0.0],
+            "__alifestd_tgs_branch_length": [np.nan],
+            "__alifestd_tgs_trait0": [False],
+        },
+    )
+    with pytest.raises(ValueError):
+        tgs_allmdc_impl(
+            prepared,
+            trait_names=["t"],
+            neutral_traits=[],
+            selection_starts=(0.0,),
+            max_growth_exponent=600.0,
+            progress_wrap=identity,
+            **{**_KWARGS, "num_survival_time_bins": 0},
+        )

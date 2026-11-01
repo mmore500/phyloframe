@@ -1,0 +1,82 @@
+import numpy as np
+import pytest
+
+from phyloframe.legacy._impl import (
+    tgs_calc_allmdc_data,
+    tgs_partition_allmdc_branches,
+)
+
+from ._simulate_allmdc_branches import simulate_allmdc_branches
+
+
+def _partition(branches, calibrate):
+    return tgs_partition_allmdc_branches(
+        branches=branches,
+        neutral_traits=[1, 2],
+        trait_names=["focal", "n1", "n2"],
+        calibrate=calibrate,
+        calibration_neighborhood_fractions=(0.25, 1.0),
+        num_calibration_partitions=64,
+        clade_size_calibration_blocks=(2, 5),
+        num_survival_time_bins=8,
+    )
+
+
+@pytest.mark.parametrize("calibrate", [False, True])
+def test_data(calibrate: bool):
+    branches = simulate_allmdc_branches(4_000)
+    partitioning = _partition(branches, calibrate)
+    data = tgs_calc_allmdc_data(
+        branches=branches,
+        partitioning=partitioning,
+        unit_weights=np.ones(4_000),
+        neutral_traits=[1, 2],
+        calibrate=calibrate,
+    )
+    assert len(data) == 3
+    for trait, (n, k, lengths, shares) in enumerate(data):
+        assert n.sum() == 4_000
+        assert k.sum() == len(branches.trait_gains[trait])
+        assert (lengths > 0).all()
+        assert shares.shape == (len(n), len(partitioning.survival_bin_times))
+        np.testing.assert_allclose(np.asarray(shares.sum(axis=1)).ravel(), 1.0)
+    if not calibrate:
+        n, __, lengths, __ = data[0]
+        assert (n * lengths).sum() == pytest.approx(
+            branches.branch_lengths.sum()
+        )
+
+
+def test_weights():
+    branches = simulate_allmdc_branches(4_000)
+    partitioning = _partition(branches, False)
+    weights = np.zeros(4_000)
+    weights[:100] = 2.0
+    (n, __, __, shares), *__ = tgs_calc_allmdc_data(
+        branches=branches,
+        partitioning=partitioning,
+        unit_weights=weights,
+        neutral_traits=[1, 2],
+        calibrate=False,
+    )
+    # partitions without weighted branches are omitted
+    assert n.sum() == 200
+    assert (n > 0).all()
+    np.testing.assert_allclose(np.asarray(shares.sum(axis=1)).ravel(), 1.0)
+
+
+def test_trait_without_units():
+    branches = simulate_allmdc_branches(1_000)
+    empty = np.array([], dtype=int)
+    branches = branches._replace(
+        trait_units=[empty] + branches.trait_units[1:],
+        trait_gains=[empty] + branches.trait_gains[1:],
+    )
+    (n, k, lengths, shares), *__ = tgs_calc_allmdc_data(
+        branches=branches,
+        partitioning=_partition(branches, False),
+        unit_weights=np.ones(1_000),
+        neutral_traits=[1, 2],
+        calibrate=False,
+    )
+    assert len(n) == len(k) == len(lengths) == shares.shape[0] == 0
