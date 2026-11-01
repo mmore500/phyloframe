@@ -26,25 +26,27 @@ def tgs_fit_allmdc_traits(
     Fits each trait's gain rate and selection to branches, each weighted
     by `unit_weights` (e.g., bootstrap draw counts); see
     `tgs_calc_allmdc_nll` for the model. Returns one row per trait, with
-    columns of `TgsFitResult` (see `tgs_fit_allmdc_trait`) plus `gain_ratio`, the gain rate relative to
-    neutral traits.
+    columns of `TgsFitResult` (see `tgs_fit_allmdc_trait`) plus
+    `gain_ratio`, the gain rate relative to neutral traits.
     """
+    data, survival_shares = tgs_calc_allmdc_data(
+        branches=branches,
+        partitioning=partitioning,
+        unit_weights=unit_weights,
+        neutral_traits=neutral_traits,
+        calibrate=calibrate,
+    )
     res = pd.DataFrame(
         [
             tgs_fit_allmdc_trait(
-                data=trait_data,
+                partitions=partitions,
+                survival_shares=survival_shares[partitions.index],
                 survival_bin_times=partitioning["survival_bin_times"],
                 loss_rate=loss_rate,
                 selection_starts=selection_starts,
                 growth_exponent_bound=growth_exponent_bound,
             )
-            for trait_data in tgs_calc_allmdc_data(
-                branches=branches,
-                partitioning=partitioning,
-                unit_weights=unit_weights,
-                neutral_traits=neutral_traits,
-                calibrate=calibrate,
-            )
+            for __, partitions in data.groupby("trait", observed=False)
         ],
     )
     res["gain_ratio"] = tgs_calc_gain_ratios(

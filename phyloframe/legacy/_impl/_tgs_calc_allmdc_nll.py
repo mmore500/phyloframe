@@ -1,7 +1,8 @@
 import typing
 
 import numpy as np
-from scipy import special
+import pandas as pd
+from scipy import sparse, special
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ..._auxlib._tgs_fit import _tgs_calc_effective_length_deriv
@@ -11,7 +12,8 @@ def tgs_calc_allmdc_nll(
     *,
     log_gain_rate: float,
     rate: float,
-    data: typing.Dict[str, typing.Any],
+    partitions: pd.DataFrame,
+    survival_shares: sparse.csr_matrix,
     survival_bin_times: np.ndarray,
     growth_exponent_bound: float,
 ) -> typing.Tuple[float, float, float]:
@@ -20,7 +22,8 @@ def tgs_calc_allmdc_nll(
     Here, tgs stands for trait gain/selection.
 
     Returns negative log likelihood (up to a constant) of one trait's
-    partitions (see `tgs_calc_allmdc_data`), and its derivatives with
+    `partitions` and their `survival_shares` (see `tgs_calc_allmdc_data`),
+    and its derivatives with
     respect to log gain rate and to `rate` (selection minus loss rate). A
     branch of length `t` with survival time `u` gains the trait, i.e., its
     whole clade carries it, with probability
@@ -30,8 +33,9 @@ def tgs_calc_allmdc_nll(
     averaging exp(rate * u) over each partition's survival-time bins, with
     exponents capped at `growth_exponent_bound`.
     """
-    num_trials, num_successes = data["num_trials"], data["num_successes"]
-    lengths, survival_shares = data["lengths"], data["survival_shares"]
+    num_trials = partitions["num_trials"].to_numpy()
+    num_successes = partitions["num_successes"].to_numpy()
+    lengths = partitions["length"].to_numpy()
     gain_rate = np.exp(log_gain_rate)
     effective_length = lengths * special.exprel(
         np.minimum(rate * lengths, growth_exponent_bound)
