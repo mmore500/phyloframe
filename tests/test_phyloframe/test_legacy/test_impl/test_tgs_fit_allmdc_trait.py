@@ -27,7 +27,7 @@ def fixture():
     data, shares = tgs_calc_allmdc_data(
         branches=branches,
         partitioning=partitioning,
-        unit_weights=np.ones(len(branches)),
+        weights=np.ones(len(branches)),
         neutral_traits=[1, 2],
         calibrate=False,
     )

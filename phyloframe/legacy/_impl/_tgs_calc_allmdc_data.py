@@ -15,7 +15,7 @@ def tgs_calc_allmdc_data(
     *,
     branches: pd.DataFrame,
     partitioning: typing.Dict[str, typing.Any],
-    unit_weights: np.ndarray,
+    weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
 ) -> typing.Tuple[pd.DataFrame, sparse.csr_matrix]:
@@ -40,7 +40,7 @@ def tgs_calc_allmdc_data(
         leaf_partitions=partitions,
         num_partitions=num_partitions,
         pendant_lengths=branches["branch_length"].to_numpy(),
-        leaf_weights=unit_weights,
+        leaf_weights=weights,
         trait_leaves=trait_units,
         trait_carriers=trait_gains,
     )
@@ -72,7 +72,7 @@ def tgs_calc_allmdc_data(
         # sparse, as partitions span few of many survival-time bins
         trait_shares = sparse.csr_matrix(
             (
-                unit_weights[units],
+                weights[units],
                 (partitions[units], partitioning["survival_bins"][units]),
             ),
             shape=shape,

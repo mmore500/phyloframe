@@ -1,3 +1,4 @@
+import functools
 import logging
 import typing
 
@@ -5,10 +6,12 @@ import numpy as np
 import pandas as pd
 
 from ._tgs_bootstrap import tgs_bootstrap
+from ._tgs_calc_calibrated_pendant_lengths import (
+    tgs_calc_calibrated_pendant_lengths,
+)
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_fit_bootstrap_replicate import tgs_fit_bootstrap_replicate
 from ._tgs_fit_traits import tgs_fit_traits
-from ._tgs_partition_leaves import tgs_partition_leaves
+from ._tgs_partition_branches import tgs_partition_branches
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
@@ -41,9 +44,8 @@ def tgs_fit_and_bootstrap(
     origin times, filling point estimates into `res` in place, and returns
     bootstrap replicate fits (None without bootstrap replicates).
     """
-    leaf_partitions, num_partitions, partition_coords = tgs_partition_leaves(
-        pendant_lengths=pendant_lengths,
-        origin_times=origin_times,
+    leaf_partitions, num_partitions, partition_coords = tgs_partition_branches(
+        coordinates=[pendant_lengths, origin_times],
         max_partitions=calibrate_num_partitions,
     )
     num_leaves = len(leaf_partitions)
@@ -58,39 +60,44 @@ def tgs_fit_and_bootstrap(
         loss_rate=loss_rate,
     )
     if calibrate:
-        fit_kwargs[
-            "calibration_neighborhoods"
-        ] = tgs_select_calibration_neighborhoods(
+        counts = tgs_count_traits(
+            leaf_partitions=leaf_partitions,
+            num_partitions=num_partitions,
+            pendant_lengths=pendant_lengths,
+            leaf_weights=np.ones(num_leaves),
+            trait_leaves=trait_leaves,
+            trait_carriers=trait_carriers,
+        )
+        neighborhoods = tgs_select_calibration_neighborhoods(
             partition_coords=partition_coords,
             neighborhood_fractions=calibrate_neighborhood_fractions,
-            counts=tgs_count_traits(
-                leaf_partitions=leaf_partitions,
-                num_partitions=num_partitions,
-                pendant_lengths=pendant_lengths,
-                leaf_weights=np.ones(num_leaves),
-                trait_leaves=trait_leaves,
-                trait_carriers=trait_carriers,
-            ),
+            counts=counts,
             neutral_traits=neutral_traits,
             trait_names=trait_names,
         )
+        fit_kwargs["calibration_neighborhoods"] = neighborhoods
+        for trait, name in enumerate(trait_names):
+            __, factors = tgs_calc_calibrated_pendant_lengths(
+                counts=counts,
+                trait=trait,
+                neutral_traits=neutral_traits,
+                calibration_neighborhoods=neighborhoods,
+            )
+            factors = factors[counts.num_leaves[trait] > 0]
+            if len(factors):
+                logging.info(
+                    "- alifestd_tgs_pendantmdc_estimate_asexual: "
+                    f"calibrated trait {name}, rescaling pendant lengths by "
+                    f"{factors.min():.3g} to {factors.max():.3g} (median "
+                    f"{np.median(factors):.3g})",
+                )
 
     logging.info(
         "- alifestd_tgs_pendantmdc_estimate_asexual: "
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
-    point, calibration_factors = tgs_fit_traits(
-        leaf_weights=np.ones(num_leaves), **fit_kwargs
-    )
+    point = tgs_fit_traits(weights=np.ones(num_leaves), **fit_kwargs)
     res[list(point.columns)] = point
-    for name, factors in zip(trait_names, calibration_factors):
-        if factors is not None and len(factors):
-            logging.info(
-                "- alifestd_tgs_pendantmdc_estimate_asexual: "
-                f"calibrated trait {name}, rescaling pendant lengths by "
-                f"{factors.min():.3g} to {factors.max():.3g} (median "
-                f"{np.median(factors):.3g})",
-            )
     if not num_bootstrap:
         return None
 
@@ -99,8 +106,8 @@ def tgs_fit_and_bootstrap(
         f"fitting {num_bootstrap} bootstrap replicates...",
     )
     return tgs_bootstrap(
-        fit_replicate=tgs_fit_bootstrap_replicate,
-        fit_kwargs=fit_kwargs,
+        fit=functools.partial(tgs_fit_traits, **fit_kwargs),
+        num_items=num_leaves,
         num_bootstrap=num_bootstrap,
         seed=seed,
         parallel_backend=parallel_backend,

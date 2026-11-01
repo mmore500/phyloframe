@@ -137,8 +137,8 @@ def alifestd_tgs_allmdc_estimate_asexual(
         Number of bootstrap replicates, resampling branches with
         replacement and refitting, for standard errors,
         z-scores, and p-values. Calibration neighborhood sizes are held
-        fixed across replicates. Around 200 replicates are rarely exceeded
-        for standard errors; see Efron and Tibshirani (1993), An
+        fixed across replicates. More than about 200 replicates are
+        rarely needed for standard errors; see Efron and Tibshirani (1993), An
         Introduction to the Bootstrap (Chapman & Hall).
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.

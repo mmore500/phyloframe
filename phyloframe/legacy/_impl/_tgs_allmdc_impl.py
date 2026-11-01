@@ -1,3 +1,4 @@
+import functools
 import logging
 import typing
 
@@ -5,9 +6,6 @@ import numpy as np
 import pandas as pd
 
 from ._tgs_bootstrap import tgs_bootstrap
-from ._tgs_fit_allmdc_bootstrap_replicate import (
-    tgs_fit_allmdc_bootstrap_replicate,
-)
 from ._tgs_fit_allmdc_traits import tgs_fit_allmdc_traits
 from ._tgs_init_allmdc_results import tgs_init_allmdc_results
 from ._tgs_partition_allmdc_branches import tgs_partition_allmdc_branches
@@ -82,7 +80,7 @@ def tgs_allmdc_impl(
             f"{len(trait_names)} traits to {num_branches} branches...",
         )
         point = tgs_fit_allmdc_traits(
-            unit_weights=np.ones(num_branches), **fit_kwargs
+            weights=np.ones(num_branches), **fit_kwargs
         )
         res[list(point.columns)] = point
         for __, row in res.iterrows():
@@ -101,8 +99,8 @@ def tgs_allmdc_impl(
             f"fitting {num_bootstrap} bootstrap replicates...",
         )
         replicate_fits = tgs_bootstrap(
-            fit_replicate=tgs_fit_allmdc_bootstrap_replicate,
-            fit_kwargs=fit_kwargs,
+            fit=functools.partial(tgs_fit_allmdc_traits, **fit_kwargs),
+            num_items=num_branches,
             num_bootstrap=num_bootstrap,
             seed=seed,
             parallel_backend=parallel_backend,

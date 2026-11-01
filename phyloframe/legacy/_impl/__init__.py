@@ -15,20 +15,15 @@ from ._tgs_calc_trait_states import tgs_calc_trait_states
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_reference_traits import tgs_find_reference_traits
 from ._tgs_find_trait_branches import tgs_find_trait_branches
-from ._tgs_fit_allmdc_bootstrap_replicate import (
-    tgs_fit_allmdc_bootstrap_replicate,
-)
 from ._tgs_fit_allmdc_trait import tgs_fit_allmdc_trait
 from ._tgs_fit_allmdc_traits import tgs_fit_allmdc_traits
 from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
-from ._tgs_fit_bootstrap_replicate import tgs_fit_bootstrap_replicate
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_impl import tgs_impl
 from ._tgs_init_allmdc_results import tgs_init_allmdc_results
 from ._tgs_init_results import tgs_init_results
 from ._tgs_partition_allmdc_branches import tgs_partition_allmdc_branches
 from ._tgs_partition_branches import tgs_partition_branches
-from ._tgs_partition_leaves import tgs_partition_leaves
 from ._tgs_prepare_asexual import tgs_prepare_asexual
 from ._tgs_prepare_polars import tgs_prepare_polars
 from ._tgs_select_calibration_neighborhoods import (
@@ -52,18 +47,15 @@ __all__ = [
     "tgs_count_traits",
     "tgs_find_reference_traits",
     "tgs_find_trait_branches",
-    "tgs_fit_allmdc_bootstrap_replicate",
     "tgs_fit_allmdc_trait",
     "tgs_fit_allmdc_traits",
     "tgs_fit_and_bootstrap",
-    "tgs_fit_bootstrap_replicate",
     "tgs_fit_traits",
     "tgs_impl",
     "tgs_init_allmdc_results",
     "tgs_init_results",
     "tgs_partition_allmdc_branches",
     "tgs_partition_branches",
-    "tgs_partition_leaves",
     "tgs_prepare_asexual",
     "tgs_prepare_polars",
     "tgs_select_calibration_neighborhoods",
