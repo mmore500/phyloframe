@@ -1,0 +1,41 @@
+import numpy as np
+
+from phyloframe.legacy._impl import tgs_calc_branches
+
+
+def test_branches():
+    #         0
+    #      1     6
+    #    2   5
+    #   3 4
+    ancestor_ids = np.array([0, 0, 1, 2, 2, 1, 0])
+    origin_time = np.array([0.0, 1.0, 2.0, 4.0, 5.0, 3.0, 2.0])
+    trait_states = [
+        np.array([0, 0, 1, 1, 1, 0, 0]),  # gained on the branch into 2
+        np.array([1, 1, 1, 1, 1, 1, 1]),  # present from the root
+    ]
+    res = tgs_calc_branches(
+        ancestor_ids=ancestor_ids,
+        origin_time=origin_time,
+        trait_states=trait_states,
+    )
+    # the root has no branch
+    assert res["origin_time"].tolist() == [1.0, 2.0, 4.0, 5.0, 3.0, 2.0]
+    assert res["branch_length"].tolist() == [1.0, 1.0, 2.0, 3.0, 2.0, 2.0]
+    # to the latest leaf below: node 4 (time 5) for nodes 1 and 2
+    assert res["survival_time"].tolist() == [4.0, 3.0, 0.0, 0.0, 0.0, 0.0]
+    assert res["clade_size"].tolist() == [3, 2, 1, 1, 1, 1]
+    assert res["trait0_at_risk"].tolist() == [1, 1, 0, 0, 1, 1]
+    assert res["trait0_gain"].tolist() == [0, 1, 0, 0, 0, 0]
+    assert not res["trait1_at_risk"].any()
+    assert not res["trait1_gain"].any()
+
+
+def test_zero_length_excluded():
+    res = tgs_calc_branches(
+        ancestor_ids=np.array([0, 0, 0]),
+        origin_time=np.array([0.0, 0.0, 1.0]),
+        trait_states=[np.array([0, 0, 1])],
+    )
+    assert res["branch_length"].tolist() == [1.0]
+    assert res["trait0_gain"].tolist() == [True]

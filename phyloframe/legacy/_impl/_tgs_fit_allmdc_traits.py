@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 from ..._auxlib._tgs_fit import TgsFitResult
-from ._TgsAllmdcBranches import TgsAllmdcBranches
 from ._TgsAllmdcPartitioning import TgsAllmdcPartitioning
 from ._tgs_calc_allmdc_data import tgs_calc_allmdc_data
 from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
@@ -13,7 +12,7 @@ from ._tgs_fit_allmdc_trait import tgs_fit_allmdc_trait
 
 def tgs_fit_allmdc_traits(
     *,
-    branches: TgsAllmdcBranches,
+    branches: pd.DataFrame,
     partitioning: TgsAllmdcPartitioning,
     unit_weights: np.ndarray,
     neutral_traits: typing.Sequence[int],

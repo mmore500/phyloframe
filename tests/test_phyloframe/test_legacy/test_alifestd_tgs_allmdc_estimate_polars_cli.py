@@ -23,7 +23,7 @@ def input_pqt(tmp_path):
 
 def test_cli_help():
     subprocess.run(  # nosec B603
-        ["python3", "-m", MODULE, "--trait-masks", "focal", "--help"],
+        ["python3", "-m", MODULE, "--trait-transitions", "focal", "--help"],
         check=True,
     )
 
@@ -48,7 +48,7 @@ def test_cli(input_pqt, ext, tmp_path):
             "python3",
             "-m",
             MODULE,
-            "--trait-masks",
+            "--trait-transitions",
             "focal",
             "n1",
             "n2",
@@ -89,16 +89,16 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "python3",
             "-m",
             MODULE,
-            "--trait-masks",
+            "--trait-transitions",
             "focal",
             "n1",
             "--loss-rate",
             "0.001",
             "--num-survival-time-bins",
             "8",
-            "--clade-size-calibration-ratio",
+            "--calibrate-size-partition-ratio",
             "4",
-            "--min-calibration-block-neutral-gains",
+            "--calibrate-size-partition-min-neutral-gains",
             "5",
             "--eager-write",
             output_file,
@@ -108,11 +108,11 @@ def test_cli_matches_function(input_pqt, tmp_path):
     )
     expected = alifestd_tgs_allmdc_estimate_polars(
         pl.read_parquet(input_pqt),
-        trait_masks=["focal", "n1"],
+        trait_transitions=["focal", "n1"],
         loss_rate=0.001,
         num_survival_time_bins=8,
-        clade_size_calibration_ratio=4.0,
-        min_calibration_block_neutral_gains=5,
+        calibrate_size_partition_ratio=4.0,
+        calibrate_size_partition_min_neutral_gains=5,
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False

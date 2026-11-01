@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
@@ -10,33 +9,21 @@ from .test_tgs_prepare_asexual import _make_tree
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_matches_asexual(lazy: bool):
-    phylogeny_df = _make_tree()
-    df_pl = pl.from_pandas(phylogeny_df).with_columns(
-        t=pl.Series([False, True, False, True])
-    )
+    phylogeny_df = _make_tree().assign(u=[1, 0, 0, 0])
+    df_pl = pl.from_pandas(phylogeny_df)
     res = tgs_prepare_polars(
         df_pl.lazy() if lazy else df_pl,
-        trait_masks=["t", ~pl.col("t")],
-        trait_names=["t", "not_t"],
+        trait_transitions=["t", "u"],
+        trait_names=["t", "u"],
         caller="test",
     )
     expected = tgs_prepare_asexual(
         phylogeny_df,
         False,
-        trait_masks=[
-            np.array([False, True, False, True]),
-            np.array([True, False, True, False]),
-        ],
-        trait_names=["t", "not_t"],
+        trait_transitions=["t", "u"],
+        trait_names=["t", "u"],
     )
-    for column in (
-        "ancestor_id",
-        "origin_time",
-        "__alifestd_tgs_branch_length",
-        "__alifestd_tgs_trait0",
-        "__alifestd_tgs_trait1",
-    ):
-        assert res[column].to_list() == expected[column].tolist()
+    pd.testing.assert_frame_equal(res, expected)
 
 
 def test_empty():
@@ -45,31 +32,31 @@ def test_empty():
             "id": pl.Series([], dtype=pl.Int64),
             "ancestor_id": pl.Series([], dtype=pl.Int64),
             "origin_time": pl.Series([], dtype=pl.Float64),
-            "t": pl.Series([], dtype=pl.Boolean),
+            "t": pl.Series([], dtype=pl.Int8),
         },
     )
     res = tgs_prepare_polars(
-        df_pl, trait_masks=["t"], trait_names=["t"], caller="test"
+        df_pl, trait_transitions=["t"], trait_names=["t"], caller="test"
     )
-    assert res.is_empty()
-    assert "__alifestd_tgs_branch_length" in res.columns
+    assert res.empty
+    assert {"branch_length", "trait0_at_risk", "trait0_gain"} <= set(res)
 
 
-def test_invalid():
+def test_null_transitions_raise():
     df_pl = pl.from_pandas(_make_tree()).with_columns(
-        t=pl.Series([None, True, False, True], dtype=pl.Boolean)
+        t=pl.Series([None, 1, 0, 0], dtype=pl.Int8)
     )
     with pytest.raises(NotImplementedError):
         tgs_prepare_polars(
-            df_pl, trait_masks=["t"], trait_names=["t"], caller="test"
+            df_pl, trait_transitions=["t"], trait_names=["t"], caller="test"
         )
-    sexual = pd.DataFrame(
-        {"id": [0, 1], "ancestor_list": ["[none]", "[0]"], "t": [0, 1]}
-    ).assign(ancestor_list=["[none]", "[0, 1]"])
-    with pytest.raises(NotImplementedError):
+
+
+def test_missing_column_raises():
+    with pytest.raises(ValueError):
         tgs_prepare_polars(
-            pl.from_pandas(sexual).with_columns(origin_time=pl.lit(0.0)),
-            trait_masks=["t"],
-            trait_names=["t"],
+            pl.from_pandas(_make_tree()),
+            trait_transitions=["x"],
+            trait_names=["x"],
             caller="test",
         )

@@ -18,16 +18,16 @@ def fixture():
         neutral_traits=[1, 2],
         trait_names=["focal", "n1", "n2"],
         calibrate=False,
-        calibration_neighborhood_fractions=(1.0,),
-        num_calibration_partitions=256,
-        clade_size_calibration_ratio=4.0,
-        min_calibration_block_neutral_gains=1,
+        calibrate_neighborhood_fractions=(1.0,),
+        calibrate_num_partitions=256,
+        calibrate_size_partition_ratio=4.0,
+        calibrate_size_partition_min_neutral_gains=1,
         num_survival_time_bins=32,
     )
     data = tgs_calc_allmdc_data(
         branches=branches,
         partitioning=partitioning,
-        unit_weights=np.ones(len(branches.branch_lengths)),
+        unit_weights=np.ones(len(branches)),
         neutral_traits=[1, 2],
         calibrate=False,
     )

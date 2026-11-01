@@ -4,43 +4,50 @@ import pytest
 
 from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_tgs_allmdc_estimate_asexual
-from phyloframe.legacy._impl import tgs_allmdc_impl, tgs_prepare_asexual
+from phyloframe.legacy._impl import (
+    tgs_allmdc_impl,
+    tgs_calc_branches,
+    tgs_prepare_asexual,
+)
 
+from .._impl import add_trait_transitions
 from ..test_alifestd_tgs_allmdc_estimate_asexual import _make_cherries
 
 _KWARGS = dict(
     calibrate=True,
-    calibration_neighborhood_fractions=(0.25, 1.0),
-    num_calibration_partitions=64,
-    clade_size_calibration_ratio=2.0,
-    min_calibration_block_neutral_gains=1,
+    calibrate_neighborhood_fractions=(0.25, 1.0),
+    calibrate_num_partitions=64,
+    calibrate_size_partition_ratio=2.0,
+    calibrate_size_partition_min_neutral_gains=1,
     num_survival_time_bins=16,
     num_bootstrap=2,
     loss_rate=0.0,
     seed=1,
     parallel_backend=None,
 )
+_IMPL_KWARGS = dict(
+    selection_starts=(0.0, -0.3, -1.8),
+    max_growth_exponent=600.0,
+    progress_wrap=identity,
+)
 
 
 def test_matches_public():
     phylogeny_df, traits = _make_cherries(2_000)
-    names = ["focal", "n1", "n2", "n3", "n4"]
-    prepared = tgs_prepare_asexual(
-        phylogeny_df, False, trait_masks=traits, trait_names=names
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    branches = tgs_prepare_asexual(
+        phylogeny_df, False, trait_transitions=names, trait_names=names
     )
     res = tgs_allmdc_impl(
-        prepared,
+        branches,
         trait_names=names,
         neutral_traits=[1, 2, 3, 4],
-        selection_starts=(0.0, -0.3, -1.8),
-        max_growth_exponent=600.0,
-        progress_wrap=identity,
+        **_IMPL_KWARGS,
         **_KWARGS,
     )
     expected = alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df,
-        trait_masks=traits,
-        trait_names=names,
+        trait_transitions=names,
         neutral_traits=[1, 2, 3, 4],
         **_KWARGS,
     )
@@ -48,44 +55,40 @@ def test_matches_public():
     assert "selection_se" in res.columns
 
 
-def test_no_branches():
-    prepared = pd.DataFrame(
-        {
-            "ancestor_id": [0],
-            "origin_time": [0.0],
-            "__alifestd_tgs_branch_length": [np.nan],
-            "__alifestd_tgs_trait0": [False],
-        },
+def _no_branches() -> pd.DataFrame:
+    return tgs_calc_branches(
+        ancestor_ids=np.array([0]),
+        origin_time=np.array([0.0]),
+        trait_states=[np.array([0])],
     )
+
+
+def test_no_branches():
     res = tgs_allmdc_impl(
-        prepared,
+        _no_branches(),
         trait_names=["t"],
         neutral_traits=[],
-        selection_starts=(0.0,),
-        max_growth_exponent=600.0,
-        progress_wrap=identity,
+        **_IMPL_KWARGS,
         **{**_KWARGS, "calibrate": False},
     )
     assert res["num_leaves"].tolist() == [0]
     assert "selection_p" in res.columns
 
 
-def test_num_survival_time_bins_validated():
-    prepared = pd.DataFrame(
-        {
-            "ancestor_id": [0],
-            "origin_time": [0.0],
-            "__alifestd_tgs_branch_length": [np.nan],
-            "__alifestd_tgs_trait0": [False],
-        },
-    )
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(num_survival_time_bins=0),
+        dict(calibrate_size_partition_ratio=1.0),
+        dict(calibrate_size_partition_min_neutral_gains=0),
+    ],
+)
+def test_invalid(kwargs: dict):
     with pytest.raises(ValueError):
         tgs_allmdc_impl(
-            prepared,
+            _no_branches(),
             trait_names=["t"],
             neutral_traits=[],
-            selection_starts=(0.0,),
-            max_growth_exponent=600.0,
-            progress_wrap=identity,
-            **{**_KWARGS, "num_survival_time_bins": 0},
+            **_IMPL_KWARGS,
+            **{**_KWARGS, **kwargs},
         )

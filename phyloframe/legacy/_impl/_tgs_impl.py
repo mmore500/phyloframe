@@ -1,24 +1,21 @@
 import typing
 
-import numpy as np
 import pandas as pd
-import polars as pl
 
-from .._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
-from ._tgs_find_trait_leaves import tgs_find_trait_leaves
+from ._tgs_find_trait_branches import tgs_find_trait_branches
 from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
 from ._tgs_init_results import tgs_init_results
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 
 
 def tgs_impl(
-    phylogeny_df: typing.Union[pd.DataFrame, pl.DataFrame],
+    branches: pd.DataFrame,
     *,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
-    calibration_neighborhood_fractions: typing.Sequence[float],
-    num_calibration_partitions: int,
+    calibrate_neighborhood_fractions: typing.Sequence[float],
+    calibrate_num_partitions: int,
     num_bootstrap: int,
     loss_rate: float,
     min_leaf_origin_time: float,
@@ -32,55 +29,32 @@ def tgs_impl(
 
     Here, tgs stands for trait gain/selection.
 
-    Takes a phylogeny prepared by `tgs_prepare_asexual` or
-    `tgs_prepare_polars`, with contiguous, topologically sorted ids and no
-    unifurcations, and validated arguments (see `tgs_validate_args`).
+    Takes branches from `tgs_calc_branches` and validated arguments (see
+    `tgs_validate_args`), and fits leaf pendant branches originating at or
+    after `min_leaf_origin_time`.
     """
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-    origin_time = phylogeny_df["origin_time"].to_numpy()
-    pendant_lengths = phylogeny_df["__alifestd_tgs_branch_length"].to_numpy()
-    trait_masks = [
-        phylogeny_df[f"__alifestd_tgs_trait{i}"].to_numpy()
-        for i in range(len(trait_names))
+    leaves = branches[
+        (branches["clade_size"] == 1)
+        & (branches["origin_time"] >= min_leaf_origin_time)
     ]
-    ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
-    origin_time = np.asarray(origin_time, dtype=np.float64)
-    pendant_lengths = np.asarray(pendant_lengths, dtype=np.float64)
-    # leaves informative for fitting: those with a pendant branch to gain a
-    # trait on, originating at or after `min_leaf_origin_time`
-    is_informative = (
-        _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
-        & (pendant_lengths > 0)  # excludes root leaves and nan
-        & (origin_time >= min_leaf_origin_time)
-    )
-    # for each trait, informative leaves whose pendant branch started without
-    # the trait, and the pendant gains among them
-    trait_leaves, trait_carriers = [], []
-    for trait_mask in trait_masks:
-        leaves, carriers = tgs_find_trait_leaves(
-            ancestor_ids=ancestor_ids,
-            trait_mask=trait_mask,
-            is_informative=is_informative,
-        )
-        trait_leaves.append(leaves)
-        trait_carriers.append(carriers)
+    trait_leaves, trait_carriers = tgs_find_trait_branches(leaves)
     res = tgs_init_results(
         trait_names=trait_names,
         trait_leaves=trait_leaves,
         trait_carriers=trait_carriers,
     )
-    if is_informative.any():
+    if len(leaves):
         replicate_fits = tgs_fit_and_bootstrap(
             res=res,
-            pendant_lengths=pendant_lengths[is_informative],
-            origin_times=origin_time[is_informative],
+            pendant_lengths=leaves["branch_length"].to_numpy(),
+            origin_times=leaves["origin_time"].to_numpy(),
             trait_leaves=trait_leaves,
             trait_carriers=trait_carriers,
             trait_names=trait_names,
             neutral_traits=neutral_traits,
             calibrate=calibrate,
-            calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-            num_calibration_partitions=num_calibration_partitions,
+            calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+            calibrate_num_partitions=calibrate_num_partitions,
             num_bootstrap=num_bootstrap,
             loss_rate=loss_rate,
             seed=seed,

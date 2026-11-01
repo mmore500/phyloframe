@@ -21,11 +21,11 @@ from ._impl import tgs_allmdc_impl, tgs_prepare_polars, tgs_validate_args
 def alifestd_tgs_allmdc_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_masks: typing.Sequence[typing.Union[str, pl.Expr]],
+    trait_transitions: typing.Sequence[str],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
     calibrate: bool = False,
-    calibration_neighborhood_fractions: typing.Sequence[float] = (
+    calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -35,9 +35,9 @@ def alifestd_tgs_allmdc_estimate_polars(
         0.5,
         1.0,
     ),
-    num_calibration_partitions: int = 4096,
-    clade_size_calibration_ratio: float = 2.0,
-    min_calibration_block_neutral_gains: int = 20,
+    calibrate_num_partitions: int = 4096,
+    calibrate_size_partition_ratio: float = 2.0,
+    calibrate_size_partition_min_neutral_gains: int = 20,
     num_survival_time_bins: int = 2048,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
@@ -67,12 +67,18 @@ def alifestd_tgs_allmdc_estimate_polars(
 
         Must represent an asexual phylogeny with contiguous,
         topologically sorted ids.
-    trait_masks : Sequence[str or polars.Expr]
-        Column names or boolean expressions marking taxa with each trait.
-        Only leaf values are used. Null values are not supported.
+    trait_transitions : Sequence[str]
+        Names of integer columns, one per trait, giving each node's trait
+        state transition on the branch from its parent: +1 for a gain, -1
+        for a loss, 0 for none (and, at a root, its initial state). Make
+        them from trait states at every node with
+        `alifestd_mark_lineage_delta_polars`. For leaf data, under parsimony
+        without loss, a node has the trait if and only if every leaf of its
+        clade does, so gains fall on the stems of mutationally defined
+        clades (see `alifestd_mask_trait_mdcs_polars`). Losses are not yet
+        supported.
     trait_names : Sequence[str], optional
-        Labels for output rows; defaults to column names for traits given as
-        str, else trait indices.
+        Labels for output rows; defaults to `trait_transitions`.
     neutral_traits : Sequence[int or str], default ()
         Indices or names of traits known to be neutral. Gain ratios are
         reported relative to their mean gain rate (leaving the focal trait
@@ -81,18 +87,19 @@ def alifestd_tgs_allmdc_estimate_polars(
     calibrate : bool, default False
         If True, calibrate branch lengths against `neutral_traits` gains
         within neighborhoods of similar branches.
-    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+    calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of branches.
-    num_calibration_partitions : int, default 4096
-        Maximum number of partitions of each clade-size block's branches for
+    calibrate_num_partitions : int, default 4096
+        Maximum number of partitions of each size partition's branches for
         calibration and binning; a power of two.
-    clade_size_calibration_ratio : float, default 2.0
-        Ratio between successive clade-size calibration blocks, e.g., 2 for
-        blocks of 1, 2, 3-4, 5-8, ... leaves; see
+    calibrate_size_partition_ratio : float, default 2.0
+        Ratio between successive size partitions, which group branches by
+        clade size for calibration, e.g., 2 for size partitions of 1, 2,
+        3-4, 5-8, ... leaves; see
         `alifestd_tgs_allmdc_estimate_asexual`.
-    min_calibration_block_neutral_gains : int, default 20
-        With `calibrate`, larger clades join the block below once a block
-        would hold fewer than this many neutral trait gains; see
+    calibrate_size_partition_min_neutral_gains : int, default 20
+        With `calibrate`, larger clades join the size partition below once
+        one would hold fewer than this many neutral trait gains; see
         `alifestd_tgs_allmdc_estimate_asexual`.
     num_survival_time_bins : int, default 2048
         Number of equal-occupancy survival-time bins, over which each
@@ -118,16 +125,19 @@ def alifestd_tgs_allmdc_estimate_polars(
     ------
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
-        non-contiguous or not topologically sorted, or if a trait mask has
-        null values.
+        non-contiguous or not topologically sorted, or if a
+        `trait_transitions` column is not integer, has null values, or has
+        losses (-1).
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
-        if `trait_names` and `trait_masks` differ in length, if
+        if a `trait_transitions` column is missing or has values other than
+        +1, -1, or 0, or gives states other than 0 and 1, if `trait_names`
+        and `trait_transitions` differ in length, if
         `num_survival_time_bins` is less than 1, if
-        `clade_size_calibration_ratio` is not greater than 1, if
-        `min_calibration_block_neutral_gains` is less than 1, if
-        `calibration_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `num_calibration_partitions` is not a power of two.
+        `calibrate_size_partition_ratio` is not greater than 1, if
+        `calibrate_size_partition_min_neutral_gains` is less than 1, if
+        `calibrate_neighborhood_fractions` is empty or has a value outside
+        (0, 1], or if `calibrate_num_partitions` is not a power of two.
 
     Returns
     -------
@@ -143,16 +153,16 @@ def alifestd_tgs_allmdc_estimate_polars(
         Leaf pendant branches only.
     """
     trait_names, neutral_traits = tgs_validate_args(
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
     )
-    prepared = tgs_prepare_polars(
+    branches = tgs_prepare_polars(
         phylogeny_df,
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
         caller="alifestd_tgs_allmdc_estimate_polars",
     )
@@ -162,14 +172,14 @@ def alifestd_tgs_allmdc_estimate_polars(
         "fitting gain and selection...",
     )
     res = tgs_allmdc_impl(
-        prepared,
+        branches,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
-        clade_size_calibration_ratio=clade_size_calibration_ratio,
-        min_calibration_block_neutral_gains=min_calibration_block_neutral_gains,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_size_partition_ratio=calibrate_size_partition_ratio,
+        calibrate_size_partition_min_neutral_gains=calibrate_size_partition_min_neutral_gains,
         num_survival_time_bins=num_survival_time_bins,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
@@ -230,18 +240,24 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--trait-masks",
+        "--trait-transitions",
         nargs="+",
         required=True,
         type=str,
-        help="Names of boolean columns marking taxa with each trait.",
+        help=(
+            "Names of integer columns giving each trait's state transition "
+            "on the branch into each node (+1 gain, -1 loss, 0 none)."
+        ),
     )
     parser.add_argument(
         "--neutral-traits",
         nargs="*",
         default=[],
         type=str,
-        help="Names of trait columns known to be neutral (default: none).",
+        help=(
+            "Names of trait transition columns of traits known to be neutral "
+            "(default: none)."
+        ),
     )
     parser.add_argument(
         "--calibrate",
@@ -249,7 +265,7 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Measure branch length by neutral trait gains.",
     )
     parser.add_argument(
-        "--calibration-neighborhood-fractions",
+        "--calibrate-neighborhood-fractions",
         default=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
         nargs="+",
         type=float,
@@ -259,30 +275,31 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--num-calibration-partitions",
+        "--calibrate-num-partitions",
         default=4096,
         type=int,
         help=(
-            "Maximum number of branch partitions per clade-size block, a "
+            "Maximum number of branch partitions per size partition, a "
             "power of two (default: 4096)."
         ),
     )
     parser.add_argument(
-        "--clade-size-calibration-ratio",
+        "--calibrate-size-partition-ratio",
         default=2.0,
         type=float,
         help=(
-            "Ratio between successive clade-size calibration blocks, e.g., 2 "
-            "for blocks of 1, 2, 3-4, 5-8, ... leaves (default: 2.0)."
+            "Ratio between successive size partitions, which group branches "
+            "by clade size for calibration, e.g., 2 for 1, 2, 3-4, 5-8, ... "
+            "leaves (default: 2.0)."
         ),
     )
     parser.add_argument(
-        "--min-calibration-block-neutral-gains",
+        "--calibrate-size-partition-min-neutral-gains",
         default=20,
         type=int,
         help=(
-            "Minimum neutral trait gains per clade-size calibration block; "
-            "larger clades join the block below (default: 20)."
+            "Minimum neutral trait gains per size partition; larger clades "
+            "join the size partition below (default: 20)."
         ),
     )
     parser.add_argument(
@@ -349,18 +366,18 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_tgs_allmdc_estimate_polars,
-                    trait_masks=args.trait_masks,
+                    trait_transitions=args.trait_transitions,
                     neutral_traits=args.neutral_traits,
                     calibrate=args.calibrate,
-                    calibration_neighborhood_fractions=(
-                        args.calibration_neighborhood_fractions
+                    calibrate_neighborhood_fractions=(
+                        args.calibrate_neighborhood_fractions
                     ),
-                    num_calibration_partitions=args.num_calibration_partitions,
-                    clade_size_calibration_ratio=(
-                        args.clade_size_calibration_ratio
+                    calibrate_num_partitions=args.calibrate_num_partitions,
+                    calibrate_size_partition_ratio=(
+                        args.calibrate_size_partition_ratio
                     ),
-                    min_calibration_block_neutral_gains=(
-                        args.min_calibration_block_neutral_gains
+                    calibrate_size_partition_min_neutral_gains=(
+                        args.calibrate_size_partition_min_neutral_gains
                     ),
                     num_survival_time_bins=args.num_survival_time_bins,
                     num_bootstrap=args.num_bootstrap,

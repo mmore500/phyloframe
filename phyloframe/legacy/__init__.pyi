@@ -451,6 +451,12 @@ from ._alifestd_mark_lineage_cumsum_asexual import (
 from ._alifestd_mark_lineage_cumsum_polars import (
     alifestd_mark_lineage_cumsum_polars,
 )
+from ._alifestd_mark_lineage_delta_asexual import (
+    alifestd_mark_lineage_delta_asexual,
+)
+from ._alifestd_mark_lineage_delta_polars import (
+    alifestd_mark_lineage_delta_polars,
+)
 from ._alifestd_mark_max_descendant_origin_time_asexual import (
     alifestd_mark_max_descendant_origin_time_asexual,
 )
@@ -956,6 +962,8 @@ __all__ = [
     "alifestd_mark_lineage_cumprod_polars",
     "alifestd_mark_lineage_cumsum_asexual",
     "alifestd_mark_lineage_cumsum_polars",
+    "alifestd_mark_lineage_delta_asexual",
+    "alifestd_mark_lineage_delta_polars",
     "alifestd_mark_max_descendant_origin_time_asexual",
     "alifestd_mark_max_descendant_origin_time_polars",
     "alifestd_mark_monomorphic_clades_polars",

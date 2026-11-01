@@ -1,6 +1,5 @@
 import typing
 
-import numpy as np
 import pandas as pd
 
 from .._auxlib._identity import identity
@@ -13,11 +12,11 @@ def alifestd_tgs_allmdc_estimate_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    trait_masks: typing.Sequence[np.ndarray],
+    trait_transitions: typing.Sequence[str],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
     calibrate: bool = False,
-    calibration_neighborhood_fractions: typing.Sequence[float] = (
+    calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -27,9 +26,9 @@ def alifestd_tgs_allmdc_estimate_asexual(
         0.5,
         1.0,
     ),
-    num_calibration_partitions: int = 4096,
-    clade_size_calibration_ratio: float = 2.0,
-    min_calibration_block_neutral_gains: int = 20,
+    calibrate_num_partitions: int = 4096,
+    calibrate_size_partition_ratio: float = 2.0,
+    calibrate_size_partition_min_neutral_gains: int = 20,
     num_survival_time_bins: int = 2048,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
@@ -83,12 +82,18 @@ def alifestd_tgs_allmdc_estimate_asexual(
         Phylogeny in alife standard format, with column `origin_time`.
     mutate : bool, default False
         If True, allows mutation of the input dataframe.
-    trait_masks : Sequence[np.ndarray]
-        One boolean array per trait marking nodes with the trait, aligned
-        with `phylogeny_df.index`, with boolean dtype. Only leaf values are
-        used.
+    trait_transitions : Sequence[str]
+        Names of integer columns, one per trait, giving each node's trait
+        state transition on the branch from its parent: +1 for a gain, -1
+        for a loss, 0 for none (and, at a root, its initial state). Make
+        them from trait states at every node with
+        `alifestd_mark_lineage_delta_asexual`. For leaf data, under parsimony
+        without loss, a node has the trait if and only if every leaf of its
+        clade does, so gains fall on the stems of mutationally defined
+        clades (see `alifestd_mask_trait_mdcs_asexual`). Losses are not yet
+        supported.
     trait_names : Sequence[str], optional
-        Labels for output rows; defaults to trait indices.
+        Labels for output rows; defaults to `trait_transitions`.
     neutral_traits : Sequence[int or str], default ()
         Indices or names of traits known to be neutral. Gain ratios are reported
         relative to their mean gain rate (leaving the focal trait out).
@@ -96,29 +101,31 @@ def alifestd_tgs_allmdc_estimate_asexual(
     calibrate : bool, default False
         If True, rescale branch lengths by neutral trait gains, as in the
         pendant estimator, within neighborhoods of branches of the same
-        clade-size block (see `clade_size_calibration_ratio`) similar in
+        size partition (see `calibrate_size_partition_ratio`) similar in
         length and origin time. So, distortion of branch
         lengths shared with neutral traits, including any difference
         between inner and pendant branches, cancels.
-    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
-        Candidate calibration neighborhood sizes, as fractions of each
-        clade-size block's branches; see the pendant estimator.
-    num_calibration_partitions : int, default 4096
-        Maximum number of equal-occupancy partitions of each clade-size
-        block's branches, by ranked length and origin time, for
+    calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+        Candidate calibration neighborhood sizes, as fractions of each size
+        partition's branches; see the pendant estimator.
+    calibrate_num_partitions : int, default 4096
+        Maximum number of equal-occupancy partitions of each size
+        partition's branches, by ranked length and origin time, for
         calibration and binning; a power of two.
-    clade_size_calibration_ratio : float, default 2.0
-        Ratio between successive clade-size blocks: a branch subtending `n`
-        leaves falls in block ceil(log(n) / log(ratio)), so the default
-        gives blocks of 1, 2, 3-4, 5-8, 9-16, ... leaves. Branches are
-        partitioned and calibrated within their block, as neutral gains per
-        unit length may differ with clade size; the model itself is the
-        same for every block. Larger ratios give fewer, larger blocks.
-    min_calibration_block_neutral_gains : int, default 20
-        With `calibrate`, blocks go up the log scale only while each holds
-        at least this many neutral trait gains; the first block with fewer
-        and all larger clades join the block below, so no block is left
-        without neutral gains to calibrate against.
+    calibrate_size_partition_ratio : float, default 2.0
+        Ratio between successive size partitions, which group branches by
+        clade size for calibration: a branch subtending `n` leaves falls in
+        size partition ceil(log(n) / log(ratio)), so the default gives size
+        partitions of 1, 2, 3-4, 5-8, 9-16, ... leaves. Branches are
+        partitioned and calibrated within their size partition, as neutral
+        gains per unit length may differ with clade size; the model itself
+        is the same for every size partition. Larger ratios give fewer,
+        larger size partitions.
+    calibrate_size_partition_min_neutral_gains : int, default 20
+        With `calibrate`, size partitions go up the log scale only while
+        each holds at least this many neutral trait gains; the first with
+        fewer and all larger clades join the one below, so no size partition
+        is left without neutral gains to calibrate against.
     num_survival_time_bins : int, default 2048
         Number of equal-occupancy survival-time bins, over which each
         partition's survival term is averaged. Each bin stands in for its
@@ -159,15 +166,17 @@ def alifestd_tgs_allmdc_estimate_asexual(
     ------
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
-        if a trait mask's length differs from `phylogeny_df`'s, if
-        `trait_names` and `trait_masks` differ in length, if
+        if a `trait_transitions` column is missing or has values other than
+        +1, -1, or 0, or gives states other than 0 and 1, if
+        `trait_names` and `trait_transitions` differ in length, if
         `num_survival_time_bins` is less than 1, if
-        `clade_size_calibration_ratio` is not greater than 1, if
-        `min_calibration_block_neutral_gains` is less than 1, if
-        `calibration_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `num_calibration_partitions` is not a power of two.
+        `calibrate_size_partition_ratio` is not greater than 1, if
+        `calibrate_size_partition_min_neutral_gains` is less than 1, if
+        `calibrate_neighborhood_fractions` is empty or has a value outside
+        (0, 1], or if `calibrate_num_partitions` is not a power of two.
     NotImplementedError
-        If a trait mask does not have boolean dtype.
+        If a `trait_transitions` column is not integer, or has losses
+        (-1).
 
     Notes
     -----
@@ -189,28 +198,28 @@ def alifestd_tgs_allmdc_estimate_asexual(
         Leaf pendant branches only.
     """
     trait_names, neutral_traits = tgs_validate_args(
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
     )
-    prepared = tgs_prepare_asexual(
+    branches = tgs_prepare_asexual(
         phylogeny_df,
         mutate,
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
     )
     return tgs_allmdc_impl(
-        prepared,
+        branches,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
-        clade_size_calibration_ratio=clade_size_calibration_ratio,
-        min_calibration_block_neutral_gains=min_calibration_block_neutral_gains,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_size_partition_ratio=calibrate_size_partition_ratio,
+        calibrate_size_partition_min_neutral_gains=calibrate_size_partition_min_neutral_gains,
         num_survival_time_bins=num_survival_time_bins,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,

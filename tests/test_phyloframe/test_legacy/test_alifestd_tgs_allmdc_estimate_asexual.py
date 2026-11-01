@@ -1,3 +1,5 @@
+import typing
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -6,6 +8,22 @@ from phyloframe.legacy import (
     alifestd_tgs_allmdc_estimate_asexual,
     alifestd_tgs_pendantmdc_estimate_asexual,
 )
+
+from ._impl import add_trait_transitions
+
+
+def _estimate_from_masks(
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    *,
+    trait_masks: typing.Sequence[np.ndarray],
+    **kwargs,
+) -> pd.DataFrame:
+    """Run the estimator on transitions reconstructed from trait masks."""
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, trait_masks)
+    return alifestd_tgs_allmdc_estimate_asexual(
+        phylogeny_df, mutate, trait_transitions=names, **kwargs
+    )
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
@@ -60,8 +78,7 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_recovers_gain_selection(calibrate: bool):
     phylogeny_df, traits = _make_cherries()
-    original_df = phylogeny_df.copy()
-    res = alifestd_tgs_allmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
         trait_names=["focal", "n1", "n2", "n3", "n4"],
@@ -70,7 +87,6 @@ def test_recovers_gain_selection(calibrate: bool):
         num_bootstrap=10,
         seed=1,
     )
-    assert original_df.equals(phylogeny_df)
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_clades"] == 40_000).all()
     assert (res["num_clade_gains"] > 0).all()
@@ -107,8 +123,11 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
             for __ in range(5)
         ],
     )
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     kwargs = dict(
-        trait_masks=traits, neutral_traits=[1, 2, 3, 4], calibrate=calibrate
+        trait_transitions=names,
+        neutral_traits=[1, 2, 3, 4],
+        calibrate=calibrate,
     )
     res = alifestd_tgs_allmdc_estimate_asexual(phylogeny_df, **kwargs)
     expected = alifestd_tgs_pendantmdc_estimate_asexual(phylogeny_df, **kwargs)
@@ -132,7 +151,7 @@ def test_counts():
             "origin_time": [0.0, 1.0, 3.0, 4.0, 2.0],
         },
     )
-    res = alifestd_tgs_allmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=np.array(
             [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0], [0, 0, 1, 1, 1]],
@@ -155,15 +174,13 @@ def test_counts():
 def test_row_order_invariant():
     phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
-    expected = alifestd_tgs_allmdc_estimate_asexual(
-        phylogeny_df, trait_masks=traits, **kwargs
-    )
+    expected = _estimate_from_masks(phylogeny_df, trait_masks=traits, **kwargs)
 
     order = np.random.default_rng(2).permutation(len(phylogeny_df))
     shuffled = phylogeny_df.iloc[order].reset_index(drop=True)
     shuffled["id"] += 7
     shuffled["ancestor_id"] += 7
-    res = alifestd_tgs_allmdc_estimate_asexual(
+    res = _estimate_from_masks(
         shuffled, trait_masks=traits[:, order], **kwargs
     )
     pd.testing.assert_frame_equal(res, expected, rtol=1e-4)
@@ -172,41 +189,41 @@ def test_row_order_invariant():
 def test_num_survival_time_bins_validated():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_allmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df, trait_masks=traits, num_survival_time_bins=0
         )
 
 
 @pytest.mark.parametrize("ratio", [1.0, 0.5, -2.0, float("nan")])
-def test_clade_size_calibration_ratio_validated(ratio: float):
+def test_calibrate_size_partition_ratio_validated(ratio: float):
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_allmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
-            clade_size_calibration_ratio=ratio,
+            calibrate_size_partition_ratio=ratio,
         )
 
 
-def test_min_calibration_block_neutral_gains_validated():
+def test_calibrate_size_partition_min_neutral_gains_validated():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_allmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
-            min_calibration_block_neutral_gains=0,
+            calibrate_size_partition_min_neutral_gains=0,
         )
 
 
 @pytest.mark.parametrize("ratio", [1.5, 2.0, 1e9])
-def test_clade_size_calibration_ratio(ratio: float):
+def test_calibrate_size_partition_ratio(ratio: float):
     phylogeny_df, traits = _make_cherries(10_000)
-    res = alifestd_tgs_allmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        clade_size_calibration_ratio=ratio,
+        calibrate_size_partition_ratio=ratio,
     )
     assert res.loc[0, "selection"] < 0
     assert np.isfinite(res["gain_ratio"]).all()
@@ -215,7 +232,7 @@ def test_clade_size_calibration_ratio(ratio: float):
 @pytest.mark.parametrize("num_survival_time_bins", [1, 4, 64])
 def test_num_survival_time_bins(num_survival_time_bins: int):
     phylogeny_df, traits = _make_cherries(10_000)
-    res = alifestd_tgs_allmdc_estimate_asexual(
+    res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
@@ -228,7 +245,7 @@ def test_num_survival_time_bins(num_survival_time_bins: int):
 def test_calibrate_requires_neutral():
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(ValueError):
-        alifestd_tgs_allmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
             calibrate=True,
@@ -236,17 +253,78 @@ def test_calibrate_requires_neutral():
         )
 
 
-def test_trait_mask_validated():
+def test_trait_names_length_mismatch_raises():
     phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(NotImplementedError):
-        alifestd_tgs_allmdc_estimate_asexual(
-            phylogeny_df, trait_masks=traits.astype(int)
-        )
     with pytest.raises(ValueError):
-        alifestd_tgs_allmdc_estimate_asexual(
-            phylogeny_df, trait_masks=traits[:, :-1]
-        )
-    with pytest.raises(ValueError):
-        alifestd_tgs_allmdc_estimate_asexual(
+        _estimate_from_masks(
             phylogeny_df, trait_masks=traits, trait_names=["a"]
         )
+
+
+def test_input_not_mutated():
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    original_df = phylogeny_df.copy()
+    alifestd_tgs_allmdc_estimate_asexual(phylogeny_df, trait_transitions=names)
+    pd.testing.assert_frame_equal(phylogeny_df, original_df)
+
+
+def test_missing_transitions_column_raises():
+    phylogeny_df, __ = _make_cherries(100)
+    with pytest.raises(ValueError):
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=["absent"]
+        )
+
+
+def test_float_transitions_raise():
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
+    with pytest.raises(NotImplementedError):
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=names
+        )
+
+
+@pytest.mark.parametrize("value", [2, -2])
+def test_invalid_transitions_raise(value: int):
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df.loc[5, names[0]] = value
+    with pytest.raises(ValueError):
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=names
+        )
+
+
+def test_repeated_gain_raises():
+    phylogeny_df, __ = _make_cherries(100)
+    # gains on cherry 1's stem and on one of its leaves give state 2 there
+    phylogeny_df["trait"] = 0
+    phylogeny_df.loc[[1, 2], "trait"] = 1
+    with pytest.raises(ValueError):
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=["trait"]
+        )
+
+
+def test_losses_not_supported():
+    phylogeny_df, __ = _make_cherries(100)
+    phylogeny_df["trait"] = 0
+    phylogeny_df.loc[1, "trait"] = 1
+    phylogeny_df.loc[2, "trait"] = -1
+    with pytest.raises(NotImplementedError):
+        alifestd_tgs_allmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=["trait"]
+        )
+
+
+def test_trait_names_default_to_columns():
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
+    res = alifestd_tgs_allmdc_estimate_asexual(
+        phylogeny_df, trait_transitions=list("abcde")
+    )
+    assert res["trait"].tolist() == list("abcde")

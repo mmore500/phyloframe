@@ -1,14 +1,15 @@
 import typing
 
 import numpy as np
+import pandas as pd
 from scipy import sparse
 
-from ._TgsAllmdcBranches import TgsAllmdcBranches
 from ._TgsAllmdcPartitioning import TgsAllmdcPartitioning
 from ._tgs_calc_calibrated_pendant_lengths import (
     tgs_calc_calibrated_pendant_lengths,
 )
 from ._tgs_count_traits import tgs_count_traits
+from ._tgs_find_trait_branches import tgs_find_trait_branches
 
 # per partition with branches: branch counts, gain counts, mean (calibrated)
 # lengths, and the (sparse) share of branches in each survival-time bin
@@ -19,7 +20,7 @@ TgsAllmdcData = typing.Tuple[
 
 def tgs_calc_allmdc_data(
     *,
-    branches: TgsAllmdcBranches,
+    branches: pd.DataFrame,
     partitioning: TgsAllmdcPartitioning,
     unit_weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
@@ -29,22 +30,24 @@ def tgs_calc_allmdc_data(
 
     Here, tgs stands for trait gain/selection.
 
-    Returns, per trait, its partitions' (weighted) counts of branches that
+    Returns, per trait, for `branches` (see `tgs_calc_branches`), its
+    partitions' (weighted) counts of branches that
     started without the trait and of gains, their mean lengths (calibrated
     against neutral traits if `calibrate`), and how those branches spread
     over survival-time bins, omitting partitions without branches.
     """
+    trait_units, trait_gains = tgs_find_trait_branches(branches)
     counts = tgs_count_traits(
         leaf_partitions=partitioning.partitions,
         num_partitions=partitioning.num_partitions,
-        pendant_lengths=branches.branch_lengths,
+        pendant_lengths=branches["branch_length"].to_numpy(),
         leaf_weights=unit_weights,
-        trait_leaves=branches.trait_units,
-        trait_carriers=branches.trait_gains,
+        trait_leaves=trait_units,
+        trait_carriers=trait_gains,
     )
     shape = (partitioning.num_partitions, len(partitioning.survival_bin_times))
     data = []
-    for trait, units in enumerate(branches.trait_units):
+    for trait, units in enumerate(trait_units):
         lengths, __ = tgs_calc_calibrated_pendant_lengths(
             counts=counts,
             trait=trait,

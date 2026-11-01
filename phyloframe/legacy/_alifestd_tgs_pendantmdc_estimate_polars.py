@@ -22,11 +22,11 @@ from ._impl import tgs_impl, tgs_prepare_polars, tgs_validate_args
 def alifestd_tgs_pendantmdc_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_masks: typing.Sequence[typing.Union[str, pl.Expr]],
+    trait_transitions: typing.Sequence[str],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
     calibrate: bool = False,
-    calibration_neighborhood_fractions: typing.Sequence[float] = (
+    calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -36,7 +36,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         0.5,
         1.0,
     ),
-    num_calibration_partitions: int = 4096,
+    calibrate_num_partitions: int = 4096,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     min_leaf_origin_time: float = -np.inf,
@@ -82,12 +82,18 @@ def alifestd_tgs_pendantmdc_estimate_polars(
 
         Must represent an asexual phylogeny with contiguous,
         topologically sorted ids.
-    trait_masks : Sequence[str or polars.Expr]
-        Column names or boolean expressions marking taxa with each trait.
-        Only leaf values are used. Null values are not supported.
+    trait_transitions : Sequence[str]
+        Names of integer columns, one per trait, giving each node's trait
+        state transition on the branch from its parent: +1 for a gain, -1
+        for a loss, 0 for none (and, at a root, its initial state). Make
+        them from trait states at every node with
+        `alifestd_mark_lineage_delta_polars`. For leaf data, under parsimony
+        without loss, a node has the trait if and only if every leaf of its
+        clade does, so gains fall on the stems of mutationally defined
+        clades (see `alifestd_mask_trait_mdcs_polars`). Losses are not yet
+        supported.
     trait_names : Sequence[str], optional
-        Labels for output rows; defaults to column names for traits given as
-        str, else trait indices.
+        Labels for output rows; defaults to `trait_transitions`.
     neutral_traits : Sequence[int or str], default ()
         Indices or names of traits known to be neutral. Gain ratios are
         reported relative to their mean gain rate (leaving the focal trait
@@ -100,13 +106,13 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         than by branch length, so that distortion of branch lengths shared
         with neutral traits (e.g., from tree reconstruction) cancels. See
         `alifestd_tgs_pendantmdc_estimate_asexual` for details.
-    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+    calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of leaves.
         With `calibrate`, the candidate whose calibration best predicts
         held-out neutral traits is used. Larger neighborhoods smooth more;
         smaller ones resolve finer distortion but are noisier. A fraction of
         1.0 makes one neighborhood of all leaves, i.e., no calibration.
-    num_calibration_partitions : int, default 4096
+    calibrate_num_partitions : int, default 4096
         Number of equal-occupancy partitions of leaves, by ranked pendant
         length and origin time, among which calibration neighborhoods are
         formed; a power of two. Also bins leaves for fitting, so that fit
@@ -133,13 +139,16 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     ------
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
-        non-contiguous or not topologically sorted, or if a trait mask has
-        null values.
+        non-contiguous or not topologically sorted, or if a
+        `trait_transitions` column is not integer, has null values, or has
+        losses (-1).
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
-        if `trait_names` and `trait_masks` differ in length, or if
-        `calibration_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `num_calibration_partitions` is not a power of two.
+        if a `trait_transitions` column is missing or has values other than
+        +1, -1, or 0, or gives states other than 0 and 1, if `trait_names`
+        and `trait_transitions` differ in length, or if
+        `calibrate_neighborhood_fractions` is empty or has a value outside
+        (0, 1], or if `calibrate_num_partitions` is not a power of two.
 
     Returns
     -------
@@ -153,16 +162,16 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Pandas-based implementation.
     """
     trait_names, neutral_traits = tgs_validate_args(
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
     )
-    prepared = tgs_prepare_polars(
+    branches = tgs_prepare_polars(
         phylogeny_df,
-        trait_masks=trait_masks,
+        trait_transitions=trait_transitions,
         trait_names=trait_names,
         caller="alifestd_tgs_pendantmdc_estimate_polars",
     )
@@ -172,12 +181,12 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         "fitting gain and selection...",
     )
     res = tgs_impl(
-        prepared,
+        branches,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        num_calibration_partitions=num_calibration_partitions,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         min_leaf_origin_time=min_leaf_origin_time,
@@ -234,18 +243,24 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--trait-masks",
+        "--trait-transitions",
         nargs="+",
         required=True,
         type=str,
-        help="Names of boolean columns marking taxa with each trait.",
+        help=(
+            "Names of integer columns giving each trait's state transition "
+            "on the branch into each node (+1 gain, -1 loss, 0 none)."
+        ),
     )
     parser.add_argument(
         "--neutral-traits",
         nargs="*",
         default=[],
         type=str,
-        help="Names of trait columns known to be neutral (default: none).",
+        help=(
+            "Names of trait transition columns of traits known to be neutral "
+            "(default: none)."
+        ),
     )
     parser.add_argument(
         "--calibrate",
@@ -253,7 +268,7 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Measure pendant length by neutral trait gains.",
     )
     parser.add_argument(
-        "--calibration-neighborhood-fractions",
+        "--calibrate-neighborhood-fractions",
         default=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
         nargs="+",
         type=float,
@@ -263,7 +278,7 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--num-calibration-partitions",
+        "--calibrate-num-partitions",
         default=4096,
         type=int,
         help=(
@@ -319,13 +334,13 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_tgs_pendantmdc_estimate_polars,
-                    trait_masks=args.trait_masks,
+                    trait_transitions=args.trait_transitions,
                     neutral_traits=args.neutral_traits,
                     calibrate=args.calibrate,
-                    calibration_neighborhood_fractions=(
-                        args.calibration_neighborhood_fractions
+                    calibrate_neighborhood_fractions=(
+                        args.calibrate_neighborhood_fractions
                     ),
-                    num_calibration_partitions=args.num_calibration_partitions,
+                    calibrate_num_partitions=args.calibrate_num_partitions,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
