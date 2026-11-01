@@ -4,6 +4,8 @@ import joblib
 import numpy as np
 import opytional as opyt
 
+from ._identity import identity
+
 
 def run_seeded_replicates(
     func: typing.Callable[..., typing.Any],
@@ -11,7 +13,7 @@ def run_seeded_replicates(
     num_replicates: int,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
-    progress_wrap: typing.Callable = lambda x: x,
+    progress_wrap: typing.Callable = identity,
 ) -> typing.List[typing.Any]:
     """Call `func(seed=...)` once per replicate, each with its own seed, and
     return the results in replicate order.

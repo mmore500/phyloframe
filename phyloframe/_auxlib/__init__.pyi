@@ -6,10 +6,12 @@ from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._begin_prod_logging import begin_prod_logging
 from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
+from ._calc_geometric_bins import calc_geometric_bins
 from ._calc_group_means import calc_group_means
 from ._calc_kdtree_partitions import calc_kdtree_partitions
 from ._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
+from ._calc_quantile_bins import calc_quantile_bins
 from ._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ._ceil_div import ceil_div
 from ._coerce_to_pandas import coerce_to_pandas
@@ -46,6 +48,7 @@ from ._pairwise import pairwise
 from ._preserve_id_dtypes import preserve_id_dtypes
 from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
 from ._run_seeded_replicates import run_seeded_replicates
+from ._run_weighted_bootstrap import run_weighted_bootstrap
 from ._sample_bootstrap_counts import sample_bootstrap_counts
 from ._seed_random import seed_random
 from ._textwrap_respect_indents import textwrap_respect_indents
@@ -70,6 +73,9 @@ __all__ = [
     "calc_binomial_nll_proxy",
     "calc_group_means",
     "ceil_div",
+    "run_weighted_bootstrap",
+    "calc_quantile_bins",
+    "calc_geometric_bins",
     "calc_kdtree_partitions",
     "calc_knn_neighborhoods",
     "calc_neighborhood_rate_ratios",

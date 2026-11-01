@@ -1,8 +1,12 @@
+import functools
+
 import numpy as np
 import pandas as pd
 
+from phyloframe._auxlib import identity
 from phyloframe.legacy._impl import (
-    tgs_fit_allmdc_bootstrap_replicate,
+    tgs_bootstrap,
+    tgs_fit_allmdc_traits,
     tgs_partition_allmdc_branches,
 )
 
@@ -30,9 +34,17 @@ def test_replicate():
         selection_starts=(0.0, -0.3),
         growth_exponent_bound=600.0,
     )
-    fits = tgs_fit_allmdc_bootstrap_replicate(seed=1, fit_kwargs=fit_kwargs)
-    again = tgs_fit_allmdc_bootstrap_replicate(seed=1, fit_kwargs=fit_kwargs)
-    other = tgs_fit_allmdc_bootstrap_replicate(seed=2, fit_kwargs=fit_kwargs)
-    assert len(fits) == 3
+    kwargs = dict(
+        fit=functools.partial(tgs_fit_allmdc_traits, **fit_kwargs),
+        num_items=len(branches),
+        num_bootstrap=2,
+        parallel_backend=None,
+        progress_wrap=identity,
+    )
+    fits = tgs_bootstrap(seed=1, **kwargs)
+    again = tgs_bootstrap(seed=1, **kwargs)
+    other = tgs_bootstrap(seed=2, **kwargs)
+    assert len(fits) == 2 * 3
+    assert fits.index.names == ["replicate", "trait_index"]
     pd.testing.assert_frame_equal(fits, again)
     assert not np.allclose(fits["gain_rate"], other["gain_rate"])

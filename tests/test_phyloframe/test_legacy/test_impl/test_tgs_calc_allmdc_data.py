@@ -45,7 +45,7 @@ def test_data(calibrate: bool):
         *tgs_calc_allmdc_data(
             branches=branches,
             partitioning=partitioning,
-            unit_weights=np.ones(4_000),
+            weights=np.ones(4_000),
             neutral_traits=[1, 2],
             calibrate=calibrate,
         )
@@ -76,7 +76,7 @@ def test_weights():
         *tgs_calc_allmdc_data(
             branches=branches,
             partitioning=partitioning,
-            unit_weights=weights,
+            weights=weights,
             neutral_traits=[1, 2],
             calibrate=False,
         )
@@ -94,7 +94,7 @@ def test_trait_without_units():
         *tgs_calc_allmdc_data(
             branches=branches,
             partitioning=_partition(branches, False),
-            unit_weights=np.ones(1_000),
+            weights=np.ones(1_000),
             neutral_traits=[1, 2],
             calibrate=False,
         )

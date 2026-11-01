@@ -9,7 +9,7 @@ from phyloframe.legacy._impl import (
 from ._simulate_allmdc_branches import simulate_allmdc_branches
 
 
-def _fit(branches, calibrate=False, unit_weights=None):
+def _fit(branches, calibrate=False, weights=None):
     num_traits = sum(c.endswith("_starts_absent") for c in branches)
     neutral = list(range(1, num_traits))
     partitioning = tgs_partition_allmdc_branches(
@@ -26,9 +26,7 @@ def _fit(branches, calibrate=False, unit_weights=None):
     return tgs_fit_allmdc_traits(
         branches=branches,
         partitioning=partitioning,
-        unit_weights=(
-            np.ones(len(branches)) if unit_weights is None else unit_weights
-        ),
+        weights=(np.ones(len(branches)) if weights is None else weights),
         neutral_traits=neutral,
         calibrate=calibrate,
         loss_rate=0.0,
@@ -70,5 +68,5 @@ def test_weights_match_duplication():
     branches = simulate_allmdc_branches(4_000)
     weights = np.ones(4_000)
     weights[::3] = 2.0
-    weighted = _fit(branches, unit_weights=weights)
+    weighted = _fit(branches, weights=weights)
     assert not np.allclose(weighted["gain_rate"], _fit(branches)["gain_rate"])

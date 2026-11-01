@@ -1,15 +1,14 @@
-import functools
 import typing
 
 import pandas as pd
 
-from ..._auxlib._run_seeded_replicates import run_seeded_replicates
+from ..._auxlib._run_weighted_bootstrap import run_weighted_bootstrap
 
 
 def tgs_bootstrap(
     *,
-    fit_replicate: typing.Callable,
-    fit_kwargs: dict,
+    fit: typing.Callable[..., pd.DataFrame],
+    num_items: int,
     num_bootstrap: int,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
@@ -21,23 +20,20 @@ def tgs_bootstrap(
 
     Here, tgs stands for trait gain/selection.
 
-    Returns fits to bootstrap resamples, indexed by replicate and trait
-    index, from `fit_replicate` (e.g., `tgs_fit_bootstrap_replicate`),
-    called with each replicate's `seed` and `fit_kwargs`.
+    Returns fits to bootstrap resamples of `num_items` leaves (or
+    branches), indexed by replicate and trait index, from `fit` (e.g., a
+    `functools.partial` of `tgs_fit_traits`), called with each replicate's
+    `weights`; see `run_weighted_bootstrap`.
     """
-    # each replicate draws as many leaves (or branches) as there are, with
-    # replacement, so one may be drawn zero, one, or several times; weighting
-    # each by its draw count in the fit is the same as refitting to the
-    # resample, without building the resampled dataset
-    replicate_fits = run_seeded_replicates(
-        functools.partial(fit_replicate, fit_kwargs=fit_kwargs),
-        num_replicates=num_bootstrap,
-        seed=seed,
-        parallel_backend=parallel_backend,
-        progress_wrap=progress_wrap,
-    )
     return pd.concat(
-        replicate_fits,
+        run_weighted_bootstrap(
+            fit,
+            num_items=num_items,
+            num_replicates=num_bootstrap,
+            seed=seed,
+            parallel_backend=parallel_backend,
+            progress_wrap=progress_wrap,
+        ),
         keys=range(num_bootstrap),
         names=["replicate", "trait_index"],
     )

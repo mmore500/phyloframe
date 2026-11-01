@@ -5,6 +5,10 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
+from ..._auxlib._calc_geometric_bins import calc_geometric_bins
+from ..._auxlib._calc_group_means import calc_group_means
+from ..._auxlib._calc_quantile_bins import calc_quantile_bins
+from ._TgsCounts import TgsCounts
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_trait_branches import tgs_find_trait_branches
 from ._tgs_partition_branches import tgs_partition_branches
@@ -57,11 +61,9 @@ def tgs_partition_allmdc_branches(
     survival_times = branches["survival_time"].to_numpy()
     trait_units, trait_gains = tgs_find_trait_branches(branches)
     clade_sizes = branches["clade_size"].to_numpy()
-    # size partition k holds clade sizes in (ratio ** (k - 1), ratio ** k]
-    size_partition_bounds = calibrate_size_partition_ratio ** np.arange(
-        np.log(clade_sizes.max()) // np.log(calibrate_size_partition_ratio) + 2
+    size_partitions = calc_geometric_bins(
+        clade_sizes, ratio=calibrate_size_partition_ratio
     )
-    size_partitions = np.searchsorted(size_partition_bounds, clade_sizes)
     neutral_gain_positions = np.concatenate(
         [trait_gains[r] for r in neutral_traits] or [np.empty(0, dtype=int)]
     )
@@ -88,8 +90,7 @@ def tgs_partition_allmdc_branches(
             )
             size_partitions = np.minimum(size_partitions, cap)
     partitions = np.empty(len(size_partitions), dtype=np.int64)
-    neighborhoods = []
-    num_partitions = 0
+    blocks = []  # each size partition's first partition, count, and coords
     for size_partition in np.unique(size_partitions):
         (members,) = np.nonzero(size_partitions == size_partition)
         # not survival time, which the model accounts for: calibrating along
@@ -106,8 +107,9 @@ def tgs_partition_allmdc_branches(
             or coordinates,
             max_partitions=calibrate_num_partitions,
         )
-        partitions[members] = member_partitions + num_partitions
-        num_partitions += num_member_partitions
+        offset = sum(num for __, num, __ in blocks)
+        partitions[members] = member_partitions + offset
+        blocks.append((offset, num_member_partitions, coords))
         logging.info(
             "- alifestd_tgs_allmdc_estimate_asexual: size partition "
             f"{size_partition} (clade sizes {clade_sizes[members].min()}"
@@ -115,45 +117,38 @@ def tgs_partition_allmdc_branches(
             f"{np.isin(neutral_gain_positions, members).sum()} neutral trait "
             f"gains, and {num_member_partitions} partitions",
         )
-        if calibrate:
-            # positions, within the size partition, of each trait's members
-            def subset(positions: np.ndarray) -> np.ndarray:
-                return np.searchsorted(
-                    members, positions[np.isin(positions, members)]
-                )
 
-            neighborhoods.append(
+    calibration_neighborhoods = None
+    if calibrate:
+        counts = tgs_count_traits(
+            leaf_partitions=partitions,
+            num_partitions=partitions.max() + 1,
+            pendant_lengths=branch_lengths,
+            leaf_weights=np.ones(len(partitions)),
+            trait_leaves=trait_units,
+            trait_carriers=trait_gains,
+        )
+        # neighborhoods never mix size partitions
+        calibration_neighborhoods = sparse.block_diag(
+            [
                 tgs_select_calibration_neighborhoods(
                     partition_coords=coords,
                     neighborhood_fractions=calibrate_neighborhood_fractions,
-                    counts=tgs_count_traits(
-                        leaf_partitions=member_partitions,
-                        num_partitions=num_member_partitions,
-                        pendant_lengths=branch_lengths[members],
-                        leaf_weights=np.ones(len(members)),
-                        trait_leaves=list(map(subset, trait_units)),
-                        trait_carriers=list(map(subset, trait_gains)),
+                    counts=TgsCounts(
+                        *(x[:, offset : offset + num] for x in counts)
                     ),
                     neutral_traits=neutral_traits,
                     trait_names=trait_names,
-                ),
-            )
+                )
+                for offset, num, coords in blocks
+            ],
+            format="csr",
+        )
 
-    edges = np.unique(
-        np.quantile(
-            survival_times, np.linspace(0, 1, num_survival_time_bins + 1)
-        ),
-    )
-    num_bins = max(len(edges) - 1, 1)
-    survival_bins = np.clip(
-        np.searchsorted(edges, survival_times, side="right") - 1,
-        0,
-        num_bins - 1,
+    survival_bins, num_bins = calc_quantile_bins(
+        survival_times, max_bins=num_survival_time_bins
     )
     bin_occupancy = np.bincount(survival_bins, minlength=num_bins)
-    survival_bin_times = np.bincount(
-        survival_bins, survival_times, minlength=num_bins
-    ) / np.maximum(bin_occupancy, 1)
     logging.info(
         "- alifestd_tgs_allmdc_estimate_asexual: binned survival times into "
         f"{num_bins} bins, holding {bin_occupancy.min()}"
@@ -162,10 +157,10 @@ def tgs_partition_allmdc_branches(
     return {
         "partitions": partitions,
         "survival_bins": survival_bins,
-        "survival_bin_times": survival_bin_times,
-        "calibration_neighborhoods": (
-            sparse.block_diag(neighborhoods, format="csr")
-            if calibrate
-            else None
+        "survival_bin_times": np.nan_to_num(
+            calc_group_means(
+                survival_bins, survival_times, num_groups=num_bins
+            )
         ),
+        "calibration_neighborhoods": calibration_neighborhoods,
     }

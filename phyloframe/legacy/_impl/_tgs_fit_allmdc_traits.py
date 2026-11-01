@@ -12,7 +12,7 @@ def tgs_fit_allmdc_traits(
     *,
     branches: pd.DataFrame,
     partitioning: typing.Dict[str, typing.Any],
-    unit_weights: np.ndarray,
+    weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
     loss_rate: float,
@@ -24,7 +24,7 @@ def tgs_fit_allmdc_traits(
     Here, tgs stands for trait gain/selection.
 
     Fits each trait's gain rate and selection to branches, each weighted
-    by `unit_weights` (e.g., bootstrap draw counts); see
+    by `weights` (e.g., bootstrap draw counts); see
     `tgs_calc_allmdc_nll` for the model. Returns one row per trait, with
     columns of `TgsFitResult` (see `tgs_fit_allmdc_trait`) plus
     `gain_ratio`, the gain rate relative to neutral traits.
@@ -32,7 +32,7 @@ def tgs_fit_allmdc_traits(
     data, survival_shares = tgs_calc_allmdc_data(
         branches=branches,
         partitioning=partitioning,
-        unit_weights=unit_weights,
+        weights=weights,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
     )

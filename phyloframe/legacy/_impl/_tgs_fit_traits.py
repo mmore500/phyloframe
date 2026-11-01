@@ -1,7 +1,6 @@
 import typing
 
 import numpy as np
-import opytional as opyt
 import pandas as pd
 from scipy import sparse
 
@@ -18,22 +17,21 @@ def tgs_fit_traits(
     leaf_partitions: np.ndarray,
     num_partitions: int,
     pendant_lengths: np.ndarray,
-    leaf_weights: np.ndarray,
+    weights: np.ndarray,
     trait_leaves: typing.Sequence[np.ndarray],
     trait_carriers: typing.Sequence[np.ndarray],
     neutral_traits: typing.Sequence[int],
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
     loss_rate: float,
-) -> typing.Tuple[pd.DataFrame, typing.List[typing.Optional[np.ndarray]]]:
+) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
     Returns one row per trait, with columns of `TgsFitResult` plus
-    `gain_ratio`, the gain rate relative to neutral traits; and, per trait,
-    the factors rescaling pendant length in partitions with its leaves
-    (None without calibration). If `calibration_neighborhoods` is given,
+    `gain_ratio`, the gain rate relative to neutral traits, fitting leaves
+    weighted by `weights` (e.g., bootstrap draw counts). If `calibration_neighborhoods` is given,
     each partition's pendant length is rescaled by the rate ratio of neutral
     trait gains within its neighborhood.
     """
@@ -41,19 +39,18 @@ def tgs_fit_traits(
         leaf_partitions=leaf_partitions,
         num_partitions=num_partitions,
         pendant_lengths=pendant_lengths,
-        leaf_weights=leaf_weights,
+        leaf_weights=weights,
         trait_leaves=trait_leaves,
         trait_carriers=trait_carriers,
     )
-    fits, calibration_factors = [], []
+    fits = []
     for trait, (n, k, __) in enumerate(zip(*counts)):
-        pendant_length, factors = tgs_calc_calibrated_pendant_lengths(
+        pendant_length, __ = tgs_calc_calibrated_pendant_lengths(
             counts=counts,
             trait=trait,
             neutral_traits=neutral_traits,
             calibration_neighborhoods=calibration_neighborhoods,
         )
-        calibration_factors.append(opyt.apply_if(factors, lambda f: f[n > 0]))
         # without carriers, skip fitting (and its warning), as callers report
         # such traits and replicates
         fits.append(
@@ -76,4 +73,4 @@ def tgs_fit_traits(
         gain_rates=res["gain_rate"].to_numpy(),
         neutral_traits=neutral_traits,
     )
-    return res, calibration_factors
+    return res
