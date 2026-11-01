@@ -590,11 +590,11 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_mask_monomorphic_clades_polars import (
     alifestd_mask_monomorphic_clades_polars,
 )
-from ._alifestd_mask_trait_mdcs_asexual import (
-    alifestd_mask_trait_mdcs_asexual,
+from ._alifestd_mask_trait_mdcs_strict_asexual import (
+    alifestd_mask_trait_mdcs_strict_asexual,
 )
-from ._alifestd_mask_trait_mdcs_polars import (
-    alifestd_mask_trait_mdcs_polars,
+from ._alifestd_mask_trait_mdcs_strict_polars import (
+    alifestd_mask_trait_mdcs_strict_polars,
 )
 from ._alifestd_mask_trait_singletons_asexual import (
     alifestd_mask_trait_singletons_asexual,
@@ -865,8 +865,8 @@ __all__ = [
     "AlifestdIplotxShimPolars",
     "alifestd_mark_unifurcation_length_asexual",
     "alifestd_mark_unifurcation_length_polars",
-    "alifestd_mask_trait_mdcs_asexual",
-    "alifestd_mask_trait_mdcs_polars",
+    "alifestd_mask_trait_mdcs_strict_asexual",
+    "alifestd_mask_trait_mdcs_strict_polars",
     "alifestd_tgs_allmdc_estimate_asexual",
     "alifestd_tgs_allmdc_estimate_polars",
     "alifestd_tgs_pendantmdc_estimate_asexual",

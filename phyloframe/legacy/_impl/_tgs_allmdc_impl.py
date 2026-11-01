@@ -28,7 +28,7 @@ def tgs_allmdc_impl(
     num_bootstrap: int,
     loss_rate: float,
     selection_starts: typing.Sequence[float],
-    max_growth_exponent: float,
+    growth_exponent_bound: float,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
@@ -39,8 +39,9 @@ def tgs_allmdc_impl(
 
     Here, tgs stands for trait gain/selection.
 
-    Takes branches from `tgs_calc_branches` and validated arguments (see
-    `tgs_validate_args`).
+    Takes branches from `tgs_calc_branches` and arguments as documented in
+    `alifestd_tgs_allmdc_estimate_asexual`, with `neutral_traits` as
+    indices and `trait_names` as labels (see `tgs_validate_args`).
     """
     if num_survival_time_bins < 1:
         raise ValueError("num_survival_time_bins must be at least 1")
@@ -74,7 +75,7 @@ def tgs_allmdc_impl(
             calibrate=calibrate,
             loss_rate=loss_rate,
             selection_starts=selection_starts,
-            max_growth_exponent=max_growth_exponent,
+            growth_exponent_bound=growth_exponent_bound,
         )
         logging.info(
             "- alifestd_tgs_allmdc_estimate_asexual: fitting "
@@ -84,6 +85,13 @@ def tgs_allmdc_impl(
             unit_weights=np.ones(num_branches), **fit_kwargs
         )
         res[list(point.columns)] = point
+        for __, row in res.iterrows():
+            logging.info(
+                f"- alifestd_tgs_allmdc_estimate_asexual: trait {row['trait']} "
+                f"fit gain rate {row['gain_rate']:.4g}, selection "
+                f"{row['selection']:.4g}, gain ratio {row['gain_ratio']:.4g}, "
+                f"selection lrt {row['selection_lrt_naive']:.4g}",
+            )
     if not num_bootstrap:
         return res
 

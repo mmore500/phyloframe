@@ -13,8 +13,7 @@ def alifestd_tgs_allmdc_estimate_asexual(
     mutate: bool = False,
     *,
     trait_transitions: typing.Sequence[str],
-    trait_names: typing.Optional[typing.Sequence[str]] = None,
-    neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
+    neutral_traits: typing.Sequence[str] = (),
     calibrate: bool = False,
     calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -33,27 +32,25 @@ def alifestd_tgs_allmdc_estimate_asexual(
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    max_growth_exponent: float = 600.0,
+    growth_exponent_bound: float = 600.0,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
 ) -> pd.DataFrame:
-    """Estimate per-trait gain rate and net selection from every branch,
-    pendant and inner, from how often each branch's clade carries the trait
-    as a function of branch length and survival time.
+    """Estimate per-trait gain rate and net selection from mutationally
+    defined clades (MDCs) of every size.
+
+    Unlike `alifestd_tgs_pendantmdc_estimate_asexual`, which considers only
+    leaf pendant branches (i.e., single-leaf MDCs), considers inner
+    branches too, so that trait gains shared by a multi-leaf clade also
+    inform the fit.
 
     Here, an MDC is a mutationally defined clade: a maximal clade whose
     leaves all carry the trait, which, under parsimony without loss, gained
-    it on its stem branch. This estimator uses MDCs of every size, single
-    leaves included.
-
-    Extends `alifestd_tgs_pendantmdc_estimate_asexual`, which
-    uses leaf pendant branches only, to inner branches, so that trait gains
-    shared by a multi-leaf clade also inform the fit. Each branch whose
-    parent's clade does not carry the trait at every leaf started without
-    it, so branch length is an exposure window; the branch gained the trait
-    (under parsimony, without loss) if its own clade carries it at every
-    leaf. Every branch, pendant or inner, is fit to
+    it on its stem branch. Each branch whose parent lacks the trait started
+    without it, so its length is an exposure window; the branch gained the
+    trait if its end node carries it. Every such branch, pendant or inner,
+    is fit to
 
         p = gain_rate * (exp(c * length) - 1) / c * exp(c * survival),
         c = selection - loss_rate
@@ -62,19 +59,25 @@ def alifestd_tgs_allmdc_estimate_asexual(
     from its end node to the latest sampled leaf below it (zero for a
     leaf): after a gain on the branch, its carrier lineage must persist
     that much longer to be seen at every leaf of the clade, which a cost
-    makes less likely. Equivalently, with effective length `eff(t) =
-    (exp(c * t) - 1) / c`, `p = gain_rate * (eff(length + survival) -
-    eff(survival))`, the exposure the branch adds to its clade's.
+    makes less likely. Equivalently, writing `eff(t) = (exp(c * t) - 1) /
+    c` for the effective exposure of a window of length `t`, `p =
+    gain_rate * (eff(length + survival) - eff(survival))`: the exposure of
+    the window from the branch's start to the clade's latest leaf, minus
+    that of the window from the branch's end.
 
     Notes on interpretation:
 
-    - leaves are scored as in the pendant estimator, so with only leaf
-      branches (e.g., a star tree), estimates match it;
     - survival time takes the tree's branch lengths at face value, so
       distortion of inner branch lengths (e.g., from reconstruction) also
       distorts the survival term, which neutral calibration does not
-      correct; compare against the pendant estimator; and
-    - nested branches share leaves, so the likelihood is a composite one.
+      correct; the pendant estimator, which uses no inner branch lengths,
+      is unaffected, so disagreement between the two flags such
+      distortion; and
+    - nested branches share leaves, so their outcomes are not independent;
+      the likelihood treats them as independent, i.e., it is a composite
+      likelihood, so `selection_lrt_naive` is not calibrated as a
+      chi-squared statistic, and bootstrap standard errors are likely too
+      small.
 
     Parameters
     ----------
@@ -90,14 +93,13 @@ def alifestd_tgs_allmdc_estimate_asexual(
         `alifestd_mark_lineage_delta_asexual`. For leaf data, under parsimony
         without loss, a node has the trait if and only if every leaf of its
         clade does, so gains fall on the stems of mutationally defined
-        clades (see `alifestd_mask_trait_mdcs_asexual`). Losses are not yet
-        supported.
-    trait_names : Sequence[str], optional
-        Labels for output rows; defaults to `trait_transitions`.
-    neutral_traits : Sequence[int or str], default ()
-        Indices or names of traits known to be neutral. Gain ratios are reported
-        relative to their mean gain rate (leaving the focal trait out).
-        Optional unless `calibrate` is set, which requires at least two.
+        clades (see `alifestd_mask_trait_mdcs_strict_asexual`). Loss events,
+        i.e., -1 values, are not yet supported. Output rows are labeled by
+        these column names.
+    neutral_traits : Sequence[str], default ()
+        Names, among `trait_transitions`, of traits known to be neutral.
+        Used to calibrate branch lengths (with `calibrate`), which requires
+        at least two, and as the reference for gain ratios.
     calibrate : bool, default False
         If True, rescale branch lengths by neutral trait gains, as in the
         pendant estimator, within neighborhoods of branches of the same
@@ -127,28 +129,31 @@ def alifestd_tgs_allmdc_estimate_asexual(
         fewer and all larger clades join the one below, so no size partition
         is left without neutral gains to calibrate against.
     num_survival_time_bins : int, default 2048
-        Number of equal-occupancy survival-time bins, over which each
-        partition's survival term is averaged. Each bin stands in for its
-        branches by their mean survival time, which understates the average
-        survival term under a cost, so too few bins bias gain rate upward.
+        Number of equal-occupancy survival-time bins. In the fit, each
+        branch's survival time is replaced by the mean survival time of its
+        bin. As the survival term is convex in survival time, this
+        understates its average, so too few bins bias gain rate upward.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling branches with
         replacement and refitting, for standard errors,
         z-scores, and p-values. Calibration neighborhood sizes are held
-        fixed across replicates.
+        fixed across replicates. Around 200 replicates suffice for standard
+        errors (Efron and Tibshirani, 1993, *An Introduction to the
+        Bootstrap*, Chapter 6); a few dozen give rough ones.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Starting values for selection, in units of 1 / mean branch length;
         the best of the resulting fits is kept. See `tgs_fit`.
-    max_growth_exponent : float, default 600.0
-        Cap on carrier growth exponents, such as (selection - loss rate) *
+    growth_exponent_bound : float, default 600.0
+        Bound on carrier growth exponents, such as (selection - loss rate) *
         branch length, keeping optimizer trial steps finite. See `tgs_fit`.
-    seed : int, optional
-        Seed for bootstrap resampling.
-    parallel_backend : str, optional
+    seed : int, default None
+        Seed for bootstrap resampling; if None, drawn from numpy's global
+        random state.
+    parallel_backend : str, default None
         joblib backend to run bootstrap replicates in parallel, e.g., "loky"
-        (processes) or "threading".
+        (processes) or "threading"; if None, runs them sequentially.
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display bootstrap progress.
 
@@ -158,33 +163,26 @@ def alifestd_tgs_allmdc_estimate_asexual(
         One row per trait, with columns `trait`, `num_leaves` and
         `num_trait_present` (leaf branches that started without the trait,
         and those that gained it), `num_clades` and `num_clade_gains` (the
-        same for inner branches), `gain_rate`, `selection`, `gain_ratio`,
-        and `selection_lrt_naive`. With bootstrap replicates, also the
-        pendant estimator's bootstrap columns.
+        same for inner branches), `gain_rate`, `selection`, `gain_ratio`
+        (gain rate relative to the mean of neutral traits', leaving the
+        focal trait out), and `selection_lrt_naive`. With bootstrap
+        replicates, also the pendant estimator's bootstrap columns.
 
     Raises
     ------
     ValueError
-        If `calibrate` is set with fewer than two distinct neutral traits,
-        if a `trait_transitions` column is missing or has values other than
-        +1, -1, or 0, or gives states other than 0 and 1, if
-        `trait_names` and `trait_transitions` differ in length, if
-        `num_survival_time_bins` is less than 1, if
-        `calibrate_size_partition_ratio` is not greater than 1, if
-        `calibrate_size_partition_min_neutral_gains` is less than 1, if
-        `calibrate_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `calibrate_num_partitions` is not a power of two.
+        If arguments are invalid, e.g., `calibrate` with fewer than two
+        neutral traits, or a `trait_transitions` column is missing or gives
+        states other than 0 and 1.
     NotImplementedError
-        If a `trait_transitions` column is not integer, or has losses
-        (-1).
+        If a `trait_transitions` column is not integer, or has loss events,
+        i.e., -1 values.
 
     Notes
     -----
     Unifurcations are bypassed. Branches with zero or undefined length
-    (including roots) are excluded. Bootstrap replicates resample branches independently,
-    ignoring correlation through shared ancestry, so standard errors are
-    likely too small; nested branches share leaves, so the likelihood is a
-    composite one.
+    (including roots) are excluded. Bootstrap replicates resample branches
+    independently, ignoring correlation through shared ancestry.
 
     Input dataframe is not mutated by this operation unless `mutate` set
     True. If mutate set True, operation does not occur in place; still use
@@ -199,7 +197,6 @@ def alifestd_tgs_allmdc_estimate_asexual(
     """
     trait_names, neutral_traits = tgs_validate_args(
         trait_transitions=trait_transitions,
-        trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
@@ -209,7 +206,6 @@ def alifestd_tgs_allmdc_estimate_asexual(
         phylogeny_df,
         mutate,
         trait_transitions=trait_transitions,
-        trait_names=trait_names,
     )
     return tgs_allmdc_impl(
         branches,
@@ -224,7 +220,7 @@ def alifestd_tgs_allmdc_estimate_asexual(
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
-        max_growth_exponent=max_growth_exponent,
+        growth_exponent_bound=growth_exponent_bound,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,

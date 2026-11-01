@@ -1,4 +1,3 @@
-import operator
 import typing
 
 import numpy as np
@@ -7,8 +6,7 @@ import numpy as np
 def tgs_validate_args(
     *,
     trait_transitions: typing.Sequence[str],
-    trait_names: typing.Optional[typing.Sequence[str]],
-    neutral_traits: typing.Sequence[typing.Union[int, str]],
+    neutral_traits: typing.Sequence[str],
     calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
@@ -20,9 +18,9 @@ def tgs_validate_args(
     Here, tgs stands for trait gain/selection.
 
     Validates arguments shared by the trait gain/selection estimators.
-    Returns trait names, defaulting to the transition column names; and
-    `neutral_traits`, given as indices or trait names, as sorted, distinct,
-    non-negative indices.
+    Returns trait names, i.e., the transition column names, and
+    `neutral_traits`, given as names among them, as sorted, distinct
+    indices.
     """
     trait_transitions = list(trait_transitions)
     for column in trait_transitions:
@@ -31,21 +29,21 @@ def tgs_validate_args(
                 "trait_transitions must be column names, got "
                 f"{type(column).__name__}",
             )
-    num_traits = len(trait_transitions)
-    trait_names = list(
-        trait_transitions if trait_names is None else trait_names
+    for trait in neutral_traits:
+        if not isinstance(trait, str):
+            raise TypeError(
+                "neutral_traits must be trait_transitions column names, got "
+                f"{type(trait).__name__}",
+            )
+        if trait not in trait_transitions:
+            raise ValueError(
+                f"neutral trait {trait!r} is not among trait_transitions",
+            )
+    neutral_traits = (
+        np.unique([trait_transitions.index(trait) for trait in neutral_traits])
+        .astype(int)
+        .tolist()
     )
-    if len(trait_names) != num_traits:
-        raise ValueError(
-            f"got {len(trait_names)} trait names for {num_traits} traits",
-        )
-    neutral_traits = [
-        trait_names.index(trait) if isinstance(trait, str) else trait
-        for trait in neutral_traits
-    ]
-    neutral_traits = np.unique(
-        np.arange(num_traits)[list(map(operator.index, neutral_traits))]
-    ).tolist()
     if calibrate and len(neutral_traits) < 2:
         raise ValueError("calibration requires at least two neutral traits")
     if not calibrate_neighborhood_fractions or not all(
@@ -62,4 +60,4 @@ def tgs_validate_args(
             "calibrate_num_partitions must be a power of two, got "
             f"{calibrate_num_partitions}",
         )
-    return trait_names, neutral_traits
+    return trait_transitions, neutral_traits

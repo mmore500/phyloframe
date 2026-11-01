@@ -13,28 +13,31 @@ def _data():
     lengths = rng.uniform(1, 20, 6)
     shares = rng.random((6, 3))
     shares /= shares.sum(axis=1, keepdims=True)
-    return (n, k, lengths, shares), np.array([0.0, 5.0, 30.0])
+    data = dict(num_trials=n, num_successes=k, lengths=lengths)
+    return {**data, "survival_shares": shares}, np.array([0.0, 5.0, 30.0])
 
 
 def test_matches_pendant_without_survival_time():
-    (n, k, lengths, __), __ = _data()
-    data = (n, k, lengths, np.ones((6, 1)))
+    data, __ = _data()
+    data["survival_shares"] = np.ones((6, 1))
+    n, k, lengths = data["num_trials"], data["num_successes"], data["lengths"]
     res = tgs_calc_allmdc_nll(
         log_gain_rate=np.log(1e-3),
         rate=-0.05,
         data=data,
         survival_bin_times=np.array([0.0]),
-        max_growth_exponent=600.0,
+        growth_exponent_bound=600.0,
     )
     expected = _tgs_calc_nll(
-        n, k, lengths, 1e-3, -0.05, max_growth_exponent=600.0
+        n, k, lengths, 1e-3, -0.05, growth_exponent_bound=600.0
     )
     np.testing.assert_allclose(res, expected)
 
 
 def test_survival_discounts():
     data, times = _data()
-    n, k, lengths, shares = data
+    n, k, lengths = data["num_trials"], data["num_successes"], data["lengths"]
+    shares = data["survival_shares"]
     # equivalent to scaling each partition's success probability
     rate = -0.05
     factor = shares @ np.exp(rate * times)
@@ -43,7 +46,7 @@ def test_survival_discounts():
         rate=rate,
         data=data,
         survival_bin_times=times,
-        max_growth_exponent=600.0,
+        growth_exponent_bound=600.0,
     )
     gain = 1e-3 * np.expm1(rate * lengths) / rate * factor
     expected = -np.sum(k * np.log(gain) + (n - k) * np.log1p(-gain))
@@ -60,7 +63,7 @@ def test_gradient(rate: float):
             rate=params[1],
             data=data,
             survival_bin_times=times,
-            max_growth_exponent=600.0,
+            growth_exponent_bound=600.0,
         )
 
     x0 = np.array([np.log(1e-3), rate])

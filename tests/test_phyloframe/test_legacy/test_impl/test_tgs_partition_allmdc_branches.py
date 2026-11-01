@@ -24,23 +24,23 @@ def test_partition():
         **_KWARGS,
     )
     # 64 partitions in each of 3 clade-size blocks: 1, 2-4, and 5-16 leaves
-    assert res.num_partitions == 3 * 64
-    assert len(res.partitions) == 4_000
+    assert (res["partitions"].max() + 1) == 3 * 64
+    assert len(res["partitions"]) == 4_000
     blocks = np.searchsorted(
         [2, 5], branches["clade_size"].to_numpy(), side="right"
     )
-    for partition in range(res.num_partitions):
-        assert len(np.unique(blocks[res.partitions == partition])) == 1
-    assert res.calibration_neighborhoods is None
+    for partition in range((res["partitions"].max() + 1)):
+        assert len(np.unique(blocks[res["partitions"] == partition])) == 1
+    assert res["calibration_neighborhoods"] is None
     # leaves all have survival time 0, filling the lower bins, which merge
-    num_bins = len(res.survival_bin_times)
+    num_bins = len(res["survival_bin_times"])
     assert num_bins < 8
-    assert res.survival_bin_times[0] == 0.0
-    assert (np.diff(res.survival_bin_times) > 0).all()
+    assert res["survival_bin_times"][0] == 0.0
+    assert (np.diff(res["survival_bin_times"]) > 0).all()
     assert (
-        res.survival_bins[branches["clade_size"].to_numpy() == 1] == 0
+        res["survival_bins"][branches["clade_size"].to_numpy() == 1] == 0
     ).all()
-    assert res.survival_bins.max() == num_bins - 1
+    assert res["survival_bins"].max() == num_bins - 1
 
 
 def test_calibrate():
@@ -51,14 +51,14 @@ def test_calibrate():
         num_survival_time_bins=8,
         **_KWARGS,
     )
-    neighborhoods = res.calibration_neighborhoods
+    neighborhoods = res["calibration_neighborhoods"]
     assert neighborhoods.shape == (3 * 64, 3 * 64)
     # neighborhoods never mix clade-size blocks
     blocks = np.searchsorted(
         [2, 5], branches["clade_size"].to_numpy(), side="right"
     )
-    partition_blocks = np.zeros(res.num_partitions, dtype=int)
-    partition_blocks[res.partitions] = blocks
+    partition_blocks = np.zeros((res["partitions"].max() + 1), dtype=int)
+    partition_blocks[res["partitions"]] = blocks
     rows, cols = neighborhoods.nonzero()
     assert (partition_blocks[rows] == partition_blocks[cols]).all()
 
@@ -88,9 +88,9 @@ def test_blocks(ratio: float, sizes):
     block_of_size = dict(zip(sizes, expected))
     blocks = np.array([block_of_size[s] for s in clade_sizes])
     # partitions never span blocks, and each block gets its own
-    for partition in range(res.num_partitions):
-        assert len(np.unique(blocks[res.partitions == partition])) == 1
-    assert len(np.unique(res.partitions)) == res.num_partitions
+    for partition in range((res["partitions"].max() + 1)):
+        assert len(np.unique(blocks[res["partitions"] == partition])) == 1
+    assert len(np.unique(res["partitions"])) == (res["partitions"].max() + 1)
 
 
 def test_constant_survival_time():
@@ -102,8 +102,8 @@ def test_constant_survival_time():
         num_survival_time_bins=8,
         **_KWARGS,
     )
-    assert res.survival_bin_times.tolist() == [0.0]
-    assert (res.survival_bins == 0).all()
+    assert res["survival_bin_times"].tolist() == [0.0]
+    assert (res["survival_bins"] == 0).all()
 
 
 def test_sparse_blocks_join_block_below():
@@ -131,14 +131,16 @@ def test_sparse_blocks_join_block_below():
         branches=branches, calibrate=True, num_survival_time_bins=8, **kwargs
     )
     capped = np.minimum(blocks, 3)
-    for partition in range(res.num_partitions):
-        assert len(np.unique(capped[res.partitions == partition])) == 1
+    for partition in range((res["partitions"].max() + 1)):
+        assert len(np.unique(capped[res["partitions"] == partition])) == 1
     # clades of 9 share partitions with clades of 5-8
-    assert set(res.partitions[blocks == 4]) <= set(res.partitions[blocks == 3])
+    assert set(res["partitions"][blocks == 4]) <= set(
+        res["partitions"][blocks == 3]
+    )
     # without calibration, blocks are not capped
     uncapped = tgs_partition_allmdc_branches(
         branches=branches, calibrate=False, num_survival_time_bins=8, **kwargs
     )
-    assert not set(uncapped.partitions[blocks == 4]) & set(
-        uncapped.partitions[blocks == 3]
+    assert not set(uncapped["partitions"][blocks == 4]) & set(
+        uncapped["partitions"][blocks == 3]
     )

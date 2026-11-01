@@ -6,8 +6,8 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_mask_trait_mdcs_asexual,
-    alifestd_mask_trait_mdcs_polars,
+    alifestd_mask_trait_mdcs_strict_asexual,
+    alifestd_mask_trait_mdcs_strict_polars,
 )
 
 apply_params = pytest.mark.parametrize(
@@ -55,25 +55,25 @@ def test_empty(apply: typing.Callable):
         ),
     )
     res = (
-        alifestd_mask_trait_mdcs_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_mdcs_strict_polars(df_pl, trait_mask="trait")
         .lazy()
         .collect()
     )
     assert res.is_empty()
-    assert "alifestd_mask_trait_mdcs_polars" in res.columns
+    assert "alifestd_mask_trait_mdcs_strict_polars" in res.columns
 
 
 @apply_params
 def test_matches_pandas(apply: typing.Callable):
     df_pl = _make_tree()
     res = (
-        alifestd_mask_trait_mdcs_polars(
+        alifestd_mask_trait_mdcs_strict_polars(
             apply(df_pl), trait_mask=pl.col("trait"), mark_as="m"
         )
         .lazy()
         .collect()
     )
-    expected = alifestd_mask_trait_mdcs_asexual(
+    expected = alifestd_mask_trait_mdcs_strict_asexual(
         df_pl.to_pandas(),
         trait_mask=df_pl["trait"].to_numpy(),
         mark_as="m",
@@ -87,7 +87,7 @@ def test_null_trait_raises():
         trait=pl.when(pl.col("id") == 4).then(None).otherwise(pl.col("trait"))
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mask_trait_mdcs_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_mdcs_strict_polars(df_pl, trait_mask="trait")
 
 
 def test_unsorted_raises():
@@ -95,7 +95,7 @@ def test_unsorted_raises():
         {"id": [0, 1, 2], "ancestor_id": [1, 1, 1], "trait": [1, 0, 1]},
     ).with_columns(pl.col("trait").cast(pl.Boolean))
     with pytest.raises(NotImplementedError):
-        alifestd_mask_trait_mdcs_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_mdcs_strict_polars(df_pl, trait_mask="trait")
 
 
 def test_random_tree_matches_pandas():
@@ -109,13 +109,13 @@ def test_random_tree_matches_pandas():
             "trait": rng.random(n) < 0.3,
         },
     )
-    expected = alifestd_mask_trait_mdcs_asexual(
+    expected = alifestd_mask_trait_mdcs_strict_asexual(
         df_pd, trait_mask=df_pd["trait"].to_numpy()
     )
-    res = alifestd_mask_trait_mdcs_polars(
+    res = alifestd_mask_trait_mdcs_strict_polars(
         pl.from_pandas(df_pd), trait_mask="trait"
     )
     assert (
-        res["alifestd_mask_trait_mdcs_polars"].to_list()
-        == expected["alifestd_mask_trait_mdcs_asexual"].tolist()
+        res["alifestd_mask_trait_mdcs_strict_polars"].to_list()
+        == expected["alifestd_mask_trait_mdcs_strict_asexual"].tolist()
     )

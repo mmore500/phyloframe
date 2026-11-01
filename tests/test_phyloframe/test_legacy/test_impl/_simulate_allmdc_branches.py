@@ -30,6 +30,6 @@ def simulate_allmdc_branches(
         else:
             exposure = lengths
         p = gain * exposure * np.exp(selection * survival)
-        columns[f"trait{i}_at_risk"] = np.ones(num_branches, dtype=bool)
+        columns[f"trait{i}_starts_absent"] = np.ones(num_branches, dtype=bool)
         columns[f"trait{i}_gain"] = rng.random(num_branches) < p
     return pd.DataFrame(columns)

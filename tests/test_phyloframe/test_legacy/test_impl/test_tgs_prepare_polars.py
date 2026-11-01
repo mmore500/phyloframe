@@ -14,14 +14,12 @@ def test_matches_asexual(lazy: bool):
     res = tgs_prepare_polars(
         df_pl.lazy() if lazy else df_pl,
         trait_transitions=["t", "u"],
-        trait_names=["t", "u"],
         caller="test",
     )
     expected = tgs_prepare_asexual(
         phylogeny_df,
         False,
         trait_transitions=["t", "u"],
-        trait_names=["t", "u"],
     )
     pd.testing.assert_frame_equal(res, expected)
 
@@ -35,11 +33,9 @@ def test_empty():
             "t": pl.Series([], dtype=pl.Int8),
         },
     )
-    res = tgs_prepare_polars(
-        df_pl, trait_transitions=["t"], trait_names=["t"], caller="test"
-    )
+    res = tgs_prepare_polars(df_pl, trait_transitions=["t"], caller="test")
     assert res.empty
-    assert {"branch_length", "trait0_at_risk", "trait0_gain"} <= set(res)
+    assert {"branch_length", "trait0_starts_absent", "trait0_gain"} <= set(res)
 
 
 def test_null_transitions_raise():
@@ -47,9 +43,7 @@ def test_null_transitions_raise():
         t=pl.Series([None, 1, 0, 0], dtype=pl.Int8)
     )
     with pytest.raises(NotImplementedError):
-        tgs_prepare_polars(
-            df_pl, trait_transitions=["t"], trait_names=["t"], caller="test"
-        )
+        tgs_prepare_polars(df_pl, trait_transitions=["t"], caller="test")
 
 
 def test_missing_column_raises():
@@ -57,6 +51,5 @@ def test_missing_column_raises():
         tgs_prepare_polars(
             pl.from_pandas(_make_tree()),
             trait_transitions=["x"],
-            trait_names=["x"],
             caller="test",
         )

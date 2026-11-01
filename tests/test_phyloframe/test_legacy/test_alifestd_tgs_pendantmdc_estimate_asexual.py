@@ -20,10 +20,16 @@ def _estimate_from_masks(
     mutate: bool = False,
     *,
     trait_masks: typing.Sequence[np.ndarray],
+    trait_names: typing.Optional[typing.Sequence[str]] = None,
+    neutral_traits: typing.Sequence[int] = (),
     **kwargs,
 ) -> pd.DataFrame:
-    """Run the estimator on transitions reconstructed from trait masks."""
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, trait_masks)
+    """Run the estimator on transitions reconstructed from trait masks,
+    named `trait_names`, with `neutral_traits` given by index."""
+    phylogeny_df, names = add_trait_transitions(
+        phylogeny_df, trait_masks, trait_names
+    )
+    kwargs["neutral_traits"] = [names[i] for i in neutral_traits]
     return alifestd_tgs_pendantmdc_estimate_asexual(
         phylogeny_df, mutate, trait_transitions=names, **kwargs
     )
@@ -163,7 +169,7 @@ def test_neutral_traits_normalized():
         phylogeny_df, neutral_traits=[1, 2, 3, 4], **kwargs
     )
     res = _estimate_from_masks(
-        phylogeny_df, neutral_traits=[-1, -2, -3, -4, 4], **kwargs
+        phylogeny_df, neutral_traits=[4, 3, 2, 1, 4], **kwargs
     )
     pd.testing.assert_frame_equal(res, expected)
 
@@ -286,7 +292,7 @@ def test_losses_not_supported():
         )
 
 
-def test_trait_names_default_to_columns():
+def test_trait_named_by_columns():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
@@ -473,11 +479,21 @@ def test_bootstrap_neutral_reference_without_carriers():
     assert np.isfinite(res.loc[0, "log_gain_ratio_se"])
 
 
-def test_trait_names_length_mismatch_raises():
+def test_neutral_trait_not_among_transitions_raises():
     phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     with pytest.raises(ValueError):
-        _estimate_from_masks(
-            phylogeny_df, trait_masks=traits, trait_names=["a", "b"]
+        alifestd_tgs_pendantmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=names, neutral_traits=["absent"]
+        )
+
+
+def test_neutral_trait_index_raises():
+    phylogeny_df, traits = _make_cherries(100)
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    with pytest.raises(TypeError):
+        alifestd_tgs_pendantmdc_estimate_asexual(
+            phylogeny_df, trait_transitions=names, neutral_traits=[1]
         )
 
 

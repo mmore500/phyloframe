@@ -14,8 +14,7 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     mutate: bool = False,
     *,
     trait_transitions: typing.Sequence[str],
-    trait_names: typing.Optional[typing.Sequence[str]] = None,
-    neutral_traits: typing.Sequence[int] = (),
+    neutral_traits: typing.Sequence[str] = (),
     calibrate: bool = False,
     calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -85,14 +84,14 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         `alifestd_mark_lineage_delta_asexual`. For leaf data, under parsimony
         without loss, a node has the trait if and only if every leaf of its
         clade does, so gains fall on the stems of mutationally defined
-        clades (see `alifestd_mask_trait_mdcs_asexual`). Losses are not yet
-        supported.
-    trait_names : Sequence[str], optional
-        Labels for output rows; defaults to `trait_transitions`.
-    neutral_traits : Sequence[int], default ()
-        Indices of traits known to be neutral. Gain ratios are reported
-        relative to their mean gain rate (leaving the focal trait out).
-        Optional unless `calibrate` is set, which requires at least two.
+        clades (see `alifestd_mask_trait_mdcs_strict_asexual`). Loss events,
+        i.e., -1 values, are not yet supported. Output rows are labeled by
+        these column names.
+    neutral_traits : Sequence[str], default ()
+        Names, among `trait_transitions`, of traits known to be neutral.
+        Used to calibrate pendant lengths (with `calibrate`), which requires
+        at least two, and as the reference for gain ratios (relative to
+        their mean gain rate, leaving the focal trait out).
         Without neutral traits, `gain_ratio` and its statistics are nan;
         gain rate and selection are still estimated.
     calibrate : bool, default False
@@ -152,13 +151,13 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
         if a `trait_transitions` column is missing or has values other than
-        +1, -1, or 0, or gives states other than 0 and 1, if
-        `trait_names` and `trait_transitions` differ in length, if
+        +1, -1, or 0, or gives states other than 0 and 1, if a
+        `neutral_traits` name is not among `trait_transitions`, if
         `calibrate_neighborhood_fractions` is empty or has a value outside
         (0, 1], or if `calibrate_num_partitions` is not a power of two.
     NotImplementedError
-        If a `trait_transitions` column is not integer, or has losses
-        (-1).
+        If a `trait_transitions` column is not integer, or has loss
+        events, i.e., -1 values.
 
     Notes
     -----
@@ -186,7 +185,6 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     """
     trait_names, neutral_traits = tgs_validate_args(
         trait_transitions=trait_transitions,
-        trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
@@ -196,7 +194,6 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         phylogeny_df,
         mutate,
         trait_transitions=trait_transitions,
-        trait_names=trait_names,
     )
     return tgs_impl(
         branches,

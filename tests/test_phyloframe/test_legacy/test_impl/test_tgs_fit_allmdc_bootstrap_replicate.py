@@ -28,7 +28,7 @@ def test_replicate():
         calibrate=False,
         loss_rate=0.0,
         selection_starts=(0.0, -0.3),
-        max_growth_exponent=600.0,
+        growth_exponent_bound=600.0,
     )
     fits = tgs_fit_allmdc_bootstrap_replicate(seed=1, fit_kwargs=fit_kwargs)
     again = tgs_fit_allmdc_bootstrap_replicate(seed=1, fit_kwargs=fit_kwargs)
