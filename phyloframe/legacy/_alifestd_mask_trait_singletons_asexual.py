@@ -12,8 +12,8 @@ from ._alifestd_mark_lineage_cummax_asexual import (
 from ._alifestd_mark_num_children_asexual import (
     _alifestd_mark_num_children_asexual_fast_path,
 )
-from ._alifestd_mask_monomorphic_clades_asexual import (
-    _alifestd_mask_monomorphic_clades_asexual_fast_path,
+from ._alifestd_mask_trait_mdcs_strict_asexual import (
+    _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
@@ -49,23 +49,20 @@ def _alifestd_mask_trait_singletons_asexual_fast_path(
     """Implementation detail for
     `alifestd_mask_trait_singletons_asexual`."""
     is_leaf = _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
-    is_present = is_leaf & trait_mask
-    # a clade is monomorphic with respect to leaf trait values if all its
-    # leaves share one value
-    is_monomorphic = _alifestd_mask_monomorphic_clades_asexual_fast_path(
-        ancestor_ids, is_leaf.copy(), is_present.copy()
+    is_all_carrier = _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path(
+        ancestor_ids, trait_mask
     )
-    # a trait-carrying leaf whose stem node's clade is polymorphic does not
-    # share the trait with every leaf of its sister lineages, so gained it on
-    # its own pendant branch; unifurcations are bypassed, as a unifurcation's
-    # clade has the same leaves as its child's; a leaf without a stem node
-    # (e.g., a root leaf) is its own, so is never marked, as there is no
-    # other leaf to compare against
+    # a trait-carrying leaf whose stem node's clade is not all carriers does
+    # not share the trait with every leaf of its sister lineages, so gained it
+    # on its own pendant branch; unifurcations are bypassed, as a
+    # unifurcation's clade has the same leaves as its child's; a leaf without
+    # a stem node (e.g., a root leaf) is its own, so is never marked, as there
+    # is no other leaf to compare against
     stem_node_ids = _alifestd_mask_trait_singletons_asexual_stem_node_ids(
         ancestor_ids,
         _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) >= 2,
     )
-    return is_present & ~is_monomorphic[stem_node_ids]
+    return is_leaf & is_all_carrier & ~is_all_carrier[stem_node_ids]
 
 
 @warn_experimental
