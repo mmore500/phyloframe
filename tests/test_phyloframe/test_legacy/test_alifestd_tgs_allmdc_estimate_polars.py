@@ -5,13 +5,11 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_estimate_trait_gain_selection_allmdc_asexual,
-    alifestd_estimate_trait_gain_selection_allmdc_polars,
+    alifestd_tgs_allmdc_estimate_asexual,
+    alifestd_tgs_allmdc_estimate_polars,
 )
 
-from .test_alifestd_estimate_trait_gain_selection_allmdc_asexual import (
-    _make_cherries,
-)
+from .test_alifestd_tgs_allmdc_estimate_asexual import _make_cherries
 
 apply_params = pytest.mark.parametrize(
     "apply",
@@ -44,14 +42,13 @@ def test_empty(apply: typing.Callable):
             }
         ),
     )
-    res = alifestd_estimate_trait_gain_selection_allmdc_polars(
+    res = alifestd_tgs_allmdc_estimate_polars(
         df_pl, trait_masks=["trait"], num_bootstrap=2
     )
     assert res["trait"].to_list() == ["trait"]
     assert res["num_leaves"].to_list() == [0]
     assert res["num_clades"].to_list() == [0]
     assert "selection_p" in res.columns
-    assert "clade_size_shift_2_se" in res.columns
 
 
 @apply_params
@@ -59,7 +56,7 @@ def test_empty(apply: typing.Callable):
 def test_matches_pandas(apply: typing.Callable, calibrate: bool):
     df_pl = _make_cherries_polars(5_000)
     names = ["focal", "n1", "n2", "n3", "n4"]
-    res = alifestd_estimate_trait_gain_selection_allmdc_polars(
+    res = alifestd_tgs_allmdc_estimate_polars(
         apply(df_pl),
         trait_masks=names,
         neutral_traits=["n1", "n2", 3, 4],
@@ -68,7 +65,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
         seed=1,
     )
     df_pd = df_pl.to_pandas()
-    expected = alifestd_estimate_trait_gain_selection_allmdc_asexual(
+    expected = alifestd_tgs_allmdc_estimate_asexual(
         df_pd,
         trait_masks=[df_pd[name].to_numpy() for name in names],
         trait_names=names,
@@ -84,7 +81,7 @@ def test_matches_pandas(apply: typing.Callable, calibrate: bool):
 
 def test_expression_masks():
     df_pl = _make_cherries_polars(2_000)
-    res = alifestd_estimate_trait_gain_selection_allmdc_polars(
+    res = alifestd_tgs_allmdc_estimate_polars(
         df_pl,
         trait_masks=[pl.col("focal"), pl.col("n1") & pl.col("n2")],
         trait_names=["focal", "both"],
@@ -102,6 +99,4 @@ def test_not_asexual():
         },
     ).with_columns(ancestor_list=pl.lit("[0, 1]"))
     with pytest.raises(NotImplementedError):
-        alifestd_estimate_trait_gain_selection_allmdc_polars(
-            df_pl, trait_masks=["trait"]
-        )
+        alifestd_tgs_allmdc_estimate_polars(df_pl, trait_masks=["trait"])

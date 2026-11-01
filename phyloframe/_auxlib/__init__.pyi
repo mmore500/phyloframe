@@ -23,6 +23,7 @@ from ._fit_fblr import fit_fblr
 from ._format_cli_description import format_cli_description
 from ._get_package_name import get_package_name
 from ._get_phyloframe_version import get_phyloframe_version
+from ._identity import identity
 from ._is_in_coverage_run import is_in_coverage_run
 from ._is_subset import is_subset
 from ._iter_kdtree_nodes import iter_kdtree_nodes
@@ -83,6 +84,7 @@ __all__ = [
     "format_cli_description",
     "get_package_name",
     "get_phyloframe_version",
+    "identity",
     "is_in_coverage_run",
     "is_subset",
     "iter_kdtree_nodes",

@@ -4,17 +4,13 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe.legacy._alifestd_estimate_trait_gain_selection_allmdc_polars import (
+from phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars import (
     _create_parser,
 )
 
-from .test_alifestd_estimate_trait_gain_selection_allmdc_polars import (
-    _make_cherries_polars,
-)
+from .test_alifestd_tgs_allmdc_estimate_polars import _make_cherries_polars
 
-MODULE = (
-    "phyloframe.legacy._alifestd_estimate_trait_gain_selection_allmdc_polars"
-)
+MODULE = "phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars"
 
 
 @pytest.fixture
@@ -86,9 +82,7 @@ def test_cli(input_pqt, ext, tmp_path):
 
 
 def test_cli_matches_function(input_pqt, tmp_path):
-    from phyloframe.legacy import (
-        alifestd_estimate_trait_gain_selection_allmdc_polars,
-    )
+    from phyloframe.legacy import alifestd_tgs_allmdc_estimate_polars
 
     output_file = str(tmp_path / "output.pqt")
     subprocess.run(  # nosec B603
@@ -101,20 +95,22 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "n1",
             "--loss-rate",
             "0.001",
-            "--clade-size-groups",
-            "2",
-            "4",
+            "--clade-size-groups-per-doubling",
+            "1",
+            "--max-shift-iterations",
+            "20",
             "--eager-write",
             output_file,
         ],
         check=True,
         input=input_pqt.encode(),
     )
-    expected = alifestd_estimate_trait_gain_selection_allmdc_polars(
+    expected = alifestd_tgs_allmdc_estimate_polars(
         pl.read_parquet(input_pqt),
         trait_masks=["focal", "n1"],
         loss_rate=0.001,
-        clade_size_groups=(2, 4),
+        clade_size_groups_per_doubling=1,
+        max_shift_iterations=20,
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False

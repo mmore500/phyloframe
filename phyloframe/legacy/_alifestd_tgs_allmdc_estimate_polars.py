@@ -11,19 +11,20 @@ import polars as pl
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
-from ._impl import tgs_allmdc_impl, tgs_prepare_polars
+from ._impl import tgs_allmdc_impl, tgs_prepare_polars, tgs_validate_args
 
 
 @warn_experimental
-def alifestd_estimate_trait_gain_selection_allmdc_polars(
+def alifestd_tgs_allmdc_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_masks: typing.Sequence[typing.Union[str, pl.Expr]],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
     neutral_traits: typing.Sequence[typing.Union[int, str]] = (),
-    clade_size_groups: typing.Sequence[int] = (2, 3, 5, 9),
+    clade_size_groups_per_doubling: int = 2,
     calibrate: bool = False,
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -38,9 +39,12 @@ def alifestd_estimate_trait_gain_selection_allmdc_polars(
     num_calibration_partitions: int = 4096,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    max_growth_exponent: float = 600.0,
+    max_shift_iterations: int = 50,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
-    progress_wrap: typing.Callable = lambda x: x,
+    progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and net selection from every branch,
     pendant and inner, i.e., from mutationally defined clades (MDCs) of
@@ -50,7 +54,7 @@ def alifestd_estimate_trait_gain_selection_allmdc_polars(
     Branches subtending multi-leaf clades are fit with a survival shift per
     clade-size group, shared across traits, for the time a carrier clade
     needs to grow out to its sampled leaves. See
-    `alifestd_estimate_trait_gain_selection_allmdc_asexual` for the model.
+    `alifestd_tgs_allmdc_estimate_asexual` for the model.
 
     Only supports asexual phylogenies.
 
@@ -73,9 +77,9 @@ def alifestd_estimate_trait_gain_selection_allmdc_polars(
         reported relative to their mean gain rate (leaving the focal trait
         out). Optional unless `calibrate` is set, which requires at least
         two.
-    clade_size_groups : Sequence[int], default (2, 3, 5, 9)
-        Smallest number of leaves in each clade-size group beyond single
-        leaves; see `alifestd_estimate_trait_gain_selection_allmdc_asexual`.
+    clade_size_groups_per_doubling : int, default 2
+        Number of log-scaled clade-size groups per doubling of clade size;
+        see `alifestd_tgs_allmdc_estimate_asexual`.
     calibrate : bool, default False
         If True, calibrate branch lengths against `neutral_traits` gains
         within each clade-size group, on the single-leaf group's neutral
@@ -91,13 +95,20 @@ def alifestd_estimate_trait_gain_selection_allmdc_polars(
         replacement and refitting.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
+    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for selection, in units of 1 / mean branch length.
+    max_growth_exponent : float, default 600.0
+        Cap on carrier growth exponents.
+    max_shift_iterations : int, default 50
+        Maximum rounds of alternately fitting traits and clade-size shifts.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
         joblib backend to run bootstrap replicates in parallel, e.g., "loky"
         (processes) or "threading".
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display bootstrap progress.
+        Pass tqdm or equivalent to display fit iteration and bootstrap
+        progress.
 
     Raises
     ------
@@ -108,7 +119,7 @@ def alifestd_estimate_trait_gain_selection_allmdc_polars(
     ValueError
         If `calibrate` is set with fewer than two distinct neutral traits,
         if `trait_names` and `trait_masks` differ in length, if
-        `clade_size_groups` is not strictly increasing from at least 2, if
+        `clade_size_groups_per_doubling` is less than 1, if
         `calibration_neighborhood_fractions` is empty or has a value outside
         (0, 1], or if `num_calibration_partitions` is not a power of two.
 
@@ -116,40 +127,47 @@ def alifestd_estimate_trait_gain_selection_allmdc_polars(
     -------
     polars.DataFrame
         One row per trait; see
-        `alifestd_estimate_trait_gain_selection_allmdc_asexual` for columns.
+        `alifestd_tgs_allmdc_estimate_asexual` for columns.
 
     See Also
     --------
-    alifestd_estimate_trait_gain_selection_allmdc_asexual :
+    alifestd_tgs_allmdc_estimate_asexual :
         Pandas-based implementation.
-    alifestd_estimate_trait_gain_selection_pendantmdc_polars :
+    alifestd_tgs_pendantmdc_estimate_polars :
         Leaf pendant branches only.
     """
-    prepared, neutral_traits = tgs_prepare_polars(
-        phylogeny_df,
+    trait_names, neutral_traits = tgs_validate_args(
         trait_masks=trait_masks,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
-        caller="alifestd_estimate_trait_gain_selection_allmdc_polars",
+        calibrate=calibrate,
+        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        num_calibration_partitions=num_calibration_partitions,
+    )
+    prepared = tgs_prepare_polars(
+        phylogeny_df,
+        trait_masks=trait_masks,
+        trait_names=trait_names,
+        caller="alifestd_tgs_allmdc_estimate_polars",
     )
 
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_allmdc_polars: "
+        "- alifestd_tgs_allmdc_estimate_polars: "
         "fitting gain and selection...",
     )
     res = tgs_allmdc_impl(
-        ancestor_ids=prepared.ancestor_ids,
-        origin_time=prepared.origin_time,
-        branch_lengths=prepared.branch_lengths,
-        trait_masks=prepared.trait_masks,
-        trait_names=prepared.trait_names,
+        prepared,
+        trait_names=trait_names,
         neutral_traits=neutral_traits,
-        clade_size_groups=clade_size_groups,
+        clade_size_groups_per_doubling=clade_size_groups_per_doubling,
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
         num_calibration_partitions=num_calibration_partitions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
+        selection_starts=selection_starts,
+        max_growth_exponent=max_growth_exponent,
+        max_shift_iterations=max_shift_iterations,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
@@ -186,7 +204,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_estimate_trait_gain_selection_allmdc_asexual :
+phyloframe.legacy._alifestd_tgs_allmdc_estimate_asexual :
     Pandas-based implementation.
 """
 
@@ -201,7 +219,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_allmdc_polars"
+            "phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -220,13 +238,12 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Names of trait columns known to be neutral (default: none).",
     )
     parser.add_argument(
-        "--clade-size-groups",
-        default=(2, 3, 5, 9),
-        nargs="+",
+        "--clade-size-groups-per-doubling",
+        default=2,
         type=int,
         help=(
-            "Smallest number of leaves in each clade-size group beyond "
-            "single leaves (default: 2 3 5 9)."
+            "Number of log-scaled clade-size groups per doubling of clade "
+            "size (default: 2)."
         ),
     )
     parser.add_argument(
@@ -273,6 +290,31 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Known per-unit-time trait loss rate (default: 0.0).",
     )
     parser.add_argument(
+        "--selection-starts",
+        default=(0.0, -0.3, -1.8),
+        nargs="+",
+        type=float,
+        help=(
+            "Starting values for selection, in units of 1 / mean branch "
+            "length (default: 0.0 -0.3 -1.8)."
+        ),
+    )
+    parser.add_argument(
+        "--max-growth-exponent",
+        default=600.0,
+        type=float,
+        help="Cap on carrier growth exponents (default: 600.0).",
+    )
+    parser.add_argument(
+        "--max-shift-iterations",
+        default=50,
+        type=int,
+        help=(
+            "Maximum rounds of alternately fitting traits and clade-size "
+            "shifts (default: 50)."
+        ),
+    )
+    parser.add_argument(
         "--parallel-backend",
         default=None,
         type=str,
@@ -289,16 +331,18 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_estimate_trait_gain_selection_allmdc_polars",
+            "phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_estimate_trait_gain_selection_allmdc_polars,
+                    alifestd_tgs_allmdc_estimate_polars,
                     trait_masks=args.trait_masks,
                     neutral_traits=args.neutral_traits,
-                    clade_size_groups=args.clade_size_groups,
+                    clade_size_groups_per_doubling=(
+                        args.clade_size_groups_per_doubling
+                    ),
                     calibrate=args.calibrate,
                     calibration_neighborhood_fractions=(
                         args.calibration_neighborhood_fractions
@@ -307,6 +351,9 @@ if __name__ == "__main__":
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
+                    selection_starts=args.selection_starts,
+                    max_growth_exponent=args.max_growth_exponent,
+                    max_shift_iterations=args.max_shift_iterations,
                     parallel_backend=args.parallel_backend,
                 ),
             )

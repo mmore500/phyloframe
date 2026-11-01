@@ -32,7 +32,7 @@ def tgs_fit_and_bootstrap(
     progress_wrap: typing.Callable,
 ) -> typing.Optional[pd.DataFrame]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
+    `alifestd_tgs_pendantmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -75,7 +75,7 @@ def tgs_fit_and_bootstrap(
         )
 
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_pendantmdc_asexual: "
+        "- alifestd_tgs_pendantmdc_estimate_asexual: "
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
     point, calibration_factors = tgs_fit_traits(
@@ -85,7 +85,7 @@ def tgs_fit_and_bootstrap(
     for name, factors in zip(trait_names, calibration_factors):
         if factors is not None and len(factors):
             logging.info(
-                "- alifestd_estimate_trait_gain_selection_pendantmdc_asexual: "
+                "- alifestd_tgs_pendantmdc_estimate_asexual: "
                 f"calibrated trait {name}, rescaling pendant lengths by "
                 f"{factors.min():.3g} to {factors.max():.3g} (median "
                 f"{np.median(factors):.3g})",
@@ -94,7 +94,7 @@ def tgs_fit_and_bootstrap(
         return None
 
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_pendantmdc_asexual: "
+        "- alifestd_tgs_pendantmdc_estimate_asexual: "
         f"fitting {num_bootstrap} bootstrap replicates...",
     )
     return tgs_bootstrap(

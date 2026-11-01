@@ -5,7 +5,7 @@ def tgs_find_reference_traits(
     *, neutral_traits: typing.Sequence[int], trait: int
 ) -> typing.List[int]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
+    `alifestd_tgs_pendantmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
 

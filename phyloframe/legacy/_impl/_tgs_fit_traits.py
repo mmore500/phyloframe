@@ -9,8 +9,8 @@ from ..._auxlib._tgs_fit import TgsFitResult, _tgs_fit_impl
 from ._tgs_calc_calibrated_pendant_lengths import (
     tgs_calc_calibrated_pendant_lengths,
 )
+from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_find_reference_traits import tgs_find_reference_traits
 
 
 def tgs_fit_traits(
@@ -26,7 +26,7 @@ def tgs_fit_traits(
     loss_rate: float,
 ) -> typing.Tuple[pd.DataFrame, typing.List[typing.Optional[np.ndarray]]]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
+    `alifestd_tgs_pendantmdc_estimate_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -72,16 +72,8 @@ def tgs_fit_traits(
     # normalize each gain rate by the mean gain rate of its neutral reference;
     # undefined without neutral reference traits, or if none gained the trait
     res = pd.DataFrame(fits, columns=TgsFitResult._fields)
-    refs = [
-        tgs_find_reference_traits(neutral_traits=neutral_traits, trait=trait)
-        for trait in range(len(res))
-    ]
-    ref_gain_rates = [
-        res["gain_rate"][refs[trait]].mean() if len(refs[trait]) > 0 else 0.0
-        for trait in range(len(res))
-    ]
-    res["gain_ratio"] = [
-        gain_rate / ref_gain_rate if ref_gain_rate > 0 else np.nan
-        for gain_rate, ref_gain_rate in zip(res["gain_rate"], ref_gain_rates)
-    ]
+    res["gain_ratio"] = tgs_calc_gain_ratios(
+        gain_rates=res["gain_rate"].to_numpy(),
+        neutral_traits=neutral_traits,
+    )
     return res, calibration_factors
