@@ -1,4 +1,3 @@
-import operator
 import typing
 
 import numpy as np
@@ -9,6 +8,7 @@ from ._tgs_find_trait_leaves import tgs_find_trait_leaves
 from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
 from ._tgs_init_results import tgs_init_results
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
+from ._tgs_validate_args import tgs_validate_args
 
 
 def tgs_impl(
@@ -30,8 +30,8 @@ def tgs_impl(
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual` and
-    `alifestd_estimate_trait_gain_selection_pendant_polars`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual` and
+    `alifestd_estimate_trait_gain_selection_pendantmdc_polars`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -39,25 +39,13 @@ def tgs_impl(
     sorted ids and no unifurcations: ancestor ids, origin times, pendant
     branch lengths (origin time deltas), and boolean trait masks.
     """
-    neutral_traits = np.unique(
-        np.arange(len(trait_masks))[list(map(operator.index, neutral_traits))]
-    ).tolist()
-    if calibrate and len(neutral_traits) < 2:
-        raise ValueError("calibration requires at least two neutral traits")
-    if not calibration_neighborhood_fractions or not all(
-        0 < fraction <= 1 for fraction in calibration_neighborhood_fractions
-    ):
-        raise ValueError(
-            "calibration_neighborhood_fractions must be nonempty, with each "
-            "in (0, 1]",
-        )
-    if int(num_calibration_partitions).bit_count() != 1 or (
-        num_calibration_partitions < 1
-    ):
-        raise ValueError(
-            "num_calibration_partitions must be a power of two, got "
-            f"{num_calibration_partitions}",
-        )
+    neutral_traits = tgs_validate_args(
+        num_traits=len(trait_masks),
+        neutral_traits=neutral_traits,
+        calibrate=calibrate,
+        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        num_calibration_partitions=num_calibration_partitions,
+    )
 
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     origin_time = np.asarray(origin_time, dtype=np.float64)

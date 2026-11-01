@@ -60,7 +60,8 @@ $ python3 -m phyloframe.legacy._alifestd_downsample_tips_uniform_asexual
 $ python3 -m phyloframe.legacy._alifestd_downsample_tips_uniform_polars
 $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity
 $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity_polars
-$ python3 -m phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendant_polars
+$ python3 -m phyloframe.legacy._alifestd_estimate_trait_gain_selection_allmdc_polars
+$ python3 -m phyloframe.legacy._alifestd_estimate_trait_gain_selection_pendantmdc_polars
 $ python3 -m phyloframe.legacy._alifestd_from_avida_spop
 $ python3 -m phyloframe.legacy._alifestd_from_newick
 $ python3 -m phyloframe.legacy._alifestd_from_newick_polars

@@ -15,7 +15,7 @@ def tgs_partition_leaves(
     max_partitions: int,
 ) -> typing.Tuple[np.ndarray, int, np.ndarray]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -43,7 +43,7 @@ def tgs_partition_leaves(
     leaf_partitions = calc_kdtree_partitions(leaf_ranks, partition_size)
     partition_sizes = np.bincount(leaf_partitions, minlength=num_partitions)
     logging.info(
-        "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
+        "- alifestd_estimate_trait_gain_selection_pendantmdc_asexual: "
         f"partitioned {num_leaves} leaves into {num_partitions} partitions "
         f"({num_levels} levels of splits), of sizes "
         f"{np.unique(partition_sizes).tolist()}",

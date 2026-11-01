@@ -14,7 +14,7 @@ def tgs_find_trait_leaves(
     is_informative: np.ndarray,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
 
     Here, tgs stands for trait gain/selection.
 

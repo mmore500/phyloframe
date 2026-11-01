@@ -19,7 +19,7 @@ def tgs_select_calibration_neighborhoods(
     trait_names: typing.Sequence[str],
 ) -> sparse.spmatrix:
     """Implementation detail for
-    `alifestd_estimate_trait_gain_selection_pendant_asexual`.
+    `alifestd_estimate_trait_gain_selection_pendantmdc_asexual`.
 
     Here, tgs stands for trait gain/selection.
 
@@ -43,7 +43,7 @@ def tgs_select_calibration_neighborhoods(
             trait_names=trait_names,
         )
         logging.info(
-            "- alifestd_estimate_trait_gain_selection_pendant_asexual: "
+            "- alifestd_estimate_trait_gain_selection_pendantmdc_asexual: "
             f"calibration neighborhoods of {fraction:.1%} of leaves give "
             f"held-out neutral negative log likelihood {nll:.1f}",
         )
