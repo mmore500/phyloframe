@@ -18,7 +18,8 @@ def _fit(branches, calibrate=False, unit_weights=None):
         calibrate=calibrate,
         calibration_neighborhood_fractions=(0.5, 1.0),
         num_calibration_partitions=256,
-        clade_size_calibration_blocks=(2, 5),
+        clade_size_calibration_ratio=4.0,
+        min_calibration_block_neutral_gains=1,
         num_survival_time_bins=32,
     )
     return tgs_fit_allmdc_traits(

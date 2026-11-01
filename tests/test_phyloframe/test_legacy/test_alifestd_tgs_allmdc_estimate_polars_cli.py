@@ -96,9 +96,10 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "0.001",
             "--num-survival-time-bins",
             "8",
-            "--clade-size-calibration-blocks",
-            "2",
+            "--clade-size-calibration-ratio",
             "4",
+            "--min-calibration-block-neutral-gains",
+            "5",
             "--eager-write",
             output_file,
         ],
@@ -110,7 +111,8 @@ def test_cli_matches_function(input_pqt, tmp_path):
         trait_masks=["focal", "n1"],
         loss_rate=0.001,
         num_survival_time_bins=8,
-        clade_size_calibration_blocks=(2, 4),
+        clade_size_calibration_ratio=4.0,
+        min_calibration_block_neutral_gains=5,
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False

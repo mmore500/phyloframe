@@ -28,7 +28,8 @@ def alifestd_tgs_allmdc_estimate_asexual(
         1.0,
     ),
     num_calibration_partitions: int = 4096,
-    clade_size_calibration_blocks: typing.Sequence[int] = (2, 3, 5, 9),
+    clade_size_calibration_ratio: float = 2.0,
+    min_calibration_block_neutral_gains: int = 20,
     num_survival_time_bins: int = 2048,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
@@ -95,7 +96,7 @@ def alifestd_tgs_allmdc_estimate_asexual(
     calibrate : bool, default False
         If True, rescale branch lengths by neutral trait gains, as in the
         pendant estimator, within neighborhoods of branches of the same
-        clade-size block (see `clade_size_calibration_blocks`) similar in
+        clade-size block (see `clade_size_calibration_ratio`) similar in
         length and origin time. So, distortion of branch
         lengths shared with neutral traits, including any difference
         between inner and pendant branches, cancels.
@@ -106,12 +107,18 @@ def alifestd_tgs_allmdc_estimate_asexual(
         Maximum number of equal-occupancy partitions of each clade-size
         block's branches, by ranked length and origin time, for
         calibration and binning; a power of two.
-    clade_size_calibration_blocks : Sequence[int], default (2, 3, 5, 9)
-        Smallest clade size of each block after single leaves, so the
-        default gives blocks of 1, 2, 3-4, 5-8, and 9+ leaves. Branches are
+    clade_size_calibration_ratio : float, default 2.0
+        Ratio between successive clade-size blocks: a branch subtending `n`
+        leaves falls in block ceil(log(n) / log(ratio)), so the default
+        gives blocks of 1, 2, 3-4, 5-8, 9-16, ... leaves. Branches are
         partitioned and calibrated within their block, as neutral gains per
         unit length may differ with clade size; the model itself is the
-        same for every block. () puts all branches in one block.
+        same for every block. Larger ratios give fewer, larger blocks.
+    min_calibration_block_neutral_gains : int, default 20
+        With `calibrate`, blocks go up the log scale only while each holds
+        at least this many neutral trait gains; the first block with fewer
+        and all larger clades join the block below, so no block is left
+        without neutral gains to calibrate against.
     num_survival_time_bins : int, default 2048
         Number of equal-occupancy survival-time bins, over which each
         partition's survival term is averaged. Each bin stands in for its
@@ -155,8 +162,8 @@ def alifestd_tgs_allmdc_estimate_asexual(
         if a trait mask's length differs from `phylogeny_df`'s, if
         `trait_names` and `trait_masks` differ in length, if
         `num_survival_time_bins` is less than 1, if
-        `clade_size_calibration_blocks` is not strictly increasing from at
-        least 2, if
+        `clade_size_calibration_ratio` is not greater than 1, if
+        `min_calibration_block_neutral_gains` is less than 1, if
         `calibration_neighborhood_fractions` is empty or has a value outside
         (0, 1], or if `num_calibration_partitions` is not a power of two.
     NotImplementedError
@@ -202,7 +209,8 @@ def alifestd_tgs_allmdc_estimate_asexual(
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
         num_calibration_partitions=num_calibration_partitions,
-        clade_size_calibration_blocks=clade_size_calibration_blocks,
+        clade_size_calibration_ratio=clade_size_calibration_ratio,
+        min_calibration_block_neutral_gains=min_calibration_block_neutral_gains,
         num_survival_time_bins=num_survival_time_bins,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,

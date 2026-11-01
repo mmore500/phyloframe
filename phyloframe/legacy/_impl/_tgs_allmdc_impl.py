@@ -24,7 +24,8 @@ def tgs_allmdc_impl(
     calibrate: bool,
     calibration_neighborhood_fractions: typing.Sequence[float],
     num_calibration_partitions: int,
-    clade_size_calibration_blocks: typing.Sequence[int],
+    clade_size_calibration_ratio: float,
+    min_calibration_block_neutral_gains: int,
     num_survival_time_bins: int,
     num_bootstrap: int,
     loss_rate: float,
@@ -46,11 +47,11 @@ def tgs_allmdc_impl(
     """
     if num_survival_time_bins < 1:
         raise ValueError("num_survival_time_bins must be at least 1")
-    blocks = np.asarray(clade_size_calibration_blocks)
-    if blocks.size and (blocks[0] < 2 or (np.diff(blocks) <= 0).any()):
+    if not clade_size_calibration_ratio > 1:
+        raise ValueError("clade_size_calibration_ratio must exceed 1")
+    if min_calibration_block_neutral_gains < 1:
         raise ValueError(
-            "clade_size_calibration_blocks must be strictly increasing clade "
-            "sizes of at least 2",
+            "min_calibration_block_neutral_gains must be at least 1"
         )
     branches = tgs_find_allmdc_branches(
         ancestor_ids=phylogeny_df["ancestor_id"].to_numpy(),
@@ -75,7 +76,10 @@ def tgs_allmdc_impl(
                     calibration_neighborhood_fractions
                 ),
                 num_calibration_partitions=num_calibration_partitions,
-                clade_size_calibration_blocks=clade_size_calibration_blocks,
+                clade_size_calibration_ratio=clade_size_calibration_ratio,
+                min_calibration_block_neutral_gains=(
+                    min_calibration_block_neutral_gains
+                ),
                 num_survival_time_bins=num_survival_time_bins,
             ),
             neutral_traits=neutral_traits,

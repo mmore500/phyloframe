@@ -36,7 +36,8 @@ def alifestd_tgs_allmdc_estimate_polars(
         1.0,
     ),
     num_calibration_partitions: int = 4096,
-    clade_size_calibration_blocks: typing.Sequence[int] = (2, 3, 5, 9),
+    clade_size_calibration_ratio: float = 2.0,
+    min_calibration_block_neutral_gains: int = 20,
     num_survival_time_bins: int = 2048,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
@@ -85,9 +86,14 @@ def alifestd_tgs_allmdc_estimate_polars(
     num_calibration_partitions : int, default 4096
         Maximum number of partitions of each clade-size block's branches for
         calibration and binning; a power of two.
-    clade_size_calibration_blocks : Sequence[int], default (2, 3, 5, 9)
-        Smallest clade size of each calibration block after single leaves;
-        see `alifestd_tgs_allmdc_estimate_asexual`.
+    clade_size_calibration_ratio : float, default 2.0
+        Ratio between successive clade-size calibration blocks, e.g., 2 for
+        blocks of 1, 2, 3-4, 5-8, ... leaves; see
+        `alifestd_tgs_allmdc_estimate_asexual`.
+    min_calibration_block_neutral_gains : int, default 20
+        With `calibrate`, larger clades join the block below once a block
+        would hold fewer than this many neutral trait gains; see
+        `alifestd_tgs_allmdc_estimate_asexual`.
     num_survival_time_bins : int, default 2048
         Number of equal-occupancy survival-time bins, over which each
         partition's survival term is averaged.
@@ -118,8 +124,8 @@ def alifestd_tgs_allmdc_estimate_polars(
         If `calibrate` is set with fewer than two distinct neutral traits,
         if `trait_names` and `trait_masks` differ in length, if
         `num_survival_time_bins` is less than 1, if
-        `clade_size_calibration_blocks` is not strictly increasing from at
-        least 2, if
+        `clade_size_calibration_ratio` is not greater than 1, if
+        `min_calibration_block_neutral_gains` is less than 1, if
         `calibration_neighborhood_fractions` is empty or has a value outside
         (0, 1], or if `num_calibration_partitions` is not a power of two.
 
@@ -162,7 +168,8 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibrate=calibrate,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
         num_calibration_partitions=num_calibration_partitions,
-        clade_size_calibration_blocks=clade_size_calibration_blocks,
+        clade_size_calibration_ratio=clade_size_calibration_ratio,
+        min_calibration_block_neutral_gains=min_calibration_block_neutral_gains,
         num_survival_time_bins=num_survival_time_bins,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
@@ -261,13 +268,21 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--clade-size-calibration-blocks",
-        default=(2, 3, 5, 9),
-        nargs="*",
+        "--clade-size-calibration-ratio",
+        default=2.0,
+        type=float,
+        help=(
+            "Ratio between successive clade-size calibration blocks, e.g., 2 "
+            "for blocks of 1, 2, 3-4, 5-8, ... leaves (default: 2.0)."
+        ),
+    )
+    parser.add_argument(
+        "--min-calibration-block-neutral-gains",
+        default=20,
         type=int,
         help=(
-            "Smallest clade size of each calibration block after single "
-            "leaves (default: 2 3 5 9)."
+            "Minimum neutral trait gains per clade-size calibration block; "
+            "larger clades join the block below (default: 20)."
         ),
     )
     parser.add_argument(
@@ -341,8 +356,11 @@ if __name__ == "__main__":
                         args.calibration_neighborhood_fractions
                     ),
                     num_calibration_partitions=args.num_calibration_partitions,
-                    clade_size_calibration_blocks=(
-                        args.clade_size_calibration_blocks
+                    clade_size_calibration_ratio=(
+                        args.clade_size_calibration_ratio
+                    ),
+                    min_calibration_block_neutral_gains=(
+                        args.min_calibration_block_neutral_gains
                     ),
                     num_survival_time_bins=args.num_survival_time_bins,
                     num_bootstrap=args.num_bootstrap,
