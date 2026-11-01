@@ -3,6 +3,7 @@ import typing
 import numpy as np
 import pandas as pd
 from scipy import sparse
+from sklearn import preprocessing
 
 from ._tgs_calc_calibrated_pendant_lengths import (
     tgs_calc_calibrated_pendant_lengths,
@@ -76,8 +77,10 @@ def tgs_calc_allmdc_data(
                 (partitions[units], partitioning["survival_bins"][units]),
             ),
             shape=shape,
-        )[keep]
-        shares.append(sparse.diags(1.0 / n[keep]) @ trait_shares)
+        )
+        # each partition's share in each bin; normalize before dropping
+        # partitions without branches, as `normalize` rejects empty input
+        shares.append(preprocessing.normalize(trait_shares, norm="l1")[keep])
     data = pd.concat(frames, ignore_index=True)
     data["trait"] = pd.Categorical(
         data["trait"], categories=range(len(trait_units))

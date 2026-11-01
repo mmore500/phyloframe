@@ -7,7 +7,6 @@ from scipy import sparse
 
 from ..._auxlib._calc_geometric_bins import calc_geometric_bins
 from ..._auxlib._calc_group_means import calc_group_means
-from ..._auxlib._calc_quantile_bins import calc_quantile_bins
 from ._TgsCounts import TgsCounts
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_trait_branches import tgs_find_trait_branches
@@ -145,9 +144,21 @@ def tgs_partition_allmdc_branches(
             format="csr",
         )
 
-    survival_bins, num_bins = calc_quantile_bins(
-        survival_times, max_bins=num_survival_time_bins
+    # equal-occupancy bins, merging those with tied bounds; constant
+    # survival times give one bin, which pd.qcut leaves nan
+    survival_bins = (
+        pd.Series(
+            pd.qcut(
+                survival_times,
+                num_survival_time_bins,
+                labels=False,
+                duplicates="drop",
+            ),
+        )
+        .fillna(0)
+        .to_numpy(dtype=np.int64)
     )
+    num_bins = survival_bins.max() + 1
     bin_occupancy = np.bincount(survival_bins, minlength=num_bins)
     logging.info(
         "- alifestd_tgs_allmdc_estimate_asexual: binned survival times into "

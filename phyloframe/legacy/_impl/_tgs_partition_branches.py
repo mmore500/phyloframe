@@ -5,6 +5,7 @@ import numpy as np
 
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_kdtree_partitions import calc_kdtree_partitions
+from ..._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ..._auxlib._ceil_div import ceil_div
 
 
@@ -26,15 +27,9 @@ def tgs_partition_branches(
     but keeps at least 4 branches in each.
     """
     num_branches = len(coordinates[0])
-    ranks = np.empty((num_branches, len(coordinates)))
-    for i, x in enumerate(coordinates):
-        # rank by this coordinate, breaking ties (e.g., leaves' survival
-        # times, all 0) by the others rather than by row order, so that
-        # partitions do not depend on row order; np.lexsort's last key is
-        # primary
-        others = [y for j, y in enumerate(coordinates) if j != i]
-        order = np.lexsort([*others[::-1], x])
-        ranks[order, i] = np.arange(1, num_branches + 1) / num_branches
+    # tie-breaking (e.g., leaves' survival times, all 0) by the other
+    # coordinates keeps partitions independent of row order
+    ranks = calc_tiebroken_ranks(coordinates)
     num_levels = int(
         max(0, min(np.log2(max_partitions), np.log2(num_branches / 4)))
     )
