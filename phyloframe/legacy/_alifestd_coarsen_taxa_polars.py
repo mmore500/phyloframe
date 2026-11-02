@@ -82,6 +82,26 @@ def alifestd_coarsen_taxa_polars_make_agg(
     }
 
 
+def _differs_from_parent(
+    col: str,
+    dtype: pl.DataType,
+    *,
+    nulls_equal: typing.Optional[bool],
+    nans_equal: typing.Optional[bool],
+) -> pl.Expr:
+    """Implementation detail for `alifestd_coarsen_taxa_polars`.
+
+    Does node's `col` value differ from its parent's?
+    """
+    value = pl.col(col)
+    differs = value.ne_missing(value.gather(pl.col("ancestor_id")))
+    if not nulls_equal:  # None only if no nulls present
+        differs |= value.is_null()
+    if dtype.is_float() and not nans_equal:  # None only if no NaN present
+        differs |= value.is_nan().fill_null(False)
+    return differs
+
+
 @alifestd_topological_sensitivity_warned_polars(
     insert=False,
     delete=True,
@@ -92,13 +112,14 @@ def alifestd_coarsen_taxa_polars(
     *,
     agg: typing.Optional[typing.Mapping[str, pl.Expr]] = None,
     by: typing.Union[str, typing.Sequence[str]],
+    nans_equal: typing.Optional[bool] = None,
+    nulls_equal: typing.Optional[bool] = None,
 ) -> pl.DataFrame:
     """Condense consecutive phylogeny nodes sharing identical trait values,
     according to values in `by` column(s).
 
     Each condensed taxon is represented by its founder (i.e., its topmost
-    node), whose id it takes. As in pandas, NaN values compare unequal to
-    one another, so taxa with NaN `by` values are never condensed.
+    node), whose id it takes.
 
     Parameters
     ----------
@@ -118,6 +139,15 @@ def alifestd_coarsen_taxa_polars(
     by : str or Sequence[str]
         Column(s) whose values must be shared for consecutive nodes to be
         condensed.
+    nans_equal : bool, optional
+        Whether NaN values in `by` columns compare equal to one another. If
+        False, taxa with NaN `by` values are never condensed, matching the
+        pandas implementation. If None (default), NaN values in `by` columns
+        raise ValueError.
+    nulls_equal : bool, optional
+        Whether null values in `by` columns compare equal to one another. If
+        False, taxa with null `by` values are never condensed. If None
+        (default), null values in `by` columns raise ValueError.
 
     Returns
     -------
@@ -129,9 +159,11 @@ def alifestd_coarsen_taxa_polars(
     ------
     NotImplementedError
         If `phylogeny_df` is sexual, has non-contiguous ids, or is not
-        topologically sorted, or if `by` columns contain null values.
+        topologically sorted.
     ValueError
-        If `agg` would overwrite "id", "ancestor_id", or "ancestor_list".
+        If `agg` would overwrite "id", "ancestor_id", or "ancestor_list", or
+        if `by` columns contain NaN or null values and `nans_equal` or
+        `nulls_equal`, respectively, is None.
 
     See Also
     --------
@@ -166,14 +198,34 @@ def alifestd_coarsen_taxa_polars(
     if isinstance(by, str):
         by = (by,)
 
-    has_nulls = (
+    has_nulls, has_nans = (
         phylogeny_df.lazy()
-        .select(pl.any_horizontal([pl.col(col).is_null().any() for col in by]))
+        .select(
+            has_nulls=pl.any_horizontal(
+                [pl.col(col).is_null().any() for col in by],
+            ),
+            has_nans=pl.any_horizontal(
+                [
+                    pl.col(col).is_nan().any()
+                    for col in by
+                    if schema[col].is_float()
+                ]
+                or [pl.lit(False)],
+            ),
+        )
         .collect()
-        .item()
+        .row(0)
     )
-    if has_nulls:
-        raise NotImplementedError("null values in `by` not supported")
+    if has_nulls and nulls_equal is None:
+        raise ValueError(
+            "null values in `by` columns; "
+            "set `nulls_equal` to specify how they compare",
+        )
+    if has_nans and nans_equal is None:
+        raise ValueError(
+            "NaN values in `by` columns; "
+            "set `nans_equal` to specify how they compare",
+        )
 
     if not phylogeny_df.lazy().limit(1).collect().is_empty():
         if not alifestd_has_contiguous_ids_polars(phylogeny_df):
@@ -194,12 +246,11 @@ def alifestd_coarsen_taxa_polars(
             "is_root",
             is_taxon_founder=pl.any_horizontal(
                 [
-                    (pl.col(col) != pl.col(col).gather(pl.col("ancestor_id")))
-                    # NaN compares unequal to NaN, matching pandas
-                    | (
-                        pl.col(col).is_nan()
-                        if schema[col].is_float()
-                        else pl.lit(False)
+                    _differs_from_parent(
+                        col,
+                        schema[col],
+                        nans_equal=nans_equal,
+                        nulls_equal=nulls_equal,
                     )
                     for col in by
                 ],

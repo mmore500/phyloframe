@@ -279,7 +279,7 @@ def test_coarsen_taxa_polars_first_nulls(apply: typing.Callable):
     ],
 )
 @pytest.mark.parametrize("by", ["trait", ["other", "trait"]])
-def test_coarsen_taxa_polars_nulls(
+def test_coarsen_taxa_polars_nulls_unspecified(
     apply: typing.Callable,
     trait: pl.Series,
     by: typing.Union[str, typing.List[str]],
@@ -292,8 +292,10 @@ def test_coarsen_taxa_polars_nulls(
             "trait": trait,
         }
     )
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         alifestd_coarsen_taxa_polars(apply(df), by=by)
+    with pytest.raises(ValueError):  # nans_equal doesn't cover nulls
+        alifestd_coarsen_taxa_polars(apply(df), by=by, nans_equal=True)
     # missing values outside of `by` columns are fine
     result = (
         alifestd_coarsen_taxa_polars(apply(df), by="other").lazy().collect()
@@ -302,7 +304,63 @@ def test_coarsen_taxa_polars_nulls(
 
 
 @_apply
-def test_coarsen_taxa_polars_nan(apply: typing.Callable):
+@pytest.mark.parametrize(
+    "nulls_equal, expected_ids",
+    [(True, [0, 1, 3]), (False, [0, 1, 2, 3])],
+)
+@pytest.mark.parametrize("dtype", [pl.Int64, pl.Float64, pl.String])
+def test_coarsen_taxa_polars_nulls(
+    apply: typing.Callable,
+    nulls_equal: bool,
+    expected_ids: typing.List[int],
+    dtype: pl.DataType,
+):
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 1, 2],
+            "trait": pl.Series([1, None, None, 1]).cast(dtype),
+        }
+    )
+    result = (
+        alifestd_coarsen_taxa_polars(
+            apply(df), by="trait", nulls_equal=nulls_equal
+        )
+        .lazy()
+        .collect()
+    )
+    assert result["id"].to_list() == expected_ids
+
+
+@_apply
+def test_coarsen_taxa_polars_nans_unspecified(apply: typing.Callable):
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "other": [0, 0, 0],
+            "trait": [1.0, float("nan"), 1.0],
+        }
+    )
+    with pytest.raises(ValueError):
+        alifestd_coarsen_taxa_polars(apply(df), by="trait")
+    with pytest.raises(ValueError):  # nulls_equal doesn't cover NaN
+        alifestd_coarsen_taxa_polars(apply(df), by="trait", nulls_equal=True)
+    # NaN values outside of `by` columns are fine
+    result = (
+        alifestd_coarsen_taxa_polars(apply(df), by="other").lazy().collect()
+    )
+    assert result["id"].to_list() == [0]
+
+
+@_apply
+@pytest.mark.parametrize(
+    "nans_equal, expected_ids",
+    [(True, [0, 1, 3]), (False, [0, 1, 2, 3])],
+)
+def test_coarsen_taxa_polars_nans(
+    apply: typing.Callable, nans_equal: bool, expected_ids: typing.List[int]
+):
     df = pl.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -311,11 +369,47 @@ def test_coarsen_taxa_polars_nan(apply: typing.Callable):
         }
     )
     result = (
-        alifestd_coarsen_taxa_polars(apply(df), by="trait").lazy().collect()
+        alifestd_coarsen_taxa_polars(
+            apply(df), by="trait", nans_equal=nans_equal
+        )
+        .lazy()
+        .collect()
     )
-    # NaN values compare unequal, matching pandas
-    assert result["id"].to_list() == [0, 1, 2, 3]
-    assert result["ancestor_id"].to_list() == [0, 0, 1, 2]
+    assert result["id"].to_list() == expected_ids
+
+
+@_apply
+@pytest.mark.parametrize("nans_equal", [True, False])
+@pytest.mark.parametrize("nulls_equal", [True, False])
+def test_coarsen_taxa_polars_nans_and_nulls(
+    apply: typing.Callable, nans_equal: bool, nulls_equal: bool
+):
+    nan = float("nan")
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5],
+            "ancestor_id": [0, 0, 1, 2, 3, 4],
+            "trait": [nan, nan, None, None, 1.0, 1.0],
+        }
+    )
+    result = (
+        alifestd_coarsen_taxa_polars(
+            apply(df),
+            by="trait",
+            nans_equal=nans_equal,
+            nulls_equal=nulls_equal,
+        )
+        .lazy()
+        .collect()
+    )
+    # NaN and null are distinct from each other and from values
+    assert result["id"].to_list() == [
+        0,
+        *([] if nans_equal else [1]),
+        2,
+        *([] if nulls_equal else [3]),
+        4,
+    ]
 
 
 @_apply
@@ -435,7 +529,9 @@ def test_coarsen_taxa_polars_matches_pandas(
     expected = alifestd_coarsen_taxa_asexual(phylogeny_df, by=by)
     result = (
         alifestd_coarsen_taxa_polars(
-            apply(pl.from_pandas(phylogeny_df, nan_to_null=False)), by=by
+            apply(pl.from_pandas(phylogeny_df, nan_to_null=False)),
+            by=by,
+            nans_equal=False,  # match numpy NaN semantics, used by pandas
         )
         .lazy()
         .collect()
