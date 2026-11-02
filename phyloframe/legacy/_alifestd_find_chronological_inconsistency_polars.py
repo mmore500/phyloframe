@@ -20,6 +20,19 @@ def alifestd_find_chronological_inconsistency_polars(
     origin time plus `epsilon`, if any are present.
 
     Root taxa are never reported.
+
+    See Also
+    --------
+    alifestd_find_chronological_inconsistency :
+        Pandas-based implementation.
+    alifestd_coerce_chronological_consistency_polars :
+        Resolves origin time inversions by adjusting origin times.
+    alifestd_graft_chronological_consistency_polars :
+        Resolves origin time inversions by grafting onto nearest
+        eligible ancestor node.
+    alifestd_splice_chronological_consistency_polars :
+        Resolves origin time inversions by grafting onto a node spliced
+        into nearest eligible ancestor edge.
     """
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)

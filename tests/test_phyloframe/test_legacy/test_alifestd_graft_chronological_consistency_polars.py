@@ -8,21 +8,21 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_chronological_inconsistency_polars,
-    alifestd_regraft_chronological_consistency_asexual,
+    alifestd_graft_chronological_consistency_asexual,
     alifestd_shuffle_working_format_polars,
     alifestd_test_leaves_isomorphic_asexual,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
 )
-from phyloframe.legacy._alifestd_regraft_chronological_consistency_polars import (
-    alifestd_regraft_chronological_consistency_polars as alifestd_regraft_chronological_consistency_polars_,
+from phyloframe.legacy._alifestd_graft_chronological_consistency_polars import (
+    alifestd_graft_chronological_consistency_polars as alifestd_graft_chronological_consistency_polars_,
 )
 
 from ._impl import enforce_dtype_stability_polars
 
-alifestd_regraft_chronological_consistency_polars = (
+alifestd_graft_chronological_consistency_polars = (
     enforce_dtype_stability_polars(
-        alifestd_regraft_chronological_consistency_polars_,
+        alifestd_graft_chronological_consistency_polars_,
     )
 )
 
@@ -38,7 +38,7 @@ _apply = pytest.mark.parametrize(
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_empty(
+def test_graft_chronological_consistency_polars_empty(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -48,12 +48,12 @@ def test_regraft_chronological_consistency_polars_empty(
             "origin_time": pl.Series([], dtype=pl.Float64),
         }
     )
-    result = alifestd_regraft_chronological_consistency_polars(apply(df))
+    result = alifestd_graft_chronological_consistency_polars(apply(df))
     assert result.lazy().collect().is_empty()
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_consistent(
+def test_graft_chronological_consistency_polars_consistent(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -63,12 +63,12 @@ def test_regraft_chronological_consistency_polars_consistent(
             "origin_time": [0.0, 1.0, 2.0, 1.0],
         }
     )
-    result = alifestd_regraft_chronological_consistency_polars(apply(df))
+    result = alifestd_graft_chronological_consistency_polars(apply(df))
     assert result.lazy().collect().equals(df)
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_inconsistent(
+def test_graft_chronological_consistency_polars_inconsistent(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -79,7 +79,7 @@ def test_regraft_chronological_consistency_polars_inconsistent(
         }
     )
     result = (
-        alifestd_regraft_chronological_consistency_polars(apply(df))
+        alifestd_graft_chronological_consistency_polars(apply(df))
         .lazy()
         .collect()
     )
@@ -89,7 +89,7 @@ def test_regraft_chronological_consistency_polars_inconsistent(
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_ancestor_list(
+def test_graft_chronological_consistency_polars_ancestor_list(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -101,7 +101,7 @@ def test_regraft_chronological_consistency_polars_ancestor_list(
         }
     )
     result = (
-        alifestd_regraft_chronological_consistency_polars(apply(df))
+        alifestd_graft_chronological_consistency_polars(apply(df))
         .lazy()
         .collect()
     )
@@ -116,7 +116,7 @@ def test_regraft_chronological_consistency_polars_ancestor_list(
 
 @_apply
 @pytest.mark.parametrize("dtype", [pl.UInt32, pl.Int32, pl.Int64])
-def test_regraft_chronological_consistency_polars_dtype(
+def test_graft_chronological_consistency_polars_dtype(
     apply: typing.Callable, dtype: pl.DataType
 ):
     df = pl.DataFrame(
@@ -127,7 +127,7 @@ def test_regraft_chronological_consistency_polars_dtype(
         }
     )
     result = (
-        alifestd_regraft_chronological_consistency_polars(apply(df))
+        alifestd_graft_chronological_consistency_polars(apply(df))
         .lazy()
         .collect()
     )
@@ -136,7 +136,7 @@ def test_regraft_chronological_consistency_polars_dtype(
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_str(
+def test_graft_chronological_consistency_polars_str(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -147,7 +147,7 @@ def test_regraft_chronological_consistency_polars_str(
         }
     )
     result = (
-        alifestd_regraft_chronological_consistency_polars(apply(df))
+        alifestd_graft_chronological_consistency_polars(apply(df))
         .lazy()
         .collect()
     )
@@ -155,7 +155,7 @@ def test_regraft_chronological_consistency_polars_str(
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_noncontiguous(
+def test_graft_chronological_consistency_polars_noncontiguous(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -166,11 +166,11 @@ def test_regraft_chronological_consistency_polars_noncontiguous(
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_regraft_chronological_consistency_polars(apply(df))
+        alifestd_graft_chronological_consistency_polars(apply(df))
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_unsorted(
+def test_graft_chronological_consistency_polars_unsorted(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -181,11 +181,11 @@ def test_regraft_chronological_consistency_polars_unsorted(
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_regraft_chronological_consistency_polars(apply(df))
+        alifestd_graft_chronological_consistency_polars(apply(df))
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_sexual(
+def test_graft_chronological_consistency_polars_sexual(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -196,11 +196,11 @@ def test_regraft_chronological_consistency_polars_sexual(
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_regraft_chronological_consistency_polars(apply(df))
+        alifestd_graft_chronological_consistency_polars(apply(df))
 
 
 @_apply
-def test_regraft_chronological_consistency_polars_drop_sensitivity(
+def test_graft_chronological_consistency_polars_drop_sensitivity(
     apply: typing.Callable,
 ):
     df = pl.DataFrame(
@@ -212,8 +212,8 @@ def test_regraft_chronological_consistency_polars_drop_sensitivity(
         }
     )
     with pytest.warns(UserWarning):
-        alifestd_regraft_chronological_consistency_polars(apply(df))
-    result = alifestd_regraft_chronological_consistency_polars(
+        alifestd_graft_chronological_consistency_polars(apply(df))
+    result = alifestd_graft_chronological_consistency_polars(
         apply(df), drop_topological_sensitivity=True
     )
     assert "num_children" not in result.lazy().collect_schema().names()
@@ -229,7 +229,7 @@ def test_regraft_chronological_consistency_polars_drop_sensitivity(
     ],
 )
 @pytest.mark.parametrize("seed", range(3))
-def test_regraft_chronological_consistency_polars_matches_pandas(
+def test_graft_chronological_consistency_polars_matches_pandas(
     apply: typing.Callable, phylogeny_df: pd.DataFrame, seed: int
 ):
     phylogeny_df = alifestd_try_add_ancestor_id_col(
@@ -243,11 +243,11 @@ def test_regraft_chronological_consistency_polars_matches_pandas(
     phylogeny_df = phylogeny_df[["id", "ancestor_id", "origin_time"]]
     df_pl = pl.from_pandas(phylogeny_df)
 
-    expected = alifestd_regraft_chronological_consistency_asexual(
+    expected = alifestd_graft_chronological_consistency_asexual(
         phylogeny_df, ignore_topological_sensitivity=True
     )
     result = (
-        alifestd_regraft_chronological_consistency_polars(
+        alifestd_graft_chronological_consistency_polars(
             apply(df_pl), ignore_topological_sensitivity=True
         )
         .lazy()
@@ -276,7 +276,7 @@ def _label_parents(phylogeny_df: pd.DataFrame) -> dict:
     ],
 )
 @pytest.mark.parametrize("seed", range(3))
-def test_regraft_chronological_consistency_polars_row_order_invariant(
+def test_graft_chronological_consistency_polars_row_order_invariant(
     apply: typing.Callable, phylogeny_df: pd.DataFrame, seed: int
 ):
     phylogeny_df = alifestd_try_add_ancestor_id_col(
@@ -295,11 +295,11 @@ def test_regraft_chronological_consistency_polars_row_order_invariant(
     )
     assert not shuffled_df["label"].equals(pl.Series(phylogeny_df["label"]))
 
-    result = alifestd_regraft_chronological_consistency_asexual(
+    result = alifestd_graft_chronological_consistency_asexual(
         phylogeny_df, ignore_topological_sensitivity=True
     )
     shuffled_result = (
-        alifestd_regraft_chronological_consistency_polars(
+        alifestd_graft_chronological_consistency_polars(
             apply(shuffled_df),
             ignore_topological_sensitivity=True,
         )

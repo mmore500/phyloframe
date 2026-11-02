@@ -230,6 +230,12 @@ from ._alifestd_from_avida_spop import alifestd_from_avida_spop
 from ._alifestd_from_avida_spop_polars import alifestd_from_avida_spop_polars
 from ._alifestd_from_newick import alifestd_from_newick
 from ._alifestd_from_newick_polars import alifestd_from_newick_polars
+from ._alifestd_graft_chronological_consistency_asexual import (
+    alifestd_graft_chronological_consistency_asexual,
+)
+from ._alifestd_graft_chronological_consistency_polars import (
+    alifestd_graft_chronological_consistency_polars,
+)
 from ._alifestd_has_compact_ids import alifestd_has_compact_ids
 from ._alifestd_has_compact_ids_polars import alifestd_has_compact_ids_polars
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
@@ -625,12 +631,6 @@ from ._alifestd_prune_extinct_lineages_asexual import (
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
 )
-from ._alifestd_regraft_chronological_consistency_asexual import (
-    alifestd_regraft_chronological_consistency_asexual,
-)
-from ._alifestd_regraft_chronological_consistency_polars import (
-    alifestd_regraft_chronological_consistency_polars,
-)
 from ._alifestd_reroot_at_id_asexual import alifestd_reroot_at_id_asexual
 from ._alifestd_reroot_at_id_polars import alifestd_reroot_at_id_polars
 from ._alifestd_sample_triplet_comparisons_asexual import (
@@ -657,6 +657,12 @@ from ._alifestd_sort_children_polars import alifestd_sort_children_polars
 from ._alifestd_splay_polytomies import alifestd_splay_polytomies
 from ._alifestd_splay_polytomies_polars import (
     alifestd_splay_polytomies_polars,
+)
+from ._alifestd_splice_chronological_consistency_asexual import (
+    alifestd_splice_chronological_consistency_asexual,
+)
+from ._alifestd_splice_chronological_consistency_polars import (
+    alifestd_splice_chronological_consistency_polars,
 )
 from ._alifestd_sum_origin_time_deltas_asexual import (
     alifestd_sum_origin_time_deltas_asexual,
@@ -868,6 +874,8 @@ __all__ = [
     "alifestd_from_avida_spop_polars",
     "alifestd_from_newick",
     "alifestd_from_newick_polars",
+    "alifestd_graft_chronological_consistency_asexual",
+    "alifestd_graft_chronological_consistency_polars",
     "alifestd_has_compact_ids",
     "alifestd_has_compact_ids_polars",
     "alifestd_has_contiguous_ids",
@@ -1023,8 +1031,6 @@ __all__ = [
     "alifestd_prefix_roots_polars",
     "alifestd_prune_extinct_lineages_asexual",
     "alifestd_prune_extinct_lineages_polars",
-    "alifestd_regraft_chronological_consistency_asexual",
-    "alifestd_regraft_chronological_consistency_polars",
     "alifestd_reroot_at_id_asexual",
     "alifestd_reroot_at_id_polars",
     "alifestd_sample_triplet_comparisons_asexual",
@@ -1038,6 +1044,8 @@ __all__ = [
     "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
     "alifestd_splay_polytomies_polars",
+    "alifestd_splice_chronological_consistency_asexual",
+    "alifestd_splice_chronological_consistency_polars",
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_sum_origin_time_deltas_polars",
     "alifestd_test_leaves_isomorphic_asexual",

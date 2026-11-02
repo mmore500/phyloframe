@@ -28,22 +28,22 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
-def _alifestd_regraft_chronological_consistency_asexual_fast_path(
+def _alifestd_graft_chronological_consistency_asexual_fast_path(
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_regraft_chronological_consistency_asexual` and
-    `alifestd_regraft_chronological_consistency_polars`.
+    `alifestd_graft_chronological_consistency_asexual` and
+    `alifestd_graft_chronological_consistency_polars`.
 
-    Requires contiguous ids and topologically sorted rows. Returns a regrafted
+    Requires contiguous ids and topologically sorted rows. Returns a grafted
     copy of `ancestor_ids`, with each taxon reattached to its nearest
     ancestor that does not originate after it. Taxa with no such ancestor
     become roots. Roots are left unchanged.
     """
     result = ancestor_ids.copy()
     for idx, ancestor_id in enumerate(result):
-        # ancestors are already regrafted, so origin times are nondecreasing
+        # ancestors are already grafted, so origin times are nondecreasing
         # down their lineage and the first eligible ancestor is the nearest
         while (
             ancestor_id != idx
@@ -59,19 +59,19 @@ def _alifestd_regraft_chronological_consistency_asexual_fast_path(
     return result
 
 
-def _alifestd_regraft_chronological_consistency_asexual_impl(
+def _alifestd_graft_chronological_consistency_asexual_impl(
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_regraft_chronological_consistency_asexual` and
-    `alifestd_regraft_chronological_consistency_polars`.
+    `alifestd_graft_chronological_consistency_asexual` and
+    `alifestd_graft_chronological_consistency_polars`.
 
     Dispatches to jit-compiled fast path, falling back to its pure-Python
     version for origin times numba can't handle (e.g., str).
     """
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
-    fast_path = _alifestd_regraft_chronological_consistency_asexual_fast_path
+    fast_path = _alifestd_graft_chronological_consistency_asexual_fast_path
     try:
         return fast_path(ancestor_ids, origin_times)
     except jit_TypingError:  # pragma: no cover
@@ -83,7 +83,7 @@ def _alifestd_regraft_chronological_consistency_asexual_impl(
     delete=False,
     update=True,
 )
-def alifestd_regraft_chronological_consistency_asexual(
+def alifestd_graft_chronological_consistency_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
 ) -> pd.DataFrame:
@@ -94,7 +94,7 @@ def alifestd_regraft_chronological_consistency_asexual(
     inversions by adjusting origin times, this function resolves them by
     adjusting topology. Origin times are left unchanged.
 
-    Each inconsistent taxon is regrafted, with its subtree, onto the nearest
+    Each inconsistent taxon is grafted, with its subtree, onto the nearest
     taxon along its lineage with origin time not exceeding the taxon's own
     origin time. Taxa that precede their entire lineage become roots. Root
     taxa are never adjusted.
@@ -102,7 +102,7 @@ def alifestd_regraft_chronological_consistency_asexual(
     Phylogeny must be asexual, topologically sorted, and have contiguous ids;
     otherwise ``NotImplementedError`` is raised.
     Output remains topologically sorted. If present, `ancestor_list` is
-    updated for regrafted taxa.
+    updated for grafted taxa.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -110,10 +110,13 @@ def alifestd_regraft_chronological_consistency_asexual(
 
     See Also
     --------
-    alifestd_regraft_chronological_consistency_polars :
+    alifestd_graft_chronological_consistency_polars :
         Polars-based implementation.
     alifestd_coerce_chronological_consistency :
         Resolves origin time inversions by adjusting origin times.
+    alifestd_splice_chronological_consistency_asexual :
+        Resolves origin time inversions by grafting onto a node spliced
+        into nearest eligible ancestor edge.
     alifestd_find_chronological_inconsistency :
         Finds taxa with origin time inversions.
     """
@@ -123,7 +126,7 @@ def alifestd_regraft_chronological_consistency_asexual(
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
     if "ancestor_id" not in phylogeny_df.columns:
         raise NotImplementedError(
-            "alifestd_regraft_chronological_consistency_asexual only "
+            "alifestd_graft_chronological_consistency_asexual only "
             "supports asexual phylogenies.",
         )
 
@@ -139,22 +142,22 @@ def alifestd_regraft_chronological_consistency_asexual(
         )
 
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-    regrafted = _alifestd_regraft_chronological_consistency_asexual_impl(
+    grafted = _alifestd_graft_chronological_consistency_asexual_impl(
         ancestor_ids,
         phylogeny_df["origin_time"].to_numpy(),
     )
 
-    phylogeny_df["ancestor_id"] = regrafted.astype(
+    phylogeny_df["ancestor_id"] = grafted.astype(
         phylogeny_df["ancestor_id"].dtype,
     )
 
     if "ancestor_list" in phylogeny_df.columns:
-        is_regrafted = regrafted != ancestor_ids
+        is_grafted = grafted != ancestor_ids
         phylogeny_df.loc[
-            is_regrafted, "ancestor_list"
+            is_grafted, "ancestor_list"
         ] = alifestd_make_ancestor_list_col(
-            phylogeny_df.loc[is_regrafted, "id"],
-            phylogeny_df.loc[is_regrafted, "ancestor_id"],
+            phylogeny_df.loc[is_grafted, "id"],
+            phylogeny_df.loc[is_grafted, "ancestor_id"],
         )
 
     return phylogeny_df
@@ -176,7 +179,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_regraft_chronological_consistency_polars :
+phyloframe.legacy._alifestd_graft_chronological_consistency_polars :
     Entrypoint for high-performance Polars-based implementation.
 """
 
@@ -190,7 +193,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_regraft_chronological_consistency_asexual",
+        dfcli_module="phyloframe.legacy._alifestd_graft_chronological_consistency_asexual",
         dfcli_version=get_phyloframe_version(),
     )
     add_bool_arg(
@@ -214,14 +217,14 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
     with log_context_duration(
-        "phyloframe.legacy._alifestd_regraft_chronological_consistency_asexual",
+        "phyloframe.legacy._alifestd_graft_chronological_consistency_asexual",
         logging.info,
     ):
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
                 functools.partial(
-                    alifestd_regraft_chronological_consistency_asexual,
+                    alifestd_graft_chronological_consistency_asexual,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
                 ),
