@@ -18,6 +18,9 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
+from ._alifestd_try_add_ancestor_list_col_polars import (
+    alifestd_try_add_ancestor_list_col_polars,
+)
 
 
 def alifestd_coarsen_taxa_polars_make_agg(
@@ -287,10 +290,6 @@ def alifestd_coarsen_taxa_polars(
     )
 
     if "ancestor_list" in schema.names():
-        phylogeny_df = phylogeny_df.with_columns(
-            ancestor_list=pl.when(pl.col("id") == pl.col("ancestor_id"))
-            .then(pl.lit("[none]"))
-            .otherwise(pl.format("[{}]", pl.col("ancestor_id"))),
-        )
+        phylogeny_df = alifestd_try_add_ancestor_list_col_polars(phylogeny_df)
 
     return phylogeny_df
