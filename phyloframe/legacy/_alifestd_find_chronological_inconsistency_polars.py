@@ -1,4 +1,4 @@
-import numbers
+from numbers import Number
 import typing
 
 import polars as pl
@@ -14,7 +14,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_find_chronological_inconsistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    epsilon: numbers.Real = 0,
+    epsilon: Number = 0,
 ) -> typing.Optional[int]:
     """Return the id of a taxon with origin time preceding its parent's
     origin time plus `epsilon`, if any are present.

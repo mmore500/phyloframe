@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from phyloframe.legacy import (
     alifestd_assign_contiguous_ids,
@@ -335,3 +336,26 @@ def test_is_chronologically_unordered_asexual3():
                 df.astype({"origin_time": float})
             )
             assert df.equals(df_)
+
+
+@pytest.mark.parametrize("asexual", [True, False])
+def test_is_chronologically_ordered_epsilon(asexual: bool):
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[none]", "[0]", "[1]"],
+            "origin_time": [0.0, 1.0, 2.0],
+        }
+    )
+    if asexual:
+        phylogeny_df["ancestor_id"] = [0, 0, 1]
+
+    assert alifestd_is_chronologically_ordered(phylogeny_df)
+    assert alifestd_is_chronologically_ordered(phylogeny_df, epsilon=1)
+    with pytest.warns(UserWarning):
+        assert not alifestd_is_chronologically_ordered(
+            phylogeny_df, epsilon=1.5
+        )
+    assert not alifestd_is_chronologically_ordered(
+        phylogeny_df, diagnose=False, epsilon=1.5
+    )

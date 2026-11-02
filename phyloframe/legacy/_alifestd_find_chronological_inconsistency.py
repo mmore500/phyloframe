@@ -1,4 +1,4 @@
-import numbers
+from numbers import Number
 import typing
 
 import numpy as np
@@ -13,7 +13,7 @@ from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 
 @jit(nopython=True)
 def _alifestd_find_chronological_inconsistency_contiguous(
-    ancestor_ids: np.ndarray, origin_times: np.ndarray, epsilon: numbers.Real
+    ancestor_ids: np.ndarray, origin_times: np.ndarray, epsilon: Number
 ) -> typing.Optional[int]:
     for id_, ancestor_id in enumerate(ancestor_ids):
         if ancestor_id == id_:
@@ -28,7 +28,7 @@ def _alifestd_find_chronological_inconsistency_compact(
     ids: np.ndarray,
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    epsilon: numbers.Real,
+    epsilon: Number,
 ) -> typing.Optional[int]:
     origin_time_lookup = np.empty(len(ids))
     for id_, origin_time in zip(ids, origin_times):
@@ -47,7 +47,7 @@ def _alifestd_find_chronological_inconsistency_arbitrary(
     ids: np.ndarray,
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    epsilon: numbers.Real,
+    epsilon: Number,
 ) -> typing.Optional[int]:
     origin_time_lookup = dict()
     for id_, origin_time in zip(ids, origin_times):
@@ -62,7 +62,7 @@ def _alifestd_find_chronological_inconsistency_arbitrary(
 
 
 def _alifestd_find_chronological_inconsistency_asexual(
-    phylogeny_df: pd.DataFrame, unwrap: typing.Callable, epsilon: numbers.Real
+    phylogeny_df: pd.DataFrame, unwrap: typing.Callable, epsilon: Number
 ) -> typing.Optional[int]:
     if alifestd_has_contiguous_ids(phylogeny_df):
         call = unwrap(_alifestd_find_chronological_inconsistency_contiguous)
@@ -92,7 +92,7 @@ def _alifestd_find_chronological_inconsistency_asexual(
 def alifestd_find_chronological_inconsistency(
     phylogeny_df: pd.DataFrame,
     *,
-    epsilon: numbers.Real = 0,
+    epsilon: Number = 0,
 ) -> typing.Optional[int]:
     """Return the id of a taxon with origin time preceding its parent's
     origin time plus `epsilon`, if any are present.

@@ -1,7 +1,7 @@
 import argparse
 import functools
 import logging
-import numbers
+from numbers import Number
 import os
 
 import joinem
@@ -32,7 +32,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def _alifestd_coerce_chronological_consistency_asexual_fast_path(
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    epsilon: numbers.Real,
+    epsilon: Number,
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_coerce_chronological_consistency` and
@@ -56,7 +56,7 @@ def alifestd_coerce_chronological_consistency(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    epsilon: numbers.Real = 0,
+    epsilon: Number = 0,
 ) -> pd.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
@@ -100,7 +100,7 @@ def alifestd_coerce_chronological_consistency(
 
 def _coerce_chronological_consistency_impl(
     phylogeny_df: pd.DataFrame,
-    epsilon: numbers.Real,
+    epsilon: Number,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_coerce_chronological_consistency`.
 
@@ -129,6 +129,8 @@ def _coerce_chronological_consistency_impl(
             )
             try:
                 origin_times = phylogeny_df["origin_time"].to_numpy()
+                # promote up front: writes into an int array truncate, e.g.,
+                # 3 + 0.5 stays 3; numpy rules keep int32/float32 as is
                 dtype = np.result_type(origin_times.dtype, epsilon)
                 phylogeny_df["origin_time"] = fast_path(
                     phylogeny_df["ancestor_id"].to_numpy().astype(np.int64),

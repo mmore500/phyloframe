@@ -1,4 +1,5 @@
 import io
+from numbers import Number
 import warnings
 
 import pandas as pd
@@ -13,7 +14,9 @@ from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 
 
-def _report_diagnosis(df: pd.DataFrame, taxon_id: int) -> None:
+def _report_diagnosis(
+    df: pd.DataFrame, taxon_id: int, epsilon: Number = 0
+) -> None:
     warning_lines = [""]
     append = warning_lines.append
 
@@ -73,14 +76,20 @@ def _report_diagnosis(df: pd.DataFrame, taxon_id: int) -> None:
         ancestor_origin_time = origin_time
         time_delta = taxon_origin_time - ancestor_origin_time
         append(f"{prefix}{time_delta=}")
-        if time_delta < 0:
-            append(">" * len(prefix) + " ^^^^^^^^^ time delta is negative!")
+        if time_delta < epsilon:
+            append(
+                ">" * len(prefix) + f" ^^^^^^^^^ time delta is < {epsilon=}!"
+            )
 
     if "ancestor_id" in df.columns:
         ancestor_origin_time = df["ancestor_id"].map(
             df.set_index("id")["origin_time"],
         )
-        discrepancy_mask = ancestor_origin_time > df["origin_time"]
+        if epsilon != 0:  # skip for non-numeric types, e.g., str
+            ancestor_origin_time = ancestor_origin_time + epsilon
+        discrepancy_mask = (ancestor_origin_time > df["origin_time"]) & (
+            df["ancestor_id"] != df["id"]
+        )
         num_discrepancies = discrepancy_mask.sum()
         assert num_discrepancies, num_discrepancies
         append("")
@@ -92,14 +101,20 @@ def _report_diagnosis(df: pd.DataFrame, taxon_id: int) -> None:
 def alifestd_is_chronologically_ordered(
     phylogeny_df: pd.DataFrame,
     diagnose: bool = True,
+    *,
+    epsilon: Number = 0,
 ) -> bool:
-    """Do any organisms have `origin_time`s preceding members of their
-    `ancestor_list`?
+    """Do all organisms have `origin_time`s at least `epsilon` after members
+    of their `ancestor_list`?
+
+    Root taxa are not checked.
 
     Input dataframe is not mutated by this operation.
     """
 
-    res = alifestd_find_chronological_inconsistency(phylogeny_df)
+    res = alifestd_find_chronological_inconsistency(
+        phylogeny_df, epsilon=epsilon
+    )
     if diagnose and res is not None:
-        _report_diagnosis(phylogeny_df, res)
+        _report_diagnosis(phylogeny_df, res, epsilon=epsilon)
     return res is None

@@ -1,7 +1,7 @@
 import argparse
 import functools
 import logging
-import numbers
+from numbers import Number
 import os
 
 import joinem
@@ -34,7 +34,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_coerce_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    epsilon: numbers.Real = 0,
+    epsilon: Number = 0,
 ) -> pl.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
@@ -52,7 +52,7 @@ def alifestd_coerce_chronological_consistency_polars(
 
         Must represent an asexual phylogeny with contiguous ids, numeric
         `origin_time`, and topologically sorted rows.
-    epsilon : numbers.Real, default 0
+    epsilon : Number, default 0
         Minimum origin time gap enforced between each taxon and its parent.
 
     Returns
@@ -120,7 +120,8 @@ def alifestd_coerce_chronological_consistency_polars(
         "coercing origin times...",
     )
     try:
-        # promote dtype so that, e.g., int origin_time + 0.5 isn't truncated
+        # promote up front: writes into an int array truncate, e.g., 3 + 0.5
+        # stays 3; numpy rules (unlike numba's) keep int32/float32 as is
         dtype = np.result_type(origin_times.dtype, epsilon)
         corrected = (
             _alifestd_coerce_chronological_consistency_asexual_fast_path(
