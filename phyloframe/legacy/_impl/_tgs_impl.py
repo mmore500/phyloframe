@@ -3,6 +3,7 @@ import typing
 import pandas as pd
 
 from ._tgs_build_estimates_df import tgs_build_estimates_df
+from ._tgs_calc_trait_masks import tgs_calc_trait_masks
 from ._tgs_find_trait_exposures import tgs_find_trait_exposures
 from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
 from ._tgs_init_results import tgs_init_results
@@ -38,20 +39,12 @@ def tgs_impl(
         & (exposure_df["origin_time"] >= min_leaf_origin_time)
     ]
     trait_leaves, trait_carriers = tgs_find_trait_exposures(leaf_exposure_df)
-    traits = range(len(trait_names))
+    starts_absent, gains = tgs_calc_trait_masks(leaf_exposure_df)
     estimates_df = tgs_init_results(
         trait_names=trait_names,
         counts={
-            "num_leaves": leaf_exposure_df[
-                [f"trait{i}_starts_absent" for i in traits]
-            ]
-            .sum()
-            .to_numpy(),
-            "num_trait_present": leaf_exposure_df[
-                [f"trait{i}_gain" for i in traits]
-            ]
-            .sum()
-            .to_numpy(),
+            "num_leaves": starts_absent.sum(axis=0),
+            "num_trait_present": gains.sum(axis=0),
         },
     )
     replicate_fits_df = None

@@ -22,6 +22,15 @@ def tgs_validate_args(
     `neutral_traits`, given as names among them, as sorted, distinct
     indices.
     """
+    for name, value in (
+        ("trait_transitions", trait_transitions),
+        ("neutral_traits", neutral_traits),
+    ):
+        if isinstance(value, str):
+            raise TypeError(
+                f"{name} must be a sequence of column names, not a single "
+                f"string; did you mean [{value!r}]?",
+            )
     trait_transitions = list(trait_transitions)
     for column in trait_transitions:
         if not isinstance(column, str):

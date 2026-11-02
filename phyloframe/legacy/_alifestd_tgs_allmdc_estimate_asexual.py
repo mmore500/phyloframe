@@ -126,10 +126,13 @@ def alifestd_tgs_allmdc_estimate_asexual(
         is the same for every size partition. Larger ratios give fewer,
         larger size partitions.
     calibrate_size_partition_min_neutral_gains : int, default 20
-        With `calibrate`, size partitions go up the log scale only while
-        each holds at least this many neutral trait gains; the first with
-        fewer and all larger clades join the one below, so no size partition
-        is left without neutral gains to calibrate against.
+        With `calibrate`, inner size partitions go up the log scale only
+        while each holds at least this many neutral trait gains; the first
+        with fewer and all larger clades join the one below (or, if the
+        first inner size partition has too few, all inner branches form
+        one), so no inner size partition is left without neutral gains to
+        calibrate against. Leaves always keep their own size partition, and
+        clade sizes absent from the tree leave no empty size partitions.
     num_survival_time_bins : int, default 2048
         Number of equal-occupancy survival-time bins. In the fit, each
         branch's survival time is replaced by the mean survival time of its

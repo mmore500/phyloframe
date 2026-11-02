@@ -3,6 +3,8 @@ import typing
 import numpy as np
 import pandas as pd
 
+from ._tgs_calc_trait_masks import tgs_calc_trait_masks
+
 
 def tgs_find_trait_exposures(
     exposure_df: pd.DataFrame,
@@ -17,16 +19,8 @@ def tgs_find_trait_exposures(
     of branches that started without it (their parent lacks it), and of
     those that gained it.
     """
-    num_traits = sum(
-        column.endswith("_starts_absent") for column in exposure_df
-    )
+    starts_absent, gains = tgs_calc_trait_masks(exposure_df)
     return (
-        [
-            np.flatnonzero(exposure_df[f"trait{i}_starts_absent"].to_numpy())
-            for i in range(num_traits)
-        ],
-        [
-            np.flatnonzero(exposure_df[f"trait{i}_gain"].to_numpy())
-            for i in range(num_traits)
-        ],
+        [np.flatnonzero(mask) for mask in starts_absent.T],
+        [np.flatnonzero(mask) for mask in gains.T],
     )
