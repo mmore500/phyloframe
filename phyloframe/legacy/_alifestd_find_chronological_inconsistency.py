@@ -2,6 +2,7 @@ from numbers import Number
 import typing
 
 import numpy as np
+import opytional as opyt
 import pandas as pd
 
 from .._auxlib._jit import jit
@@ -92,7 +93,7 @@ def _alifestd_find_chronological_inconsistency_asexual(
 def alifestd_find_chronological_inconsistency(
     phylogeny_df: pd.DataFrame,
     *,
-    epsilon: Number = 0,
+    epsilon: typing.Optional[Number] = None,
 ) -> typing.Optional[int]:
     """Return the id of a taxon with origin time preceding its parent's
     origin time plus `epsilon`, if any are present.
@@ -104,7 +105,7 @@ def alifestd_find_chronological_inconsistency(
         for unwrap in lambda x: x, lambda x: x.__wrapped__:
             try:
                 return _alifestd_find_chronological_inconsistency_asexual(
-                    phylogeny_df, unwrap, epsilon
+                    phylogeny_df, unwrap, opyt.or_value(epsilon, 0)
                 )
             except jit_TypingError:  # pragma: no cover
                 # this does get exercised in tests, but not in coverage
@@ -122,7 +123,7 @@ def alifestd_find_chronological_inconsistency(
         for ancestor_id in alifestd_parse_ancestor_ids(row["ancestor_list"]):
             ancestor_loc = phylogeny_df.index.get_loc(ancestor_id)
             ancestor_time = phylogeny_df.iat[ancestor_loc, origin_time_loc]
-            if epsilon != 0:  # skip for non-numeric types, e.g., str
+            if epsilon is not None:
                 ancestor_time = ancestor_time + epsilon
             if ancestor_time > row["origin_time"]:
                 return _idx

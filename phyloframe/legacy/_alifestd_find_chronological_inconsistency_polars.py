@@ -14,7 +14,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_find_chronological_inconsistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    epsilon: Number = 0,
+    epsilon: typing.Optional[Number] = None,
 ) -> typing.Optional[int]:
     """Return the id of a taxon with origin time preceding its parent's
     origin time plus `epsilon`, if any are present.
@@ -39,7 +39,7 @@ def alifestd_find_chronological_inconsistency_polars(
 
     # Use polars gather to look up ancestor origin times
     ancestor_origin_time = pl.col("origin_time").gather(pl.col("ancestor_id"))
-    if epsilon != 0:  # skip for non-numeric types, e.g., str
+    if epsilon is not None:
         ancestor_origin_time = ancestor_origin_time + epsilon
 
     result = (

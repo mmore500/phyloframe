@@ -1,7 +1,9 @@
 import io
 from numbers import Number
+import typing
 import warnings
 
+import opytional as opyt
 import pandas as pd
 
 from ._alifestd_find_chronological_inconsistency import (
@@ -15,7 +17,7 @@ from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 
 
 def _report_diagnosis(
-    df: pd.DataFrame, taxon_id: int, epsilon: Number = 0
+    df: pd.DataFrame, taxon_id: int, epsilon: typing.Optional[Number] = None
 ) -> None:
     warning_lines = [""]
     append = warning_lines.append
@@ -76,7 +78,7 @@ def _report_diagnosis(
         ancestor_origin_time = origin_time
         time_delta = taxon_origin_time - ancestor_origin_time
         append(f"{prefix}{time_delta=}")
-        if time_delta < epsilon:
+        if time_delta < opyt.or_value(epsilon, 0):
             append(
                 ">" * len(prefix) + f" ^^^^^^^^^ time delta is < {epsilon=}!"
             )
@@ -85,7 +87,7 @@ def _report_diagnosis(
         ancestor_origin_time = df["ancestor_id"].map(
             df.set_index("id")["origin_time"],
         )
-        if epsilon != 0:  # skip for non-numeric types, e.g., str
+        if epsilon is not None:
             ancestor_origin_time = ancestor_origin_time + epsilon
         discrepancy_mask = (ancestor_origin_time > df["origin_time"]) & (
             df["ancestor_id"] != df["id"]
@@ -102,7 +104,7 @@ def alifestd_is_chronologically_ordered(
     phylogeny_df: pd.DataFrame,
     diagnose: bool = True,
     *,
-    epsilon: Number = 0,
+    epsilon: typing.Optional[Number] = None,
 ) -> bool:
     """Do all organisms have `origin_time`s at least `epsilon` after members
     of their `ancestor_list`?

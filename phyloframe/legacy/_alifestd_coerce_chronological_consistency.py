@@ -3,10 +3,12 @@ import functools
 import logging
 from numbers import Number
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
+import opytional as opyt
 import pandas as pd
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -56,14 +58,15 @@ def alifestd_coerce_chronological_consistency(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    epsilon: Number = 0,
+    epsilon: typing.Optional[Number] = None,
 ) -> pd.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
     `epsilon`.
 
-    With the default `epsilon` of zero, taxa are only required not to
-    precede their parents. A positive `epsilon` requires each taxon to
+    With the default `epsilon` of None, taxa are only required not to
+    precede their parents; unlike `epsilon=0`, this also supports
+    non-numeric origin times (e.g., str). A positive `epsilon` requires each taxon to
     originate at least `epsilon` after its parent(s). Root taxa are
     never adjusted.
 
@@ -100,7 +103,7 @@ def alifestd_coerce_chronological_consistency(
 
 def _coerce_chronological_consistency_impl(
     phylogeny_df: pd.DataFrame,
-    epsilon: Number,
+    epsilon: typing.Optional[Number],
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_coerce_chronological_consistency`.
 
@@ -131,11 +134,13 @@ def _coerce_chronological_consistency_impl(
                 origin_times = phylogeny_df["origin_time"].to_numpy()
                 # promote up front: writes into an int array truncate, e.g.,
                 # 3 + 0.5 stays 3; numpy rules keep int32/float32 as is
-                dtype = np.result_type(origin_times.dtype, epsilon)
+                dtype = np.result_type(
+                    origin_times.dtype, opyt.or_value(epsilon, 0)
+                )
                 phylogeny_df["origin_time"] = fast_path(
                     phylogeny_df["ancestor_id"].to_numpy().astype(np.int64),
                     origin_times.astype(dtype),
-                    epsilon,
+                    opyt.or_value(epsilon, 0),
                 )
                 return phylogeny_df.set_index("id", drop=False)
             except jit_TypingError:  # pragma: no cover
@@ -144,11 +149,9 @@ def _coerce_chronological_consistency_impl(
                 break  # e.g., origin_times are strings or sequences
 
     # slower fallback implementation
-    try:
+    if epsilon is not None:
         dtype = np.result_type(phylogeny_df["origin_time"].dtype, epsilon)
         phylogeny_df["origin_time"] = phylogeny_df["origin_time"].astype(dtype)
-    except TypeError:
-        pass  # e.g., datetime origin times
 
     phylogeny_df = phylogeny_df.set_index("id", drop=False)
 
@@ -158,7 +161,7 @@ def _coerce_chronological_consistency_impl(
         for ancestor_id in alifestd_parse_ancestor_ids(row["ancestor_list"]):
             ancestor_loc = phylogeny_df.index.get_loc(ancestor_id)
             ancestor_time = phylogeny_df.iat[ancestor_loc, origin_time_loc]
-            if epsilon != 0:  # skip for non-numeric types, e.g., str
+            if epsilon is not None:
                 ancestor_time = ancestor_time + epsilon
             offspring_time = phylogeny_df.iat[pos, origin_time_loc]
             phylogeny_df.iat[pos, origin_time_loc] = max(
@@ -198,11 +201,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--epsilon",
-        default=0,
+        default=None,
         type=float,
         help=(
             "minimum origin time gap enforced between each taxon and its "
-            "parent(s) (default: 0)"
+            "parent(s) (default: None)"
         ),
     )
     return parser

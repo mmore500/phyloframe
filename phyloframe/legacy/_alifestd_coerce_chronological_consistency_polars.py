@@ -3,10 +3,12 @@ import functools
 import logging
 from numbers import Number
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
+import opytional as opyt
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -34,13 +36,13 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_coerce_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    epsilon: Number = 0,
+    epsilon: typing.Optional[Number] = None,
 ) -> pl.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
     `epsilon`.
 
-    With the default `epsilon` of zero, taxa are only required not to
+    With the default `epsilon` of None, taxa are only required not to
     precede their parents. A positive `epsilon` requires each taxon to
     originate at least `epsilon` after its parent. Root taxa are never
     adjusted.
@@ -52,7 +54,7 @@ def alifestd_coerce_chronological_consistency_polars(
 
         Must represent an asexual phylogeny with contiguous ids, numeric
         `origin_time`, and topologically sorted rows.
-    epsilon : Number, default 0
+    epsilon : Number, optional
         Minimum origin time gap enforced between each taxon and its parent.
 
     Returns
@@ -122,10 +124,12 @@ def alifestd_coerce_chronological_consistency_polars(
     try:
         # promote up front: writes into an int array truncate, e.g., 3 + 0.5
         # stays 3; numpy rules (unlike numba's) keep int32/float32 as is
-        dtype = np.result_type(origin_times.dtype, epsilon)
+        dtype = np.result_type(origin_times.dtype, opyt.or_value(epsilon, 0))
         corrected = (
             _alifestd_coerce_chronological_consistency_asexual_fast_path(
-                ancestor_ids, origin_times.astype(dtype), epsilon
+                ancestor_ids,
+                origin_times.astype(dtype),
+                opyt.or_value(epsilon, 0),
             )
         )
     except (TypeError, jit_TypingError):
@@ -177,11 +181,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--epsilon",
-        default=0,
+        default=None,
         type=float,
         help=(
             "minimum origin time gap enforced between each taxon and its "
-            "parent (default: 0)"
+            "parent (default: None)"
         ),
     )
     return parser
