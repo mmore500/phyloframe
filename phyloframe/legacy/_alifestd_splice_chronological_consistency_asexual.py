@@ -147,10 +147,13 @@ def alifestd_splice_chronological_consistency_asexual(
     --------
     alifestd_splice_chronological_consistency_polars :
         Polars-based implementation.
-    alifestd_regraft_chronological_consistency_asexual :
-        Regrafts onto nearest eligible ancestor node, without splicing.
     alifestd_coerce_chronological_consistency :
         Resolves origin time inversions by adjusting origin times.
+    alifestd_regraft_chronological_consistency_asexual :
+        Resolves origin time inversions by regrafting onto nearest
+        eligible ancestor node.
+    alifestd_find_chronological_inconsistency :
+        Finds taxa with origin time inversions.
     """
     if not mutate:
         phylogeny_df = phylogeny_df.copy()

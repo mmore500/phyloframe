@@ -67,10 +67,13 @@ def alifestd_regraft_chronological_consistency_polars(
     --------
     alifestd_regraft_chronological_consistency_asexual :
         Pandas-based implementation.
-    alifestd_splice_chronological_consistency_polars :
-        Regrafts onto nearest eligible ancestor edge, splicing in a new node.
     alifestd_coerce_chronological_consistency_polars :
         Resolves origin time inversions by adjusting origin times.
+    alifestd_splice_chronological_consistency_polars :
+        Resolves origin time inversions by regrafting onto a node spliced
+        into nearest eligible ancestor edge.
+    alifestd_find_chronological_inconsistency_polars :
+        Finds taxa with origin time inversions.
     """
 
     logging.info(
