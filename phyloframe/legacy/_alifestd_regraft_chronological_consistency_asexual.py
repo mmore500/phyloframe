@@ -75,8 +75,6 @@ def _alifestd_regraft_chronological_consistency_asexual_impl(
     try:
         return fast_path(ancestor_ids, origin_times)
     except jit_TypingError:  # pragma: no cover
-        # fall back to pure-Python version, to support origin_time dtypes
-        # that aren't numba-compatible (e.g., str)
         return fast_path.__wrapped__(ancestor_ids, origin_times)
 
 
