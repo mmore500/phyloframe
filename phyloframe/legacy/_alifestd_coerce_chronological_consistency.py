@@ -1,9 +1,12 @@
 import argparse
+import functools
 import logging
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import pandas as pd
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -12,34 +15,152 @@ from .._auxlib._delegate_polars_implementation import (
 )
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_find_chronological_inconsistency import (
     alifestd_find_chronological_inconsistency,
 )
+from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_topological_sort import alifestd_topological_sort
+from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
+
+
+@jit(nopython=True)
+def _alifestd_coerce_chronological_consistency_asexual_fast_path(
+    ancestor_ids: np.ndarray,
+    origin_times: np.ndarray,
+    epsilon: float,
+) -> np.ndarray:
+    """Implementation detail for
+    `alifestd_coerce_chronological_consistency` and
+    `alifestd_coerce_chronological_consistency_polars`.
+
+    Requires contiguous ids and topologically sorted rows. Returns a corrected
+    copy of `origin_times`, with each taxon's origin time raised to at least
+    its parent's origin time plus `epsilon`. Roots are left unchanged.
+    """
+    result = origin_times.copy()
+    for idx, ancestor_id in enumerate(ancestor_ids):
+        if ancestor_id == idx:
+            continue  # handle root cases
+
+        bound = result[ancestor_id] + epsilon
+        if result[idx] < bound:
+            result[idx] = bound
+
+    return result
+
+
+def _get_epsilon_dtype(
+    origin_time_dtype: np.dtype,
+    epsilon: float,
+) -> np.dtype:
+    """Implementation detail for `alifestd_coerce_chronological_consistency`.
+
+    Find dtype that can hold `origin_time + epsilon`. Dtype is unchanged
+    when `epsilon` is zero, so that the default is dtype-stable.
+    """
+    if epsilon == 0:
+        return origin_time_dtype
+    return np.result_type(origin_time_dtype, epsilon)
+
+
+def _is_fast_path_dtype(dtype: typing.Any) -> bool:
+    """Implementation detail for `alifestd_coerce_chronological_consistency`."""
+    return (
+        isinstance(dtype, np.dtype)
+        and np.issubdtype(dtype, np.number)
+        and not np.issubdtype(dtype, np.bool_)
+    )
 
 
 def alifestd_coerce_chronological_consistency(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
+    *,
+    epsilon: float = 0.0,
 ) -> pd.DataFrame:
-    """For any taxa with origin time preceding its parent's, set origin time
-    to parent's origin time.
+    """For any taxa with origin time preceding its parent's origin time plus
+    `epsilon`, set origin time to parent's origin time plus
+    `epsilon`.
 
-    If an inconsistency is detected, the corrected phylogeny will be returned
-    sorted in topological order.
+    With the default `epsilon` of zero, taxa are only required not to
+    precede their parents. A positive `epsilon` requires each taxon to
+    originate at least `epsilon` after its parent(s). Root taxa are
+    never adjusted.
+
+    If a correction may be needed and the phylogeny is not topologically
+    sorted, the corrected phylogeny will be returned sorted in topological
+    order.
+
+    For asexual phylogenies with contiguous ids and numeric origin times, an
+    optimized implementation is used.
+
+    Input dataframe is not mutated by this operation unless `mutate` set True.
+    If mutate set True, operation does not occur in place; still use return
+    value to get transformed phylogeny dataframe.
+
+    See Also
+    --------
+    alifestd_coerce_chronological_consistency_polars :
+        Polars-based implementation.
     """
 
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    if (
-        not alifestd_is_topologically_sorted(phylogeny_df)
-        and alifestd_find_chronological_inconsistency(phylogeny_df) is not None
-    ):
+    had_ancestor_id = "ancestor_id" in phylogeny_df.columns
+    phylogeny_df = _coerce_chronological_consistency_impl(
+        alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True),
+        epsilon=epsilon,
+    )
+    if not had_ancestor_id and "ancestor_id" in phylogeny_df.columns:
+        phylogeny_df = phylogeny_df.drop(columns="ancestor_id")
+
+    return phylogeny_df
+
+
+def _coerce_chronological_consistency_impl(
+    phylogeny_df: pd.DataFrame,
+    epsilon: float,
+) -> pd.DataFrame:
+    """Implementation detail for `alifestd_coerce_chronological_consistency`.
+
+    Operates in place on a dataframe the caller owns.
+    """
+
+    if not alifestd_is_topologically_sorted(phylogeny_df):
+        if (
+            epsilon == 0
+            and alifestd_find_chronological_inconsistency(phylogeny_df) is None
+        ):
+            return phylogeny_df.set_index("id", drop=False)
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
+
+    origin_time_dtype = phylogeny_df["origin_time"].dtype
+    if (
+        _is_fast_path_dtype(origin_time_dtype)
+        and "ancestor_id" in phylogeny_df.columns
+        and alifestd_has_contiguous_ids(phylogeny_df)
+        and not phylogeny_df.empty
+    ):
+        # optimized implementation for asexual phylogenies w/ contiguous ids
+        dtype = _get_epsilon_dtype(origin_time_dtype, epsilon)
+        phylogeny_df[
+            "origin_time"
+        ] = _alifestd_coerce_chronological_consistency_asexual_fast_path(
+            phylogeny_df["ancestor_id"].to_numpy().astype(np.int64),
+            phylogeny_df["origin_time"].to_numpy().astype(dtype),
+            dtype.type(epsilon),
+        )
+        return phylogeny_df.set_index("id", drop=False)
+
+    # slower fallback implementation
+    if epsilon != 0 and _is_fast_path_dtype(origin_time_dtype):
+        dtype = _get_epsilon_dtype(origin_time_dtype, epsilon)
+        phylogeny_df["origin_time"] = phylogeny_df["origin_time"].astype(dtype)
 
     phylogeny_df = phylogeny_df.set_index("id", drop=False)
 
@@ -49,6 +170,8 @@ def alifestd_coerce_chronological_consistency(
         for ancestor_id in alifestd_parse_ancestor_ids(row["ancestor_list"]):
             ancestor_loc = phylogeny_df.index.get_loc(ancestor_id)
             ancestor_time = phylogeny_df.iat[ancestor_loc, origin_time_loc]
+            if epsilon != 0:
+                ancestor_time = ancestor_time + epsilon
             offspring_time = phylogeny_df.iat[pos, origin_time_loc]
             phylogeny_df.iat[pos, origin_time_loc] = max(
                 offspring_time, ancestor_time
@@ -60,6 +183,8 @@ def alifestd_coerce_chronological_consistency(
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 For any taxa with origin time preceding its parent's, set origin time to parent's origin time.
+
+Use `--epsilon` to require that each taxon originate at least that much after its parent(s).
 
 Data is assumed to be in alife standard format.
 
@@ -83,6 +208,15 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_module="phyloframe.legacy._alifestd_coerce_chronological_consistency",
         dfcli_version=get_phyloframe_version(),
     )
+    parser.add_argument(
+        "--epsilon",
+        default=0.0,
+        type=float,
+        help=(
+            "minimum origin time gap enforced between each taxon and its "
+            "parent(s) (default: 0.0)"
+        ),
+    )
     return parser
 
 
@@ -98,6 +232,9 @@ if __name__ == "__main__":
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=delegate_polars_implementation()(
-                alifestd_coerce_chronological_consistency,
+                functools.partial(
+                    alifestd_coerce_chronological_consistency,
+                    epsilon=args.epsilon,
+                ),
             ),
         )

@@ -67,3 +67,24 @@ def test_alifestd_coerce_chronological_consistency_cli_parquet():
     result_df = pd.read_parquet(output_file)
     assert len(result_df) > 0
     assert "id" in result_df.columns
+
+
+def test_alifestd_coerce_chronological_consistency_cli_epsilon():
+    output_file = "/tmp/phyloframe_alifestd_coerce_chronological_consistency_epsilon.csv"  # nosec B108
+    pathlib.Path(output_file).unlink(missing_ok=True)
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            "phyloframe.legacy._alifestd_coerce_chronological_consistency",
+            "--epsilon",
+            "1.5",
+            output_file,
+        ],
+        check=True,
+        input=f"{assets}/nk_ecoeaselection.csv".encode(),
+    )
+    assert os.path.exists(output_file)
+    result_df = pd.read_csv(output_file)
+    assert len(result_df) > 0
+    assert "id" in result_df.columns

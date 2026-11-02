@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import os
 import typing
 
 import pandas as pd
@@ -12,7 +13,9 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import (
     alifestd_find_chronological_inconsistency,
+    alifestd_has_contiguous_ids,
     alifestd_make_empty,
+    alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
 )
 
@@ -372,3 +375,142 @@ def test_is_chronologically_unordered_asexual3(wrap: typing.Callable):
             assert not corrected.equals(df_)
             assert alifestd_find_chronological_inconsistency(corrected) is None
             assert df.equals(df_)
+
+
+@pytest.mark.parametrize("mutate", [True, False])
+@pytest.mark.parametrize("contiguous", [True, False])
+def test_coerce_chronological_consistency_epsilon_asexual(
+    mutate: bool, contiguous: bool
+):
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_list": ["[none]", "[0]", "[1]", "[1]", "[0]"],
+            "origin_time": [0.0, 0.5, 3.0, 1.0, 2.0],
+        }
+    )
+    if not contiguous:
+        phylogeny_df["id"] *= 10
+        phylogeny_df["ancestor_list"] = [
+            "[none]",
+            "[0]",
+            "[10]",
+            "[10]",
+            "[0]",
+        ]
+
+    df_ = phylogeny_df.copy()
+    corrected = alifestd_coerce_chronological_consistency(
+        phylogeny_df, mutate=mutate, epsilon=1.0
+    )
+    assert corrected["origin_time"].tolist() == [0.0, 1.0, 3.0, 2.0, 2.0]
+    assert "ancestor_id" not in corrected.columns
+    if not mutate:
+        assert phylogeny_df.equals(df_)
+
+
+def test_coerce_chronological_consistency_epsilon_zero_default():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "origin_time": [3, 1, 2],
+        }
+    )
+    corrected = alifestd_coerce_chronological_consistency(phylogeny_df)
+    assert corrected["origin_time"].tolist() == [3, 3, 3]
+    assert corrected["origin_time"].dtype == phylogeny_df["origin_time"].dtype
+
+
+def test_coerce_chronological_consistency_epsilon_int_promotes():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "origin_time": [3, 1, 10],
+        }
+    )
+    corrected = alifestd_coerce_chronological_consistency_(
+        phylogeny_df, epsilon=0.5
+    )
+    assert corrected["origin_time"].tolist() == [3.0, 3.5, 10.0]
+    assert corrected["origin_time"].dtype == "float64"
+
+    corrected = alifestd_coerce_chronological_consistency(
+        phylogeny_df, epsilon=2
+    )
+    assert corrected["origin_time"].tolist() == [3, 5, 10]
+    assert corrected["origin_time"].dtype == phylogeny_df["origin_time"].dtype
+
+
+def test_coerce_chronological_consistency_epsilon_sexual():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_list": ["[none]", "[none]", "[0,1]", "[2]"],
+            "origin_time": [0.0, 4.0, 1.0, 5.0],
+        }
+    )
+    corrected = alifestd_coerce_chronological_consistency(
+        phylogeny_df.sample(frac=1, random_state=1), epsilon=1.0
+    )
+    assert corrected.set_index("id").loc[
+        [0, 1, 2, 3], "origin_time"
+    ].tolist() == [
+        0.0,
+        4.0,
+        5.0,
+        6.0,
+    ]
+
+
+def test_coerce_chronological_consistency_epsilon_unsorted():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_list": ["[2]", "[0]", "[none]"],
+            "origin_time": [0.0, 0.0, 0.0],
+        }
+    )
+    corrected = alifestd_coerce_chronological_consistency(
+        phylogeny_df, epsilon=1.0
+    )
+    assert corrected.set_index("id").loc[
+        [0, 1, 2], "origin_time"
+    ].tolist() == [
+        1.0,
+        2.0,
+        0.0,
+    ]
+
+
+@pytest.mark.parametrize(
+    "phylogeny_file",
+    ["nk_ecoeaselection.csv", "nk_lexicaseselection.csv"],
+)
+@pytest.mark.parametrize("epsilon", [0.0, 1.0, 25.0])
+def test_coerce_chronological_consistency_fast_path_matches_slow_path(
+    phylogeny_file: str, epsilon: float
+):
+    assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+    df = alifestd_to_working_format(
+        pd.read_csv(f"{assets}/{phylogeny_file}"),
+    )
+    df["origin_time"] = df["origin_time"].astype(float) * (
+        (df["id"] % 3 == 0) * 0.5 + 0.75
+    )
+    assert alifestd_has_contiguous_ids(df)
+
+    # shift ids to defeat contiguous ids fast path
+    df_slow = df.copy()
+    df_slow["id"] += 1
+    df_slow["ancestor_id"] += 1
+    df_slow["ancestor_list"] = [
+        "[none]" if id_ == ancestor_id else f"[{ancestor_id}]"
+        for id_, ancestor_id in zip(df_slow["id"], df_slow["ancestor_id"])
+    ]
+
+    fast = alifestd_coerce_chronological_consistency(df, epsilon=epsilon)
+    slow = alifestd_coerce_chronological_consistency(df_slow, epsilon=epsilon)
+    assert alifestd_find_chronological_inconsistency(fast) is None
+    assert fast["origin_time"].tolist() == slow["origin_time"].tolist()
