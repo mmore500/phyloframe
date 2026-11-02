@@ -99,6 +99,28 @@ def test_coarsen_taxa_polars_make_agg(apply: typing.Callable):
         {"destruction_time": 2, "origin_time": 0, "trait": "x"},
     ]
 
+    agg = alifestd_coarsen_taxa_polars_make_agg(
+        apply(df.with_columns(is_root=pl.col("id") == pl.col("ancestor_id"))),
+        default_agg=pl.Expr.max,
+    )
+    assert sorted(agg) == [
+        "destruction_time",
+        "is_root",
+        "origin_time",
+        "trait",
+    ]
+    # overrides are not affected by default_agg
+    assert df.with_columns(pl.Series("is_root", [False, True]),).select(
+        **agg
+    ).to_dicts() == [
+        {
+            "destruction_time": 2,
+            "is_root": False,
+            "origin_time": 0,
+            "trait": "y",
+        },
+    ]
+
 
 @_apply
 def test_coarsen_taxa_polars_singleton(apply: typing.Callable):

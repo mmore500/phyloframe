@@ -22,6 +22,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 def alifestd_coarsen_taxa_polars_make_agg(
     phylogeny_df: pl.DataFrame,
+    default_agg: typing.Callable[[pl.Expr], pl.Expr] = pl.Expr.first,
 ) -> typing.Dict[str, pl.Expr]:
     """Build per-column aggregation expressions for polars taxa coarsening.
 
@@ -29,12 +30,20 @@ def alifestd_coarsen_taxa_polars_make_agg(
     ----------
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         Input phylogeny table.
+    default_agg : Callable[[polars.Expr], polars.Expr], default Expr.first
+        Aggregation to apply to any column not in the hard-coded overrides,
+        called with that column's expression (e.g., `pl.Expr.max`, or
+        `lambda expr: expr.drop_nulls().first()`).
 
     Returns
     -------
     Dict[str, polars.Expr]
-        Mapping of column name to aggregation expression. Column
-        "destruction_time" takes `last`, and all other columns take `first`.
+        Mapping of column name to aggregation expression. Three columns are
+        overridden as follows:
+
+        - "destruction_time": `last`
+        - "is_root": `first`
+        - "origin_time": `first`
 
         Columns named
 
@@ -45,19 +54,21 @@ def alifestd_coarsen_taxa_polars_make_agg(
         - "id"
         - "is_leaf"
 
-        will be excluded from the result.
+        will be excluded from the result. All other (non-excluded) columns use
+        `default_agg`.
 
     See Also
     --------
     alifestd_coarsen_taxa_asexual_make_agg :
         Pandas-based implementation.
     """
+    overrides = {
+        "destruction_time": pl.Expr.last,
+        "is_root": pl.Expr.first,
+        "origin_time": pl.Expr.first,
+    }
     return {
-        col: (
-            pl.col(col).last()
-            if col == "destruction_time"
-            else pl.col(col).first()
-        )
+        col: overrides.get(col, default_agg)(pl.col(col))
         for col in phylogeny_df.lazy().collect_schema().names()
         if col
         not in (
