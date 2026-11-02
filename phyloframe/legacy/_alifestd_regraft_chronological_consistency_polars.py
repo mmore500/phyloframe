@@ -18,9 +18,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_make_ancestor_list_col_polars import (
-    alifestd_make_ancestor_list_col_polars,
-)
 from ._alifestd_regraft_chronological_consistency_asexual import (
     _alifestd_regraft_chronological_consistency_asexual_impl,
 )
@@ -62,7 +59,7 @@ def alifestd_regraft_chronological_consistency_polars(
 
     Returns
     -------
-    polars.DataFrame
+    polars.DataFrame or polars.LazyFrame
         The phylogeny with regrafted `ancestor_id` column (and `ancestor_list`
         column, if present). Output remains topologically sorted.
 
@@ -85,7 +82,7 @@ def alifestd_regraft_chronological_consistency_polars(
         raise NotImplementedError("sexual phylogenies not supported")
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df.lazy().collect()
+        return phylogeny_df
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         raise NotImplementedError("non-contiguous ids not supported")
@@ -123,7 +120,6 @@ def alifestd_regraft_chronological_consistency_polars(
         origin_times,
     )
 
-    phylogeny_df = phylogeny_df.lazy().collect()
     phylogeny_df = phylogeny_df.with_columns(
         pl.Series("ancestor_id", regrafted).cast(schema["ancestor_id"]),
     )
@@ -137,10 +133,9 @@ def alifestd_regraft_chronological_consistency_polars(
         phylogeny_df = phylogeny_df.with_columns(
             ancestor_list=pl.when(is_regrafted)
             .then(
-                alifestd_make_ancestor_list_col_polars(
-                    phylogeny_df["id"],
-                    phylogeny_df["ancestor_id"],
-                ),
+                pl.when(pl.col("id") == pl.col("ancestor_id"))
+                .then(pl.lit("[none]"))
+                .otherwise(pl.format("[{}]", pl.col("ancestor_id"))),
             )
             .otherwise(pl.col("ancestor_list")),
         )

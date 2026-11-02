@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import functools
 import logging
 import os
@@ -6,9 +7,10 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
+import opytional as opyt
 import polars as pl
 
+from .._auxlib._RngStateContext import RngStateContext
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
@@ -18,6 +20,9 @@ from ._alifestd_assign_contiguous_ids_polars import (
 )
 from ._alifestd_make_ancestor_list_col_polars import (
     alifestd_make_ancestor_list_col_polars,
+)
+from ._alifestd_shuffle_working_format import (
+    _alifestd_shuffle_working_format_permutation,
 )
 from ._alifestd_topological_sort_polars import (
     alifestd_topological_sort_polars,
@@ -79,7 +84,10 @@ def alifestd_shuffle_working_format_polars(
         phylogeny_df = phylogeny_df.drop("ancestor_list")
 
     logging.info("- alifestd_shuffle_working_format_polars: shuffling...")
-    permutation = np.random.default_rng(seed).permutation(len(phylogeny_df))
+    with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
+        permutation = _alifestd_shuffle_working_format_permutation(
+            len(phylogeny_df),
+        )
     phylogeny_df = phylogeny_df.select(pl.all().gather(permutation))
 
     # relabel ids to shuffled row positions, so that topological sort, which

@@ -88,6 +88,8 @@ def alifestd_coerce_chronological_consistency(
     --------
     alifestd_coerce_chronological_consistency_polars :
         Polars-based implementation.
+    alifestd_regraft_chronological_consistency_asexual :
+        Resolves origin time inversions by adjusting topology.
     """
 
     if not mutate:

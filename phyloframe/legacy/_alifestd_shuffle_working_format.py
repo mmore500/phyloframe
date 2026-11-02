@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import functools
 import logging
 import os
@@ -7,18 +8,31 @@ import typing
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
+import opytional as opyt
 import pandas as pd
 
+from .._auxlib._RngStateContext import RngStateContext
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._delegate_polars_implementation import (
     delegate_polars_implementation,
 )
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_assign_contiguous_ids import alifestd_assign_contiguous_ids
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
+
+
+@jit(nopython=True)
+def _alifestd_shuffle_working_format_permutation(n: int) -> np.ndarray:
+    """Implementation detail for `alifestd_shuffle_working_format` and
+    `alifestd_shuffle_working_format_polars`.
+
+    Draws within jit, so `RngStateContext` seeding applies.
+    """
+    return np.random.permutation(n)
 
 
 def alifestd_shuffle_working_format(
@@ -55,7 +69,10 @@ def alifestd_shuffle_working_format(
     if phylogeny_df.empty:
         return phylogeny_df
 
-    permutation = np.random.default_rng(seed).permutation(len(phylogeny_df))
+    with opyt.apply_if_or_else(seed, RngStateContext, contextlib.nullcontext):
+        permutation = _alifestd_shuffle_working_format_permutation(
+            len(phylogeny_df),
+        )
     phylogeny_df = phylogeny_df.iloc[permutation].reset_index(drop=True)
 
     # relabel ids to shuffled row positions, so that topological sort, which
