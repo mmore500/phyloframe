@@ -482,6 +482,12 @@ from ._alifestd_mark_lineage_ffill_asexual import (
 from ._alifestd_mark_lineage_ffill_polars import (
     alifestd_mark_lineage_ffill_polars,
 )
+from ._alifestd_mark_max_child_value_asexual import (
+    alifestd_mark_max_child_value_asexual,
+)
+from ._alifestd_mark_max_child_value_polars import (
+    alifestd_mark_max_child_value_polars,
+)
 from ._alifestd_mark_max_descendant_origin_time_asexual import (
     alifestd_mark_max_descendant_origin_time_asexual,
 )
@@ -988,6 +994,8 @@ __all__ = [
     "alifestd_mark_lineage_cumsum_polars",
     "alifestd_mark_lineage_ffill_asexual",
     "alifestd_mark_lineage_ffill_polars",
+    "alifestd_mark_max_child_value_asexual",
+    "alifestd_mark_max_child_value_polars",
     "alifestd_mark_max_descendant_origin_time_asexual",
     "alifestd_mark_max_descendant_origin_time_polars",
     "alifestd_mark_monomorphic_clades_polars",

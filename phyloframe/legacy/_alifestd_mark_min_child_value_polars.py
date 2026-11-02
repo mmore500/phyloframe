@@ -56,6 +56,8 @@ def alifestd_mark_min_child_value_polars(
         Pandas-based implementation.
     alifestd_mark_lineage_cummin_polars :
         Minimum along lineages, or over clades with ``reverse=True``.
+    alifestd_mark_max_child_value_polars :
+        Maximum of ``values`` among each node's children.
     """
     values_expr = pl.col(values) if isinstance(values, str) else values
 
