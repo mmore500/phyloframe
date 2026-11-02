@@ -7,9 +7,16 @@ from scipy import sparse
 from ._tgs_calc_calibrated_pendant_lengths import (
     tgs_calc_calibrated_pendant_lengths,
 )
+from ._tgs_calc_gain_ratio_lrts import tgs_calc_gain_ratio_lrts
 from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_fit import TgsFitResult, _tgs_fit_impl
+from ._tgs_fit import (
+    TGS_GROWTH_EXPONENT_BOUND,
+    TGS_SELECTION_STARTS,
+    TgsFitResult,
+    _tgs_fit_impl,
+    _tgs_make_nll,
+)
 
 
 def tgs_fit_traits(
@@ -30,7 +37,8 @@ def tgs_fit_traits(
     Here, tgs stands for trait gain/selection.
 
     Returns one row per trait, with columns of `TgsFitResult` plus
-    `gain_ratio`, the gain rate relative to neutral traits, fitting leaves
+    `gain_ratio`, the gain rate relative to neutral traits, and
+    `gain_ratio_lrt_naive` (see `tgs_calc_gain_ratio_lrts`), fitting leaves
     weighted by `weights` (e.g., bootstrap draw counts). If `calibration_neighborhoods` is given,
     each partition's pendant length is rescaled by the rate ratio of neutral
     trait gains within its neighborhood.
@@ -43,7 +51,7 @@ def tgs_fit_traits(
         trait_leaves=trait_leaves,
         trait_carriers=trait_carriers,
     )
-    fits = []
+    fits, calc_nlls, selection_scales = [], [], []
     for trait, (n, k, __) in enumerate(zip(*counts)):
         pendant_length, __ = tgs_calc_calibrated_pendant_lengths(
             counts=counts,
@@ -59,12 +67,25 @@ def tgs_fit_traits(
                 num_successes=k,
                 pendant_length=pendant_length,
                 loss_rate=loss_rate,
+                selection_starts=TGS_SELECTION_STARTS,
+                growth_exponent_bound=TGS_GROWTH_EXPONENT_BOUND,
             )
             if k.any()
             else TgsFitResult(
                 gain_rate=0.0, selection=np.nan, selection_lrt_naive=np.nan
             )
         )
+        if k.any():
+            calc_nll, selection_scale = _tgs_make_nll(
+                num_trials=np.asarray(n, dtype=np.float64),
+                num_successes=np.asarray(k, dtype=np.float64),
+                pendant_length=np.asarray(pendant_length, dtype=np.float64),
+                growth_exponent_bound=TGS_GROWTH_EXPONENT_BOUND,
+            )
+        else:
+            calc_nll, selection_scale = None, np.nan
+        calc_nlls.append(calc_nll)
+        selection_scales.append(selection_scale)
 
     # normalize each gain rate by the mean gain rate of its neutral reference;
     # undefined without neutral reference traits, or if none gained the trait
@@ -72,5 +93,13 @@ def tgs_fit_traits(
     res["gain_ratio"] = tgs_calc_gain_ratios(
         gain_rates=res["gain_rate"].to_numpy(),
         neutral_traits=neutral_traits,
+    )
+    res["gain_ratio_lrt_naive"] = tgs_calc_gain_ratio_lrts(
+        fits=res,
+        calc_nlls=calc_nlls,
+        selection_scales=selection_scales,
+        neutral_traits=neutral_traits,
+        loss_rate=loss_rate,
+        selection_starts=TGS_SELECTION_STARTS,
     )
     return res

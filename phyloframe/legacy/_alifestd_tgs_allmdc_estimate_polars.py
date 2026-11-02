@@ -139,9 +139,10 @@ branches.
 
 Output is one row per trait, with columns `trait`, `num_leaves`,
 `num_trait_present`, `num_clades`, `num_clade_gains`, `gain_rate`,
-`selection`, `gain_ratio`, and `selection_lrt_naive`; with `--num-bootstrap`,
-also `selection_se`, `selection_z`, `selection_p`, `log_gain_ratio_se`,
-`gain_ratio_z`, `gain_ratio_p`, and `num_bootstrap_degenerate`.
+`selection`, `gain_ratio`, `selection_lrt_naive`, and `gain_ratio_lrt_naive`;
+with `--num-bootstrap`, also `selection_se`, `selection_z`, `selection_p`,
+`log_gain_ratio_se`, `gain_ratio_z`, `gain_ratio_p`, and
+`num_bootstrap_degenerate`.
 
 Data is assumed to be in alife standard format, with column `origin_time`.
 Only supports asexual phylogenies.

@@ -27,5 +27,6 @@ def tgs_init_results(
             "selection": np.nan,
             "gain_ratio": np.nan,
             "selection_lrt_naive": np.nan,
+            "gain_ratio_lrt_naive": np.nan,
         },
     )

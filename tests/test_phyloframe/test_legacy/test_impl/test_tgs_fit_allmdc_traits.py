@@ -44,7 +44,13 @@ def test_recovers(calibrate: bool):
         "selection",
         "selection_lrt_naive",
         "gain_ratio",
+        "gain_ratio_lrt_naive",
     ]
+    # the focal trait gains at twice the neutral rate, so its gain ratio
+    # test is decisive, unlike the neutral traits'
+    assert res.loc[0, "gain_ratio_lrt_naive"] > 20
+    assert (res.loc[1:, "gain_ratio_lrt_naive"] < 20).all()
+    assert (res["gain_ratio_lrt_naive"] > -1e-6).all()
     assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.2)
     assert res.loc[0, "selection"] == pytest.approx(-0.05, abs=0.015)
     # each neutral trait's ~1,200 gains, with selection free to trade off
