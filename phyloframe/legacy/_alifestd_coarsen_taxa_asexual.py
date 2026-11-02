@@ -100,6 +100,8 @@ def alifestd_coarsen_taxa_asexual(
 
     See Also
     --------
+    alifestd_coarsen_taxa_polars :
+        Polars-based implementation.
     alifestd_coarsen_taxa_asexual_make_agg :
         Helper function to generate default `agg` dict, which may be customized
         before being passed to `alifestd_coarsen_taxa_asexual`.
