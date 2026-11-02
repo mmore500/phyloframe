@@ -199,6 +199,27 @@ def test_coarsen_taxa_polars_two_groups(apply: typing.Callable):
 
 
 @_apply
+@pytest.mark.parametrize("has_ancestor_list", [True, False])
+@pytest.mark.parametrize("num_rows", [0, 3])
+def test_coarsen_taxa_polars_ancestor_list_only_if_present(
+    apply: typing.Callable, has_ancestor_list: bool, num_rows: int
+):
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "ancestor_list": ["[none]", "[0]", "[1]"],
+            "dummy": [0, 0, 1],
+        }
+    ).head(num_rows)
+    if not has_ancestor_list:
+        df = df.drop("ancestor_list")
+    result = alifestd_coarsen_taxa_polars(apply(df), by="dummy")
+    names = result.lazy().collect_schema().names()
+    assert ("ancestor_list" in names) == has_ancestor_list
+
+
+@_apply
 def test_coarsen_taxa_polars_by_sequence(apply: typing.Callable):
     df = pl.DataFrame(
         {
