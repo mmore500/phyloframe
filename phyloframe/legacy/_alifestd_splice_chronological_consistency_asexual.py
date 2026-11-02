@@ -42,42 +42,33 @@ def _alifestd_splice_chronological_consistency_asexual_fast_path(
     original ids, and, for each spliced node, the id of the taxon it was
     spliced for (whose origin time it takes).
     """
-    num_taxa = len(ancestor_ids)
-    # at most one node is spliced per taxon
-    parents = np.empty(2 * num_taxa, dtype=np.int64)
-    parents[:num_taxa] = ancestor_ids
-    sources = np.empty(num_taxa, dtype=np.int64)
-    num_spliced = 0
+    parents = list(ancestor_ids)
+    # taxon whose origin time each node takes; spliced nodes append theirs
+    time_sources = list(range(len(ancestor_ids)))
 
     for idx, ancestor_id in enumerate(ancestor_ids):
-        origin_time = origin_times[idx]
         # walk up already-spliced lineage, where origin times are
         # nondecreasing, to find edge child <- ancestor that straddles taxon
         child, ancestor = idx, ancestor_id
-        while ancestor != child:
-            ancestor_time = (
-                origin_times[ancestor]
-                if ancestor < num_taxa
-                else origin_times[sources[ancestor - num_taxa]]
-            )
-            if not ancestor_time > origin_time:
-                break
+        while (
+            ancestor != child
+            and origin_times[time_sources[ancestor]] > origin_times[idx]
+        ):
             child, ancestor = ancestor, parents[ancestor]
 
         if child == idx:
             continue  # taxon is root or chronologically consistent
 
-        spliced = num_taxa + num_spliced
-        sources[num_spliced] = idx
-        num_spliced += 1
+        spliced = len(parents)
         # if lineage exhausted, spliced node becomes new root
-        parents[spliced] = spliced if ancestor == child else ancestor
+        parents.append(spliced if ancestor == child else ancestor)
+        time_sources.append(idx)
         parents[child] = spliced
         parents[idx] = spliced
 
     return (
-        parents[: num_taxa + num_spliced].copy(),
-        sources[:num_spliced].copy(),
+        np.array(parents, dtype=np.int64),
+        np.array(time_sources[len(ancestor_ids) :], dtype=np.int64),
     )
 
 
