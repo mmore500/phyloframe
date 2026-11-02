@@ -113,18 +113,10 @@ def _coerce_chronological_consistency_impl(
     Operates in place on a dataframe the caller owns.
     """
 
-    if not alifestd_is_topologically_sorted(phylogeny_df):
-        if (
-            alifestd_find_chronological_inconsistency(
-                phylogeny_df, epsilon=epsilon
-            )
-            is None
-        ):
-            return phylogeny_df.set_index("id", drop=False)
-        phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
-
+    is_topologically_sorted = alifestd_is_topologically_sorted(phylogeny_df)
     if (
-        "ancestor_id" in phylogeny_df.columns
+        is_topologically_sorted
+        and "ancestor_id" in phylogeny_df.columns
         and alifestd_has_contiguous_ids(phylogeny_df)
         and not phylogeny_df.empty
     ):
@@ -152,6 +144,16 @@ def _coerce_chronological_consistency_impl(
                 break  # e.g., origin_times are strings or sequences
 
     # slower fallback implementation
+    if not is_topologically_sorted:
+        if (
+            alifestd_find_chronological_inconsistency(
+                phylogeny_df, epsilon=epsilon
+            )
+            is None
+        ):
+            return phylogeny_df.set_index("id", drop=False)
+        phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
+
     has_ancestor_list = "ancestor_list" in phylogeny_df
     if not has_ancestor_list:
         phylogeny_df = alifestd_try_add_ancestor_list_col(

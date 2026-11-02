@@ -19,9 +19,6 @@ from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_coerce_chronological_consistency import (
     _alifestd_coerce_chronological_consistency_asexual_fast_path,
 )
-from ._alifestd_find_chronological_inconsistency_polars import (
-    alifestd_find_chronological_inconsistency_polars,
-)
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -83,14 +80,6 @@ def alifestd_coerce_chronological_consistency_polars(
 
     if not alifestd_has_contiguous_ids_polars(phylogeny_df):
         raise NotImplementedError("non-contiguous ids not supported")
-
-    if (
-        alifestd_find_chronological_inconsistency_polars(
-            phylogeny_df, epsilon=epsilon
-        )
-        is None
-    ):
-        return phylogeny_df.lazy().collect()
 
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(

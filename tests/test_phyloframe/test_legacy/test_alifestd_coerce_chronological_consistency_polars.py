@@ -190,3 +190,15 @@ def test_coerce_chronological_consistency_polars_non_numeric():
     )
     with pytest.raises(NotImplementedError):
         alifestd_coerce_chronological_consistency_polars(df)
+
+
+def test_coerce_chronological_consistency_polars_unsorted_consistent():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [1, 1, 0],
+            "origin_time": [1.0, 0.0, 2.0],
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_coerce_chronological_consistency_polars(df)
