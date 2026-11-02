@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 from scipy import optimize
 
-from phyloframe._auxlib._tgs_fit import _tgs_calc_nll
 from phyloframe.legacy._impl import tgs_calc_allmdc_nll
+from phyloframe.legacy._impl._tgs_fit import _tgs_calc_nll
 
 
 def _data():

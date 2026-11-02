@@ -7,8 +7,8 @@ from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
 
 def tgs_summarize_bootstrap(
     *,
-    point: pd.DataFrame,
-    replicate_fits: pd.DataFrame,
+    point_df: pd.DataFrame,
+    replicate_fits_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual`.
@@ -23,12 +23,12 @@ def tgs_summarize_bootstrap(
     # leave its gain ratio undefined, so exclude them; gain ratio is also
     # undefined, by design, without neutral traits, which does not make a
     # replicate degenerate
-    trait_index = replicate_fits.index.get_level_values("trait_index")
-    selection = replicate_fits["selection"]
-    gain_ratio = replicate_fits["gain_ratio"]
+    trait_index = replicate_fits_df.index.get_level_values("trait_index")
+    selection = replicate_fits_df["selection"]
+    gain_ratio = replicate_fits_df["gain_ratio"]
     is_selection_degenerate = ~np.isfinite(selection)
     is_gain_ratio_degenerate = is_selection_degenerate | (
-        np.isfinite(point["gain_ratio"].to_numpy())[trait_index]
+        np.isfinite(point_df["gain_ratio"].to_numpy())[trait_index]
         & ~np.isfinite(gain_ratio)
     )
     for is_excluded, reason in (
@@ -40,8 +40,10 @@ def tgs_summarize_bootstrap(
     ):
         tgs_warn_excluded_replicates(
             is_excluded,
-            trait_names=point["trait"],
-            num_replicates=replicate_fits.index.get_level_values(0).nunique(),
+            trait_names=point_df["trait"],
+            num_replicates=replicate_fits_df.index.get_level_values(
+                0
+            ).nunique(),
             reason=reason,
         )
 
@@ -59,8 +61,10 @@ def tgs_summarize_bootstrap(
         .std()
         .to_numpy()
     )
-    selection_z = point["selection"].to_numpy() / selection_se
-    gain_ratio_z = np.log(point["gain_ratio"].to_numpy()) / log_gain_ratio_se
+    selection_z = point_df["selection"].to_numpy() / selection_se
+    gain_ratio_z = (
+        np.log(point_df["gain_ratio"].to_numpy()) / log_gain_ratio_se
+    )
     return pd.DataFrame(
         {
             "selection_se": selection_se,
@@ -75,5 +79,5 @@ def tgs_summarize_bootstrap(
             .sum()
             .to_numpy(),
         },
-        index=point.index,
+        index=point_df.index,
     )

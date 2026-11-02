@@ -9,7 +9,7 @@ from ..._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ..._auxlib._ceil_div import ceil_div
 
 
-def tgs_partition_branches(
+def tgs_calc_rank_partitions(
     *,
     coordinates: typing.Sequence[np.ndarray],
     max_partitions: int,
@@ -41,7 +41,7 @@ def tgs_partition_branches(
     partitions = calc_kdtree_partitions(ranks, partition_size)
     partition_sizes = np.bincount(partitions, minlength=num_partitions)
     logging.info(
-        "- tgs_partition_branches: "
+        "- tgs_calc_rank_partitions: "
         f"partitioned {num_branches} branches into {num_partitions} "
         f"partitions ({num_levels} levels of splits), of sizes "
         f"{np.unique(partition_sizes).tolist()}",

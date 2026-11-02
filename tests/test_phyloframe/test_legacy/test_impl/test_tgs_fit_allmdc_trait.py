@@ -4,17 +4,17 @@ import pytest
 from phyloframe.legacy._impl import (
     tgs_calc_allmdc_data,
     tgs_fit_allmdc_trait,
-    tgs_partition_allmdc_branches,
+    tgs_partition_allmdc_exposures,
 )
 
-from ._simulate_allmdc_branches import simulate_allmdc_branches
+from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 
 @pytest.fixture(scope="module")
 def fixture():
-    branches = simulate_allmdc_branches()
-    partitioning = tgs_partition_allmdc_branches(
-        branches=branches,
+    exposure_df = simulate_allmdc_exposure_df()
+    partitioning = tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df,
         neutral_traits=[1, 2],
         trait_names=["focal", "n1", "n2"],
         calibrate=False,
@@ -25,9 +25,9 @@ def fixture():
         num_survival_time_bins=32,
     )
     data, shares = tgs_calc_allmdc_data(
-        branches=branches,
+        exposure_df=exposure_df,
         partitioning=partitioning,
-        weights=np.ones(len(branches)),
+        weights=np.ones(len(exposure_df)),
         neutral_traits=[1, 2],
         calibrate=False,
     )

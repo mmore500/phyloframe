@@ -5,16 +5,16 @@ import typing
 import numpy as np
 import pandas as pd
 
-from ._tgs_append_bootstrap_summary import tgs_append_bootstrap_summary
 from ._tgs_bootstrap import tgs_bootstrap
+from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_fit_allmdc_traits import tgs_fit_allmdc_traits
 from ._tgs_init_allmdc_results import tgs_init_allmdc_results
-from ._tgs_partition_allmdc_branches import tgs_partition_allmdc_branches
+from ._tgs_partition_allmdc_exposures import tgs_partition_allmdc_exposures
 from ._tgs_validate_allmdc_args import tgs_validate_allmdc_args
 
 
 def tgs_allmdc_impl(
-    branches: pd.DataFrame,
+    exposure_df: pd.DataFrame,
     *,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
@@ -38,7 +38,7 @@ def tgs_allmdc_impl(
 
     Here, tgs stands for trait gain/selection.
 
-    Takes branches from `tgs_calc_branches` and arguments as documented in
+    Takes `exposure_df` from `tgs_calc_exposure_df` and arguments as documented in
     `alifestd_tgs_allmdc_estimate_asexual`, with `neutral_traits` as
     indices and `trait_names` as labels (see `tgs_validate_args`).
     """
@@ -49,13 +49,15 @@ def tgs_allmdc_impl(
             calibrate_size_partition_min_neutral_gains
         ),
     )
-    res = tgs_init_allmdc_results(trait_names=trait_names, branches=branches)
-    num_branches = len(branches)
+    estimates_df = tgs_init_allmdc_results(
+        trait_names=trait_names, exposure_df=exposure_df
+    )
+    num_branches = len(exposure_df)
     if num_branches:
         fit_kwargs = dict(
-            branches=branches,
-            partitioning=tgs_partition_allmdc_branches(
-                branches=branches,
+            exposure_df=exposure_df,
+            partitioning=tgs_partition_allmdc_exposures(
+                exposure_df=exposure_df,
                 neutral_traits=neutral_traits,
                 trait_names=trait_names,
                 calibrate=calibrate,
@@ -79,24 +81,24 @@ def tgs_allmdc_impl(
             "- alifestd_tgs_allmdc_estimate_asexual: fitting "
             f"{len(trait_names)} traits to {num_branches} branches...",
         )
-        point = tgs_fit_allmdc_traits(
+        point_df = tgs_fit_allmdc_traits(
             weights=np.ones(num_branches), **fit_kwargs
         )
-        res[list(point.columns)] = point
-        for __, row in res.iterrows():
+        estimates_df[list(point_df.columns)] = point_df
+        for __, row in estimates_df.iterrows():
             logging.info(
                 f"- alifestd_tgs_allmdc_estimate_asexual: trait {row['trait']} "
                 f"fit gain rate {row['gain_rate']:.4g}, selection "
                 f"{row['selection']:.4g}, gain ratio {row['gain_ratio']:.4g}, "
                 f"selection lrt {row['selection_lrt_naive']:.4g}",
             )
-    replicate_fits = None
+    replicate_fits_df = None
     if num_branches and num_bootstrap:
         logging.info(
             "- alifestd_tgs_allmdc_estimate_asexual: "
             f"fitting {num_bootstrap} bootstrap replicates...",
         )
-        replicate_fits = tgs_bootstrap(
+        replicate_fits_df = tgs_bootstrap(
             fit=functools.partial(tgs_fit_allmdc_traits, **fit_kwargs),
             num_items=num_branches,
             num_bootstrap=num_bootstrap,
@@ -104,6 +106,8 @@ def tgs_allmdc_impl(
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         )
-    return tgs_append_bootstrap_summary(
-        res, replicate_fits=replicate_fits, num_bootstrap=num_bootstrap
+    return tgs_build_estimates_df(
+        estimates_df,
+        replicate_fits_df=replicate_fits_df,
+        num_bootstrap=num_bootstrap,
     )

@@ -6,15 +6,15 @@ import numpy as np
 import pandas as pd
 
 from ._tgs_bootstrap import tgs_bootstrap
+from ._tgs_calc_rank_partitions import tgs_calc_rank_partitions
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_fit_traits import tgs_fit_traits
-from ._tgs_partition_branches import tgs_partition_branches
 from ._tgs_select_pendant_calibration import tgs_select_pendant_calibration
 
 
 def tgs_fit_and_bootstrap(
     *,
-    res: pd.DataFrame,
+    estimates_df: pd.DataFrame,
     pendant_lengths: np.ndarray,
     origin_times: np.ndarray,
     trait_leaves: typing.Sequence[np.ndarray],
@@ -36,10 +36,14 @@ def tgs_fit_and_bootstrap(
     Here, tgs stands for trait gain/selection.
 
     Fits each trait to informative leaves, given their pendant lengths and
-    origin times, filling point estimates into `res` in place, and returns
+    origin times, filling point estimates into `estimates_df` in place, and returns
     bootstrap replicate fits (None without bootstrap replicates).
     """
-    leaf_partitions, num_partitions, partition_coords = tgs_partition_branches(
+    (
+        leaf_partitions,
+        num_partitions,
+        partition_coords,
+    ) = tgs_calc_rank_partitions(
         coordinates=[pendant_lengths, origin_times],
         max_partitions=calibrate_num_partitions,
     )
@@ -76,8 +80,8 @@ def tgs_fit_and_bootstrap(
         "- alifestd_tgs_pendantmdc_estimate_asexual: "
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
-    point = tgs_fit_traits(weights=np.ones(num_leaves), **fit_kwargs)
-    res[list(point.columns)] = point
+    point_df = tgs_fit_traits(weights=np.ones(num_leaves), **fit_kwargs)
+    estimates_df[list(point_df.columns)] = point_df
     if not num_bootstrap:
         return None
 

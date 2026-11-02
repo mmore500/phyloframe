@@ -4,7 +4,7 @@ import pandas as pd
 
 from .._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
 from .._alifestd_to_working_format import alifestd_to_working_format
-from ._tgs_calc_branches import tgs_calc_branches
+from ._tgs_calc_exposure_df import tgs_calc_exposure_df
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 
 
@@ -22,7 +22,7 @@ def tgs_prepare_asexual(
 
     Converts `phylogeny_df` to working format, sums each trait's
     transitions into node states (see `tgs_calc_trait_states`), bypasses
-    unifurcations, and returns its branches (see `tgs_calc_branches`).
+    unifurcations, and returns its branches (see `tgs_calc_exposure_df`).
     Computing states before bypassing unifurcations credits a bypassed
     node's transition to the merged branch.
     """
@@ -43,7 +43,7 @@ def tgs_prepare_asexual(
         phylogeny_df, mutate=True, ignore_topological_sensitivity=True
     )
     phylogeny_df = alifestd_to_working_format(phylogeny_df, mutate=True)
-    return tgs_calc_branches(
+    return tgs_calc_exposure_df(
         ancestor_ids=phylogeny_df["ancestor_id"].to_numpy(),
         origin_time=phylogeny_df["origin_time"].to_numpy(),
         trait_states=[

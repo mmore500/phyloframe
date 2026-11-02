@@ -5,8 +5,7 @@ import warnings
 import numpy as np
 from scipy import optimize, special
 
-from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ._warn_experimental import warn_experimental
+from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 
 
 class TgsFitResult(typing.NamedTuple):
@@ -116,7 +115,7 @@ def _tgs_minimize_nll(
     calc_nll: typing.Callable[
         [float, float], typing.Tuple[float, float, float]
     ],
-    unit: float,
+    selection_scale: float,
     log_gain_start: float,
     loss_rate: float,
     selection_starts: typing.Sequence[float],
@@ -130,20 +129,22 @@ def _tgs_minimize_nll(
     gain rate, rate)`, which returns negative log likelihood and its
     derivatives with respect to log gain rate and to rate (selection minus
     `loss_rate`). Starts from `log_gain_start` and each of
-    `selection_starts`, in units of `unit` (e.g., 1 / mean pendant length),
-    keeping the best fit, preferring converged ones, then fits gain rate
-    alone under no selection for the likelihood-ratio statistic.
+    `selection_starts`, keeping the best fit, preferring converged ones,
+    then fits gain rate alone under no selection for the likelihood-ratio
+    statistic.
+
+    Selection is optimized, and `selection_starts` given, as multiples of
+    `selection_scale`, a typical rate, e.g., 1 / mean pendant length, so
+    that both parameters are of order one; otherwise, with long lengths,
+    L-BFGS-B stops early on the tiny selection parameter.
     """
 
-    # optimize selection in units of `unit`, so that both parameters are of
-    # order one; otherwise, with long lengths, L-BFGS-B stops early on the
-    # tiny selection parameter
     def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
         log_gain, scaled_selection = params
         res, dlog_gain, drate = calc_nll(
-            log_gain, scaled_selection * unit - loss_rate
+            log_gain, scaled_selection * selection_scale - loss_rate
         )
-        return res, np.array([dlog_gain, drate * unit])
+        return res, np.array([dlog_gain, drate * selection_scale])
 
     # under the null hypothesis of no selection, for the likelihood-ratio test
     def null_nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
@@ -181,7 +182,7 @@ def _tgs_minimize_nll(
     )
     return TgsFitResult(
         gain_rate=float(np.exp(best.x[0])),
-        selection=float(best.x[1] * unit),
+        selection=float(best.x[1] * selection_scale),
         # two-tailed, testing selection != 0 in either direction
         selection_lrt_naive=float(2 * (null.fun - best.fun)),
     )
@@ -224,7 +225,8 @@ def _tgs_fit_impl(
             rate,
             growth_exponent_bound=growth_exponent_bound,
         ),
-        unit=1.0 / np.average(x, weights=n),  # 1 / mean pendant length
+        selection_scale=1.0
+        / np.average(x, weights=n),  # 1 / mean pendant length
         # neutral estimate, carriers per unit pendant length
         log_gain_start=np.log(k.sum() / (n * x).sum()),
         loss_rate=loss_rate,
@@ -232,7 +234,6 @@ def _tgs_fit_impl(
     )
 
 
-@warn_experimental
 def tgs_fit(
     *,
     num_trials: np.ndarray,
@@ -246,8 +247,9 @@ def tgs_fit(
     selection from the fraction of leaves carrying it as a function of
     pendant branch length.
 
-    Here, tgs stands for trait gain/selection, marking utilities specific to
-    this estimator.
+    Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+
+    Here, tgs stands for trait gain/selection.
 
     A leaf's pendant branch starts without the trait, so pendant length is
     an exposure window: a leaf with pendant length `t` carries the trait

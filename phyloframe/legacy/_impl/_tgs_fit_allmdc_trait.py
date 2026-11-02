@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from ..._auxlib._tgs_fit import TgsFitResult, _tgs_minimize_nll
 from ._tgs_calc_allmdc_nll import tgs_calc_allmdc_nll
+from ._tgs_fit import TgsFitResult, _tgs_minimize_nll
 
 
 def tgs_fit_allmdc_trait(
@@ -45,7 +45,8 @@ def tgs_fit_allmdc_trait(
             survival_bin_times=survival_bin_times,
             growth_exponent_bound=growth_exponent_bound,
         ),
-        unit=num_trials.sum() / exposure,  # 1 / mean length, as in `tgs_fit`
+        # 1 / mean branch length, as in `tgs_fit`
+        selection_scale=num_trials.sum() / exposure,
         log_gain_start=np.log(num_successes.sum() / exposure),
         loss_rate=loss_rate,
         selection_starts=selection_starts,

@@ -5,7 +5,7 @@ import pandas as pd
 from scipy import sparse, special
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ..._auxlib._tgs_fit import _tgs_calc_effective_length_deriv
+from ._tgs_fit import _tgs_calc_effective_length_deriv
 
 
 def tgs_calc_allmdc_nll(

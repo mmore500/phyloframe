@@ -19,7 +19,7 @@ from .._alifestd_is_topologically_sorted_polars import (
 from .._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._tgs_calc_branches import tgs_calc_branches
+from ._tgs_calc_exposure_df import tgs_calc_exposure_df
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 
 
@@ -37,7 +37,7 @@ def tgs_prepare_polars(
 
     Sums each trait's transitions into node states (see
     `tgs_calc_trait_states`), bypasses unifurcations, and returns the
-    phylogeny's branches (see `tgs_calc_branches`). `caller` names the
+    phylogeny's branches (see `tgs_calc_exposure_df`). `caller` names the
     calling function in error messages.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
@@ -61,7 +61,7 @@ def tgs_prepare_polars(
             .collect()
         )
         if selected.is_empty():
-            return tgs_calc_branches(
+            return tgs_calc_exposure_df(
                 ancestor_ids=np.zeros(0, dtype=np.int64),
                 origin_time=np.zeros(0),
                 trait_states=[np.zeros(0, dtype=np.int64)]
@@ -102,7 +102,7 @@ def tgs_prepare_polars(
             .lazy()
             .collect()
         )
-    return tgs_calc_branches(
+    return tgs_calc_exposure_df(
         ancestor_ids=collapsed["ancestor_id"].to_numpy(),
         origin_time=collapsed["origin_time"].to_numpy(),
         trait_states=[

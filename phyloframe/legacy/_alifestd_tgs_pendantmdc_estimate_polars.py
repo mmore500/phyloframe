@@ -166,7 +166,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
     )
-    branches = tgs_prepare_polars(
+    exposure_df = tgs_prepare_polars(
         phylogeny_df,
         trait_transitions=trait_transitions,
         caller="alifestd_tgs_pendantmdc_estimate_polars",
@@ -177,7 +177,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         "fitting gain and selection...",
     )
     res = tgs_impl(
-        branches,
+        exposure_df,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
