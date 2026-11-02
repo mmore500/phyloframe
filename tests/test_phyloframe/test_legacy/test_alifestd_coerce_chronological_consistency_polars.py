@@ -178,3 +178,15 @@ def test_coerce_chronological_consistency_polars_matches_pandas(
     pd.testing.assert_frame_equal(
         result, expected, check_dtype=False, check_index_type=False
     )
+
+
+def test_coerce_chronological_consistency_polars_non_numeric():
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "origin_time": ["b", "a", "c"],
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_coerce_chronological_consistency_polars(df)

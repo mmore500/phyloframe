@@ -16,6 +16,7 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
+from .._auxlib._jit_TypingError import jit_TypingError
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_find_chronological_inconsistency import (
     alifestd_find_chronological_inconsistency,
@@ -46,20 +47,9 @@ def _alifestd_coerce_chronological_consistency_asexual_fast_path(
         if ancestor_id == idx:
             continue  # handle root cases
 
-        bound = result[ancestor_id] + epsilon
-        if result[idx] < bound:
-            result[idx] = bound
+        result[idx] = max(result[idx], result[ancestor_id] + epsilon)
 
     return result
-
-
-def _is_fast_path_dtype(dtype: typing.Any) -> bool:
-    """Implementation detail for `alifestd_coerce_chronological_consistency`."""
-    return (
-        isinstance(dtype, np.dtype)
-        and np.issubdtype(dtype, np.number)
-        and not np.issubdtype(dtype, np.bool_)
-    )
 
 
 def alifestd_coerce_chronological_consistency(
@@ -125,28 +115,38 @@ def _coerce_chronological_consistency_impl(
             return phylogeny_df.set_index("id", drop=False)
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
 
-    origin_time_dtype = phylogeny_df["origin_time"].dtype
     if (
-        _is_fast_path_dtype(origin_time_dtype)
-        and "ancestor_id" in phylogeny_df.columns
+        "ancestor_id" in phylogeny_df.columns
         and alifestd_has_contiguous_ids(phylogeny_df)
         and not phylogeny_df.empty
     ):
         # optimized implementation for asexual phylogenies w/ contiguous ids
-        dtype = np.result_type(origin_time_dtype, epsilon)
-        phylogeny_df[
-            "origin_time"
-        ] = _alifestd_coerce_chronological_consistency_asexual_fast_path(
-            phylogeny_df["ancestor_id"].to_numpy().astype(np.int64),
-            phylogeny_df["origin_time"].to_numpy().astype(dtype),
-            dtype.type(epsilon),
-        )
-        return phylogeny_df.set_index("id", drop=False)
+        for unwrap in lambda x: x, lambda x: x.__wrapped__:
+            fast_path = unwrap(
+                _alifestd_coerce_chronological_consistency_asexual_fast_path,
+            )
+            try:
+                origin_times = phylogeny_df["origin_time"].to_numpy()
+                dtype = np.result_type(origin_times.dtype, epsilon)
+                phylogeny_df["origin_time"] = fast_path(
+                    phylogeny_df["ancestor_id"].to_numpy().astype(np.int64),
+                    origin_times.astype(dtype),
+                    epsilon,
+                )
+                return phylogeny_df.set_index("id", drop=False)
+            except jit_TypingError:  # pragma: no cover
+                # this does get exercised in tests, but not in coverage
+                # because jit is disabled for better visibility of jit code
+                continue
+            except (TypeError, ValueError):
+                break  # e.g., origin_times are strings or sequences
 
     # slower fallback implementation
-    if _is_fast_path_dtype(origin_time_dtype):
-        dtype = np.result_type(origin_time_dtype, epsilon)
+    try:
+        dtype = np.result_type(phylogeny_df["origin_time"].dtype, epsilon)
         phylogeny_df["origin_time"] = phylogeny_df["origin_time"].astype(dtype)
+    except TypeError:
+        pass  # e.g., datetime origin times
 
     phylogeny_df = phylogeny_df.set_index("id", drop=False)
 

@@ -11,6 +11,7 @@ import polars as pl
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._jit_TypingError import jit_TypingError
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_coerce_chronological_consistency import (
     _alifestd_coerce_chronological_consistency_asexual_fast_path,
@@ -87,9 +88,6 @@ def alifestd_coerce_chronological_consistency_polars(
     ):
         return phylogeny_df.lazy().collect()
 
-    if not schema["origin_time"].is_numeric():
-        raise NotImplementedError("non-numeric origin_time not supported")
-
     if not alifestd_is_topologically_sorted_polars(phylogeny_df):
         raise NotImplementedError(
             "non-topologically-sorted data not supported",
@@ -119,12 +117,16 @@ def alifestd_coerce_chronological_consistency_polars(
         "- alifestd_coerce_chronological_consistency_polars: "
         "coercing origin times...",
     )
-    dtype = np.result_type(origin_times.dtype, epsilon)
-    corrected = _alifestd_coerce_chronological_consistency_asexual_fast_path(
-        ancestor_ids,
-        origin_times.astype(dtype),
-        dtype.type(epsilon),
-    )
+    try:
+        # promote dtype so that, e.g., int origin_time + 0.5 isn't truncated
+        dtype = np.result_type(origin_times.dtype, epsilon)
+        corrected = (
+            _alifestd_coerce_chronological_consistency_asexual_fast_path(
+                ancestor_ids, origin_times.astype(dtype), epsilon
+            )
+        )
+    except (TypeError, jit_TypingError):
+        raise NotImplementedError("non-numeric origin_time not supported")
 
     return (
         phylogeny_df.lazy()
