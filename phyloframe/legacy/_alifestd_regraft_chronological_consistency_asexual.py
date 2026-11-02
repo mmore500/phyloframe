@@ -42,8 +42,7 @@ def _alifestd_regraft_chronological_consistency_asexual_fast_path(
     become roots. Roots are left unchanged.
     """
     result = ancestor_ids.copy()
-    for idx in range(len(result)):
-        ancestor_id = result[idx]
+    for idx, ancestor_id in enumerate(result):
         # ancestors are already regrafted, so origin times are nondecreasing
         # down their lineage and the first eligible ancestor is the nearest
         while (
@@ -76,8 +75,8 @@ def _alifestd_regraft_chronological_consistency_asexual_impl(
     try:
         return fast_path(ancestor_ids, origin_times)
     except jit_TypingError:  # pragma: no cover
-        # this does get exercised in tests, but not in coverage
-        # because jit is disabled for better visibility of jit code
+        # fall back to pure-Python version, to support origin_time dtypes
+        # that aren't numba-compatible (e.g., str)
         return fast_path.__wrapped__(ancestor_ids, origin_times)
 
 
