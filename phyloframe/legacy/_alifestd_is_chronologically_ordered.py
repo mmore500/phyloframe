@@ -1,6 +1,9 @@
 import io
+from numbers import Number
+import typing
 import warnings
 
+import opytional as opyt
 import pandas as pd
 
 from ._alifestd_find_chronological_inconsistency import (
@@ -11,9 +14,14 @@ from ._alifestd_is_chronologically_sorted import (
 )
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
+from ._alifestd_try_add_ancestor_list_col import (
+    alifestd_try_add_ancestor_list_col,
+)
 
 
-def _report_diagnosis(df: pd.DataFrame, taxon_id: int) -> None:
+def _report_diagnosis(
+    df: pd.DataFrame, taxon_id: int, epsilon: typing.Optional[Number] = None
+) -> None:
     warning_lines = [""]
     append = warning_lines.append
 
@@ -58,6 +66,7 @@ def _report_diagnosis(df: pd.DataFrame, taxon_id: int) -> None:
         ancestor_id = df.at[index, "ancestor_id"]
         append(f"for {taxon_id=}, {ancestor_id=}")
 
+    df = alifestd_try_add_ancestor_list_col(df)
     ancestor_list = df.at[index, "ancestor_list"]
     ancestor_ids = alifestd_parse_ancestor_ids(ancestor_list)
     append(f"for {taxon_id=}, {ancestor_list=} and {ancestor_ids=}")
@@ -73,14 +82,20 @@ def _report_diagnosis(df: pd.DataFrame, taxon_id: int) -> None:
         ancestor_origin_time = origin_time
         time_delta = taxon_origin_time - ancestor_origin_time
         append(f"{prefix}{time_delta=}")
-        if time_delta < 0:
-            append(">" * len(prefix) + " ^^^^^^^^^ time delta is negative!")
+        if time_delta < opyt.or_value(epsilon, 0):
+            append(
+                ">" * len(prefix) + f" ^^^^^^^^^ time delta is < {epsilon=}!"
+            )
 
     if "ancestor_id" in df.columns:
         ancestor_origin_time = df["ancestor_id"].map(
             df.set_index("id")["origin_time"],
         )
-        discrepancy_mask = ancestor_origin_time > df["origin_time"]
+        if epsilon is not None:
+            ancestor_origin_time += epsilon
+        discrepancy_mask = (ancestor_origin_time > df["origin_time"]) & (
+            df["ancestor_id"] != df["id"]
+        )
         num_discrepancies = discrepancy_mask.sum()
         assert num_discrepancies, num_discrepancies
         append("")
@@ -92,14 +107,20 @@ def _report_diagnosis(df: pd.DataFrame, taxon_id: int) -> None:
 def alifestd_is_chronologically_ordered(
     phylogeny_df: pd.DataFrame,
     diagnose: bool = True,
+    *,
+    epsilon: typing.Optional[Number] = None,
 ) -> bool:
-    """Do any organisms have `origin_time`s preceding members of their
-    `ancestor_list`?
+    """Do all organisms have `origin_time`s at least `epsilon` after members
+    of their `ancestor_list`?
+
+    Root taxa are not checked.
 
     Input dataframe is not mutated by this operation.
     """
 
-    res = alifestd_find_chronological_inconsistency(phylogeny_df)
+    res = alifestd_find_chronological_inconsistency(
+        phylogeny_df, epsilon=epsilon
+    )
     if diagnose and res is not None:
-        _report_diagnosis(phylogeny_df, res)
+        _report_diagnosis(phylogeny_df, res, epsilon=epsilon)
     return res is None

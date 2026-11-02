@@ -79,3 +79,25 @@ def test_is_chronologically_ordered_polars_empty(
     )
 
     assert alifestd_is_chronologically_ordered_polars(df_pl) is True
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_is_chronologically_ordered_polars_epsilon(apply: typing.Callable):
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 1],
+                "origin_time": [0.0, 1.0, 2.0],
+            }
+        ),
+    )
+    assert alifestd_is_chronologically_ordered_polars(df_pl)
+    assert alifestd_is_chronologically_ordered_polars(df_pl, epsilon=1)
+    assert not alifestd_is_chronologically_ordered_polars(df_pl, epsilon=1.5)

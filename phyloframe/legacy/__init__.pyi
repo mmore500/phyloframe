@@ -104,6 +104,9 @@ from ._alifestd_coarsen_taxa_asexual import (
 from ._alifestd_coerce_chronological_consistency import (
     alifestd_coerce_chronological_consistency,
 )
+from ._alifestd_coerce_chronological_consistency_polars import (
+    alifestd_coerce_chronological_consistency_polars,
+)
 from ._alifestd_collapse_trunk_asexual import alifestd_collapse_trunk_asexual
 from ._alifestd_collapse_trunk_polars import alifestd_collapse_trunk_polars
 from ._alifestd_collapse_unifurcations import alifestd_collapse_unifurcations
@@ -807,6 +810,7 @@ __all__ = [
     "alifestd_coarsen_taxa_asexual",
     "alifestd_coarsen_taxa_asexual_make_agg",
     "alifestd_coerce_chronological_consistency",
+    "alifestd_coerce_chronological_consistency_polars",
     "alifestd_collapse_trunk_asexual",
     "alifestd_collapse_trunk_polars",
     "alifestd_collapse_unifurcations",
