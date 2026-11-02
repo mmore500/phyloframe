@@ -42,18 +42,15 @@ def _alifestd_splice_chronological_consistency_asexual_fast_path(
     original ids, and, for each spliced node, the id of the taxon it was
     spliced for (whose origin time it takes).
     """
-    parents = list(ancestor_ids)
-    # taxon whose origin time each node takes; spliced nodes append theirs
-    time_sources = list(range(len(ancestor_ids)))
+    parents = list(ancestor_ids)  # parent of each node, incl. spliced nodes
+    times = list(origin_times)  # origin time of each node, incl. spliced
+    sources = []  # for each spliced node, taxon it was spliced for
 
     for idx, ancestor_id in enumerate(ancestor_ids):
         # walk up already-spliced lineage, where origin times are
         # nondecreasing, to find edge child <- ancestor that straddles taxon
         child, ancestor = idx, ancestor_id
-        while (
-            ancestor != child
-            and origin_times[time_sources[ancestor]] > origin_times[idx]
-        ):
+        while ancestor != child and times[ancestor] > times[idx]:
             child, ancestor = ancestor, parents[ancestor]
 
         if child == idx:
@@ -62,13 +59,14 @@ def _alifestd_splice_chronological_consistency_asexual_fast_path(
         spliced = len(parents)
         # if lineage exhausted, spliced node becomes new root
         parents.append(spliced if ancestor == child else ancestor)
-        time_sources.append(idx)
+        times.append(times[idx])
+        sources.append(idx)
         parents[child] = spliced
         parents[idx] = spliced
 
     return (
         np.array(parents, dtype=np.int64),
-        np.array(time_sources[len(ancestor_ids) :], dtype=np.int64),
+        np.array(sources, dtype=np.int64),
     )
 
 
