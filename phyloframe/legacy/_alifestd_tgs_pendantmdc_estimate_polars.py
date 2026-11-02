@@ -201,10 +201,10 @@ Estimate per-trait gain rate and net selection from how often leaves carry
 each trait as a function of pendant branch length.
 
 Output is one row per trait, with columns `trait`, `num_leaves`,
-`num_trait_present`, `gain_rate`, `selection`, `gain_ratio`, and
-`selection_lrt_naive`; with `--num-bootstrap`, also `selection_se`,
-`selection_z`, `selection_p`, `log_gain_ratio_se`, `gain_ratio_z`,
-`gain_ratio_p`, and `num_bootstrap_degenerate`.
+`num_trait_present`, `gain_rate`, `selection`, `gain_ratio`,
+`selection_lrt_naive`, and `gain_ratio_lrt_naive`; with `--num-bootstrap`,
+also `selection_se`, `selection_z`, `selection_p`, `log_gain_ratio_se`,
+`gain_ratio_z`, `gain_ratio_p`, and `num_bootstrap_degenerate`.
 
 Data is assumed to be in alife standard format, with column `origin_time`.
 Only supports asexual phylogenies.

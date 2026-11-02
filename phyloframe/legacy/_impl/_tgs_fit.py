@@ -7,6 +7,13 @@ from scipy import optimize, special
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 
+# starting values for selection, in units of 1 / mean pendant length: no
+# cost, a mild cost, and a strong cost (see `tgs_fit`)
+TGS_SELECTION_STARTS = (0.0, -0.3, -1.8)
+# cap on carrier growth exponents, keeping optimizer trial steps finite (see
+# `tgs_fit`)
+TGS_GROWTH_EXPONENT_BOUND = 600.0
+
 
 class TgsFitResult(typing.NamedTuple):
     """Result of `tgs_fit`.
@@ -110,6 +117,81 @@ def _tgs_calc_nll(
     return nll, dnll_dlog_gain, dnll_drate
 
 
+def _tgs_make_nll(
+    *,
+    num_trials: np.ndarray,
+    num_successes: np.ndarray,
+    pendant_length: np.ndarray,
+    growth_exponent_bound: float,
+) -> typing.Tuple[
+    typing.Callable[[float, float], typing.Tuple[float, float, float]], float
+]:
+    """Implementation detail for `tgs_fit` and `tgs_fit_traits`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns `calc_nll(log gain rate, rate)` for bins with positive
+    `num_trials` (see `_tgs_calc_nll`), and the selection scale, 1 / mean
+    pendant length, for `_tgs_minimize_nll`.
+    """
+    keep = num_trials > 0
+    n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
+
+    def calc_nll(
+        log_gain_rate: float, rate: float
+    ) -> typing.Tuple[float, float, float]:
+        return _tgs_calc_nll(
+            n,
+            k,
+            x,
+            np.exp(log_gain_rate),
+            rate,
+            growth_exponent_bound=growth_exponent_bound,
+        )
+
+    return calc_nll, 1.0 / np.average(x, weights=n)
+
+
+def _tgs_minimize_nll_fixed_gain(
+    *,
+    calc_nll: typing.Callable[
+        [float, float], typing.Tuple[float, float, float]
+    ],
+    log_gain_rate: float,
+    selection_scale: float,
+    loss_rate: float,
+    selection_starts: typing.Sequence[float],
+) -> float:
+    """Implementation detail for `tgs_calc_gain_ratio_lrts`.
+
+    Here, tgs stands for trait gain/selection.
+
+    Returns the least negative log likelihood over selection, with log gain
+    rate held at `log_gain_rate`, fitting by L-BFGS-B from each of
+    `selection_starts` (as multiples of `selection_scale`; see
+    `_tgs_minimize_nll`).
+    """
+
+    def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
+        res, __, drate = calc_nll(
+            log_gain_rate, params[0] * selection_scale - loss_rate
+        )
+        return res, np.array([drate * selection_scale])
+
+    fits = [
+        optimize.minimize(nll, [start], jac=True, method="L-BFGS-B")
+        for start in selection_starts
+    ]
+    converged = [fit for fit in fits if fit.success]
+    if not converged:
+        warnings.warn(
+            "tgs fit optimizer did not converge with gain rate fixed at its "
+            "neutral reference's; gain ratio likelihood-ratio statistic may "
+            "be unreliable.",
+        )
+    return float(min(fit.fun for fit in converged or fits))
+
+
 def _tgs_minimize_nll(
     *,
     calc_nll: typing.Callable[
@@ -194,8 +276,8 @@ def _tgs_fit_impl(
     num_successes: np.ndarray,
     pendant_length: np.ndarray,
     loss_rate: float = 0.0,
-    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    growth_exponent_bound: float = 600.0,
+    selection_starts: typing.Sequence[float] = TGS_SELECTION_STARTS,
+    growth_exponent_bound: float = TGS_GROWTH_EXPONENT_BOUND,
 ) -> TgsFitResult:
     """Implementation detail for `tgs_fit`.
 
@@ -205,9 +287,7 @@ def _tgs_fit_impl(
     num_successes = np.asarray(num_successes, dtype=np.float64).ravel()
     pendant_length = np.asarray(pendant_length, dtype=np.float64).ravel()
 
-    keep = num_trials > 0
-    n, k, x = num_trials[keep], num_successes[keep], pendant_length[keep]
-    if not keep.any() or not num_successes.any():
+    if not (num_trials > 0).any() or not num_successes.any():
         warnings.warn(
             "tgs_fit got no trait carriers, so gain rate is 0 and selection "
             "is undefined.",
@@ -216,19 +296,21 @@ def _tgs_fit_impl(
             gain_rate=0.0, selection=np.nan, selection_lrt_naive=np.nan
         )
 
+    calc_nll, selection_scale = _tgs_make_nll(
+        num_trials=num_trials,
+        num_successes=num_successes,
+        pendant_length=pendant_length,
+        growth_exponent_bound=growth_exponent_bound,
+    )
+    keep = num_trials > 0
     return _tgs_minimize_nll(
-        calc_nll=lambda log_gain_rate, rate: _tgs_calc_nll(
-            n,
-            k,
-            x,
-            np.exp(log_gain_rate),
-            rate,
-            growth_exponent_bound=growth_exponent_bound,
-        ),
-        selection_scale=1.0
-        / np.average(x, weights=n),  # 1 / mean pendant length
+        calc_nll=calc_nll,
+        selection_scale=selection_scale,
         # neutral estimate, carriers per unit pendant length
-        log_gain_start=np.log(k.sum() / (n * x).sum()),
+        log_gain_start=np.log(
+            num_successes[keep].sum()
+            / (num_trials[keep] * pendant_length[keep]).sum()
+        ),
         loss_rate=loss_rate,
         selection_starts=selection_starts,
     )
@@ -240,8 +322,8 @@ def tgs_fit(
     num_successes: np.ndarray,
     pendant_length: np.ndarray,
     loss_rate: float = 0.0,
-    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    growth_exponent_bound: float = 600.0,
+    selection_starts: typing.Sequence[float] = TGS_SELECTION_STARTS,
+    growth_exponent_bound: float = TGS_GROWTH_EXPONENT_BOUND,
 ) -> TgsFitResult:
     """Maximum likelihood fit of a binary trait's gain rate and net
     selection from the fraction of leaves carrying it as a function of

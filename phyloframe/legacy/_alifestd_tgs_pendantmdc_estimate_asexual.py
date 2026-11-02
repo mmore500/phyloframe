@@ -138,8 +138,18 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     -------
     pd.DataFrame
         One row per trait, with columns `trait`, `num_leaves`,
-        `num_trait_present`, `gain_rate`, `selection`, `gain_ratio`, and
-        `selection_lrt_naive`. With bootstrap replicates, also
+        `num_trait_present`, `gain_rate`, `selection`, `gain_ratio`,
+        `selection_lrt_naive`, and `gain_ratio_lrt_naive`. The two
+        likelihood-ratio test (LRT) statistics compare the fit against one
+        with selection fixed at 0, and against one with gain rate fixed at
+        the mean fitted gain rate of the trait's neutral reference (the
+        other neutral traits, for a neutral trait), refitting the other
+        parameter; `gain_ratio_lrt_naive` is nan without neutral traits.
+        Both treat leaves as independent and, for the gain ratio, the
+        reference gain rate as known, so they overstate significance; one
+        remedy is to divide by their mean over neutral traits (or replicate
+        runs) before comparing to a chi-squared distribution with one
+        degree of freedom. With bootstrap replicates, also
         `selection_se`, `selection_z`, `selection_p`, `log_gain_ratio_se`,
         `gain_ratio_z`, and `gain_ratio_p` (two-sided normal approximation;
         `gain_ratio` tests against 1), as well as

@@ -4,6 +4,7 @@ import pytest
 from phyloframe.legacy._impl import (
     tgs_calc_allmdc_data,
     tgs_fit_allmdc_trait,
+    tgs_make_allmdc_trait_nll,
     tgs_partition_allmdc_exposures,
 )
 
@@ -38,9 +39,45 @@ def fixture():
     return by_trait, partitioning["survival_bin_times"]
 
 
+def _fit(
+    *,
+    partitions,
+    survival_shares,
+    survival_bin_times,
+    growth_exponent_bound,
+    **kwargs,
+):
+    calc_nll, selection_scale = tgs_make_allmdc_trait_nll(
+        partitions=partitions,
+        survival_shares=survival_shares,
+        survival_bin_times=survival_bin_times,
+        growth_exponent_bound=growth_exponent_bound,
+    )
+    return tgs_fit_allmdc_trait(
+        calc_nll=calc_nll,
+        selection_scale=selection_scale,
+        partitions=partitions,
+        **kwargs,
+    )
+
+
+def test_make_nll(fixture):
+    data, times = fixture
+    calc_nll, selection_scale = tgs_make_allmdc_trait_nll(
+        **data[0], survival_bin_times=times, growth_exponent_bound=600.0
+    )
+    partitions = data[0]["partitions"]
+    n, x = partitions["num_trials"], partitions["length"]
+    assert selection_scale == pytest.approx(n.sum() / (n * x).sum())
+    nll, dlog_gain, drate = calc_nll(np.log(2e-3), -0.05)
+    assert np.isfinite([nll, dlog_gain, drate]).all()
+    # the true parameters fit better than a far-off gain rate
+    assert nll < calc_nll(np.log(2e-2), -0.05)[0]
+
+
 def test_recovers_focal(fixture):
     data, times = fixture
-    res = tgs_fit_allmdc_trait(
+    res = _fit(
         **data[0],
         survival_bin_times=times,
         loss_rate=0.0,
@@ -54,7 +91,7 @@ def test_recovers_focal(fixture):
 
 def test_recovers_neutral(fixture):
     data, times = fixture
-    res = tgs_fit_allmdc_trait(
+    res = _fit(
         **data[1],
         survival_bin_times=times,
         loss_rate=0.0,
@@ -73,8 +110,8 @@ def test_loss_rate_shifts_selection(fixture):
         selection_starts=(0.0, -0.3),
         growth_exponent_bound=600.0,
     )
-    res = tgs_fit_allmdc_trait(loss_rate=0.0, **kwargs)
-    lossy = tgs_fit_allmdc_trait(loss_rate=0.01, **kwargs)
+    res = _fit(loss_rate=0.0, **kwargs)
+    lossy = _fit(loss_rate=0.01, **kwargs)
     # fitted rate, selection - loss rate, is unchanged
     assert lossy["selection"] - 0.01 == pytest.approx(
         res["selection"], abs=1e-4

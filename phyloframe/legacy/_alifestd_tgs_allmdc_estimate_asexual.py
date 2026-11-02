@@ -75,8 +75,8 @@ def alifestd_tgs_allmdc_estimate_asexual(
       distortion; and
     - nested branches share leaves, so their outcomes are not independent,
       but the likelihood treats them as independent (a composite
-      likelihood). So, `selection_lrt_naive` is not calibrated as a
-      chi-squared statistic, and every bootstrap statistic (standard
+      likelihood). So, `selection_lrt_naive` and `gain_ratio_lrt_naive`
+      are not calibrated as chi-squared statistics, and every bootstrap statistic (standard
       errors, z-scores, and p-values), as replicates resample branches
       independently, is likely overconfident. No bootstrap that accounts
       for nesting (e.g., resampling whole clades) is yet provided.
@@ -170,8 +170,10 @@ def alifestd_tgs_allmdc_estimate_asexual(
         and those that gained it), `num_clades` and `num_clade_gains` (the
         same for inner branches), `gain_rate`, `selection`, `gain_ratio`
         (gain rate relative to the mean of neutral traits', leaving the
-        focal trait out), and `selection_lrt_naive`. With bootstrap
-        replicates, also the pendant estimator's bootstrap columns.
+        focal trait out), `selection_lrt_naive`, and `gain_ratio_lrt_naive`
+        (likelihood-ratio statistics for selection = 0 and for gain ratio =
+        1; see the pendant estimator). With bootstrap replicates, also the
+        pendant estimator's bootstrap columns.
 
     Raises
     ------
