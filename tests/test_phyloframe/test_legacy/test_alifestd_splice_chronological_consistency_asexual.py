@@ -8,9 +8,9 @@ from phyloframe.legacy import (
     alifestd_coerce_chronological_consistency,
     alifestd_count_root_nodes,
     alifestd_find_chronological_inconsistency,
+    alifestd_graft_chronological_consistency_asexual,
     alifestd_make_empty,
     alifestd_parse_ancestor_ids,
-    alifestd_regraft_chronological_consistency_asexual,
     alifestd_shuffle_working_format,
 )
 from phyloframe.legacy import (
@@ -331,13 +331,13 @@ def test_splice_chronological_consistency_fuzz(
             .all()
         )
 
-    # skipping spliced nodes, matches regraft without splicing
-    regrafted_df = alifestd_regraft_chronological_consistency_asexual(
+    # skipping spliced nodes, matches graft without splicing
+    grafted_df = alifestd_graft_chronological_consistency_asexual(
         original_df, ignore_topological_sensitivity=True
     )
     assert np.array_equal(
         _nearest_original_ancestors(ancestor_ids, num_taxa),
-        regrafted_df["ancestor_id"].to_numpy(),
+        grafted_df["ancestor_id"].to_numpy(),
     )
 
 

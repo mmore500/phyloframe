@@ -42,22 +42,22 @@ def alifestd_splice_chronological_consistency_polars(
     splice in a new node where its lineage passes through its origin time and
     reattach the taxon there.
 
-    Like `alifestd_regraft_chronological_consistency_polars`, resolves
+    Like `alifestd_graft_chronological_consistency_polars`, resolves
     origin time inversions by adjusting topology rather than origin times.
-    However, rather than regrafting each inconsistent taxon onto its nearest
-    eligible ancestor node, regrafts it onto its nearest eligible ancestor
+    However, rather than grafting each inconsistent taxon onto its nearest
+    eligible ancestor node, grafts it onto its nearest eligible ancestor
     edge. So, the taxon remains grouped with the clade it originally
     belonged to, as sister to it.
 
-    Specifically, each inconsistent taxon is regrafted, with its subtree,
+    Specifically, each inconsistent taxon is grafted, with its subtree,
     onto a new node spliced into the edge between the nearest taxon along its
     lineage with origin time not exceeding its own and that taxon's child
     along its lineage. A node is spliced even if that taxon's origin time
-    equals its own (i.e., the taxon could be regrafted onto it directly), in
+    equals its own (i.e., the taxon could be grafted onto it directly), in
     which case the spliced node goes directly below it. Spliced nodes take
     the origin time of the taxon they are spliced for (i.e., a zero-length
-    branch subtends the regrafted taxon). Taxa that precede their entire
-    lineage are regrafted onto a new root spliced above their lineage's root.
+    branch subtends the grafted taxon). Taxa that precede their entire
+    lineage are grafted onto a new root spliced above their lineage's root.
     So, the number of roots is unchanged.
 
     Parameters
@@ -71,7 +71,7 @@ def alifestd_splice_chronological_consistency_polars(
     Returns
     -------
     polars.DataFrame or polars.LazyFrame
-        The phylogeny with regrafted `ancestor_id` column (and
+        The phylogeny with grafted `ancestor_id` column (and
         `ancestor_list` column, if present). Original taxa keep their ids and
         rows. Spliced nodes are appended as new rows, with ids following
         original ids and null values for columns other than `id`,
@@ -90,8 +90,8 @@ def alifestd_splice_chronological_consistency_polars(
         Pandas-based implementation.
     alifestd_coerce_chronological_consistency_polars :
         Resolves origin time inversions by adjusting origin times.
-    alifestd_regraft_chronological_consistency_polars :
-        Resolves origin time inversions by regrafting onto nearest
+    alifestd_graft_chronological_consistency_polars :
+        Resolves origin time inversions by grafting onto nearest
         eligible ancestor node.
     alifestd_find_chronological_inconsistency_polars :
         Finds taxa with origin time inversions.
@@ -139,10 +139,10 @@ def alifestd_splice_chronological_consistency_polars(
 
     logging.info(
         "- alifestd_splice_chronological_consistency_polars: "
-        "regrafting and splicing taxa...",
+        "grafting and splicing taxa...",
     )
     (
-        regrafted,
+        grafted,
         sources,
     ) = _alifestd_splice_chronological_consistency_asexual_impl(
         ancestor_ids,
@@ -151,7 +151,7 @@ def alifestd_splice_chronological_consistency_polars(
 
     num_taxa = len(ancestor_ids)
     phylogeny_df = phylogeny_df.with_columns(
-        pl.Series("ancestor_id", regrafted[:num_taxa]).cast(
+        pl.Series("ancestor_id", grafted[:num_taxa]).cast(
             schema["ancestor_id"],
         ),
     )
@@ -161,10 +161,10 @@ def alifestd_splice_chronological_consistency_polars(
 
     spliced_df = pl.DataFrame(
         {
-            "id": pl.Series(np.arange(num_taxa, len(regrafted))).cast(
+            "id": pl.Series(np.arange(num_taxa, len(grafted))).cast(
                 schema["id"],
             ),
-            "ancestor_id": pl.Series(regrafted[num_taxa:]).cast(
+            "ancestor_id": pl.Series(grafted[num_taxa:]).cast(
                 schema["ancestor_id"],
             ),
             "origin_time": pl.Series(
@@ -183,16 +183,16 @@ def alifestd_splice_chronological_consistency_polars(
             "- alifestd_splice_chronological_consistency_polars: "
             "updating ancestor_list...",
         )
-        is_regrafted = pl.Series(
+        is_grafted = pl.Series(
             np.concatenate(
                 [
-                    regrafted[:num_taxa] != ancestor_ids,
+                    grafted[:num_taxa] != ancestor_ids,
                     np.ones(len(sources), dtype=bool),
                 ],
             ),
         )
         phylogeny_df = phylogeny_df.with_columns(
-            ancestor_list=pl.when(is_regrafted)
+            ancestor_list=pl.when(is_grafted)
             .then(
                 pl.when(pl.col("id") == pl.col("ancestor_id"))
                 .then(pl.lit("[none]"))

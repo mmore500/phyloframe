@@ -109,11 +109,11 @@ def alifestd_find_chronological_inconsistency(
         Polars-based implementation.
     alifestd_coerce_chronological_consistency :
         Resolves origin time inversions by adjusting origin times.
-    alifestd_regraft_chronological_consistency_asexual :
-        Resolves origin time inversions by regrafting onto nearest
+    alifestd_graft_chronological_consistency_asexual :
+        Resolves origin time inversions by grafting onto nearest
         eligible ancestor node.
     alifestd_splice_chronological_consistency_asexual :
-        Resolves origin time inversions by regrafting onto a node spliced
+        Resolves origin time inversions by grafting onto a node spliced
         into nearest eligible ancestor edge.
     """
 

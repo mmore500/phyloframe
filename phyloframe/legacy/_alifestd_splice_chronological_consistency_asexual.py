@@ -104,29 +104,29 @@ def alifestd_splice_chronological_consistency_asexual(
     splice in a new node where its lineage passes through its origin time and
     reattach the taxon there.
 
-    Like `alifestd_regraft_chronological_consistency_asexual`, resolves
+    Like `alifestd_graft_chronological_consistency_asexual`, resolves
     origin time inversions by adjusting topology rather than origin times.
-    However, rather than regrafting each inconsistent taxon onto its nearest
-    eligible ancestor node, regrafts it onto its nearest eligible ancestor
+    However, rather than grafting each inconsistent taxon onto its nearest
+    eligible ancestor node, grafts it onto its nearest eligible ancestor
     edge. So, the taxon remains grouped with the clade it originally
     belonged to, as sister to it.
 
-    Specifically, each inconsistent taxon is regrafted, with its subtree,
+    Specifically, each inconsistent taxon is grafted, with its subtree,
     onto a new node spliced into the edge between the nearest taxon along its
     lineage with origin time not exceeding its own and that taxon's child
     along its lineage. A node is spliced even if that taxon's origin time
-    equals its own (i.e., the taxon could be regrafted onto it directly), in
+    equals its own (i.e., the taxon could be grafted onto it directly), in
     which case the spliced node goes directly below it. Spliced nodes take
     the origin time of the taxon they are spliced for (i.e., a zero-length
-    branch subtends the regrafted taxon). Taxa that precede their entire
-    lineage are regrafted onto a new root spliced above their lineage's root.
+    branch subtends the grafted taxon). Taxa that precede their entire
+    lineage are grafted onto a new root spliced above their lineage's root.
     So, the number of roots is unchanged.
 
     Original taxa keep their ids and rows. Spliced nodes are appended as new
     rows, with ids following original ids and null values for columns other
     than `id`, `ancestor_id`, `ancestor_list`, and `origin_time`. So, output
     may not be topologically sorted. If present, `ancestor_list` is updated
-    for regrafted and spliced taxa.
+    for grafted and spliced taxa.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -144,8 +144,8 @@ def alifestd_splice_chronological_consistency_asexual(
         Polars-based implementation.
     alifestd_coerce_chronological_consistency :
         Resolves origin time inversions by adjusting origin times.
-    alifestd_regraft_chronological_consistency_asexual :
-        Resolves origin time inversions by regrafting onto nearest
+    alifestd_graft_chronological_consistency_asexual :
+        Resolves origin time inversions by grafting onto nearest
         eligible ancestor node.
     alifestd_find_chronological_inconsistency :
         Finds taxa with origin time inversions.
@@ -174,7 +174,7 @@ def alifestd_splice_chronological_consistency_asexual(
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
     origin_times = phylogeny_df["origin_time"].to_numpy()
     (
-        regrafted,
+        grafted,
         sources,
     ) = _alifestd_splice_chronological_consistency_asexual_impl(
         ancestor_ids,
@@ -184,8 +184,8 @@ def alifestd_splice_chronological_consistency_asexual(
     num_taxa = len(phylogeny_df)
     id_dtype = phylogeny_df["id"].dtype
     ancestor_id_dtype = phylogeny_df["ancestor_id"].dtype
-    is_regrafted = regrafted[:num_taxa] != ancestor_ids
-    phylogeny_df["ancestor_id"] = regrafted[:num_taxa].astype(
+    is_grafted = grafted[:num_taxa] != ancestor_ids
+    phylogeny_df["ancestor_id"] = grafted[:num_taxa].astype(
         ancestor_id_dtype,
     )
 
@@ -194,8 +194,8 @@ def alifestd_splice_chronological_consistency_asexual(
 
     spliced_df = pd.DataFrame(
         {
-            "id": np.arange(num_taxa, len(regrafted)).astype(id_dtype),
-            "ancestor_id": regrafted[num_taxa:].astype(ancestor_id_dtype),
+            "id": np.arange(num_taxa, len(grafted)).astype(id_dtype),
+            "ancestor_id": grafted[num_taxa:].astype(ancestor_id_dtype),
             "origin_time": pd.Series(
                 origin_times[sources],
                 dtype=phylogeny_df["origin_time"].dtype,
@@ -205,10 +205,10 @@ def alifestd_splice_chronological_consistency_asexual(
 
     if "ancestor_list" in phylogeny_df.columns:
         phylogeny_df.loc[
-            is_regrafted, "ancestor_list"
+            is_grafted, "ancestor_list"
         ] = alifestd_make_ancestor_list_col(
-            phylogeny_df.loc[is_regrafted, "id"],
-            phylogeny_df.loc[is_regrafted, "ancestor_id"],
+            phylogeny_df.loc[is_grafted, "id"],
+            phylogeny_df.loc[is_grafted, "ancestor_id"],
         )
         spliced_df["ancestor_list"] = alifestd_make_ancestor_list_col(
             spliced_df["id"],
