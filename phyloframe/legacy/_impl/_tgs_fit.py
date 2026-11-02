@@ -7,13 +7,6 @@ from scipy import optimize, special
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 
-# starting values for selection, in units of 1 / mean pendant length: no
-# cost, a mild cost, and a strong cost (see `tgs_fit`)
-TGS_SELECTION_STARTS = (0.0, -0.3, -1.8)
-# cap on carrier growth exponents, keeping optimizer trial steps finite (see
-# `tgs_fit`)
-TGS_GROWTH_EXPONENT_BOUND = 600.0
-
 
 class TgsFitResult(typing.NamedTuple):
     """Result of `tgs_fit`.
@@ -276,8 +269,8 @@ def _tgs_fit_impl(
     num_successes: np.ndarray,
     pendant_length: np.ndarray,
     loss_rate: float = 0.0,
-    selection_starts: typing.Sequence[float] = TGS_SELECTION_STARTS,
-    growth_exponent_bound: float = TGS_GROWTH_EXPONENT_BOUND,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    growth_exponent_bound: float = 600.0,
 ) -> TgsFitResult:
     """Implementation detail for `tgs_fit`.
 
@@ -322,8 +315,8 @@ def tgs_fit(
     num_successes: np.ndarray,
     pendant_length: np.ndarray,
     loss_rate: float = 0.0,
-    selection_starts: typing.Sequence[float] = TGS_SELECTION_STARTS,
-    growth_exponent_bound: float = TGS_GROWTH_EXPONENT_BOUND,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    growth_exponent_bound: float = 600.0,
 ) -> TgsFitResult:
     """Maximum likelihood fit of a binary trait's gain rate and net
     selection from the fraction of leaves carrying it as a function of

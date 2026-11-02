@@ -38,6 +38,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     calibrate_num_partitions: int = 4096,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    growth_exponent_bound: float = 600.0,
     min_leaf_origin_time: float = -np.inf,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
@@ -123,6 +125,12 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         held fixed across replicates.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
+    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for selection, in units of 1 / mean pendant length;
+        the best of the resulting fits is kept. See `tgs_fit`.
+    growth_exponent_bound : float, default 600.0
+        Bound on carrier growth exponents, (selection - loss rate) *
+        pendant length, keeping optimizer trial steps finite. See `tgs_fit`.
     min_leaf_origin_time : float, default -inf
         Leaves originating earlier are excluded.
     seed : int, optional
@@ -185,6 +193,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         calibrate_num_partitions=calibrate_num_partitions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
+        selection_starts=selection_starts,
+        growth_exponent_bound=growth_exponent_bound,
         min_leaf_origin_time=min_leaf_origin_time,
         seed=seed,
         parallel_backend=parallel_backend,
@@ -301,6 +311,22 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Known per-unit-time trait loss rate (default: 0.0).",
     )
     parser.add_argument(
+        "--selection-starts",
+        default=(0.0, -0.3, -1.8),
+        nargs="+",
+        type=float,
+        help=(
+            "Starting values for selection, in units of 1 / mean pendant "
+            "length (default: 0.0 -0.3 -1.8)."
+        ),
+    )
+    parser.add_argument(
+        "--growth-exponent-bound",
+        default=600.0,
+        type=float,
+        help="Bound on carrier growth exponents (default: 600.0).",
+    )
+    parser.add_argument(
         "--min-leaf-origin-time",
         default=-np.inf,
         type=float,
@@ -340,6 +366,8 @@ if __name__ == "__main__":
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
+                    selection_starts=args.selection_starts,
+                    growth_exponent_bound=args.growth_exponent_bound,
                     min_leaf_origin_time=args.min_leaf_origin_time,
                     parallel_backend=args.parallel_backend,
                 ),

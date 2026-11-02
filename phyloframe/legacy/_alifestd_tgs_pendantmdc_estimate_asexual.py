@@ -29,6 +29,8 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     calibrate_num_partitions: int = 4096,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
+    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    growth_exponent_bound: float = 600.0,
     min_leaf_origin_time: float = -np.inf,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
@@ -123,6 +125,12 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         data, so standard errors omit uncertainty in that choice.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
+    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for selection, in units of 1 / mean pendant length;
+        the best of the resulting fits is kept. See `tgs_fit`.
+    growth_exponent_bound : float, default 600.0
+        Bound on carrier growth exponents, (selection - loss rate) *
+        pendant length, keeping optimizer trial steps finite. See `tgs_fit`.
     min_leaf_origin_time : float, default -inf
         Leaves originating earlier are excluded.
     seed : int, optional
@@ -139,17 +147,9 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     pd.DataFrame
         One row per trait, with columns `trait`, `num_leaves`,
         `num_trait_present`, `gain_rate`, `selection`, `gain_ratio`,
-        `selection_lrt_naive`, and `gain_ratio_lrt_naive`. The two
-        likelihood-ratio test (LRT) statistics compare the fit against one
-        with selection fixed at 0, and against one with gain rate fixed at
-        the mean fitted gain rate of the trait's neutral reference (the
-        other neutral traits, for a neutral trait), refitting the other
-        parameter; `gain_ratio_lrt_naive` is nan without neutral traits.
-        Both treat leaves as independent and, for the gain ratio, the
-        reference gain rate as known, so they overstate significance; one
-        remedy is to divide by their mean over neutral traits (or replicate
-        runs) before comparing to a chi-squared distribution with one
-        degree of freedom. With bootstrap replicates, also
+        `selection_lrt_naive`, and `gain_ratio_lrt_naive` (likelihood-ratio
+        statistics for selection = 0 and for gain ratio = 1; see Notes).
+        With bootstrap replicates, also
         `selection_se`, `selection_z`, `selection_p`, `log_gain_ratio_se`,
         `gain_ratio_z`, and `gain_ratio_p` (two-sided normal approximation;
         `gain_ratio` tests against 1), as well as
@@ -184,6 +184,13 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
     rather than fit. Bootstrap replicates resample leaves independently,
     ignoring correlation through shared ancestry.
 
+    `gain_ratio_lrt_naive` refits selection with the trait's gain rate held
+    at its neutral reference's mean (nan without neutral traits). Both
+    likelihood-ratio statistics treat leaves as independent, and the gain
+    ratio's treats the reference rate as known, so both overstate
+    significance; dividing by their mean over neutral traits before a
+    chi-squared test with one degree of freedom is one remedy.
+
     Input dataframe is not mutated by this operation unless `mutate` set
     True. If mutate set True, operation does not occur in place; still use
     return value to get transformed phylogeny dataframe.
@@ -216,6 +223,8 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         calibrate_num_partitions=calibrate_num_partitions,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
+        selection_starts=selection_starts,
+        growth_exponent_bound=growth_exponent_bound,
         min_leaf_origin_time=min_leaf_origin_time,
         seed=seed,
         parallel_backend=parallel_backend,

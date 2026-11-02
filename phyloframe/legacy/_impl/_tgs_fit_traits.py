@@ -10,13 +10,7 @@ from ._tgs_calc_calibrated_pendant_lengths import (
 from ._tgs_calc_gain_ratio_lrts import tgs_calc_gain_ratio_lrts
 from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_fit import (
-    TGS_GROWTH_EXPONENT_BOUND,
-    TGS_SELECTION_STARTS,
-    TgsFitResult,
-    _tgs_fit_impl,
-    _tgs_make_nll,
-)
+from ._tgs_fit import TgsFitResult, _tgs_fit_impl, _tgs_make_nll
 
 
 def tgs_fit_traits(
@@ -30,6 +24,8 @@ def tgs_fit_traits(
     neutral_traits: typing.Sequence[int],
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
     loss_rate: float,
+    selection_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
 ) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual`.
@@ -67,8 +63,8 @@ def tgs_fit_traits(
                 num_successes=k,
                 pendant_length=pendant_length,
                 loss_rate=loss_rate,
-                selection_starts=TGS_SELECTION_STARTS,
-                growth_exponent_bound=TGS_GROWTH_EXPONENT_BOUND,
+                selection_starts=selection_starts,
+                growth_exponent_bound=growth_exponent_bound,
             )
             if k.any()
             else TgsFitResult(
@@ -80,7 +76,7 @@ def tgs_fit_traits(
                 num_trials=np.asarray(n, dtype=np.float64),
                 num_successes=np.asarray(k, dtype=np.float64),
                 pendant_length=np.asarray(pendant_length, dtype=np.float64),
-                growth_exponent_bound=TGS_GROWTH_EXPONENT_BOUND,
+                growth_exponent_bound=growth_exponent_bound,
             )
         else:
             calc_nll, selection_scale = None, np.nan
@@ -100,6 +96,6 @@ def tgs_fit_traits(
         selection_scales=selection_scales,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
-        selection_starts=TGS_SELECTION_STARTS,
+        selection_starts=selection_starts,
     )
     return res
