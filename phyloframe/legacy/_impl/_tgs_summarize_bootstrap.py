@@ -1,9 +1,8 @@
-import warnings
-
 import numpy as np
 import pandas as pd
 
 from ..._auxlib._calc_two_sided_normal_p import calc_two_sided_normal_p
+from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
 
 
 def tgs_summarize_bootstrap(
@@ -32,7 +31,6 @@ def tgs_summarize_bootstrap(
         np.isfinite(point["gain_ratio"].to_numpy())[trait_index]
         & ~np.isfinite(gain_ratio)
     )
-    num_replicates = replicate_fits.index.get_level_values(0).nunique()
     for is_excluded, reason in (
         (is_selection_degenerate, "no carriers of the trait"),
         (
@@ -40,18 +38,12 @@ def tgs_summarize_bootstrap(
             "no carriers of the trait's neutral reference",
         ),
     ):
-        num_excluded = is_excluded.groupby(trait_index).sum()
-        if num_excluded.any():
-            counts = ", ".join(
-                f"{trait} ({count} of {num_replicates})"
-                for trait, count in zip(point["trait"], num_excluded)
-                if count
-            )
-            warnings.warn(
-                f"bootstrap replicates that resampled {reason} were excluded "
-                f"for traits {counts}, so their standard errors may be "
-                "underestimated.",
-            )
+        tgs_warn_excluded_replicates(
+            is_excluded,
+            trait_names=point["trait"],
+            num_replicates=replicate_fits.index.get_level_values(0).nunique(),
+            reason=reason,
+        )
 
     # standard deviation across replicates, per trait; nan with fewer than
     # two non-excluded replicates
@@ -67,29 +59,21 @@ def tgs_summarize_bootstrap(
         .std()
         .to_numpy()
     )
-    res = pd.DataFrame(
+    selection_z = point["selection"].to_numpy() / selection_se
+    gain_ratio_z = np.log(point["gain_ratio"].to_numpy()) / log_gain_ratio_se
+    return pd.DataFrame(
         {
             "selection_se": selection_se,
-            "selection_z": point["selection"] / selection_se,
+            "selection_z": selection_z,
+            "selection_p": calc_two_sided_normal_p(selection_z),
             "log_gain_ratio_se": log_gain_ratio_se,
-            "gain_ratio_z": np.log(point["gain_ratio"]) / log_gain_ratio_se,
+            "gain_ratio_z": gain_ratio_z,
+            "gain_ratio_p": calc_two_sided_normal_p(gain_ratio_z),
             "num_bootstrap_degenerate": is_gain_ratio_degenerate.groupby(
                 trait_index
             )
             .sum()
             .to_numpy(),
         },
+        index=point.index,
     )
-    res["selection_p"] = calc_two_sided_normal_p(res["selection_z"])
-    res["gain_ratio_p"] = calc_two_sided_normal_p(res["gain_ratio_z"])
-    return res[
-        [
-            "selection_se",
-            "selection_z",
-            "selection_p",
-            "log_gain_ratio_se",
-            "gain_ratio_z",
-            "gain_ratio_p",
-            "num_bootstrap_degenerate",
-        ]
-    ]
