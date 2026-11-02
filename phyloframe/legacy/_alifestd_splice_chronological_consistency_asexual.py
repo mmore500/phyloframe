@@ -117,22 +117,26 @@ def alifestd_splice_chronological_consistency_asexual(
     along its lineage. A node is spliced even if that taxon's origin time
     equals its own (i.e., the taxon could be regrafted onto it directly), in
     which case the spliced node goes directly below it. Spliced nodes take
-    the origin time of the taxon they are spliced for (i.e., a zero-length branch subtends the regrafted
-    taxon). Taxa that precede their entire lineage are regrafted onto a new
-    root spliced above their lineage's root. So, the number of roots is
-    unchanged.
+    the origin time of the taxon they are spliced for (i.e., a zero-length
+    branch subtends the regrafted taxon). Taxa that precede their entire
+    lineage are regrafted onto a new root spliced above their lineage's root.
+    So, the number of roots is unchanged.
 
-    Phylogeny must be asexual, topologically sorted, and have contiguous ids;
-    otherwise ``NotImplementedError`` is raised. Original taxa keep their ids
-    and rows. Spliced nodes are appended as new rows, with ids following
-    original ids and null values for columns other than `id`,
-    `ancestor_id`, `ancestor_list`, and `origin_time`. So, output may not be
-    topologically sorted. If present, `ancestor_list` is updated for
-    regrafted and spliced taxa.
+    Original taxa keep their ids and rows. Spliced nodes are appended as new
+    rows, with ids following original ids and null values for columns other
+    than `id`, `ancestor_id`, `ancestor_list`, and `origin_time`. So, output
+    may not be topologically sorted. If present, `ancestor_list` is updated
+    for regrafted and spliced taxa.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
     value to get transformed phylogeny dataframe.
+
+    Raises
+    ------
+    NotImplementedError
+        If `phylogeny_df` is sexual, has non-contiguous ids, or is not
+        topologically sorted.
 
     See Also
     --------

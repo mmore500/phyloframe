@@ -55,10 +55,10 @@ def alifestd_splice_chronological_consistency_polars(
     along its lineage. A node is spliced even if that taxon's origin time
     equals its own (i.e., the taxon could be regrafted onto it directly), in
     which case the spliced node goes directly below it. Spliced nodes take
-    the origin time of the taxon they are spliced for (i.e., a zero-length branch subtends the regrafted
-    taxon). Taxa that precede their entire lineage are regrafted onto a new
-    root spliced above their lineage's root. So, the number of roots is
-    unchanged.
+    the origin time of the taxon they are spliced for (i.e., a zero-length
+    branch subtends the regrafted taxon). Taxa that precede their entire
+    lineage are regrafted onto a new root spliced above their lineage's root.
+    So, the number of roots is unchanged.
 
     Parameters
     ----------
@@ -77,6 +77,12 @@ def alifestd_splice_chronological_consistency_polars(
         original ids and null values for columns other than `id`,
         `ancestor_id`, `ancestor_list`, and `origin_time`. So, output may not
         be topologically sorted.
+
+    Raises
+    ------
+    NotImplementedError
+        If `phylogeny_df` is sexual, has non-contiguous ids, or is not
+        topologically sorted.
 
     See Also
     --------
