@@ -19,8 +19,8 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_regraft_splice_chronological_consistency_asexual import (
-    _alifestd_regraft_splice_chronological_consistency_asexual_impl,
+from ._alifestd_splice_chronological_consistency_asexual import (
+    _alifestd_splice_chronological_consistency_asexual_impl,
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
@@ -35,7 +35,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
     delete=False,
     update=True,
 )
-def alifestd_regraft_splice_chronological_consistency_polars(
+def alifestd_splice_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
 ) -> pl.DataFrame:
     """For any taxa with origin time preceding its parent's origin time,
@@ -52,8 +52,10 @@ def alifestd_regraft_splice_chronological_consistency_polars(
     Specifically, each inconsistent taxon is regrafted, with its subtree,
     onto a new node spliced into the edge between the nearest taxon along its
     lineage with origin time not exceeding its own and that taxon's child
-    along its lineage. Spliced nodes take the origin time of the taxon they
-    are spliced for (i.e., a zero-length branch subtends the regrafted
+    along its lineage. A node is spliced even if that taxon's origin time
+    equals its own (i.e., the taxon could be regrafted onto it directly), in
+    which case the spliced node goes directly below it. Spliced nodes take
+    the origin time of the taxon they are spliced for (i.e., a zero-length branch subtends the regrafted
     taxon). Taxa that precede their entire lineage are regrafted onto a new
     root spliced above their lineage's root. So, the number of roots is
     unchanged.
@@ -78,7 +80,7 @@ def alifestd_regraft_splice_chronological_consistency_polars(
 
     See Also
     --------
-    alifestd_regraft_splice_chronological_consistency_asexual :
+    alifestd_splice_chronological_consistency_asexual :
         Pandas-based implementation.
     alifestd_regraft_chronological_consistency_polars :
         Regrafts onto nearest eligible ancestor node, without splicing.
@@ -87,7 +89,7 @@ def alifestd_regraft_splice_chronological_consistency_polars(
     """
 
     logging.info(
-        "- alifestd_regraft_splice_chronological_consistency_polars: "
+        "- alifestd_splice_chronological_consistency_polars: "
         "adding ancestor_id col...",
     )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
@@ -108,7 +110,7 @@ def alifestd_regraft_splice_chronological_consistency_polars(
         )
 
     logging.info(
-        "- alifestd_regraft_splice_chronological_consistency_polars: "
+        "- alifestd_splice_chronological_consistency_polars: "
         "extracting columns...",
     )
     ancestor_ids = (
@@ -127,13 +129,13 @@ def alifestd_regraft_splice_chronological_consistency_polars(
     )
 
     logging.info(
-        "- alifestd_regraft_splice_chronological_consistency_polars: "
+        "- alifestd_splice_chronological_consistency_polars: "
         "regrafting and splicing taxa...",
     )
     (
         regrafted,
         sources,
-    ) = _alifestd_regraft_splice_chronological_consistency_asexual_impl(
+    ) = _alifestd_splice_chronological_consistency_asexual_impl(
         ancestor_ids,
         origin_times,
     )
@@ -169,7 +171,7 @@ def alifestd_regraft_splice_chronological_consistency_polars(
 
     if "ancestor_list" in schema.names():
         logging.info(
-            "- alifestd_regraft_splice_chronological_consistency_polars: "
+            "- alifestd_splice_chronological_consistency_polars: "
             "updating ancestor_list...",
         )
         is_regrafted = pl.Series(
@@ -211,7 +213,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_regraft_splice_chronological_consistency_asexual :
+phyloframe.legacy._alifestd_splice_chronological_consistency_asexual :
     CLI entrypoint for Pandas-based implementation.
 """
 
@@ -225,7 +227,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_regraft_splice_chronological_consistency_polars",
+        dfcli_module="phyloframe.legacy._alifestd_splice_chronological_consistency_polars",
         dfcli_version=get_phyloframe_version(),
     )
     add_bool_arg(
@@ -251,13 +253,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_regraft_splice_chronological_consistency_polars",
+            "phyloframe.legacy._alifestd_splice_chronological_consistency_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_regraft_splice_chronological_consistency_polars,
+                    alifestd_splice_chronological_consistency_polars,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
                 ),

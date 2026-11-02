@@ -627,12 +627,6 @@ from ._alifestd_regraft_chronological_consistency_asexual import (
 from ._alifestd_regraft_chronological_consistency_polars import (
     alifestd_regraft_chronological_consistency_polars,
 )
-from ._alifestd_regraft_splice_chronological_consistency_asexual import (
-    alifestd_regraft_splice_chronological_consistency_asexual,
-)
-from ._alifestd_regraft_splice_chronological_consistency_polars import (
-    alifestd_regraft_splice_chronological_consistency_polars,
-)
 from ._alifestd_reroot_at_id_asexual import alifestd_reroot_at_id_asexual
 from ._alifestd_reroot_at_id_polars import alifestd_reroot_at_id_polars
 from ._alifestd_sample_triplet_comparisons_asexual import (
@@ -659,6 +653,12 @@ from ._alifestd_sort_children_polars import alifestd_sort_children_polars
 from ._alifestd_splay_polytomies import alifestd_splay_polytomies
 from ._alifestd_splay_polytomies_polars import (
     alifestd_splay_polytomies_polars,
+)
+from ._alifestd_splice_chronological_consistency_asexual import (
+    alifestd_splice_chronological_consistency_asexual,
+)
+from ._alifestd_splice_chronological_consistency_polars import (
+    alifestd_splice_chronological_consistency_polars,
 )
 from ._alifestd_sum_origin_time_deltas_asexual import (
     alifestd_sum_origin_time_deltas_asexual,
@@ -1025,8 +1025,6 @@ __all__ = [
     "alifestd_prune_extinct_lineages_polars",
     "alifestd_regraft_chronological_consistency_asexual",
     "alifestd_regraft_chronological_consistency_polars",
-    "alifestd_regraft_splice_chronological_consistency_asexual",
-    "alifestd_regraft_splice_chronological_consistency_polars",
     "alifestd_reroot_at_id_asexual",
     "alifestd_reroot_at_id_polars",
     "alifestd_sample_triplet_comparisons_asexual",
@@ -1040,6 +1038,8 @@ __all__ = [
     "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
     "alifestd_splay_polytomies_polars",
+    "alifestd_splice_chronological_consistency_asexual",
+    "alifestd_splice_chronological_consistency_polars",
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_sum_origin_time_deltas_polars",
     "alifestd_test_leaves_isomorphic_asexual",

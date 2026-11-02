@@ -10,12 +10,12 @@ from phyloframe.legacy import (
     alifestd_make_empty,
     alifestd_parse_ancestor_ids,
     alifestd_regraft_chronological_consistency_asexual,
-)
-from phyloframe.legacy import (
-    alifestd_regraft_splice_chronological_consistency_asexual as alifestd_regraft_splice_chronological_consistency_asexual_,
-)
-from phyloframe.legacy import (
     alifestd_shuffle_working_format,
+)
+from phyloframe.legacy import (
+    alifestd_splice_chronological_consistency_asexual as alifestd_splice_chronological_consistency_asexual_,
+)
+from phyloframe.legacy import (
     alifestd_test_leaves_isomorphic_asexual,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
@@ -23,9 +23,9 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_regraft_splice_chronological_consistency_asexual = (
+alifestd_splice_chronological_consistency_asexual = (
     enforce_dtype_stability_pandas(
-        alifestd_regraft_splice_chronological_consistency_asexual_,
+        alifestd_splice_chronological_consistency_asexual_,
     )
 )
 
@@ -67,16 +67,16 @@ def _nearest_original_ancestors(
     return np.array(result)
 
 
-def test_regraft_splice_chronological_consistency_empty():
+def test_splice_chronological_consistency_empty():
     df = alifestd_make_empty()
     df["origin_time"] = pd.Series(dtype=float)
-    result = alifestd_regraft_splice_chronological_consistency_asexual(df)
+    result = alifestd_splice_chronological_consistency_asexual(df)
     assert result.empty
     assert "ancestor_id" in result
 
 
 @pytest.mark.parametrize("mutate", [True, False])
-def test_regraft_splice_chronological_consistency_consistent(mutate: bool):
+def test_splice_chronological_consistency_consistent(mutate: bool):
     df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -85,7 +85,7 @@ def test_regraft_splice_chronological_consistency_consistent(mutate: bool):
         }
     )
     df_ = df.copy()
-    result = alifestd_regraft_splice_chronological_consistency_asexual(
+    result = alifestd_splice_chronological_consistency_asexual(
         df, mutate=mutate
     )
     assert result.equals(df_)
@@ -94,7 +94,7 @@ def test_regraft_splice_chronological_consistency_consistent(mutate: bool):
 
 
 @pytest.mark.parametrize("mutate", [True, False])
-def test_regraft_splice_chronological_consistency_inconsistent(mutate: bool):
+def test_splice_chronological_consistency_inconsistent(mutate: bool):
     df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3, 4, 5],
@@ -104,7 +104,7 @@ def test_regraft_splice_chronological_consistency_inconsistent(mutate: bool):
         }
     )
     df_ = df.copy()
-    result = alifestd_regraft_splice_chronological_consistency_asexual(
+    result = alifestd_splice_chronological_consistency_asexual(
         df, mutate=mutate, ignore_topological_sensitivity=True
     )
     # 2 precedes 1 -> spliced 6 on edge 0-1
@@ -126,7 +126,7 @@ def test_regraft_splice_chronological_consistency_inconsistent(mutate: bool):
         assert df.equals(df_)
 
 
-def test_regraft_splice_chronological_consistency_shared_edge():
+def test_splice_chronological_consistency_shared_edge():
     # 2 and 3 both precede 1, so both splice onto edge 0-1, ordered by time
     df = pd.DataFrame(
         {
@@ -135,12 +135,12 @@ def test_regraft_splice_chronological_consistency_shared_edge():
             "origin_time": [0.0, 5.0, 2.0, 1.0],
         }
     )
-    result = alifestd_regraft_splice_chronological_consistency_asexual(df)
+    result = alifestd_splice_chronological_consistency_asexual(df)
     assert result["ancestor_id"].tolist() == [0, 4, 4, 5, 5, 0]
     assert result["origin_time"].tolist() == [0.0, 5.0, 2.0, 1.0, 2.0, 1.0]
 
 
-def test_regraft_splice_chronological_consistency_ties():
+def test_splice_chronological_consistency_ties():
     df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -148,11 +148,25 @@ def test_regraft_splice_chronological_consistency_ties():
             "origin_time": [1.0, 1.0, 1.0],
         }
     )
-    result = alifestd_regraft_splice_chronological_consistency_asexual(df)
+    result = alifestd_splice_chronological_consistency_asexual(df)
     assert result["ancestor_id"].tolist() == [0, 0, 1]
 
 
-def test_regraft_splice_chronological_consistency_ancestor_list():
+def test_splice_chronological_consistency_exact_ancestor():
+    # 2 precedes 1, but originates exactly with 0; splice below 0
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 1, 0],
+            "origin_time": [1.0, 5.0, 1.0, 2.0],
+        }
+    )
+    result = alifestd_splice_chronological_consistency_asexual(df)
+    assert result["ancestor_id"].tolist() == [0, 4, 4, 0, 0]
+    assert result["origin_time"].tolist() == [1.0, 5.0, 1.0, 2.0, 1.0]
+
+
+def test_splice_chronological_consistency_ancestor_list():
     df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -160,7 +174,7 @@ def test_regraft_splice_chronological_consistency_ancestor_list():
             "origin_time": [1, 2, 0, 3],
         }
     )
-    result = alifestd_regraft_splice_chronological_consistency_asexual(df)
+    result = alifestd_splice_chronological_consistency_asexual(df)
     assert result["ancestor_id"].tolist() == [4, 0, 4, 1, 4]
     # untouched entries keep their original tokens
     assert result["ancestor_list"].tolist() == [
@@ -172,7 +186,7 @@ def test_regraft_splice_chronological_consistency_ancestor_list():
     ]
 
 
-def test_regraft_splice_chronological_consistency_ancestor_id_dtype():
+def test_splice_chronological_consistency_ancestor_id_dtype():
     df = pd.DataFrame(
         {
             "id": np.array([0, 1, 2], dtype=np.uint32),
@@ -180,7 +194,7 @@ def test_regraft_splice_chronological_consistency_ancestor_id_dtype():
             "origin_time": [0.0, 2.0, 1.0],
         }
     )
-    result = alifestd_regraft_splice_chronological_consistency_asexual(df)
+    result = alifestd_splice_chronological_consistency_asexual(df)
     assert result["id"].dtype == np.uint32
     assert result["ancestor_id"].dtype == np.uint32
     assert result["ancestor_id"].tolist() == [0, 3, 3, 0]
@@ -193,7 +207,7 @@ def test_regraft_splice_chronological_consistency_ancestor_id_dtype():
         pd.to_datetime(["2000", "2002", "2001", "2003"]),
     ],
 )
-def test_regraft_splice_chronological_consistency_non_numeric(origin_times):
+def test_splice_chronological_consistency_non_numeric(origin_times):
     df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -201,12 +215,12 @@ def test_regraft_splice_chronological_consistency_non_numeric(origin_times):
             "origin_time": origin_times,
         }
     )
-    result = alifestd_regraft_splice_chronological_consistency_asexual(df)
+    result = alifestd_splice_chronological_consistency_asexual(df)
     assert result["ancestor_id"].tolist() == [0, 4, 4, 2, 0]
     assert result["origin_time"].iloc[4] == df["origin_time"].iloc[2]
 
 
-def test_regraft_splice_chronological_consistency_sexual():
+def test_splice_chronological_consistency_sexual():
     df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -215,10 +229,10 @@ def test_regraft_splice_chronological_consistency_sexual():
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_regraft_splice_chronological_consistency_asexual(df)
+        alifestd_splice_chronological_consistency_asexual(df)
 
 
-def test_regraft_splice_chronological_consistency_noncontiguous():
+def test_splice_chronological_consistency_noncontiguous():
     df = pd.DataFrame(
         {
             "id": [0, 1, 3],
@@ -227,10 +241,10 @@ def test_regraft_splice_chronological_consistency_noncontiguous():
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_regraft_splice_chronological_consistency_asexual(df)
+        alifestd_splice_chronological_consistency_asexual(df)
 
 
-def test_regraft_splice_chronological_consistency_unsorted():
+def test_splice_chronological_consistency_unsorted():
     df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -239,10 +253,10 @@ def test_regraft_splice_chronological_consistency_unsorted():
         }
     )
     with pytest.raises(NotImplementedError):
-        alifestd_regraft_splice_chronological_consistency_asexual(df)
+        alifestd_splice_chronological_consistency_asexual(df)
 
 
-def test_regraft_splice_chronological_consistency_warns():
+def test_splice_chronological_consistency_warns():
     df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -252,8 +266,8 @@ def test_regraft_splice_chronological_consistency_warns():
         }
     )
     with pytest.warns(UserWarning):
-        alifestd_regraft_splice_chronological_consistency_asexual(df)
-    result = alifestd_regraft_splice_chronological_consistency_asexual(
+        alifestd_splice_chronological_consistency_asexual(df)
+    result = alifestd_splice_chronological_consistency_asexual(
         df, drop_topological_sensitivity=True
     )
     assert "num_children" not in result
@@ -261,14 +275,14 @@ def test_regraft_splice_chronological_consistency_warns():
 
 @_assets
 @pytest.mark.parametrize("seed", range(3))
-def test_regraft_splice_chronological_consistency_fuzz(
+def test_splice_chronological_consistency_fuzz(
     phylogeny_df: pd.DataFrame, seed: int
 ):
     phylogeny_df = _perturbed(phylogeny_df, seed)
     original_df = phylogeny_df.copy()
     num_taxa = len(phylogeny_df)
 
-    result = alifestd_regraft_splice_chronological_consistency_asexual(
+    result = alifestd_splice_chronological_consistency_asexual(
         phylogeny_df, ignore_topological_sensitivity=True
     )
     assert phylogeny_df.equals(original_df)
@@ -328,7 +342,7 @@ def test_regraft_splice_chronological_consistency_fuzz(
 
 @_assets
 @pytest.mark.parametrize("seed", range(3))
-def test_regraft_splice_chronological_consistency_row_order_invariant(
+def test_splice_chronological_consistency_row_order_invariant(
     phylogeny_df: pd.DataFrame, seed: int
 ):
     phylogeny_df = _perturbed(phylogeny_df, seed)
@@ -336,13 +350,11 @@ def test_regraft_splice_chronological_consistency_row_order_invariant(
     shuffled_df = alifestd_shuffle_working_format(phylogeny_df, seed=seed)
     assert not shuffled_df["label"].equals(phylogeny_df["label"])
 
-    result = alifestd_regraft_splice_chronological_consistency_asexual(
+    result = alifestd_splice_chronological_consistency_asexual(
         phylogeny_df, ignore_topological_sensitivity=True
     )
-    shuffled_result = (
-        alifestd_regraft_splice_chronological_consistency_asexual(
-            shuffled_df, ignore_topological_sensitivity=True
-        )
+    shuffled_result = alifestd_splice_chronological_consistency_asexual(
+        shuffled_df, ignore_topological_sensitivity=True
     )
     assert len(result) == len(shuffled_result)
     assert alifestd_test_leaves_isomorphic_asexual(

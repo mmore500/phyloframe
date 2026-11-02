@@ -4,13 +4,13 @@ import subprocess
 
 import pandas as pd
 
-from phyloframe.legacy._alifestd_regraft_splice_chronological_consistency_polars import (
+from phyloframe.legacy._alifestd_splice_chronological_consistency_polars import (
     _create_parser,
 )
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
-MODULE = "phyloframe.legacy._alifestd_regraft_splice_chronological_consistency_polars"
+MODULE = "phyloframe.legacy._alifestd_splice_chronological_consistency_polars"
 
 
 def test_create_parser():
@@ -36,7 +36,7 @@ def test_cli_version():
 
 
 def test_cli_csv():
-    output_file = "/tmp/phyloframe_alifestd_regraft_splice_chronological_consistency_polars.csv"  # nosec B108
+    output_file = "/tmp/phyloframe_alifestd_splice_chronological_consistency_polars.csv"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         ["python3", "-m", MODULE, output_file],
@@ -50,7 +50,7 @@ def test_cli_csv():
 
 
 def test_cli_parquet():
-    output_file = "/tmp/phyloframe_alifestd_regraft_splice_chronological_consistency_polars.pqt"  # nosec B108
+    output_file = "/tmp/phyloframe_alifestd_splice_chronological_consistency_polars.pqt"  # nosec B108
     pathlib.Path(output_file).unlink(missing_ok=True)
     subprocess.run(  # nosec B603
         [

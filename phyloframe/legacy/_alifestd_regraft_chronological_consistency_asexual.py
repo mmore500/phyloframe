@@ -112,7 +112,7 @@ def alifestd_regraft_chronological_consistency_asexual(
     --------
     alifestd_regraft_chronological_consistency_polars :
         Polars-based implementation.
-    alifestd_regraft_splice_chronological_consistency_asexual :
+    alifestd_splice_chronological_consistency_asexual :
         Regrafts onto nearest eligible ancestor edge, splicing in a new node.
     alifestd_coerce_chronological_consistency :
         Resolves origin time inversions by adjusting origin times.
