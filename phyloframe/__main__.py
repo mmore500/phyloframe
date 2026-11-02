@@ -25,6 +25,7 @@ $ python3 -m phyloframe.legacy._alifestd_chronological_sort
 $ python3 -m phyloframe.legacy._alifestd_chronological_sort_polars
 $ python3 -m phyloframe.legacy._alifestd_coarsen_dilate_asexual
 $ python3 -m phyloframe.legacy._alifestd_coarsen_dilate_polars
+$ python3 -m phyloframe.legacy._alifestd_coarsen_taxa_polars
 $ python3 -m phyloframe.legacy._alifestd_coerce_chronological_consistency
 $ python3 -m phyloframe.legacy._alifestd_coerce_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_collapse_trunk_asexual
