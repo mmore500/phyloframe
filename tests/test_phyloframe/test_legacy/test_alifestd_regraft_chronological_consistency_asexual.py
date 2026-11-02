@@ -143,7 +143,12 @@ def test_regraft_chronological_consistency_ancestor_list():
     result = alifestd_regraft_chronological_consistency_asexual(df)
     assert result["ancestor_id"].tolist() == [0, 0, 2, 1]
     # untouched entries keep their original tokens
-    assert result["ancestor_list"].tolist() == ["[None]", "[0]", "[none]", "[1]"]
+    assert result["ancestor_list"].tolist() == [
+        "[None]",
+        "[0]",
+        "[none]",
+        "[1]",
+    ]
 
 
 def test_regraft_chronological_consistency_ancestor_id_dtype():

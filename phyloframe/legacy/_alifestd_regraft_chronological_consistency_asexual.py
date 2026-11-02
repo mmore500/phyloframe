@@ -153,11 +153,11 @@ def alifestd_regraft_chronological_consistency_asexual(
 
     if "ancestor_list" in phylogeny_df.columns:
         is_regrafted = regrafted != ancestor_ids
-        phylogeny_df.loc[is_regrafted, "ancestor_list"] = (
-            alifestd_make_ancestor_list_col(
-                phylogeny_df.loc[is_regrafted, "id"],
-                phylogeny_df.loc[is_regrafted, "ancestor_id"],
-            )
+        phylogeny_df.loc[
+            is_regrafted, "ancestor_list"
+        ] = alifestd_make_ancestor_list_col(
+            phylogeny_df.loc[is_regrafted, "id"],
+            phylogeny_df.loc[is_regrafted, "ancestor_id"],
         )
 
     return phylogeny_df

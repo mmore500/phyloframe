@@ -10,7 +10,9 @@ from phyloframe.legacy._alifestd_regraft_chronological_consistency_asexual impor
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
-MODULE = "phyloframe.legacy._alifestd_regraft_chronological_consistency_asexual"
+MODULE = (
+    "phyloframe.legacy._alifestd_regraft_chronological_consistency_asexual"
+)
 
 
 def test_create_parser():

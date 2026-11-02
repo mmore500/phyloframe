@@ -52,6 +52,8 @@ def alifestd_shuffle_working_format(
         phylogeny_df = phylogeny_df.copy()
 
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+    if phylogeny_df.empty:
+        return phylogeny_df
 
     permutation = np.random.default_rng(seed).permutation(len(phylogeny_df))
     phylogeny_df = phylogeny_df.iloc[permutation].reset_index(drop=True)
@@ -124,4 +126,5 @@ if __name__ == "__main__":
                     seed=args.seed,
                 ),
             ),
+            overridden_arguments="ignore",  # seed is overridden
         )

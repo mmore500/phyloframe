@@ -253,9 +253,7 @@ def test_regraft_chronological_consistency_polars_matches_pandas(
         .lazy()
         .collect()
     )
-    assert (
-        result["ancestor_id"].to_list() == expected["ancestor_id"].tolist()
-    )
+    assert result["ancestor_id"].to_list() == expected["ancestor_id"].tolist()
     assert result["id"].to_list() == expected["id"].tolist()
     assert alifestd_find_chronological_inconsistency_polars(result) is None
 

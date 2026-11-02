@@ -71,6 +71,9 @@ def alifestd_shuffle_working_format_polars(
     if "ancestor_id" not in phylogeny_df.columns:
         raise NotImplementedError("sexual phylogenies not supported")
 
+    if phylogeny_df.is_empty():
+        return phylogeny_df
+
     has_ancestor_list = "ancestor_list" in phylogeny_df.columns
     if has_ancestor_list:  # regenerated below, after ids are reassigned
         phylogeny_df = phylogeny_df.drop("ancestor_list")
@@ -159,6 +162,7 @@ if __name__ == "__main__":
                     alifestd_shuffle_working_format_polars,
                     seed=args.seed,
                 ),
+                overridden_arguments="ignore",  # seed is overridden
             )
     except NotImplementedError as e:
         logging.error(
