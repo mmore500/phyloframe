@@ -201,30 +201,32 @@ def alifestd_coarsen_taxa_polars(
     if isinstance(by, str):
         by = (by,)
 
-    has_nulls, has_nans = (
+    if nulls_equal is None and (
         phylogeny_df.lazy()
-        .select(
-            has_nulls=pl.any_horizontal(
-                [pl.col(col).is_null().any() for col in by],
-            ),
-            has_nans=pl.any_horizontal(
-                [
-                    pl.col(col).is_nan().any()
-                    for col in by
-                    if schema[col].is_float()
-                ]
-                or [pl.lit(False)],
-            ),
-        )
+        .select(pl.any_horizontal([pl.col(col).is_null().any() for col in by]))
         .collect()
-        .row(0)
-    )
-    if has_nulls and nulls_equal is None:
+        .item()
+    ):
         raise ValueError(
             "null values in `by` columns; "
             "set `nulls_equal` to specify how they compare",
         )
-    if has_nans and nans_equal is None:
+
+    float_by = [col for col in by if schema[col].is_float()]
+    if (
+        nans_equal is None
+        and float_by
+        and (
+            phylogeny_df.lazy()
+            .select(
+                pl.any_horizontal(
+                    [pl.col(col).is_nan().any() for col in float_by]
+                ),
+            )
+            .collect()
+            .item()
+        )
+    ):
         raise ValueError(
             "NaN values in `by` columns; "
             "set `nans_equal` to specify how they compare",
