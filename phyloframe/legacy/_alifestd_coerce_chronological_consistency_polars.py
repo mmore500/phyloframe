@@ -63,6 +63,8 @@ def alifestd_coerce_chronological_consistency_polars(
     --------
     alifestd_coerce_chronological_consistency :
         Pandas-based implementation.
+    alifestd_regraft_chronological_consistency_polars :
+        Resolves origin time inversions by adjusting topology.
     """
 
     logging.info(

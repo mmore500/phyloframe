@@ -621,6 +621,12 @@ from ._alifestd_prune_extinct_lineages_asexual import (
 from ._alifestd_prune_extinct_lineages_polars import (
     alifestd_prune_extinct_lineages_polars,
 )
+from ._alifestd_regraft_chronological_consistency_asexual import (
+    alifestd_regraft_chronological_consistency_asexual,
+)
+from ._alifestd_regraft_chronological_consistency_polars import (
+    alifestd_regraft_chronological_consistency_polars,
+)
 from ._alifestd_reroot_at_id_asexual import alifestd_reroot_at_id_asexual
 from ._alifestd_reroot_at_id_polars import alifestd_reroot_at_id_polars
 from ._alifestd_sample_triplet_comparisons_asexual import (
@@ -637,6 +643,10 @@ from ._alifestd_screen_trait_defined_clades_fitch_polars import (
 )
 from ._alifestd_screen_trait_defined_clades_naive_asexual import (
     alifestd_screen_trait_defined_clades_naive_asexual,
+)
+from ._alifestd_shuffle_working_format import alifestd_shuffle_working_format
+from ._alifestd_shuffle_working_format_polars import (
+    alifestd_shuffle_working_format_polars,
 )
 from ._alifestd_sort_children_asexual import alifestd_sort_children_asexual
 from ._alifestd_sort_children_polars import alifestd_sort_children_polars
@@ -1007,6 +1017,8 @@ __all__ = [
     "alifestd_prefix_roots_polars",
     "alifestd_prune_extinct_lineages_asexual",
     "alifestd_prune_extinct_lineages_polars",
+    "alifestd_regraft_chronological_consistency_asexual",
+    "alifestd_regraft_chronological_consistency_polars",
     "alifestd_reroot_at_id_asexual",
     "alifestd_reroot_at_id_polars",
     "alifestd_sample_triplet_comparisons_asexual",
@@ -1014,6 +1026,8 @@ __all__ = [
     "alifestd_screen_trait_defined_clades_fitch_asexual",
     "alifestd_screen_trait_defined_clades_fitch_polars",
     "alifestd_screen_trait_defined_clades_naive_asexual",
+    "alifestd_shuffle_working_format",
+    "alifestd_shuffle_working_format_polars",
     "alifestd_sort_children_asexual",
     "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
