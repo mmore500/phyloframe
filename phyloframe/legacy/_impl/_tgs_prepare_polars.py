@@ -36,7 +36,7 @@ def tgs_prepare_polars(
     Here, tgs stands for trait gain/selection.
 
     Sums each trait's transitions into node states (see
-    `tgs_calc_trait_states`), bypasses unifurcations, and returns the
+    `tgs_calc_trait_states`), collapses unifurcations, and returns the
     phylogeny's branches (see `tgs_calc_exposure_df`). `caller` names the
     calling function in error messages.
     """

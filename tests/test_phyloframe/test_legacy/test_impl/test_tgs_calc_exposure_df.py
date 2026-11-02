@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from phyloframe.legacy._impl import tgs_calc_exposure_df
 
@@ -31,11 +32,21 @@ def test_branches():
     assert not res["trait1_gain"].any()
 
 
-def test_zero_length_excluded():
+@pytest.mark.parametrize("bad_origin_time", [0.0, -1.0, np.nan])
+def test_nonpositive_length_raises(bad_origin_time: float):
+    with pytest.raises(ValueError):
+        tgs_calc_exposure_df(
+            ancestor_ids=np.array([0, 0, 0]),
+            origin_time=np.array([0.0, bad_origin_time, 1.0]),
+            trait_states=[np.array([0, 0, 1])],
+        )
+
+
+def test_root_length_ignored():
     res = tgs_calc_exposure_df(
-        ancestor_ids=np.array([0, 0, 0]),
-        origin_time=np.array([0.0, 0.0, 1.0]),
-        trait_states=[np.array([0, 0, 1])],
+        ancestor_ids=np.array([0, 0, 2]),
+        origin_time=np.array([0.0, 1.0, np.nan]),
+        trait_states=[np.array([0, 1, 0])],
     )
     assert res["branch_length"].tolist() == [1.0]
     assert res["trait0_gain"].tolist() == [True]

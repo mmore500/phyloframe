@@ -48,6 +48,6 @@ def tgs_calc_trait_states(
     if not np.isin(states, (0, 1)).all():
         raise ValueError(
             f"trait transitions {trait_name} give states other than 0 and 1, "
-            "e.g., from repeated gains along a lineage",
+            "e.g., from duplicate gains along a lineage",
         )
     return states

@@ -24,19 +24,21 @@ def tgs_calc_allmdc_data(
 
     Here, tgs stands for trait gain/selection.
 
-    Summarizes `exposure_df` (see `tgs_calc_exposure_df`) by their `partitioning`
-    (see `tgs_partition_allmdc_exposures`). Returns a DataFrame with one row
-    per trait and partition with branches starting without the trait,
-    with columns `trait` (index, categorical over all traits), the
-    (weighted) counts of those branches, `num_trials`, and of gains,
-    `num_successes`, and their mean `length` (calibrated against neutral
-    traits if `calibrate`). Also returns `survival_shares`, a sparse matrix
-    with a row per DataFrame row and a column per survival-time bin, giving
-    the share of the partition's branches in each bin.
+    Summarizes `exposure_df` (see `tgs_calc_exposure_df`) by its
+    `partitioning` (see `tgs_partition_allmdc_exposures`). Returns
+    `partition_df`, with one row per trait and partition with branches
+    starting without the trait, with columns `trait` (index, categorical
+    over all traits), the (weighted) counts of those branches,
+    `num_trials`, and of gains, `num_successes`, and their mean `length`
+    (calibrated against neutral traits if `calibrate`). Also returns
+    `survival_shares`, a sparse matrix with a row per `partition_df` row and
+    a column per survival-time bin, giving the share of the row's branches
+    in each bin.
     """
     partitions = partitioning["partitions"]
     num_partitions = partitions.max() + 1
     trait_units, trait_gains = tgs_find_trait_exposures(exposure_df)
+    num_traits = len(trait_units)
     counts = tgs_count_traits(
         leaf_partitions=partitions,
         num_partitions=num_partitions,
@@ -45,44 +47,56 @@ def tgs_calc_allmdc_data(
         trait_leaves=trait_units,
         trait_carriers=trait_gains,
     )
-    shape = (num_partitions, len(partitioning["survival_bin_times"]))
-    frames, shares = [], []
-    for trait, units in enumerate(trait_units):
-        lengths, __ = tgs_calc_calibrated_pendant_lengths(
-            counts=counts,
-            trait=trait,
-            neutral_traits=neutral_traits,
-            calibration_neighborhoods=(
-                partitioning["calibration_neighborhoods"]
-                if calibrate
-                else None
+    # one row per trait and partition, trait-major, before dropping rows
+    # without branches
+    lengths = np.stack(
+        [
+            tgs_calc_calibrated_pendant_lengths(
+                counts=counts,
+                trait=trait,
+                neutral_traits=neutral_traits,
+                calibration_neighborhoods=(
+                    partitioning["calibration_neighborhoods"]
+                    if calibrate
+                    else None
+                ),
+            )[0]
+            for trait in range(num_traits)
+        ],
+    )
+    all_partition_df = pd.DataFrame(
+        {
+            "trait": pd.Categorical(
+                np.repeat(np.arange(num_traits), num_partitions),
+                categories=range(num_traits),
             ),
-        )
-        n = counts.num_leaves[trait]
-        keep = n > 0
-        frames.append(
-            pd.DataFrame(
-                {
-                    "trait": trait,
-                    "num_trials": n[keep],
-                    "num_successes": counts.num_carriers[trait][keep],
-                    "length": lengths[keep],
-                },
-            ),
-        )
-        # sparse, as partitions span few of many survival-time bins
-        trait_shares = sparse.csr_matrix(
+            "num_trials": counts.num_leaves.ravel(),
+            "num_successes": counts.num_carriers.ravel(),
+            "length": lengths.ravel(),
+        },
+    )
+    # sparse, as partitions span few of many survival-time bins; each
+    # trait's branches go in that trait's block of rows
+    units = np.concatenate(trait_units)
+    unit_traits = np.repeat(np.arange(num_traits), list(map(len, trait_units)))
+    all_survival_shares = preprocessing.normalize(
+        sparse.csr_matrix(
             (
                 weights[units],
-                (partitions[units], partitioning["survival_bins"][units]),
+                (
+                    unit_traits * num_partitions + partitions[units],
+                    partitioning["survival_bins"][units],
+                ),
             ),
-            shape=shape,
-        )
-        # each partition's share in each bin; normalize before dropping
-        # partitions without branches, as `normalize` rejects empty input
-        shares.append(preprocessing.normalize(trait_shares, norm="l1")[keep])
-    data = pd.concat(frames, ignore_index=True)
-    data["trait"] = pd.Categorical(
-        data["trait"], categories=range(len(trait_units))
+            shape=(
+                num_traits * num_partitions,
+                len(partitioning["survival_bin_times"]),
+            ),
+        ),
+        norm="l1",
     )
-    return data, sparse.vstack(shares, format="csr")
+    has_branches = all_partition_df["num_trials"].to_numpy() > 0
+    return (
+        all_partition_df[has_branches].reset_index(drop=True),
+        all_survival_shares[has_branches],
+    )

@@ -21,9 +21,9 @@ def tgs_prepare_asexual(
     Here, tgs stands for trait gain/selection.
 
     Converts `phylogeny_df` to working format, sums each trait's
-    transitions into node states (see `tgs_calc_trait_states`), bypasses
+    transitions into node states (see `tgs_calc_trait_states`), collapses
     unifurcations, and returns its branches (see `tgs_calc_exposure_df`).
-    Computing states before bypassing unifurcations credits a bypassed
+    Computing states before collapsing unifurcations credits a collapsed
     node's transition to the merged branch.
     """
     if not mutate:

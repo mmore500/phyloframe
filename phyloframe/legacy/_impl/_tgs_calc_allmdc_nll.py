@@ -23,10 +23,9 @@ def tgs_calc_allmdc_nll(
 
     Returns negative log likelihood (up to a constant) of one trait's
     `partitions` and their `survival_shares` (see `tgs_calc_allmdc_data`),
-    and its derivatives with
-    respect to log gain rate and to `rate` (selection minus loss rate). A
-    branch of length `t` with survival time `u` gains the trait, i.e., its
-    whole clade carries it, with probability
+    and its derivatives with respect to log gain rate and to `rate`
+    (selection minus loss rate). A branch of length `t` with survival time
+    `u` gains the trait, i.e., its whole clade carries it, with probability
 
         gain_rate * (exp(rate * t) - 1) / rate * exp(rate * u)
 

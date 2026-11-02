@@ -2,7 +2,6 @@ import typing
 
 import pandas as pd
 
-from ._tgs_find_trait_exposures import tgs_find_trait_exposures
 from ._tgs_init_results import tgs_init_results
 
 
@@ -15,23 +14,24 @@ def tgs_init_allmdc_results(
 
     Here, tgs stands for trait gain/selection.
 
-    Returns one row per trait, with counts of leaf branches starting without
-    the trait and of pendant gains, and of inner branches (clades) starting
-    without it and of inner gains, from `exposure_df` (see
-    `tgs_calc_exposure_df`), and estimates for a trait with no fit (no gain,
-    undefined selection).
+    Returns one row per trait (see `tgs_init_results`), with counts, from
+    `exposure_df` (see `tgs_calc_exposure_df`), of leaf branches starting
+    without the trait, `num_leaves`, and of their gains,
+    `num_trait_present`, and the same for inner branches, `num_clades` and
+    `num_clade_gains`.
     """
-    is_leaf = exposure_df["clade_size"].to_numpy() == 1
-    trait_units, trait_gains = tgs_find_trait_exposures(exposure_df)
-    res = tgs_init_results(
+    traits = range(len(trait_names))
+    starts_absent = exposure_df[
+        [f"trait{i}_starts_absent" for i in traits]
+    ].to_numpy()
+    gains = exposure_df[[f"trait{i}_gain" for i in traits]].to_numpy()
+    is_leaf = (exposure_df["clade_size"] == 1).to_numpy()[:, None]
+    return tgs_init_results(
         trait_names=trait_names,
-        trait_leaves=[units[is_leaf[units]] for units in trait_units],
-        trait_carriers=[gains[is_leaf[gains]] for gains in trait_gains],
+        counts={
+            "num_leaves": (starts_absent & is_leaf).sum(axis=0),
+            "num_trait_present": (gains & is_leaf).sum(axis=0),
+            "num_clades": (starts_absent & ~is_leaf).sum(axis=0),
+            "num_clade_gains": (gains & ~is_leaf).sum(axis=0),
+        },
     )
-    res.insert(
-        3, "num_clades", [int((~is_leaf[u]).sum()) for u in trait_units]
-    )
-    res.insert(
-        4, "num_clade_gains", [int((~is_leaf[g]).sum()) for g in trait_gains]
-    )
-    return res

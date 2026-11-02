@@ -31,7 +31,7 @@ def tgs_calc_rank_partitions(
     # coordinates keeps partitions independent of row order
     ranks = calc_tiebroken_ranks(coordinates)
     num_levels = int(
-        max(0, min(np.log2(max_partitions), np.log2(num_branches / 4)))
+        np.clip(np.log2(num_branches / 4), 0, np.log2(max_partitions))
     )
     num_partitions = 2**num_levels
     # median splitting stops exactly `num_levels` levels down, as nodes there
