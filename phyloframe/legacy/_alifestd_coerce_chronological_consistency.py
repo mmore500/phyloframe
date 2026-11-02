@@ -27,7 +27,6 @@ from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_topological_sort import alifestd_topological_sort
-from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 from ._alifestd_try_add_ancestor_list_col import (
     alifestd_try_add_ancestor_list_col,
 )
@@ -77,8 +76,9 @@ def alifestd_coerce_chronological_consistency(
     sorted, the corrected phylogeny will be returned sorted in topological
     order.
 
-    For asexual phylogenies with contiguous ids and numeric origin times, an
-    optimized implementation is used.
+    For topologically sorted asexual phylogenies with an `ancestor_id`
+    column, contiguous ids, and numeric origin times, an optimized
+    implementation is used.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -92,26 +92,6 @@ def alifestd_coerce_chronological_consistency(
 
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
-
-    has_ancestor_id = "ancestor_id" in phylogeny_df
-    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
-
-    res = _coerce_chronological_consistency_impl(phylogeny_df, epsilon=epsilon)
-
-    if not has_ancestor_id and "ancestor_id" in res:
-        res.drop(columns=["ancestor_id"], inplace=True)
-
-    return res
-
-
-def _coerce_chronological_consistency_impl(
-    phylogeny_df: pd.DataFrame,
-    epsilon: typing.Optional[Number],
-) -> pd.DataFrame:
-    """Implementation detail for `alifestd_coerce_chronological_consistency`.
-
-    Operates in place on a dataframe the caller owns.
-    """
 
     is_topologically_sorted = alifestd_is_topologically_sorted(phylogeny_df)
     if (
