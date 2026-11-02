@@ -96,6 +96,11 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "0.001",
             "--min-leaf-origin-time",
             "5.0",
+            "--selection-starts",
+            "0.0",
+            "-0.5",
+            "--growth-exponent-bound",
+            "300.0",
             "--eager-write",
             output_file,
         ],
@@ -107,6 +112,8 @@ def test_cli_matches_function(input_pqt, tmp_path):
         trait_transitions=["focal", "n1"],
         loss_rate=0.001,
         min_leaf_origin_time=5.0,
+        selection_starts=(0.0, -0.5),
+        growth_exponent_bound=300.0,
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False

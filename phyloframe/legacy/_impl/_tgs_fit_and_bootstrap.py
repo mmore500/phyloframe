@@ -26,6 +26,8 @@ def tgs_fit_and_bootstrap(
     calibrate_num_partitions: int,
     num_bootstrap: int,
     loss_rate: float,
+    selection_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
@@ -57,6 +59,8 @@ def tgs_fit_and_bootstrap(
         neutral_traits=neutral_traits,
         calibration_neighborhoods=None,
         loss_rate=loss_rate,
+        selection_starts=selection_starts,
+        growth_exponent_bound=growth_exponent_bound,
     )
     if calibrate:
         fit_kwargs[
