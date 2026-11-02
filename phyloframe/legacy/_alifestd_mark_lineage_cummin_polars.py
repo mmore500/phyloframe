@@ -20,6 +20,9 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_lineage_cummax_asexual import (
+    _alifestd_mark_lineage_cumext_skipna_empty_mask,
+)
 from ._alifestd_mark_lineage_cummin_asexual import (
     _alifestd_mark_lineage_cummin_asexual_fast_path,
 )
@@ -43,6 +46,10 @@ def alifestd_mark_lineage_cummin_polars(
     inclusive. With ``reverse=True``, the result at each node is the
     minimum of ``values`` over the entire clade rooted at that node,
     inclusive.
+
+    Null and NaN values are skipped if ``skipna`` (default), else propagate
+    as NaN. If skipped, nodes with no non-missing value in scope (i.e., along
+    lineage, or within clade if ``reverse``) take null.
 
     See Also
     --------
@@ -96,7 +103,11 @@ def alifestd_mark_lineage_cummin_polars(
         .to_series()
         .to_numpy()
     )
+    empty_mask = None
     if skipna:
+        empty_mask = _alifestd_mark_lineage_cumext_skipna_empty_mask(
+            ancestor_ids, values_arr, reverse
+        )
         values_arr = np.nan_to_num(
             values_arr,
             nan=np.inf,
@@ -110,8 +121,15 @@ def alifestd_mark_lineage_cummin_polars(
         reverse,
     )
 
+    if empty_mask is not None:
+        result[empty_mask] = np.nan
+
     return phylogeny_df.with_columns(
-        pl.Series(name=mark_as, values=result),
+        pl.Series(
+            name=mark_as,
+            values=result,
+            nan_to_null=empty_mask is not None,  # no other NaN, if skipna
+        ),
     )
 
 

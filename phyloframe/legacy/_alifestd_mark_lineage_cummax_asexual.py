@@ -2,6 +2,7 @@ import argparse
 import functools
 import logging
 import os
+import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -38,6 +39,31 @@ def _alifestd_mark_lineage_cummax_asexual_fast_path(
     return result
 
 
+def _alifestd_mark_lineage_cumext_skipna_empty_mask(
+    ancestor_ids: np.ndarray,
+    values: np.ndarray,
+    reverse: bool,
+) -> typing.Optional[np.ndarray]:
+    """Implementation detail for `alifestd_mark_lineage_cummax_asexual`,
+    `alifestd_mark_lineage_cummin_asexual`, and their polars counterparts.
+
+    With NaN values skipped, find nodes with no non-NaN value in scope
+    (i.e., along lineage from root, inclusive, or within clade, inclusive,
+    if `reverse`). Returns None if `values` contains no NaN.
+    """
+    if not np.issubdtype(values.dtype, np.floating):
+        return None
+    has_value = ~np.isnan(values)
+    if has_value.all():
+        return None
+    return (
+        _alifestd_mark_lineage_cummax_asexual_fast_path(
+            ancestor_ids, has_value.astype(np.int8), reverse
+        )
+        == 0
+    )
+
+
 def alifestd_mark_lineage_cummax_asexual(
     phylogeny_df: pd.DataFrame,
     values: str,
@@ -56,8 +82,9 @@ def alifestd_mark_lineage_cummax_asexual(
     inclusive.
 
     The output column name can be changed via the ``mark_as`` parameter.
-    NaN values are treated as -inf if ``skipna`` (default), else
-    propagate.
+    NaN values are skipped if ``skipna`` (default), else propagate. If
+    skipped, nodes with no non-NaN value in scope (i.e., along lineage, or
+    within clade if ``reverse``) take NaN.
 
     Phylogeny must be asexual, topologically sorted, and have
     contiguous ids; otherwise ``NotImplementedError`` is raised.
@@ -96,7 +123,12 @@ def alifestd_mark_lineage_cummax_asexual(
         )
 
     values_arr = phylogeny_df[values].to_numpy()
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
+    empty_mask = None
     if skipna:
+        empty_mask = _alifestd_mark_lineage_cumext_skipna_empty_mask(
+            ancestor_ids, values_arr, reverse
+        )
         values_arr = np.nan_to_num(
             values_arr,
             nan=-np.inf,
@@ -104,11 +136,14 @@ def alifestd_mark_lineage_cummax_asexual(
             neginf=-np.inf,
         )
 
-    phylogeny_df[mark_as] = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        phylogeny_df["ancestor_id"].to_numpy(),
+    result = _alifestd_mark_lineage_cummax_asexual_fast_path(
+        ancestor_ids,
         values_arr,
         reverse,
     )
+    if empty_mask is not None:
+        result[empty_mask] = np.nan
+    phylogeny_df[mark_as] = result
     return phylogeny_df
 
 
