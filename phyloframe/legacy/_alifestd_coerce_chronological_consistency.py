@@ -1,8 +1,8 @@
 import argparse
 import functools
 import logging
+import numbers
 import os
-import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -32,7 +32,7 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def _alifestd_coerce_chronological_consistency_asexual_fast_path(
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    epsilon: float,
+    epsilon: numbers.Real,
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_coerce_chronological_consistency` and
@@ -56,7 +56,7 @@ def alifestd_coerce_chronological_consistency(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    epsilon: float = 0,
+    epsilon: numbers.Real = 0,
 ) -> pd.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
@@ -100,7 +100,7 @@ def alifestd_coerce_chronological_consistency(
 
 def _coerce_chronological_consistency_impl(
     phylogeny_df: pd.DataFrame,
-    epsilon: float,
+    epsilon: numbers.Real,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_coerce_chronological_consistency`.
 
@@ -109,8 +109,10 @@ def _coerce_chronological_consistency_impl(
 
     if not alifestd_is_topologically_sorted(phylogeny_df):
         if (
-            epsilon == 0
-            and alifestd_find_chronological_inconsistency(phylogeny_df) is None
+            alifestd_find_chronological_inconsistency(
+                phylogeny_df, epsilon=epsilon
+            )
+            is None
         ):
             return phylogeny_df.set_index("id", drop=False)
         phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
@@ -135,8 +137,6 @@ def _coerce_chronological_consistency_impl(
                 )
                 return phylogeny_df.set_index("id", drop=False)
             except jit_TypingError:  # pragma: no cover
-                # this does get exercised in tests, but not in coverage
-                # because jit is disabled for better visibility of jit code
                 continue
             except (TypeError, ValueError):
                 break  # e.g., origin_times are strings or sequences
@@ -156,7 +156,7 @@ def _coerce_chronological_consistency_impl(
         for ancestor_id in alifestd_parse_ancestor_ids(row["ancestor_list"]):
             ancestor_loc = phylogeny_df.index.get_loc(ancestor_id)
             ancestor_time = phylogeny_df.iat[ancestor_loc, origin_time_loc]
-            if epsilon != 0:
+            if epsilon != 0:  # skip for non-numeric types, e.g., str
                 ancestor_time = ancestor_time + epsilon
             offspring_time = phylogeny_df.iat[pos, origin_time_loc]
             phylogeny_df.iat[pos, origin_time_loc] = max(

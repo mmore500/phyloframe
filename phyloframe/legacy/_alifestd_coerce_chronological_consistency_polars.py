@@ -1,6 +1,7 @@
 import argparse
 import functools
 import logging
+import numbers
 import os
 
 import joinem
@@ -33,7 +34,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_coerce_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    epsilon: float = 0,
+    epsilon: numbers.Real = 0,
 ) -> pl.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
@@ -51,7 +52,7 @@ def alifestd_coerce_chronological_consistency_polars(
 
         Must represent an asexual phylogeny with contiguous ids, numeric
         `origin_time`, and topologically sorted rows.
-    epsilon : float, default 0
+    epsilon : numbers.Real, default 0
         Minimum origin time gap enforced between each taxon and its parent.
 
     Returns
@@ -82,8 +83,9 @@ def alifestd_coerce_chronological_consistency_polars(
         raise NotImplementedError("non-contiguous ids not supported")
 
     if (
-        epsilon == 0
-        and alifestd_find_chronological_inconsistency_polars(phylogeny_df)
+        alifestd_find_chronological_inconsistency_polars(
+            phylogeny_df, epsilon=epsilon
+        )
         is None
     ):
         return phylogeny_df.lazy().collect()

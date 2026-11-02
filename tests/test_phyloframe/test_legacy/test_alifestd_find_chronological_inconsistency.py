@@ -373,3 +373,30 @@ def test_is_chronologically_unordered_asexual3(wrap: typing.Callable):
                 alifestd_find_chronological_inconsistency(df),
             )
             assert df.equals(df_)
+
+
+@pytest.mark.parametrize("ids", [[0, 1, 2], [0, 2, 1], [10, 30, 20]])
+@pytest.mark.parametrize("asexual", [True, False])
+def test_find_chronological_inconsistency_epsilon(
+    ids: typing.List[int], asexual: bool
+):
+    root, mid, leaf = ids
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [root, mid, leaf],
+            "ancestor_list": ["[none]", f"[{root}]", f"[{mid}]"],
+            "origin_time": [0.0, 1.0, 2.0],
+        }
+    )
+    if asexual:
+        phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df)
+
+    assert alifestd_find_chronological_inconsistency(phylogeny_df) is None
+    assert (
+        alifestd_find_chronological_inconsistency(phylogeny_df, epsilon=1)
+        is None
+    )
+    assert (
+        alifestd_find_chronological_inconsistency(phylogeny_df, epsilon=1.5)
+        == mid
+    )
