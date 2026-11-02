@@ -7,6 +7,8 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_coerce_chronological_consistency,
+    alifestd_find_chronological_inconsistency,
     alifestd_splice_chronological_consistency_asexual,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
@@ -253,3 +255,43 @@ def test_splice_chronological_consistency_polars_matches_pandas(
     assert len(result) > len(phylogeny_df)
     for col in expected.columns:
         assert result[col].to_list() == expected[col].tolist(), col
+
+
+@_apply
+@pytest.mark.parametrize(
+    "phylogeny_df",
+    [
+        pd.read_csv(f"{assets}/nk_ecoeaselection-workingformat.csv"),
+        pd.read_csv(f"{assets}/nk_lexicaseselection.csv"),
+        pd.read_csv(f"{assets}/nk_tournamentselection.csv"),
+    ],
+)
+@pytest.mark.parametrize("seed", range(3))
+@pytest.mark.parametrize("case", ["as-is", "coerced", "spliced"])
+def test_splice_chronological_consistency_polars_consistent_unchanged(
+    apply: typing.Callable, phylogeny_df: pd.DataFrame, seed: int, case: str
+):
+    phylogeny_df = alifestd_try_add_ancestor_id_col(
+        alifestd_to_working_format(phylogeny_df), mutate=True
+    )[["id", "ancestor_id", "origin_time"]]
+    if case != "as-is":
+        rng = np.random.default_rng(seed)
+        phylogeny_df["origin_time"] = phylogeny_df["origin_time"] + rng.normal(
+            scale=phylogeny_df["origin_time"].std() / 4,
+            size=len(phylogeny_df),
+        )
+    if case == "coerced":
+        phylogeny_df = alifestd_coerce_chronological_consistency(
+            phylogeny_df
+        ).reset_index(drop=True)
+    elif case == "spliced":
+        phylogeny_df = alifestd_to_working_format(
+            alifestd_splice_chronological_consistency_asexual(
+                phylogeny_df, ignore_topological_sensitivity=True
+            ),
+        )
+    assert alifestd_find_chronological_inconsistency(phylogeny_df) is None
+
+    df = pl.from_pandas(phylogeny_df)
+    result = alifestd_splice_chronological_consistency_polars(apply(df))
+    assert result.lazy().collect().equals(df)

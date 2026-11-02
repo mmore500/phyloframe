@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_coerce_chronological_consistency,
     alifestd_count_root_nodes,
     alifestd_find_chronological_inconsistency,
     alifestd_make_empty,
@@ -369,3 +370,39 @@ def test_splice_chronological_consistency_row_order_invariant(
         return dict(zip(labels[: len(phylogeny_df)], labels[nearest]))
 
     assert label_parents(result) == label_parents(shuffled_result)
+
+
+def _consistent_cases(phylogeny_df: pd.DataFrame, seed: int) -> list:
+    """Chronologically consistent phylogenies: as-is, coerced after
+    perturbation, and spliced after perturbation (in working format)."""
+    phylogeny_df = alifestd_try_add_ancestor_id_col(
+        alifestd_to_working_format(phylogeny_df), mutate=True
+    )
+    perturbed_df = _perturbed(phylogeny_df, seed)
+    coerced_df = alifestd_coerce_chronological_consistency(
+        perturbed_df
+    ).reset_index(drop=True)
+    spliced_df = alifestd_try_add_ancestor_id_col(
+        alifestd_to_working_format(
+            alifestd_splice_chronological_consistency_asexual(
+                perturbed_df, ignore_topological_sensitivity=True
+            ),
+        ),
+        mutate=True,
+    )
+    return [phylogeny_df, coerced_df, spliced_df]
+
+
+@_assets
+@pytest.mark.parametrize("seed", range(3))
+@pytest.mark.parametrize("case", range(3))
+def test_splice_chronological_consistency_consistent_unchanged(
+    phylogeny_df: pd.DataFrame, seed: int, case: int
+):
+    phylogeny_df = _consistent_cases(phylogeny_df, seed)[case]
+    assert alifestd_find_chronological_inconsistency(phylogeny_df) is None
+    original_df = phylogeny_df.copy()
+
+    result = alifestd_splice_chronological_consistency_asexual(phylogeny_df)
+    assert phylogeny_df.equals(original_df)
+    assert result.equals(original_df)
