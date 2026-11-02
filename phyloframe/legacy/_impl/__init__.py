@@ -1,6 +1,7 @@
 """Implementation helpers."""
 
 from ._TgsCounts import TgsCounts
+from ._alifestd_mask_trait_polars_impl import alifestd_mask_trait_polars_impl
 from ._tgs_allmdc_impl import tgs_allmdc_impl
 from ._tgs_bin_survival_times import tgs_bin_survival_times
 from ._tgs_bootstrap import tgs_bootstrap
@@ -15,6 +16,7 @@ from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
 from ._tgs_calc_heldout_nll import tgs_calc_heldout_nll
 from ._tgs_calc_rank_partitions import tgs_calc_rank_partitions
 from ._tgs_calc_size_partitions import tgs_calc_size_partitions
+from ._tgs_calc_trait_masks import tgs_calc_trait_masks
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_reference_traits import tgs_find_reference_traits
@@ -46,6 +48,7 @@ from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
 # adapted from https://stackoverflow.com/a/31079085
 __all__ = [
     "TgsCounts",
+    "alifestd_mask_trait_polars_impl",
     "TgsFitResult",
     "tgs_allmdc_impl",
     "tgs_bootstrap",
@@ -63,6 +66,7 @@ __all__ = [
     "tgs_calc_calibrated_pendant_lengths",
     "tgs_calc_gain_ratios",
     "tgs_calc_heldout_nll",
+    "tgs_calc_trait_masks",
     "tgs_calc_trait_states",
     "tgs_count_traits",
     "tgs_find_reference_traits",

@@ -27,9 +27,37 @@ def test_sparse_size_partitions_join_below():
 
 
 def test_leaves_keep_own_size_partition():
-    # no neutral gains anywhere
+    # no neutral gains anywhere, so all inner branches join one size
+    # partition, apart from leaves
     res = _calc([], calibrate=True)
-    assert res.tolist() == [0] * len(_SIZES)
+    assert res.tolist() == [0, 0] + [1] * (len(_SIZES) - 2)
+
+
+def test_first_inner_sparse_keeps_leaves_apart():
+    # neutral gains on leaves and the largest clades only
+    res = _calc([0, 1, 7, 8], calibrate=True)
+    assert res.tolist() == [0, 0] + [1] * (len(_SIZES) - 2)
+
+
+def test_empty_bins_dropped():
+    # ratio 1.5 leaves bin (1, 1.5] empty, which must not count as sparse
+    res = tgs_calc_size_partitions(
+        clade_sizes=np.array([1, 1, 2, 2, 3, 3]),
+        neutral_gain_positions=np.arange(6),
+        calibrate=True,
+        calibrate_size_partition_ratio=1.5,
+        calibrate_size_partition_min_neutral_gains=1,
+    )
+    assert res.tolist() == [0, 0, 1, 1, 2, 2]
+
+
+def test_logs_clade_sizes_and_neutral_gains(caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        _calc([0, 2], calibrate=False)
+    assert "size partition 1 has clade sizes 2-2" in caplog.text
+    assert "1 neutral trait gains" in caplog.text
 
 
 def test_enough_neutral_gains_everywhere():

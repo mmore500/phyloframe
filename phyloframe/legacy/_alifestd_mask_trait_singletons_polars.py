@@ -12,11 +12,11 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from ._alifestd_mask_trait_mdcs_strict_polars import (
-    _alifestd_mask_trait_polars_impl,
-)
 from ._alifestd_mask_trait_singletons_asexual import (
     _alifestd_mask_trait_singletons_asexual_fast_path,
+)
+from ._impl._alifestd_mask_trait_polars_impl import (
+    alifestd_mask_trait_polars_impl,
 )
 
 
@@ -70,7 +70,7 @@ def alifestd_mask_trait_singletons_polars(
     alifestd_mask_trait_singletons_asexual :
         Pandas-based implementation.
     """
-    return _alifestd_mask_trait_polars_impl(
+    return alifestd_mask_trait_polars_impl(
         phylogeny_df,
         trait_mask=trait_mask,
         mark_as=mark_as,

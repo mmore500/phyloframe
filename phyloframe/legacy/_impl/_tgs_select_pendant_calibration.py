@@ -38,6 +38,8 @@ def tgs_select_pendant_calibration(
         neutral_traits=neutral_traits,
         trait_names=trait_names,
     )
+    if not logging.getLogger().isEnabledFor(logging.INFO):
+        return neighborhoods  # factors are computed only to log them
     for trait, name in enumerate(trait_names):
         __, factors = tgs_calc_calibrated_pendant_lengths(
             counts=counts,

@@ -44,10 +44,13 @@ def tgs_calc_exposure_df(
     origin_time = np.asarray(origin_time, dtype=np.float64)
     branch_length = origin_time - origin_time[ancestor_ids]
     keep = ancestor_ids != np.arange(len(ancestor_ids))  # excludes roots
-    if not (branch_length[keep] > 0).all():  # nan compares False
+    (bad_ids,) = np.nonzero(keep & ~(branch_length > 0))  # nan is bad
+    if len(bad_ids):
         raise ValueError(
-            "branch lengths must be positive, but some non-root nodes have "
-            "zero, negative, or undefined (nan) branch length",
+            "branch lengths must be positive, but non-root nodes (e.g., ids "
+            f"{bad_ids[:5].tolist()}) have zero, negative, or undefined (nan) "
+            "branch length; a parent with unknown (nan) origin_time, such "
+            "as a root, leaves its children's branch lengths undefined",
         )
     latest = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids, origin_time

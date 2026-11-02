@@ -67,3 +67,15 @@ def test_invalid(kwargs: dict):
                 **kwargs,
             },
         )
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(trait_transitions="a", neutral_traits=()),
+        dict(trait_transitions=["a", "b"], neutral_traits="a"),
+    ],
+)
+def test_bare_string_raises(kwargs: dict):
+    with pytest.raises(TypeError, match="single string"):
+        tgs_validate_args(**kwargs, **_KWARGS)

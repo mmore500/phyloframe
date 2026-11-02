@@ -2,6 +2,7 @@ import typing
 
 import pandas as pd
 
+from ._tgs_calc_trait_masks import tgs_calc_trait_masks
 from ._tgs_init_results import tgs_init_results
 
 
@@ -20,11 +21,7 @@ def tgs_init_allmdc_results(
     `num_trait_present`, and the same for inner branches, `num_clades` and
     `num_clade_gains`.
     """
-    traits = range(len(trait_names))
-    starts_absent = exposure_df[
-        [f"trait{i}_starts_absent" for i in traits]
-    ].to_numpy()
-    gains = exposure_df[[f"trait{i}_gain" for i in traits]].to_numpy()
+    starts_absent, gains = tgs_calc_trait_masks(exposure_df)
     is_leaf = (exposure_df["clade_size"] == 1).to_numpy()[:, None]
     return tgs_init_results(
         trait_names=trait_names,
