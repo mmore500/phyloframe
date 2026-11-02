@@ -33,7 +33,6 @@ def _partition(exposure_df, calibrate):
         calibrate_num_partitions=64,
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
-        num_survival_time_bins=8,
     )
 
 
@@ -57,7 +56,7 @@ def test_data(calibrate: bool):
         assert (lengths > 0).all()
         assert shares.shape == (
             len(n),
-            len(partitioning["survival_bin_times"]),
+            len(partitioning["distinct_survival_times"]),
         )
         np.testing.assert_allclose(np.asarray(shares.sum(axis=1)).ravel(), 1.0)
     if not calibrate:
@@ -102,3 +101,34 @@ def test_trait_without_units():
         )
     )
     assert len(n) == len(k) == len(lengths) == shares.shape[0] == 0
+
+
+@pytest.mark.parametrize("rate", [0.0, -0.01, -0.05])
+def test_survival_shares_exact(rate: float):
+    exposure_df = simulate_allmdc_exposure_df(4_000)
+    partitioning = _partition(exposure_df, False)
+    data, shares = tgs_calc_allmdc_data(
+        exposure_df=exposure_df,
+        partitioning=partitioning,
+        weights=np.ones(len(exposure_df)),
+        neutral_traits=[1, 2],
+        calibrate=False,
+    )
+    times = partitioning["distinct_survival_times"]
+    discounts = shares @ np.exp(rate * times)
+    # brute force: average exp(rate * T) over each trait and partition's
+    # branches that start without the trait
+    survival = exposure_df["survival_time"].to_numpy()
+    partitions = partitioning["partitions"]
+    num_partitions = partitions.max() + 1
+    for trait in range(3):
+        at_risk = exposure_df[f"trait{trait}_starts_absent"].to_numpy()
+        sums = np.bincount(
+            partitions[at_risk],
+            np.exp(rate * survival[at_risk]),
+            num_partitions,
+        )
+        counts = np.bincount(partitions[at_risk], minlength=num_partitions)
+        expected = (sums / np.maximum(counts, 1))[counts > 0]
+        rows = (data["trait"] == trait).to_numpy()
+        np.testing.assert_allclose(discounts[rows], expected, rtol=1e-12)

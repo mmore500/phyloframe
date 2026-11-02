@@ -28,7 +28,6 @@ def alifestd_tgs_allmdc_estimate_asexual(
     calibrate_num_partitions: int = 4096,
     calibrate_size_partition_ratio: float = 2.0,
     calibrate_size_partition_min_neutral_gains: int = 20,
-    num_survival_time_bins: int = 2048,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -115,7 +114,7 @@ def alifestd_tgs_allmdc_estimate_asexual(
     calibrate_num_partitions : int, default 4096
         Maximum number of equal-occupancy partitions of each size
         partition's branches, by ranked length and origin time, for
-        calibration and binning; a power of two.
+        calibration and fitting; a power of two.
     calibrate_size_partition_ratio : float, default 2.0
         Ratio between successive size partitions, which group branches by
         clade size for calibration: a branch subtending `n` leaves falls in
@@ -133,11 +132,6 @@ def alifestd_tgs_allmdc_estimate_asexual(
         one), so no inner size partition is left without neutral gains to
         calibrate against. Leaves always keep their own size partition, and
         clade sizes absent from the tree leave no empty size partitions.
-    num_survival_time_bins : int, default 2048
-        Number of equal-occupancy survival-time bins. In the fit, each
-        branch's survival time is replaced by the mean survival time of its
-        bin. As the survival term is convex in survival time, this
-        understates its average, so too few bins bias gain rate upward.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling branches with
         replacement and refitting, for standard errors,
@@ -224,7 +218,6 @@ def alifestd_tgs_allmdc_estimate_asexual(
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_size_partition_ratio=calibrate_size_partition_ratio,
         calibrate_size_partition_min_neutral_gains=calibrate_size_partition_min_neutral_gains,
-        num_survival_time_bins=num_survival_time_bins,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_starts=selection_starts,

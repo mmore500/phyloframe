@@ -29,7 +29,7 @@ def test_matches_pendant_without_survival_time():
         log_gain_rate=np.log(1e-3),
         rate=-0.05,
         **data,
-        survival_bin_times=np.array([0.0]),
+        distinct_survival_times=np.array([0.0]),
         growth_exponent_bound=600.0,
     )
     expected = _tgs_calc_nll(
@@ -49,7 +49,7 @@ def test_survival_discounts():
         log_gain_rate=np.log(1e-3),
         rate=rate,
         **data,
-        survival_bin_times=times,
+        distinct_survival_times=times,
         growth_exponent_bound=600.0,
     )
     gain = 1e-3 * np.expm1(rate * lengths) / rate * factor
@@ -66,7 +66,7 @@ def test_gradient(rate: float):
             log_gain_rate=params[0],
             rate=params[1],
             **data,
-            survival_bin_times=times,
+            distinct_survival_times=times,
             growth_exponent_bound=600.0,
         )
 

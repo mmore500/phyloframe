@@ -32,7 +32,8 @@ def tgs_calc_allmdc_data(
     `num_trials`, and of gains, `num_successes`, and their mean `length`
     (calibrated against neutral traits if `calibrate`). Also returns
     `survival_shares`, a sparse matrix with a row per `partition_df` row and
-    a column per survival-time bin, giving the share of the row's branches
+    a column per distinct survival time, giving the share of the row's
+    branches
     in each bin.
     """
     partitions = partitioning["partitions"]
@@ -75,7 +76,7 @@ def tgs_calc_allmdc_data(
             "length": lengths.ravel(),
         },
     )
-    # sparse, as partitions span few of many survival-time bins; each
+    # sparse, as partitions span few of many distinct survival times; each
     # trait's branches go in that trait's block of rows
     units = np.concatenate(trait_units)
     unit_traits = np.repeat(np.arange(num_traits), list(map(len, trait_units)))
@@ -85,12 +86,12 @@ def tgs_calc_allmdc_data(
                 weights[units],
                 (
                     unit_traits * num_partitions + partitions[units],
-                    partitioning["survival_bins"][units],
+                    partitioning["survival_time_indices"][units],
                 ),
             ),
             shape=(
                 num_traits * num_partitions,
-                len(partitioning["survival_bin_times"]),
+                len(partitioning["distinct_survival_times"]),
             ),
         ),
         norm="l1",

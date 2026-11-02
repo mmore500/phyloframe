@@ -23,7 +23,6 @@ def fixture():
         calibrate_num_partitions=256,
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
-        num_survival_time_bins=32,
     )
     data, shares = tgs_calc_allmdc_data(
         exposure_df=exposure_df,
@@ -36,21 +35,21 @@ def fixture():
         dict(partitions=partitions, survival_shares=shares[partitions.index])
         for __, partitions in data.groupby("trait", observed=False)
     ]
-    return by_trait, partitioning["survival_bin_times"]
+    return by_trait, partitioning["distinct_survival_times"]
 
 
 def _fit(
     *,
     partitions,
     survival_shares,
-    survival_bin_times,
+    distinct_survival_times,
     growth_exponent_bound,
     **kwargs,
 ):
     calc_nll, selection_scale = tgs_make_allmdc_trait_nll(
         partitions=partitions,
         survival_shares=survival_shares,
-        survival_bin_times=survival_bin_times,
+        distinct_survival_times=distinct_survival_times,
         growth_exponent_bound=growth_exponent_bound,
     )
     return tgs_fit_allmdc_trait(
@@ -64,7 +63,7 @@ def _fit(
 def test_make_nll(fixture):
     data, times = fixture
     calc_nll, selection_scale = tgs_make_allmdc_trait_nll(
-        **data[0], survival_bin_times=times, growth_exponent_bound=600.0
+        **data[0], distinct_survival_times=times, growth_exponent_bound=600.0
     )
     partitions = data[0]["partitions"]
     n, x = partitions["num_trials"], partitions["length"]
@@ -79,7 +78,7 @@ def test_recovers_focal(fixture):
     data, times = fixture
     res = _fit(
         **data[0],
-        survival_bin_times=times,
+        distinct_survival_times=times,
         loss_rate=0.0,
         selection_starts=(0.0, -0.3, -1.8),
         growth_exponent_bound=600.0,
@@ -93,7 +92,7 @@ def test_recovers_neutral(fixture):
     data, times = fixture
     res = _fit(
         **data[1],
-        survival_bin_times=times,
+        distinct_survival_times=times,
         loss_rate=0.0,
         selection_starts=(0.0,),
         growth_exponent_bound=600.0,
@@ -106,7 +105,7 @@ def test_loss_rate_shifts_selection(fixture):
     data, times = fixture
     kwargs = dict(
         **data[0],
-        survival_bin_times=times,
+        distinct_survival_times=times,
         selection_starts=(0.0, -0.3),
         growth_exponent_bound=600.0,
     )

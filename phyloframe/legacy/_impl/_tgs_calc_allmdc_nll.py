@@ -14,7 +14,7 @@ def tgs_calc_allmdc_nll(
     rate: float,
     partitions: pd.DataFrame,
     survival_shares: sparse.csr_matrix,
-    survival_bin_times: np.ndarray,
+    distinct_survival_times: np.ndarray,
     growth_exponent_bound: float,
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
@@ -29,8 +29,9 @@ def tgs_calc_allmdc_nll(
 
         gain_rate * (exp(rate * t) - 1) / rate * exp(rate * u)
 
-    averaging exp(rate * u) over each partition's survival-time bins, with
-    exponents capped at `growth_exponent_bound`.
+    averaging exp(rate * u) exactly over each partition's branches, whose
+    shares over `distinct_survival_times` are rows of `survival_shares`,
+    with exponents capped at `growth_exponent_bound`.
     """
     num_trials = partitions["num_trials"].to_numpy()
     num_successes = partitions["num_successes"].to_numpy()
@@ -46,11 +47,13 @@ def tgs_calc_allmdc_nll(
     )
     # chance a carrier lineage persists until its clade's last leaf is
     # sampled, averaged over each partition's branches
-    bin_survival = np.exp(
-        np.minimum(rate * survival_bin_times, growth_exponent_bound)
+    survival_factors = np.exp(
+        np.minimum(rate * distinct_survival_times, growth_exponent_bound)
     )
-    survival = survival_shares @ bin_survival
-    survival_deriv = survival_shares @ (survival_bin_times * bin_survival)
+    survival = survival_shares @ survival_factors
+    survival_deriv = survival_shares @ (
+        distinct_survival_times * survival_factors
+    )
     p = gain_rate * effective_length * survival
     nll, dnll_dp = calc_binomial_nll_proxy(num_trials, num_successes, p)
     dnll_dlog_gain = np.sum(dnll_dp * p)

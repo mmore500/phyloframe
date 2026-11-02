@@ -3,7 +3,6 @@ import typing
 import numpy as np
 import pandas as pd
 
-from ._tgs_bin_survival_times import tgs_bin_survival_times
 from ._tgs_calc_size_partitions import tgs_calc_size_partitions
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_trait_exposures import tgs_find_trait_exposures
@@ -23,7 +22,6 @@ def tgs_partition_allmdc_exposures(
     calibrate_num_partitions: int,
     calibrate_size_partition_ratio: float,
     calibrate_size_partition_min_neutral_gains: int,
-    num_survival_time_bins: int,
 ) -> typing.Dict[str, typing.Any]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
 
@@ -34,11 +32,12 @@ def tgs_partition_allmdc_exposures(
     equal-occupancy partitions (see `tgs_partition_size_partitions`), and,
     with `calibrate`, selects calibration neighborhoods within each size
     partition (see `tgs_select_allmdc_calibration_neighborhoods`). Also bins
-    survival times (see `tgs_bin_survival_times`).
+    branches by survival time, exactly, as trees typically have few distinct
+    survival times (e.g., from integer generations).
 
     Returns a dict with each branch's `partitions` index (numbered
-    consecutively across size partitions) and `survival_bins` index, each
-    bin's mean survival time `survival_bin_times`, and the
+    consecutively across size partitions) and `survival_time_indices`
+    index into the sorted `distinct_survival_times`, and the
     partition-by-partition `calibration_neighborhoods` (None without
     `calibrate`).
     """
@@ -62,14 +61,13 @@ def tgs_partition_allmdc_exposures(
         origin_times=exposure_df["origin_time"].to_numpy(),
         max_partitions=calibrate_num_partitions,
     )
-    survival_bins, survival_bin_times = tgs_bin_survival_times(
-        exposure_df["survival_time"].to_numpy(),
-        max_bins=num_survival_time_bins,
+    distinct_survival_times, survival_time_indices = np.unique(
+        exposure_df["survival_time"].to_numpy(), return_inverse=True
     )
     return {
         "partitions": partitions,
-        "survival_bins": survival_bins,
-        "survival_bin_times": survival_bin_times,
+        "survival_time_indices": survival_time_indices,
+        "distinct_survival_times": distinct_survival_times,
         "calibration_neighborhoods": (
             tgs_select_allmdc_calibration_neighborhoods(
                 counts=tgs_count_traits(

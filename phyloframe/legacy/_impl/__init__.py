@@ -3,7 +3,6 @@
 from ._TgsCounts import TgsCounts
 from ._alifestd_mask_trait_polars_impl import alifestd_mask_trait_polars_impl
 from ._tgs_allmdc_impl import tgs_allmdc_impl
-from ._tgs_bin_survival_times import tgs_bin_survival_times
 from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_calc_allmdc_data import tgs_calc_allmdc_data
@@ -55,7 +54,6 @@ __all__ = [
     "TgsFitResult",
     "alifestd_mask_trait_polars_impl",
     "tgs_allmdc_impl",
-    "tgs_bin_survival_times",
     "tgs_bootstrap",
     "tgs_build_estimates_df",
     "tgs_calc_allmdc_data",

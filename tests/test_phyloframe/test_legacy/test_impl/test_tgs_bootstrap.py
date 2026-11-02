@@ -26,7 +26,6 @@ def test_replicate():
             calibrate_num_partitions=64,
             calibrate_size_partition_ratio=4.0,
             calibrate_size_partition_min_neutral_gains=1,
-            num_survival_time_bins=8,
         ),
         neutral_traits=[1, 2],
         calibrate=False,

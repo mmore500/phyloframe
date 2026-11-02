@@ -19,7 +19,6 @@ _KWARGS = dict(
     calibrate_num_partitions=64,
     calibrate_size_partition_ratio=2.0,
     calibrate_size_partition_min_neutral_gains=1,
-    num_survival_time_bins=16,
     num_bootstrap=2,
     loss_rate=0.0,
     seed=1,
@@ -78,7 +77,6 @@ def test_no_branches():
 @pytest.mark.parametrize(
     "kwargs",
     [
-        dict(num_survival_time_bins=0),
         dict(calibrate_size_partition_ratio=1.0),
         dict(calibrate_size_partition_min_neutral_gains=0),
     ],

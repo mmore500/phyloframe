@@ -20,7 +20,6 @@ def test_partition():
     res = tgs_partition_allmdc_exposures(
         exposure_df=exposure_df,
         calibrate=False,
-        num_survival_time_bins=8,
         **_KWARGS,
     )
     # 64 partitions in each of 3 clade-size blocks: 1, 2-4, and 5-16 leaves
@@ -32,15 +31,17 @@ def test_partition():
     for partition in range((res["partitions"].max() + 1)):
         assert len(np.unique(blocks[res["partitions"] == partition])) == 1
     assert res["calibration_neighborhoods"] is None
-    # leaves all have survival time 0, filling the lower bins, which merge
-    num_bins = len(res["survival_bin_times"])
-    assert num_bins < 8
-    assert res["survival_bin_times"][0] == 0.0
-    assert (np.diff(res["survival_bin_times"]) > 0).all()
+    # survival times are grouped exactly; leaves all have survival time 0
+    times = res["distinct_survival_times"]
+    assert times.tolist() == sorted(set(exposure_df["survival_time"]))
+    np.testing.assert_array_equal(
+        times[res["survival_time_indices"]], exposure_df["survival_time"]
+    )
+    assert times[0] == 0.0
     assert (
-        res["survival_bins"][exposure_df["clade_size"].to_numpy() == 1] == 0
+        res["survival_time_indices"][exposure_df["clade_size"].to_numpy() == 1]
+        == 0
     ).all()
-    assert res["survival_bins"].max() == num_bins - 1
 
 
 def test_calibrate():
@@ -48,7 +49,6 @@ def test_calibrate():
     res = tgs_partition_allmdc_exposures(
         exposure_df=exposure_df,
         calibrate=True,
-        num_survival_time_bins=8,
         **_KWARGS,
     )
     neighborhoods = res["calibration_neighborhoods"]
@@ -77,7 +77,6 @@ def test_blocks(ratio: float, sizes):
     res = tgs_partition_allmdc_exposures(
         exposure_df=exposure_df.assign(clade_size=clade_sizes),
         calibrate=False,
-        num_survival_time_bins=8,
         **{**_KWARGS, "calibrate_size_partition_ratio": ratio},
     )
     expected = {
@@ -99,11 +98,10 @@ def test_constant_survival_time():
     res = tgs_partition_allmdc_exposures(
         exposure_df=leaves,
         calibrate=False,
-        num_survival_time_bins=8,
         **_KWARGS,
     )
-    assert res["survival_bin_times"].tolist() == [0.0]
-    assert (res["survival_bins"] == 0).all()
+    assert res["distinct_survival_times"].tolist() == [0.0]
+    assert (res["survival_time_indices"] == 0).all()
 
 
 def test_sparse_blocks_join_block_below():
@@ -130,7 +128,6 @@ def test_sparse_blocks_join_block_below():
     res = tgs_partition_allmdc_exposures(
         exposure_df=exposure_df,
         calibrate=True,
-        num_survival_time_bins=8,
         **kwargs,
     )
     capped = np.minimum(blocks, 3)
@@ -144,7 +141,6 @@ def test_sparse_blocks_join_block_below():
     uncapped = tgs_partition_allmdc_exposures(
         exposure_df=exposure_df,
         calibrate=False,
-        num_survival_time_bins=8,
         **kwargs,
     )
     assert not set(uncapped["partitions"][blocks == 4]) & set(

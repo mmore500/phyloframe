@@ -94,8 +94,6 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "n1",
             "--loss-rate",
             "0.001",
-            "--num-survival-time-bins",
-            "8",
             "--calibrate-size-partition-ratio",
             "4",
             "--calibrate-size-partition-min-neutral-gains",
@@ -110,7 +108,6 @@ def test_cli_matches_function(input_pqt, tmp_path):
         pl.read_parquet(input_pqt),
         trait_transitions=["focal", "n1"],
         loss_rate=0.001,
-        num_survival_time_bins=8,
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=5,
     )

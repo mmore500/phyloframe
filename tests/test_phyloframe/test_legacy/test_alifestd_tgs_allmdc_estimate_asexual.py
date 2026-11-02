@@ -192,14 +192,6 @@ def test_row_order_invariant():
     pd.testing.assert_frame_equal(res, expected, rtol=1e-4)
 
 
-def test_num_survival_time_bins_validated():
-    phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError):
-        _estimate_from_masks(
-            phylogeny_df, trait_masks=traits, num_survival_time_bins=0
-        )
-
-
 @pytest.mark.parametrize("ratio", [1.0, 0.5, -2.0, float("nan")])
 def test_calibrate_size_partition_ratio_validated(ratio: float):
     phylogeny_df, traits = _make_cherries(100)
@@ -230,19 +222,6 @@ def test_calibrate_size_partition_ratio(ratio: float):
         neutral_traits=[1, 2, 3, 4],
         calibrate=True,
         calibrate_size_partition_ratio=ratio,
-    )
-    assert res.loc[0, "selection"] < 0
-    assert np.isfinite(res["gain_ratio"]).all()
-
-
-@pytest.mark.parametrize("num_survival_time_bins", [1, 4, 64])
-def test_num_survival_time_bins(num_survival_time_bins: int):
-    phylogeny_df, traits = _make_cherries(10_000)
-    res = _estimate_from_masks(
-        phylogeny_df,
-        trait_masks=traits,
-        neutral_traits=[1, 2, 3, 4],
-        num_survival_time_bins=num_survival_time_bins,
     )
     assert res.loc[0, "selection"] < 0
     assert np.isfinite(res["gain_ratio"]).all()

@@ -12,7 +12,7 @@ def tgs_make_allmdc_trait_nll(
     *,
     partitions: pd.DataFrame,
     survival_shares: sparse.csr_matrix,
-    survival_bin_times: np.ndarray,
+    distinct_survival_times: np.ndarray,
     growth_exponent_bound: float,
 ) -> typing.Tuple[typing.Callable, float]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
@@ -34,7 +34,7 @@ def tgs_make_allmdc_trait_nll(
             rate=rate,
             partitions=partitions,
             survival_shares=survival_shares,
-            survival_bin_times=survival_bin_times,
+            distinct_survival_times=distinct_survival_times,
             growth_exponent_bound=growth_exponent_bound,
         )
 

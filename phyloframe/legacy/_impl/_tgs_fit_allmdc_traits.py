@@ -46,7 +46,7 @@ def tgs_fit_allmdc_traits(
         calc_nll, selection_scale = tgs_make_allmdc_trait_nll(
             partitions=partitions,
             survival_shares=survival_shares[partitions.index],
-            survival_bin_times=partitioning["survival_bin_times"],
+            distinct_survival_times=partitioning["distinct_survival_times"],
             growth_exponent_bound=growth_exponent_bound,
         )
         fit = tgs_fit_allmdc_trait(

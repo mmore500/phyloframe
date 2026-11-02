@@ -23,7 +23,6 @@ def tgs_allmdc_impl(
     calibrate_num_partitions: int,
     calibrate_size_partition_ratio: float,
     calibrate_size_partition_min_neutral_gains: int,
-    num_survival_time_bins: int,
     num_bootstrap: int,
     loss_rate: float,
     selection_starts: typing.Sequence[float],
@@ -43,7 +42,6 @@ def tgs_allmdc_impl(
     indices and `trait_names` as labels (see `tgs_validate_args`).
     """
     tgs_validate_allmdc_args(
-        num_survival_time_bins=num_survival_time_bins,
         calibrate_size_partition_ratio=calibrate_size_partition_ratio,
         calibrate_size_partition_min_neutral_gains=(
             calibrate_size_partition_min_neutral_gains
@@ -69,7 +67,6 @@ def tgs_allmdc_impl(
                 calibrate_size_partition_min_neutral_gains=(
                     calibrate_size_partition_min_neutral_gains
                 ),
-                num_survival_time_bins=num_survival_time_bins,
             ),
             neutral_traits=neutral_traits,
             calibrate=calibrate,

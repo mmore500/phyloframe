@@ -21,7 +21,6 @@ def _fit(exposure_df, calibrate=False, weights=None):
         calibrate_num_partitions=256,
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
-        num_survival_time_bins=32,
     )
     return tgs_fit_allmdc_traits(
         exposure_df=exposure_df,
