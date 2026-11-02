@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from scipy import optimize
 
-from phyloframe._auxlib._tgs_fit import _tgs_calc_nll, tgs_fit
+from phyloframe.legacy._impl._tgs_fit import _tgs_calc_nll, tgs_fit
 
 
 def _sample(gain_rate: float, selection: float, seed: int):
@@ -120,7 +120,7 @@ def test_no_convergence_warns(monkeypatch):
         return res
 
     monkeypatch.setattr(
-        "phyloframe._auxlib._tgs_fit.optimize",
+        "phyloframe.legacy._impl._tgs_fit.optimize",
         type("shim", (), {"minimize": staticmethod(fail)}),
     )
     with pytest.warns(UserWarning, match="did not converge"):
@@ -139,7 +139,9 @@ def test_tgs_calc_effective_length_deriv(rate: float):
     from fractions import Fraction
     from math import factorial
 
-    from phyloframe._auxlib._tgs_fit import _tgs_calc_effective_length_deriv
+    from phyloframe.legacy._impl._tgs_fit import (
+        _tgs_calc_effective_length_deriv,
+    )
 
     pendant_length = np.array([0.01, 1.0, 7.0, 30.0])
     res = _tgs_calc_effective_length_deriv(

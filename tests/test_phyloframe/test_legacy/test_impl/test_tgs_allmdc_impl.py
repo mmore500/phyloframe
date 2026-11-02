@@ -6,7 +6,7 @@ from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_tgs_allmdc_estimate_asexual
 from phyloframe.legacy._impl import (
     tgs_allmdc_impl,
-    tgs_calc_branches,
+    tgs_calc_exposure_df,
     tgs_prepare_asexual,
 )
 
@@ -35,11 +35,11 @@ _IMPL_KWARGS = dict(
 def test_matches_public():
     phylogeny_df, traits = _make_cherries(2_000)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    branches = tgs_prepare_asexual(
+    exposure_df = tgs_prepare_asexual(
         phylogeny_df, False, trait_transitions=names
     )
     res = tgs_allmdc_impl(
-        branches,
+        exposure_df,
         trait_names=names,
         neutral_traits=[1, 2, 3, 4],
         **_IMPL_KWARGS,
@@ -56,7 +56,7 @@ def test_matches_public():
 
 
 def _no_branches() -> pd.DataFrame:
-    return tgs_calc_branches(
+    return tgs_calc_exposure_df(
         ancestor_ids=np.array([0]),
         origin_time=np.array([0.0]),
         trait_states=[np.array([0])],

@@ -202,13 +202,13 @@ def alifestd_tgs_allmdc_estimate_asexual(
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
     )
-    branches = tgs_prepare_asexual(
+    exposure_df = tgs_prepare_asexual(
         phylogeny_df,
         mutate,
         trait_transitions=trait_transitions,
     )
     return tgs_allmdc_impl(
-        branches,
+        exposure_df,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate=calibrate,

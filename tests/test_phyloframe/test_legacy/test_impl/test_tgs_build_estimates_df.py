@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from phyloframe.legacy._impl import tgs_append_bootstrap_summary
+from phyloframe.legacy._impl import tgs_build_estimates_df
 
 
 def _res() -> pd.DataFrame:
@@ -18,7 +18,7 @@ def _res() -> pd.DataFrame:
 def test_no_bootstrap():
     res = _res()
     assert (
-        tgs_append_bootstrap_summary(res, replicate_fits=None, num_bootstrap=0)
+        tgs_build_estimates_df(res, replicate_fits_df=None, num_bootstrap=0)
         is res
     )
 
@@ -33,16 +33,16 @@ def test_summary_appended():
         keys=range(3),
         names=["replicate", "trait_index"],
     )
-    out = tgs_append_bootstrap_summary(
-        res, replicate_fits=replicate_fits, num_bootstrap=3
+    out = tgs_build_estimates_df(
+        res, replicate_fits_df=replicate_fits, num_bootstrap=3
     )
     assert out.columns[: len(res.columns)].tolist() == res.columns.tolist()
     np.testing.assert_allclose(out["selection_se"], 0.01)
 
 
 def test_nothing_to_fit_matches_point():
-    out = tgs_append_bootstrap_summary(
-        _res(), replicate_fits=None, num_bootstrap=3
+    out = tgs_build_estimates_df(
+        _res(), replicate_fits_df=None, num_bootstrap=3
     )
     # identical replicates give zero standard error
     np.testing.assert_allclose(out["selection_se"], 0.0)

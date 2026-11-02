@@ -7,18 +7,18 @@ from phyloframe._auxlib import identity
 from phyloframe.legacy._impl import (
     tgs_bootstrap,
     tgs_fit_allmdc_traits,
-    tgs_partition_allmdc_branches,
+    tgs_partition_allmdc_exposures,
 )
 
-from ._simulate_allmdc_branches import simulate_allmdc_branches
+from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 
 def test_replicate():
-    branches = simulate_allmdc_branches(4_000)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
     fit_kwargs = dict(
-        branches=branches,
-        partitioning=tgs_partition_allmdc_branches(
-            branches=branches,
+        exposure_df=exposure_df,
+        partitioning=tgs_partition_allmdc_exposures(
+            exposure_df=exposure_df,
             neutral_traits=[1, 2],
             trait_names=["focal", "n1", "n2"],
             calibrate=False,
@@ -36,7 +36,7 @@ def test_replicate():
     )
     kwargs = dict(
         fit=functools.partial(tgs_fit_allmdc_traits, **fit_kwargs),
-        num_items=len(branches),
+        num_items=len(exposure_df),
         num_bootstrap=2,
         parallel_backend=None,
         progress_wrap=identity,

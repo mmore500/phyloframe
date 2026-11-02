@@ -2,14 +2,14 @@ import typing
 
 import pandas as pd
 
-from ._tgs_append_bootstrap_summary import tgs_append_bootstrap_summary
-from ._tgs_find_trait_branches import tgs_find_trait_branches
+from ._tgs_build_estimates_df import tgs_build_estimates_df
+from ._tgs_find_trait_exposures import tgs_find_trait_exposures
 from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
 from ._tgs_init_results import tgs_init_results
 
 
 def tgs_impl(
-    branches: pd.DataFrame,
+    exposure_df: pd.DataFrame,
     *,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
@@ -29,26 +29,26 @@ def tgs_impl(
 
     Here, tgs stands for trait gain/selection.
 
-    Takes branches from `tgs_calc_branches` and validated arguments (see
+    Takes `exposure_df` from `tgs_calc_exposure_df` and validated arguments (see
     `tgs_validate_args`), and fits leaf pendant branches originating at or
     after `min_leaf_origin_time`.
     """
-    leaves = branches[
-        (branches["clade_size"] == 1)
-        & (branches["origin_time"] >= min_leaf_origin_time)
+    leaf_exposure_df = exposure_df[
+        (exposure_df["clade_size"] == 1)
+        & (exposure_df["origin_time"] >= min_leaf_origin_time)
     ]
-    trait_leaves, trait_carriers = tgs_find_trait_branches(leaves)
-    res = tgs_init_results(
+    trait_leaves, trait_carriers = tgs_find_trait_exposures(leaf_exposure_df)
+    estimates_df = tgs_init_results(
         trait_names=trait_names,
         trait_leaves=trait_leaves,
         trait_carriers=trait_carriers,
     )
-    replicate_fits = None
-    if len(leaves):
-        replicate_fits = tgs_fit_and_bootstrap(
-            res=res,
-            pendant_lengths=leaves["branch_length"].to_numpy(),
-            origin_times=leaves["origin_time"].to_numpy(),
+    replicate_fits_df = None
+    if len(leaf_exposure_df):
+        replicate_fits_df = tgs_fit_and_bootstrap(
+            estimates_df=estimates_df,
+            pendant_lengths=leaf_exposure_df["branch_length"].to_numpy(),
+            origin_times=leaf_exposure_df["origin_time"].to_numpy(),
             trait_leaves=trait_leaves,
             trait_carriers=trait_carriers,
             trait_names=trait_names,
@@ -62,6 +62,8 @@ def tgs_impl(
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         )
-    return tgs_append_bootstrap_summary(
-        res, replicate_fits=replicate_fits, num_bootstrap=num_bootstrap
+    return tgs_build_estimates_df(
+        estimates_df,
+        replicate_fits_df=replicate_fits_df,
+        num_bootstrap=num_bootstrap,
     )

@@ -9,12 +9,12 @@ from ._tgs_calc_calibrated_pendant_lengths import (
     tgs_calc_calibrated_pendant_lengths,
 )
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_find_trait_branches import tgs_find_trait_branches
+from ._tgs_find_trait_exposures import tgs_find_trait_exposures
 
 
 def tgs_calc_allmdc_data(
     *,
-    branches: pd.DataFrame,
+    exposure_df: pd.DataFrame,
     partitioning: typing.Dict[str, typing.Any],
     weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
@@ -24,8 +24,8 @@ def tgs_calc_allmdc_data(
 
     Here, tgs stands for trait gain/selection.
 
-    Summarizes `branches` (see `tgs_calc_branches`) by their `partitioning`
-    (see `tgs_partition_allmdc_branches`). Returns a DataFrame with one row
+    Summarizes `exposure_df` (see `tgs_calc_exposure_df`) by their `partitioning`
+    (see `tgs_partition_allmdc_exposures`). Returns a DataFrame with one row
     per trait and partition with branches starting without the trait,
     with columns `trait` (index, categorical over all traits), the
     (weighted) counts of those branches, `num_trials`, and of gains,
@@ -36,11 +36,11 @@ def tgs_calc_allmdc_data(
     """
     partitions = partitioning["partitions"]
     num_partitions = partitions.max() + 1
-    trait_units, trait_gains = tgs_find_trait_branches(branches)
+    trait_units, trait_gains = tgs_find_trait_exposures(exposure_df)
     counts = tgs_count_traits(
         leaf_partitions=partitions,
         num_partitions=num_partitions,
-        pendant_lengths=branches["branch_length"].to_numpy(),
+        pendant_lengths=exposure_df["branch_length"].to_numpy(),
         leaf_weights=weights,
         trait_leaves=trait_units,
         trait_carriers=trait_gains,

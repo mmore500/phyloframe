@@ -3,17 +3,17 @@ import pytest
 
 from phyloframe.legacy._impl import (
     tgs_fit_allmdc_traits,
-    tgs_partition_allmdc_branches,
+    tgs_partition_allmdc_exposures,
 )
 
-from ._simulate_allmdc_branches import simulate_allmdc_branches
+from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 
-def _fit(branches, calibrate=False, weights=None):
-    num_traits = sum(c.endswith("_starts_absent") for c in branches)
+def _fit(exposure_df, calibrate=False, weights=None):
+    num_traits = sum(c.endswith("_starts_absent") for c in exposure_df)
     neutral = list(range(1, num_traits))
-    partitioning = tgs_partition_allmdc_branches(
-        branches=branches,
+    partitioning = tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df,
         neutral_traits=neutral,
         trait_names=list(map(str, range(num_traits))),
         calibrate=calibrate,
@@ -24,9 +24,9 @@ def _fit(branches, calibrate=False, weights=None):
         num_survival_time_bins=32,
     )
     return tgs_fit_allmdc_traits(
-        branches=branches,
+        exposure_df=exposure_df,
         partitioning=partitioning,
-        weights=(np.ones(len(branches)) if weights is None else weights),
+        weights=(np.ones(len(exposure_df)) if weights is None else weights),
         neutral_traits=neutral,
         calibrate=calibrate,
         loss_rate=0.0,
@@ -38,7 +38,7 @@ def _fit(branches, calibrate=False, weights=None):
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_recovers(calibrate: bool):
     # four neutral traits, so each calibrates against three others
-    res = _fit(simulate_allmdc_branches(num_neutral=4), calibrate=calibrate)
+    res = _fit(simulate_allmdc_exposure_df(num_neutral=4), calibrate=calibrate)
     assert list(res.columns) == [
         "gain_rate",
         "selection",
@@ -56,17 +56,19 @@ def test_recovers(calibrate: bool):
 
 
 def test_trait_without_gains():
-    branches = simulate_allmdc_branches(4_000)
-    branches = branches.assign(trait0_gain=False)
-    res = _fit(branches)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
+    exposure_df = exposure_df.assign(trait0_gain=False)
+    res = _fit(exposure_df)
     assert res.loc[0, "gain_rate"] == 0.0
     assert np.isnan(res.loc[0, "selection"])
     assert np.isfinite(res.loc[1:, "gain_rate"]).all()
 
 
 def test_weights_match_duplication():
-    branches = simulate_allmdc_branches(4_000)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
     weights = np.ones(4_000)
     weights[::3] = 2.0
-    weighted = _fit(branches, weights=weights)
-    assert not np.allclose(weighted["gain_rate"], _fit(branches)["gain_rate"])
+    weighted = _fit(exposure_df, weights=weights)
+    assert not np.allclose(
+        weighted["gain_rate"], _fit(exposure_df)["gain_rate"]
+    )

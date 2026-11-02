@@ -4,12 +4,12 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from ..._auxlib._tgs_fit import TgsFitResult, _tgs_fit_impl
 from ._tgs_calc_calibrated_pendant_lengths import (
     tgs_calc_calibrated_pendant_lengths,
 )
 from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
 from ._tgs_count_traits import tgs_count_traits
+from ._tgs_fit import TgsFitResult, _tgs_fit_impl
 
 
 def tgs_fit_traits(

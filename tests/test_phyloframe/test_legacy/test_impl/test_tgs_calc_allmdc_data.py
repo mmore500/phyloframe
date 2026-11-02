@@ -3,10 +3,10 @@ import pytest
 
 from phyloframe.legacy._impl import (
     tgs_calc_allmdc_data,
-    tgs_partition_allmdc_branches,
+    tgs_partition_allmdc_exposures,
 )
 
-from ._simulate_allmdc_branches import simulate_allmdc_branches
+from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 
 def _by_trait(data, shares):
@@ -23,9 +23,9 @@ def _by_trait(data, shares):
 _COLUMNS = ("num_trials", "num_successes", "length")
 
 
-def _partition(branches, calibrate):
-    return tgs_partition_allmdc_branches(
-        branches=branches,
+def _partition(exposure_df, calibrate):
+    return tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df,
         neutral_traits=[1, 2],
         trait_names=["focal", "n1", "n2"],
         calibrate=calibrate,
@@ -39,11 +39,11 @@ def _partition(branches, calibrate):
 
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_data(calibrate: bool):
-    branches = simulate_allmdc_branches(4_000)
-    partitioning = _partition(branches, calibrate)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
+    partitioning = _partition(exposure_df, calibrate)
     data = _by_trait(
         *tgs_calc_allmdc_data(
-            branches=branches,
+            exposure_df=exposure_df,
             partitioning=partitioning,
             weights=np.ones(4_000),
             neutral_traits=[1, 2],
@@ -53,7 +53,7 @@ def test_data(calibrate: bool):
     assert len(data) == 3
     for trait, (n, k, lengths, shares) in enumerate(data):
         assert n.sum() == 4_000
-        assert k.sum() == branches[f"trait{trait}_gain"].sum()
+        assert k.sum() == exposure_df[f"trait{trait}_gain"].sum()
         assert (lengths > 0).all()
         assert shares.shape == (
             len(n),
@@ -63,18 +63,18 @@ def test_data(calibrate: bool):
     if not calibrate:
         n, __, lengths, __ = data[0]
         assert (n * lengths).sum() == pytest.approx(
-            branches["branch_length"].sum()
+            exposure_df["branch_length"].sum()
         )
 
 
 def test_weights():
-    branches = simulate_allmdc_branches(4_000)
-    partitioning = _partition(branches, False)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
+    partitioning = _partition(exposure_df, False)
     weights = np.zeros(4_000)
     weights[:100] = 2.0
     (n, __, __, shares), *__ = _by_trait(
         *tgs_calc_allmdc_data(
-            branches=branches,
+            exposure_df=exposure_df,
             partitioning=partitioning,
             weights=weights,
             neutral_traits=[1, 2],
@@ -88,12 +88,14 @@ def test_weights():
 
 
 def test_trait_without_units():
-    branches = simulate_allmdc_branches(1_000)
-    branches = branches.assign(trait0_starts_absent=False, trait0_gain=False)
+    exposure_df = simulate_allmdc_exposure_df(1_000)
+    exposure_df = exposure_df.assign(
+        trait0_starts_absent=False, trait0_gain=False
+    )
     (n, k, lengths, shares), *__ = _by_trait(
         *tgs_calc_allmdc_data(
-            branches=branches,
-            partitioning=_partition(branches, False),
+            exposure_df=exposure_df,
+            partitioning=_partition(exposure_df, False),
             weights=np.ones(1_000),
             neutral_traits=[1, 2],
             calibrate=False,

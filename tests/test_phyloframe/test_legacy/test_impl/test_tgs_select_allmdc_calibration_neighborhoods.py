@@ -2,30 +2,30 @@ import numpy as np
 
 from phyloframe.legacy._impl import (
     tgs_count_traits,
-    tgs_find_trait_branches,
+    tgs_find_trait_exposures,
     tgs_partition_size_partitions,
     tgs_select_allmdc_calibration_neighborhoods,
 )
 
-from ._simulate_allmdc_branches import simulate_allmdc_branches
+from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 
 def test_block_diagonal():
-    branches = simulate_allmdc_branches(4_000)
-    size_partitions = (branches["clade_size"] > 1).to_numpy().astype(int)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
+    size_partitions = (exposure_df["clade_size"] > 1).to_numpy().astype(int)
     partitions, blocks = tgs_partition_size_partitions(
         size_partitions=size_partitions,
-        branch_lengths=branches["branch_length"].to_numpy(),
-        origin_times=branches["origin_time"].to_numpy(),
+        branch_lengths=exposure_df["branch_length"].to_numpy(),
+        origin_times=exposure_df["origin_time"].to_numpy(),
         max_partitions=32,
     )
-    trait_units, trait_gains = tgs_find_trait_branches(branches)
+    trait_units, trait_gains = tgs_find_trait_exposures(exposure_df)
     res = tgs_select_allmdc_calibration_neighborhoods(
         counts=tgs_count_traits(
             leaf_partitions=partitions,
             num_partitions=partitions.max() + 1,
-            pendant_lengths=branches["branch_length"].to_numpy(),
-            leaf_weights=np.ones(len(branches)),
+            pendant_lengths=exposure_df["branch_length"].to_numpy(),
+            leaf_weights=np.ones(len(exposure_df)),
             trait_leaves=trait_units,
             trait_carriers=trait_gains,
         ),

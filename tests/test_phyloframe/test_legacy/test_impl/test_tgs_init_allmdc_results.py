@@ -4,7 +4,7 @@ from phyloframe.legacy._impl import tgs_init_allmdc_results
 
 
 def test_init():
-    branches = pd.DataFrame(
+    exposure_df = pd.DataFrame(
         {
             "origin_time": 0.0,
             "branch_length": 1.0,
@@ -16,7 +16,9 @@ def test_init():
             "trait1_gain": False,
         },
     )
-    res = tgs_init_allmdc_results(trait_names=["a", "b"], branches=branches)
+    res = tgs_init_allmdc_results(
+        trait_names=["a", "b"], exposure_df=exposure_df
+    )
     assert res.columns[:5].tolist() == [
         "trait",
         "num_leaves",

@@ -1,6 +1,6 @@
 import numpy as np
 
-from phyloframe.legacy._impl import tgs_calc_branches
+from phyloframe.legacy._impl import tgs_calc_exposure_df
 
 
 def test_branches():
@@ -14,7 +14,7 @@ def test_branches():
         np.array([0, 0, 1, 1, 1, 0, 0]),  # gained on the branch into 2
         np.array([1, 1, 1, 1, 1, 1, 1]),  # present from the root
     ]
-    res = tgs_calc_branches(
+    res = tgs_calc_exposure_df(
         ancestor_ids=ancestor_ids,
         origin_time=origin_time,
         trait_states=trait_states,
@@ -32,7 +32,7 @@ def test_branches():
 
 
 def test_zero_length_excluded():
-    res = tgs_calc_branches(
+    res = tgs_calc_exposure_df(
         ancestor_ids=np.array([0, 0, 0]),
         origin_time=np.array([0.0, 0.0, 1.0]),
         trait_states=[np.array([0, 0, 1])],

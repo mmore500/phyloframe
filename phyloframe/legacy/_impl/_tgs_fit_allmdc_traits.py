@@ -10,7 +10,7 @@ from ._tgs_fit_allmdc_trait import tgs_fit_allmdc_trait
 
 def tgs_fit_allmdc_traits(
     *,
-    branches: pd.DataFrame,
+    exposure_df: pd.DataFrame,
     partitioning: typing.Dict[str, typing.Any],
     weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
@@ -30,7 +30,7 @@ def tgs_fit_allmdc_traits(
     `gain_ratio`, the gain rate relative to neutral traits.
     """
     data, survival_shares = tgs_calc_allmdc_data(
-        branches=branches,
+        exposure_df=exposure_df,
         partitioning=partitioning,
         weights=weights,
         neutral_traits=neutral_traits,

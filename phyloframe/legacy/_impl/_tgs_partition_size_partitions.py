@@ -3,7 +3,7 @@ import typing
 
 import numpy as np
 
-from ._tgs_partition_branches import tgs_partition_branches
+from ._tgs_calc_rank_partitions import tgs_calc_rank_partitions
 
 
 def tgs_partition_size_partitions(
@@ -19,7 +19,7 @@ def tgs_partition_size_partitions(
 
     Partitions each size partition's branches into up to `max_partitions`
     equal-occupancy partitions by ranked length and origin time, skipping
-    either if constant (see `tgs_partition_branches`). Returns each
+    either if constant (see `tgs_calc_rank_partitions`). Returns each
     branch's partition, numbered consecutively across size partitions, and,
     per size partition, its first partition, number of partitions, and
     their mean coordinates.
@@ -33,7 +33,7 @@ def tgs_partition_size_partitions(
         # it would absorb its effect on neutral gains (e.g., from loss) into
         # branch length, then count it again in the survival term
         coordinates = [branch_lengths[members], origin_times[members]]
-        member_partitions, num, coords = tgs_partition_branches(
+        member_partitions, num, coords = tgs_calc_rank_partitions(
             # constant coordinates would only split on ties
             coordinates=[x for x in coordinates if np.ptp(x) > 0]
             or coordinates,

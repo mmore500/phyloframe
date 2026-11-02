@@ -11,7 +11,7 @@ from .._alifestd_mark_num_leaves_asexual import (
 )
 
 
-def tgs_calc_branches(
+def tgs_calc_exposure_df(
     *,
     ancestor_ids: np.ndarray,
     origin_time: np.ndarray,

@@ -52,7 +52,6 @@ from ._run_weighted_bootstrap import run_weighted_bootstrap
 from ._sample_bootstrap_counts import sample_bootstrap_counts
 from ._seed_random import seed_random
 from ._textwrap_respect_indents import textwrap_respect_indents
-from ._tgs_fit import TgsFitResult, tgs_fit
 from ._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
@@ -65,7 +64,6 @@ __all__ = [
     "ExperimentalWarning",
     "GetAttrLaunderShim",
     "RngStateContext",
-    "TgsFitResult",
     "add_bool_arg",
     "add_compression_cli_arg",
     "all_unique",
@@ -115,7 +113,6 @@ __all__ = [
     "sample_bootstrap_counts",
     "seed_random",
     "textwrap_respect_indents",
-    "tgs_fit",
     "unfurl_lineage_with_contiguous_ids",
     "warn_experimental",
     "warn_once",

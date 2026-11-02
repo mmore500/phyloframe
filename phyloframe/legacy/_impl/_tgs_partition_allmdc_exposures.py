@@ -6,16 +6,16 @@ import pandas as pd
 from ._tgs_bin_survival_times import tgs_bin_survival_times
 from ._tgs_calc_size_partitions import tgs_calc_size_partitions
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_find_trait_branches import tgs_find_trait_branches
+from ._tgs_find_trait_exposures import tgs_find_trait_exposures
 from ._tgs_partition_size_partitions import tgs_partition_size_partitions
 from ._tgs_select_allmdc_calibration_neighborhoods import (
     tgs_select_allmdc_calibration_neighborhoods,
 )
 
 
-def tgs_partition_allmdc_branches(
+def tgs_partition_allmdc_exposures(
     *,
-    branches: pd.DataFrame,
+    exposure_df: pd.DataFrame,
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
     calibrate: bool,
@@ -29,7 +29,7 @@ def tgs_partition_allmdc_branches(
 
     Here, tgs stands for trait gain/selection.
 
-    Splits `branches` (see `tgs_calc_branches`) into size partitions by
+    Splits `exposure_df` (see `tgs_calc_exposure_df`) into size partitions by
     clade size (see `tgs_calc_size_partitions`), then each into
     equal-occupancy partitions (see `tgs_partition_size_partitions`), and,
     with `calibrate`, selects calibration neighborhoods within each size
@@ -42,13 +42,13 @@ def tgs_partition_allmdc_branches(
     partition-by-partition `calibration_neighborhoods` (None without
     `calibrate`).
     """
-    branch_lengths = branches["branch_length"].to_numpy()
-    trait_units, trait_gains = tgs_find_trait_branches(branches)
+    branch_lengths = exposure_df["branch_length"].to_numpy()
+    trait_units, trait_gains = tgs_find_trait_exposures(exposure_df)
     neutral_gain_positions = np.concatenate(
         [trait_gains[r] for r in neutral_traits] or [np.empty(0, dtype=int)]
     )
     size_partitions = tgs_calc_size_partitions(
-        clade_sizes=branches["clade_size"].to_numpy(),
+        clade_sizes=exposure_df["clade_size"].to_numpy(),
         neutral_gain_positions=neutral_gain_positions,
         calibrate=calibrate,
         calibrate_size_partition_ratio=calibrate_size_partition_ratio,
@@ -59,11 +59,11 @@ def tgs_partition_allmdc_branches(
     partitions, blocks = tgs_partition_size_partitions(
         size_partitions=size_partitions,
         branch_lengths=branch_lengths,
-        origin_times=branches["origin_time"].to_numpy(),
+        origin_times=exposure_df["origin_time"].to_numpy(),
         max_partitions=calibrate_num_partitions,
     )
     survival_bins, survival_bin_times = tgs_bin_survival_times(
-        branches["survival_time"].to_numpy(),
+        exposure_df["survival_time"].to_numpy(),
         max_bins=num_survival_time_bins,
     )
     return {

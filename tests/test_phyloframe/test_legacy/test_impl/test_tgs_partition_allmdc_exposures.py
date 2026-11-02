@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from phyloframe.legacy._impl import tgs_partition_allmdc_branches
+from phyloframe.legacy._impl import tgs_partition_allmdc_exposures
 
-from ._simulate_allmdc_branches import simulate_allmdc_branches
+from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 _KWARGS = dict(
     neutral_traits=[1, 2],
@@ -16,9 +16,9 @@ _KWARGS = dict(
 
 
 def test_partition():
-    branches = simulate_allmdc_branches(4_000)
-    res = tgs_partition_allmdc_branches(
-        branches=branches,
+    exposure_df = simulate_allmdc_exposure_df(4_000)
+    res = tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df,
         calibrate=False,
         num_survival_time_bins=8,
         **_KWARGS,
@@ -27,7 +27,7 @@ def test_partition():
     assert (res["partitions"].max() + 1) == 3 * 64
     assert len(res["partitions"]) == 4_000
     blocks = np.searchsorted(
-        [2, 5], branches["clade_size"].to_numpy(), side="right"
+        [2, 5], exposure_df["clade_size"].to_numpy(), side="right"
     )
     for partition in range((res["partitions"].max() + 1)):
         assert len(np.unique(blocks[res["partitions"] == partition])) == 1
@@ -38,15 +38,15 @@ def test_partition():
     assert res["survival_bin_times"][0] == 0.0
     assert (np.diff(res["survival_bin_times"]) > 0).all()
     assert (
-        res["survival_bins"][branches["clade_size"].to_numpy() == 1] == 0
+        res["survival_bins"][exposure_df["clade_size"].to_numpy() == 1] == 0
     ).all()
     assert res["survival_bins"].max() == num_bins - 1
 
 
 def test_calibrate():
-    branches = simulate_allmdc_branches(4_000)
-    res = tgs_partition_allmdc_branches(
-        branches=branches,
+    exposure_df = simulate_allmdc_exposure_df(4_000)
+    res = tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df,
         calibrate=True,
         num_survival_time_bins=8,
         **_KWARGS,
@@ -55,7 +55,7 @@ def test_calibrate():
     assert neighborhoods.shape == (3 * 64, 3 * 64)
     # neighborhoods never mix clade-size blocks
     blocks = np.searchsorted(
-        [2, 5], branches["clade_size"].to_numpy(), side="right"
+        [2, 5], exposure_df["clade_size"].to_numpy(), side="right"
     )
     partition_blocks = np.zeros((res["partitions"].max() + 1), dtype=int)
     partition_blocks[res["partitions"]] = blocks
@@ -72,10 +72,10 @@ def test_calibrate():
     ],
 )
 def test_blocks(ratio: float, sizes):
-    branches = simulate_allmdc_branches(4_000)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
     clade_sizes = np.resize(sizes, 4_000)
-    res = tgs_partition_allmdc_branches(
-        branches=branches.assign(clade_size=clade_sizes),
+    res = tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df.assign(clade_size=clade_sizes),
         calibrate=False,
         num_survival_time_bins=8,
         **{**_KWARGS, "calibrate_size_partition_ratio": ratio},
@@ -94,10 +94,10 @@ def test_blocks(ratio: float, sizes):
 
 
 def test_constant_survival_time():
-    branches = simulate_allmdc_branches(1_000)
-    leaves = branches.assign(survival_time=0.0)
-    res = tgs_partition_allmdc_branches(
-        branches=leaves,
+    exposure_df = simulate_allmdc_exposure_df(1_000)
+    leaves = exposure_df.assign(survival_time=0.0)
+    res = tgs_partition_allmdc_exposures(
+        exposure_df=leaves,
         calibrate=False,
         num_survival_time_bins=8,
         **_KWARGS,
@@ -107,15 +107,15 @@ def test_constant_survival_time():
 
 
 def test_sparse_blocks_join_block_below():
-    branches = simulate_allmdc_branches(4_000)
+    exposure_df = simulate_allmdc_exposure_df(4_000)
     # ratio 2 gives blocks 0 (1 leaf), 1 (2), 2 (3-4), 3 (5-8), 4 (9)
-    blocks = np.ceil(np.log2(branches["clade_size"].to_numpy()) - 1e-9).astype(
-        int
-    )
+    blocks = np.ceil(
+        np.log2(exposure_df["clade_size"].to_numpy()) - 1e-9
+    ).astype(int)
     neutral_gains = np.bincount(
         blocks[
             np.concatenate(
-                [np.flatnonzero(branches[f"trait{i}_gain"]) for i in (1, 2)]
+                [np.flatnonzero(exposure_df[f"trait{i}_gain"]) for i in (1, 2)]
             )
         ],
         minlength=5,
@@ -127,8 +127,11 @@ def test_sparse_blocks_join_block_below():
         "calibrate_size_partition_ratio": 2.0,
         "calibrate_size_partition_min_neutral_gains": threshold,
     }
-    res = tgs_partition_allmdc_branches(
-        branches=branches, calibrate=True, num_survival_time_bins=8, **kwargs
+    res = tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df,
+        calibrate=True,
+        num_survival_time_bins=8,
+        **kwargs,
     )
     capped = np.minimum(blocks, 3)
     for partition in range((res["partitions"].max() + 1)):
@@ -138,8 +141,11 @@ def test_sparse_blocks_join_block_below():
         res["partitions"][blocks == 3]
     )
     # without calibration, blocks are not capped
-    uncapped = tgs_partition_allmdc_branches(
-        branches=branches, calibrate=False, num_survival_time_bins=8, **kwargs
+    uncapped = tgs_partition_allmdc_exposures(
+        exposure_df=exposure_df,
+        calibrate=False,
+        num_survival_time_bins=8,
+        **kwargs,
     )
     assert not set(uncapped["partitions"][blocks == 4]) & set(
         uncapped["partitions"][blocks == 3]
