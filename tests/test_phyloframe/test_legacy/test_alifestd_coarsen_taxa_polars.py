@@ -313,9 +313,9 @@ def test_coarsen_taxa_polars_nan(apply: typing.Callable):
     result = (
         alifestd_coarsen_taxa_polars(apply(df), by="trait").lazy().collect()
     )
-    # NaN values compare equal, as per polars semantics
-    assert result["id"].to_list() == [0, 1, 3]
-    assert result["ancestor_id"].to_list() == [0, 0, 1]
+    # NaN values compare unequal, matching pandas
+    assert result["id"].to_list() == [0, 1, 2, 3]
+    assert result["ancestor_id"].to_list() == [0, 0, 1, 2]
 
 
 @_apply
@@ -389,7 +389,16 @@ def test_coarsen_taxa_polars_drop_sensitivity(apply: typing.Callable):
         pd.read_csv(f"{assets}/nk_tournamentselection.csv"),
     ],
 )
-@pytest.mark.parametrize("by", ["trait", ["trait", "trait2"], "origin_time"])
+@pytest.mark.parametrize(
+    "by",
+    [
+        "trait",
+        ["trait", "trait2"],
+        "origin_time",
+        "nan_trait",
+        ["trait", "nan_trait"],
+    ],
+)
 @pytest.mark.parametrize("seed", range(3))
 def test_coarsen_taxa_polars_matches_pandas(
     apply: typing.Callable,
@@ -405,6 +414,11 @@ def test_coarsen_taxa_polars_matches_pandas(
     phylogeny_df["trait"] = rng.integers(0, 2, size=num_taxa)
     phylogeny_df["trait2"] = rng.integers(0, 3, size=num_taxa)
     phylogeny_df["origin_time"] = (phylogeny_df["origin_time"] // 10) * 10
+    # NaN never condensed, as in pandas; only include NaN column as `by`,
+    # as pandas first (but not polars first) skips NaN during aggregation
+    phylogeny_df["nan_trait"] = np.where(
+        rng.random(num_taxa) < 0.2, np.nan, rng.integers(0, 2, size=num_taxa)
+    )
     phylogeny_df = phylogeny_df[
         [
             "id",
@@ -414,13 +428,14 @@ def test_coarsen_taxa_polars_matches_pandas(
             "destruction_time",
             "trait",
             "trait2",
+            *(["nan_trait"] if "nan_trait" in by else []),
         ]
     ]
 
     expected = alifestd_coarsen_taxa_asexual(phylogeny_df, by=by)
     result = (
         alifestd_coarsen_taxa_polars(
-            apply(pl.from_pandas(phylogeny_df)), by=by
+            apply(pl.from_pandas(phylogeny_df, nan_to_null=False)), by=by
         )
         .lazy()
         .collect()

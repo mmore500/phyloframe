@@ -97,8 +97,8 @@ def alifestd_coarsen_taxa_polars(
     according to values in `by` column(s).
 
     Each condensed taxon is represented by its founder (i.e., its topmost
-    node), whose id it takes. As per polars semantics, NaN values compare
-    equal to one another.
+    node), whose id it takes. As in pandas, NaN values compare unequal to
+    one another, so taxa with NaN `by` values are never condensed.
 
     Parameters
     ----------
@@ -194,7 +194,13 @@ def alifestd_coarsen_taxa_polars(
             "is_root",
             is_taxon_founder=pl.any_horizontal(
                 [
-                    pl.col(col) != pl.col(col).gather(pl.col("ancestor_id"))
+                    (pl.col(col) != pl.col(col).gather(pl.col("ancestor_id")))
+                    # NaN compares unequal to NaN, matching pandas
+                    | (
+                        pl.col(col).is_nan()
+                        if schema[col].is_float()
+                        else pl.lit(False)
+                    )
                     for col in by
                 ],
             )
