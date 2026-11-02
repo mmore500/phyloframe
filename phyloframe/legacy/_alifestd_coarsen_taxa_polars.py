@@ -1,12 +1,10 @@
 import logging
 import typing
 
-import pandas as pd
 import polars as pl
 
 from ._alifestd_coarsen_taxa_asexual import (
     _alifestd_coarsen_taxa_asexual_fast_path,
-    alifestd_coarsen_taxa_asexual_make_agg,
 )
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
@@ -22,18 +20,55 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-def _make_agg_expr(col: str, agg: typing.Union[str, pl.Expr]) -> pl.Expr:
-    """Implementation detail for `alifestd_coarsen_taxa_polars`.
+def alifestd_coarsen_taxa_polars_make_agg(
+    phylogeny_df: pl.DataFrame,
+) -> typing.Dict[str, pl.Expr]:
+    """Build per-column aggregation expressions for polars taxa coarsening.
 
-    Translate a pandas GroupBy aggregation name into a polars expression.
-    As in pandas, "first" and "last" skip null values.
+    Parameters
+    ----------
+    phylogeny_df : polars.DataFrame or polars.LazyFrame
+        Input phylogeny table.
+
+    Returns
+    -------
+    Dict[str, polars.Expr]
+        Mapping of column name to aggregation expression. Column
+        "destruction_time" takes `last`, and all other columns take `first`.
+
+        Columns named
+
+        - "ancestor_id"
+        - "ancestor_list"
+        - "branch_length"
+        - "edge_length"
+        - "id"
+        - "is_leaf"
+
+        will be excluded from the result.
+
+    See Also
+    --------
+    alifestd_coarsen_taxa_asexual_make_agg :
+        Pandas-based implementation.
     """
-    if isinstance(agg, pl.Expr):
-        return agg.alias(col)
-    elif agg in ("first", "last"):
-        return getattr(pl.col(col).drop_nulls(), agg)()
-    else:
-        return getattr(pl.col(col), agg)()
+    return {
+        col: (
+            pl.col(col).last()
+            if col == "destruction_time"
+            else pl.col(col).first()
+        )
+        for col in phylogeny_df.lazy().collect_schema().names()
+        if col
+        not in (
+            "ancestor_id",
+            "ancestor_list",
+            "branch_length",
+            "edge_length",
+            "id",
+            "is_leaf",
+        )
+    }
 
 
 @alifestd_topological_sensitivity_warned_polars(
@@ -44,9 +79,7 @@ def _make_agg_expr(col: str, agg: typing.Union[str, pl.Expr]) -> pl.Expr:
 def alifestd_coarsen_taxa_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    agg: typing.Optional[
-        typing.Mapping[str, typing.Union[str, pl.Expr]]
-    ] = None,
+    agg: typing.Optional[typing.Mapping[str, pl.Expr]] = None,
     by: typing.Union[str, typing.Sequence[str]],
 ) -> pl.DataFrame:
     """Condense consecutive phylogeny nodes sharing identical trait values,
@@ -62,16 +95,14 @@ def alifestd_coarsen_taxa_polars(
 
         Must represent an asexual phylogeny with contiguous ids and
         topologically sorted rows.
-    agg : Mapping[str, str | polars.Expr], optional
-        Aggregation for each output column, as a pandas GroupBy aggregation
-        name (e.g., "first", "min", "max", etc.) or a polars expression.
-        Columns not included are dropped. As in pandas, "first" and "last"
-        skip null values. Members of each condensed taxon are aggregated in
-        topological order.
+    agg : Mapping[str, polars.Expr], optional
+        Aggregation expression for each output column, keyed by output column
+        name. Columns not included are dropped. Members of each condensed
+        taxon are aggregated in topological order, so `first` gives the
+        founder's value. Note that, unlike in pandas, `first` and `last` do
+        not skip nulls; use, e.g., `pl.col(col).drop_nulls().first()`.
 
-        If None, defaults to `alifestd_coarsen_taxa_asexual_make_agg`. So,
-        "destruction_time" takes "last", "branch_length", "edge_length", and
-        "is_leaf" are dropped, and all other columns take "first".
+        If None, defaults to `alifestd_coarsen_taxa_polars_make_agg`.
     by : str or Sequence[str]
         Column(s) whose values must be shared for consecutive nodes to be
         condensed.
@@ -94,6 +125,9 @@ def alifestd_coarsen_taxa_polars(
     --------
     alifestd_coarsen_taxa_asexual :
         Pandas-based implementation.
+    alifestd_coarsen_taxa_polars_make_agg :
+        Helper function to generate default `agg` dict, which may be customized
+        before being passed to `alifestd_coarsen_taxa_polars`.
     """
     logging.info(
         "- alifestd_coarsen_taxa_polars: adding ancestor_id col...",
@@ -111,9 +145,7 @@ def alifestd_coarsen_taxa_polars(
         schema = phylogeny_df.lazy().collect_schema()
 
     if agg is None:
-        agg = alifestd_coarsen_taxa_asexual_make_agg(
-            pd.DataFrame(columns=schema.names()),
-        )
+        agg = alifestd_coarsen_taxa_polars_make_agg(phylogeny_df)
 
     for col in "id", "ancestor_id", "ancestor_list":
         if col in agg:
@@ -122,21 +154,14 @@ def alifestd_coarsen_taxa_polars(
     if isinstance(by, str):
         by = (by,)
 
-    if phylogeny_df.lazy().limit(1).collect().is_empty():
-        return phylogeny_df.select(
-            "id",
-            "ancestor_id",
-            *(["ancestor_list"] if "ancestor_list" in schema.names() else []),
-            *agg,
-        )
+    if not phylogeny_df.lazy().limit(1).collect().is_empty():
+        if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+            raise NotImplementedError("non-contiguous ids not supported")
 
-    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
-        raise NotImplementedError("non-contiguous ids not supported")
-
-    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
-        raise NotImplementedError(
-            "non-topologically-sorted data not supported",
-        )
+        if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+            raise NotImplementedError(
+                "non-topologically-sorted data not supported",
+            )
 
     logging.info(
         "- alifestd_coarsen_taxa_polars: marking taxon founders...",
@@ -180,7 +205,7 @@ def alifestd_coarsen_taxa_polars(
         .agg(
             pl.col("id").first(),
             pl.col("ancestor_id").first(),
-            *(_make_agg_expr(col, agg[col]) for col in agg),
+            **agg,
         )
         .drop("_alifestd_coarsen_taxa_polars_founder_id")
     )

@@ -14,6 +14,9 @@ from phyloframe.legacy import (
 from phyloframe.legacy._alifestd_coarsen_taxa_polars import (
     alifestd_coarsen_taxa_polars as alifestd_coarsen_taxa_polars_,
 )
+from phyloframe.legacy._alifestd_coarsen_taxa_polars import (
+    alifestd_coarsen_taxa_polars_make_agg,
+)
 
 from ._impl import enforce_dtype_stability_polars
 
@@ -46,7 +49,9 @@ def test_coarsen_taxa_polars_agg_override_error(
         }
     )
     with pytest.raises(ValueError):
-        alifestd_coarsen_taxa_polars(apply(df), agg={col: "sum"}, by="dummy")
+        alifestd_coarsen_taxa_polars(
+            apply(df), agg={col: pl.col("dummy").sum()}, by="dummy"
+        )
 
 
 @_apply
@@ -61,6 +66,38 @@ def test_coarsen_taxa_polars_empty(apply: typing.Callable):
     result = alifestd_coarsen_taxa_polars(apply(df), by="dummy")
     assert result.lazy().collect().is_empty()
     assert "dummy" in result.lazy().collect_schema().names()
+
+    result = alifestd_coarsen_taxa_polars(
+        apply(df), by="dummy", agg={"count": pl.len()}
+    )
+    assert result.lazy().collect().is_empty()
+    assert result.lazy().collect_schema().names() == [
+        "id",
+        "ancestor_id",
+        "count",
+    ]
+
+
+@_apply
+def test_coarsen_taxa_polars_make_agg(apply: typing.Callable):
+    df = pl.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "ancestor_list": ["[none]", "[0]"],
+            "branch_length": [0, 1],
+            "edge_length": [0, 1],
+            "is_leaf": [False, True],
+            "origin_time": [0, 1],
+            "destruction_time": [1, 2],
+            "trait": ["x", "y"],
+        }
+    )
+    agg = alifestd_coarsen_taxa_polars_make_agg(apply(df))
+    assert sorted(agg) == ["destruction_time", "origin_time", "trait"]
+    assert df.select(**agg).to_dicts() == [
+        {"destruction_time": 2, "origin_time": 0, "trait": "x"},
+    ]
 
 
 @_apply
@@ -123,7 +160,10 @@ def test_coarsen_taxa_polars_two_groups(apply: typing.Callable):
         alifestd_coarsen_taxa_polars(
             apply(df),
             by="trait",
-            agg={"trait": "first", "value": "sum"},
+            agg={
+                "trait": pl.col("trait").first(),
+                "value": pl.col("value").sum(),
+            },
         )
         .lazy()
         .collect()
@@ -177,7 +217,7 @@ def test_coarsen_taxa_polars_expr_agg(apply: typing.Callable):
 
 
 @_apply
-def test_coarsen_taxa_polars_first_skips_nulls(apply: typing.Callable):
+def test_coarsen_taxa_polars_first_nulls(apply: typing.Callable):
     # zero-length branches, as from alifestd_splice_chronological_consistency
     df = pl.DataFrame(
         {
@@ -194,6 +234,16 @@ def test_coarsen_taxa_polars_first_skips_nulls(apply: typing.Callable):
     )
     assert result["id"].to_list() == [0, 1, 3]
     assert result["ancestor_id"].to_list() == [0, 0, 1]
+    # unlike pandas, polars first does not skip nulls
+    assert result["taxon"].to_list() == ["a", None, "c"]
+
+    agg = alifestd_coarsen_taxa_polars_make_agg(df)
+    agg["taxon"] = pl.col("taxon").drop_nulls().first()
+    result = (
+        alifestd_coarsen_taxa_polars(apply(df), by="origin_time", agg=agg)
+        .lazy()
+        .collect()
+    )
     assert result["taxon"].to_list() == ["a", "b", "c"]
 
 
@@ -299,9 +349,6 @@ def test_coarsen_taxa_polars_matches_pandas(
     phylogeny_df["trait"] = rng.integers(0, 2, size=num_taxa)
     phylogeny_df["trait2"] = rng.integers(0, 3, size=num_taxa)
     phylogeny_df["origin_time"] = (phylogeny_df["origin_time"] // 10) * 10
-    phylogeny_df["sparse"] = np.where(
-        rng.random(num_taxa) < 0.5, np.nan, rng.random(num_taxa)
-    )
     phylogeny_df = phylogeny_df[
         [
             "id",
@@ -311,7 +358,6 @@ def test_coarsen_taxa_polars_matches_pandas(
             "destruction_time",
             "trait",
             "trait2",
-            "sparse",
         ]
     ]
 

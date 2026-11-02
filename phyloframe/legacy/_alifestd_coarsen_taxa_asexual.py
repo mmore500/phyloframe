@@ -51,6 +51,11 @@ def alifestd_coarsen_taxa_asexual_make_agg(
 
         will be excluded from the result. All other (non-excluded) columns use
         `default_agg`.
+
+    See Also
+    --------
+    alifestd_coarsen_taxa_polars_make_agg :
+        Polars-based implementation.
     """
     overrides = {
         "destruction_time": "last",
