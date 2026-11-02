@@ -5,11 +5,12 @@ import typing
 import numpy as np
 import pandas as pd
 
+from ._tgs_append_bootstrap_summary import tgs_append_bootstrap_summary
 from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_fit_allmdc_traits import tgs_fit_allmdc_traits
 from ._tgs_init_allmdc_results import tgs_init_allmdc_results
 from ._tgs_partition_allmdc_branches import tgs_partition_allmdc_branches
-from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
+from ._tgs_validate_allmdc_args import tgs_validate_allmdc_args
 
 
 def tgs_allmdc_impl(
@@ -41,14 +42,13 @@ def tgs_allmdc_impl(
     `alifestd_tgs_allmdc_estimate_asexual`, with `neutral_traits` as
     indices and `trait_names` as labels (see `tgs_validate_args`).
     """
-    if num_survival_time_bins < 1:
-        raise ValueError("num_survival_time_bins must be at least 1")
-    if not calibrate_size_partition_ratio > 1:
-        raise ValueError("calibrate_size_partition_ratio must exceed 1")
-    if calibrate_size_partition_min_neutral_gains < 1:
-        raise ValueError(
-            "calibrate_size_partition_min_neutral_gains must be at least 1"
-        )
+    tgs_validate_allmdc_args(
+        num_survival_time_bins=num_survival_time_bins,
+        calibrate_size_partition_ratio=calibrate_size_partition_ratio,
+        calibrate_size_partition_min_neutral_gains=(
+            calibrate_size_partition_min_neutral_gains
+        ),
+    )
     res = tgs_init_allmdc_results(trait_names=trait_names, branches=branches)
     num_branches = len(branches)
     if num_branches:
@@ -90,10 +90,8 @@ def tgs_allmdc_impl(
                 f"{row['selection']:.4g}, gain ratio {row['gain_ratio']:.4g}, "
                 f"selection lrt {row['selection_lrt_naive']:.4g}",
             )
-    if not num_bootstrap:
-        return res
-
-    if num_branches:
+    replicate_fits = None
+    if num_branches and num_bootstrap:
         logging.info(
             "- alifestd_tgs_allmdc_estimate_asexual: "
             f"fitting {num_bootstrap} bootstrap replicates...",
@@ -106,16 +104,6 @@ def tgs_allmdc_impl(
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         )
-    else:  # nothing to fit, so every replicate matches the empty fit
-        replicate_fits = pd.concat(
-            [res] * num_bootstrap,
-            keys=range(num_bootstrap),
-            names=["replicate", "trait_index"],
-        )
-    return pd.concat(
-        [
-            res,
-            tgs_summarize_bootstrap(point=res, replicate_fits=replicate_fits),
-        ],
-        axis=1,
+    return tgs_append_bootstrap_summary(
+        res, replicate_fits=replicate_fits, num_bootstrap=num_bootstrap
     )

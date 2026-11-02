@@ -2,6 +2,8 @@
 
 from ._TgsCounts import TgsCounts
 from ._tgs_allmdc_impl import tgs_allmdc_impl
+from ._tgs_append_bootstrap_summary import tgs_append_bootstrap_summary
+from ._tgs_bin_survival_times import tgs_bin_survival_times
 from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_calc_allmdc_data import tgs_calc_allmdc_data
 from ._tgs_calc_allmdc_nll import tgs_calc_allmdc_nll
@@ -11,6 +13,7 @@ from ._tgs_calc_calibrated_pendant_lengths import (
 )
 from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
 from ._tgs_calc_heldout_nll import tgs_calc_heldout_nll
+from ._tgs_calc_size_partitions import tgs_calc_size_partitions
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_reference_traits import tgs_find_reference_traits
@@ -24,19 +27,34 @@ from ._tgs_init_allmdc_results import tgs_init_allmdc_results
 from ._tgs_init_results import tgs_init_results
 from ._tgs_partition_allmdc_branches import tgs_partition_allmdc_branches
 from ._tgs_partition_branches import tgs_partition_branches
+from ._tgs_partition_size_partitions import tgs_partition_size_partitions
 from ._tgs_prepare_asexual import tgs_prepare_asexual
 from ._tgs_prepare_polars import tgs_prepare_polars
+from ._tgs_select_allmdc_calibration_neighborhoods import (
+    tgs_select_allmdc_calibration_neighborhoods,
+)
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
+from ._tgs_select_pendant_calibration import tgs_select_pendant_calibration
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
+from ._tgs_validate_allmdc_args import tgs_validate_allmdc_args
 from ._tgs_validate_args import tgs_validate_args
+from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
 
 # adapted from https://stackoverflow.com/a/31079085
 __all__ = [
     "TgsCounts",
     "tgs_allmdc_impl",
     "tgs_bootstrap",
+    "tgs_warn_excluded_replicates",
+    "tgs_select_pendant_calibration",
+    "tgs_validate_allmdc_args",
+    "tgs_append_bootstrap_summary",
+    "tgs_select_allmdc_calibration_neighborhoods",
+    "tgs_partition_size_partitions",
+    "tgs_calc_size_partitions",
+    "tgs_bin_survival_times",
     "tgs_calc_allmdc_data",
     "tgs_calc_allmdc_nll",
     "tgs_calc_branches",

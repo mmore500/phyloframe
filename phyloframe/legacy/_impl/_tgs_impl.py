@@ -2,10 +2,10 @@ import typing
 
 import pandas as pd
 
+from ._tgs_append_bootstrap_summary import tgs_append_bootstrap_summary
 from ._tgs_find_trait_branches import tgs_find_trait_branches
 from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
 from ._tgs_init_results import tgs_init_results
-from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 
 
 def tgs_impl(
@@ -43,6 +43,7 @@ def tgs_impl(
         trait_leaves=trait_leaves,
         trait_carriers=trait_carriers,
     )
+    replicate_fits = None
     if len(leaves):
         replicate_fits = tgs_fit_and_bootstrap(
             res=res,
@@ -61,19 +62,6 @@ def tgs_impl(
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         )
-    else:  # nothing to fit, so every replicate matches the empty fit
-        replicate_fits = pd.concat(
-            [res] * num_bootstrap,
-            keys=range(num_bootstrap),
-            names=["replicate", "trait_index"],
-        )
-
-    if not num_bootstrap:
-        return res
-    return pd.concat(
-        [
-            res,
-            tgs_summarize_bootstrap(point=res, replicate_fits=replicate_fits),
-        ],
-        axis=1,
+    return tgs_append_bootstrap_summary(
+        res, replicate_fits=replicate_fits, num_bootstrap=num_bootstrap
     )

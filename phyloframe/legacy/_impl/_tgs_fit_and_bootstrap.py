@@ -6,15 +6,10 @@ import numpy as np
 import pandas as pd
 
 from ._tgs_bootstrap import tgs_bootstrap
-from ._tgs_calc_calibrated_pendant_lengths import (
-    tgs_calc_calibrated_pendant_lengths,
-)
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_partition_branches import tgs_partition_branches
-from ._tgs_select_calibration_neighborhoods import (
-    tgs_select_calibration_neighborhoods,
-)
+from ._tgs_select_pendant_calibration import tgs_select_pendant_calibration
 
 
 def tgs_fit_and_bootstrap(
@@ -60,37 +55,22 @@ def tgs_fit_and_bootstrap(
         loss_rate=loss_rate,
     )
     if calibrate:
-        counts = tgs_count_traits(
-            leaf_partitions=leaf_partitions,
-            num_partitions=num_partitions,
-            pendant_lengths=pendant_lengths,
-            leaf_weights=np.ones(num_leaves),
-            trait_leaves=trait_leaves,
-            trait_carriers=trait_carriers,
-        )
-        neighborhoods = tgs_select_calibration_neighborhoods(
+        fit_kwargs[
+            "calibration_neighborhoods"
+        ] = tgs_select_pendant_calibration(
+            counts=tgs_count_traits(
+                leaf_partitions=leaf_partitions,
+                num_partitions=num_partitions,
+                pendant_lengths=pendant_lengths,
+                leaf_weights=np.ones(num_leaves),
+                trait_leaves=trait_leaves,
+                trait_carriers=trait_carriers,
+            ),
             partition_coords=partition_coords,
             neighborhood_fractions=calibrate_neighborhood_fractions,
-            counts=counts,
             neutral_traits=neutral_traits,
             trait_names=trait_names,
         )
-        fit_kwargs["calibration_neighborhoods"] = neighborhoods
-        for trait, name in enumerate(trait_names):
-            __, factors = tgs_calc_calibrated_pendant_lengths(
-                counts=counts,
-                trait=trait,
-                neutral_traits=neutral_traits,
-                calibration_neighborhoods=neighborhoods,
-            )
-            factors = factors[counts.num_leaves[trait] > 0]
-            if len(factors):
-                logging.info(
-                    "- alifestd_tgs_pendantmdc_estimate_asexual: "
-                    f"calibrated trait {name}, rescaling pendant lengths by "
-                    f"{factors.min():.3g} to {factors.max():.3g} (median "
-                    f"{np.median(factors):.3g})",
-                )
 
     logging.info(
         "- alifestd_tgs_pendantmdc_estimate_asexual: "
