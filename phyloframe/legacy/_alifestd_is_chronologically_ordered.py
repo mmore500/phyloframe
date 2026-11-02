@@ -14,6 +14,9 @@ from ._alifestd_is_chronologically_sorted import (
 )
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
+from ._alifestd_try_add_ancestor_list_col import (
+    alifestd_try_add_ancestor_list_col,
+)
 
 
 def _report_diagnosis(
@@ -63,6 +66,7 @@ def _report_diagnosis(
         ancestor_id = df.at[index, "ancestor_id"]
         append(f"for {taxon_id=}, {ancestor_id=}")
 
+    df = alifestd_try_add_ancestor_list_col(df)
     ancestor_list = df.at[index, "ancestor_list"]
     ancestor_ids = alifestd_parse_ancestor_ids(ancestor_list)
     append(f"for {taxon_id=}, {ancestor_list=} and {ancestor_ids=}")

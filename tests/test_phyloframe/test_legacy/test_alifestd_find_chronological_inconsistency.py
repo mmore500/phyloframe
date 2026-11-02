@@ -400,3 +400,21 @@ def test_find_chronological_inconsistency_epsilon(
         alifestd_find_chronological_inconsistency(phylogeny_df, epsilon=1.5)
         == mid
     )
+
+
+@pytest.mark.parametrize("ids", [[0, 1, 2], [10, 30, 20]])
+@pytest.mark.parametrize("wrap", [str, lambda x: (x,)])
+def test_find_chronological_inconsistency_no_ancestor_list(
+    ids: typing.List[int], wrap: typing.Callable
+):
+    root, mid, leaf = ids
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [root, mid, leaf],
+            "ancestor_id": [root, root, mid],
+            "origin_time": [*map(wrap, [0, 2, 1])],
+        }
+    )
+    df_ = phylogeny_df.copy()
+    assert alifestd_find_chronological_inconsistency(phylogeny_df) == leaf
+    assert phylogeny_df.equals(df_)

@@ -359,3 +359,15 @@ def test_is_chronologically_ordered_epsilon(asexual: bool):
     assert not alifestd_is_chronologically_ordered(
         phylogeny_df, diagnose=False, epsilon=1.5
     )
+
+
+def test_is_chronologically_ordered_no_ancestor_list():
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "origin_time": [0.0, 2.0, 1.0],
+        }
+    )
+    with pytest.warns(UserWarning):
+        assert not alifestd_is_chronologically_ordered(phylogeny_df)

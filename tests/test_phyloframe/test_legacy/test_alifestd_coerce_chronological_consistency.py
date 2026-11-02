@@ -528,3 +528,25 @@ def test_coerce_chronological_consistency_epsilon_default_dtype(dtype: str):
     corrected = alifestd_coerce_chronological_consistency(phylogeny_df)
     assert corrected["origin_time"].tolist() == [3, 3, 3]
     assert corrected["origin_time"].dtype == dtype
+
+
+@pytest.mark.parametrize("ids", [[0, 1, 2], [10, 30, 20]])
+@pytest.mark.parametrize("wrap", [str, lambda x: (x,), float])
+def test_coerce_chronological_consistency_no_ancestor_list(
+    ids: typing.List[int], wrap: typing.Callable
+):
+    root, mid, leaf = ids
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [root, mid, leaf],
+            "ancestor_id": [root, root, mid],
+            "origin_time": [*map(wrap, [0, 2, 1])],
+        }
+    )
+    df_ = phylogeny_df.copy()
+    corrected = alifestd_coerce_chronological_consistency(phylogeny_df)
+    assert phylogeny_df.equals(df_)
+    assert "ancestor_list" not in corrected.columns
+    assert corrected.set_index("id").loc[ids, "origin_time"].tolist() == [
+        *map(wrap, [0, 2, 2])
+    ]

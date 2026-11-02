@@ -10,6 +10,9 @@ from .._auxlib._jit_TypingError import jit_TypingError
 from ._alifestd_has_compact_ids import alifestd_has_compact_ids
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
+from ._alifestd_try_add_ancestor_list_col import (
+    alifestd_try_add_ancestor_list_col,
+)
 
 
 @jit(nopython=True)
@@ -116,6 +119,7 @@ def alifestd_find_chronological_inconsistency(
             except TypeError:
                 break  # e.g., can't add epsilon to str origin_times
 
+    phylogeny_df = alifestd_try_add_ancestor_list_col(phylogeny_df)
     phylogeny_df = phylogeny_df.set_index("id", drop=False)
 
     origin_time_loc = phylogeny_df.columns.get_loc("origin_time")

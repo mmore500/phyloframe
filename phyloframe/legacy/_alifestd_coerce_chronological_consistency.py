@@ -28,6 +28,9 @@ from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_topological_sort import alifestd_topological_sort
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
+from ._alifestd_try_add_ancestor_list_col import (
+    alifestd_try_add_ancestor_list_col,
+)
 
 
 @jit(nopython=True)
@@ -90,13 +93,22 @@ def alifestd_coerce_chronological_consistency(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    had_ancestor_id = "ancestor_id" in phylogeny_df.columns
-    phylogeny_df = _coerce_chronological_consistency_impl(
-        alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True),
-        epsilon=epsilon,
+    added_columns = [
+        col
+        for col in ("ancestor_id", "ancestor_list")
+        if col not in phylogeny_df.columns
+    ]
+    phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
+    phylogeny_df = alifestd_try_add_ancestor_list_col(
+        phylogeny_df, mutate=True
     )
-    if not had_ancestor_id and "ancestor_id" in phylogeny_df.columns:
-        phylogeny_df = phylogeny_df.drop(columns="ancestor_id")
+    phylogeny_df = _coerce_chronological_consistency_impl(
+        phylogeny_df, epsilon=epsilon
+    )
+    # drop temporary columns
+    phylogeny_df = phylogeny_df.drop(
+        columns=[c for c in added_columns if c in phylogeny_df.columns],
+    )
 
     return phylogeny_df
 
