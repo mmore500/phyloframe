@@ -121,7 +121,11 @@ def alifestd_coerce_chronological_consistency_polars(
                 opyt.or_value(epsilon, 0),
             )
         )
-    except (TypeError, jit_TypingError):
+    except TypeError:
+        raise NotImplementedError("non-numeric origin_time not supported")
+    except jit_TypingError:  # pragma: no cover
+        # separate clause; jit_TypingError may be an empty tuple, which
+        # is not allowed nested inside another except tuple
         raise NotImplementedError("non-numeric origin_time not supported")
 
     return (
