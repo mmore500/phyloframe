@@ -93,24 +93,15 @@ def alifestd_coerce_chronological_consistency(
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
 
-    added_columns = [
-        col
-        for col in ("ancestor_id", "ancestor_list")
-        if col not in phylogeny_df.columns
-    ]
+    has_ancestor_id = "ancestor_id" in phylogeny_df
     phylogeny_df = alifestd_try_add_ancestor_id_col(phylogeny_df, mutate=True)
-    phylogeny_df = alifestd_try_add_ancestor_list_col(
-        phylogeny_df, mutate=True
-    )
-    phylogeny_df = _coerce_chronological_consistency_impl(
-        phylogeny_df, epsilon=epsilon
-    )
-    # drop temporary columns
-    phylogeny_df = phylogeny_df.drop(
-        columns=[c for c in added_columns if c in phylogeny_df.columns],
-    )
 
-    return phylogeny_df
+    res = _coerce_chronological_consistency_impl(phylogeny_df, epsilon=epsilon)
+
+    if not has_ancestor_id and "ancestor_id" in res:
+        res.drop(columns=["ancestor_id"], inplace=True)
+
+    return res
 
 
 def _coerce_chronological_consistency_impl(
@@ -161,6 +152,12 @@ def _coerce_chronological_consistency_impl(
                 break  # e.g., origin_times are strings or sequences
 
     # slower fallback implementation
+    has_ancestor_list = "ancestor_list" in phylogeny_df
+    if not has_ancestor_list:
+        phylogeny_df = alifestd_try_add_ancestor_list_col(
+            phylogeny_df, mutate=True
+        )
+
     if epsilon is not None:
         dtype = np.result_type(phylogeny_df["origin_time"].dtype, epsilon)
         phylogeny_df["origin_time"] = phylogeny_df["origin_time"].astype(dtype)
@@ -179,6 +176,9 @@ def _coerce_chronological_consistency_impl(
             phylogeny_df.iat[pos, origin_time_loc] = max(
                 offspring_time, ancestor_time
             )
+
+    if not has_ancestor_list:
+        phylogeny_df.drop(columns=["ancestor_list"], inplace=True)
 
     return phylogeny_df
 
