@@ -97,7 +97,8 @@ def alifestd_coarsen_taxa_polars(
     according to values in `by` column(s).
 
     Each condensed taxon is represented by its founder (i.e., its topmost
-    node), whose id it takes. Null values compare equal to one another.
+    node), whose id it takes. As per polars semantics, NaN values compare
+    equal to one another.
 
     Parameters
     ----------
@@ -128,7 +129,7 @@ def alifestd_coarsen_taxa_polars(
     ------
     NotImplementedError
         If `phylogeny_df` is sexual, has non-contiguous ids, or is not
-        topologically sorted.
+        topologically sorted, or if `by` columns contain null values.
     ValueError
         If `agg` would overwrite "id", "ancestor_id", or "ancestor_list".
 
@@ -165,6 +166,15 @@ def alifestd_coarsen_taxa_polars(
     if isinstance(by, str):
         by = (by,)
 
+    has_nulls = (
+        phylogeny_df.lazy()
+        .select(pl.any_horizontal([pl.col(col).is_null().any() for col in by]))
+        .collect()
+        .item()
+    )
+    if has_nulls:
+        raise NotImplementedError("null values in `by` not supported")
+
     if not phylogeny_df.lazy().limit(1).collect().is_empty():
         if not alifestd_has_contiguous_ids_polars(phylogeny_df):
             raise NotImplementedError("non-contiguous ids not supported")
@@ -184,9 +194,7 @@ def alifestd_coarsen_taxa_polars(
             "is_root",
             is_taxon_founder=pl.any_horizontal(
                 [
-                    pl.col(col).ne_missing(
-                        pl.col(col).gather(pl.col("ancestor_id")),
-                    )
+                    pl.col(col) != pl.col(col).gather(pl.col("ancestor_id"))
                     for col in by
                 ],
             )

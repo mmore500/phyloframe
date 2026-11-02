@@ -270,18 +270,52 @@ def test_coarsen_taxa_polars_first_nulls(apply: typing.Callable):
 
 
 @_apply
-def test_coarsen_taxa_polars_nulls_compare_equal(apply: typing.Callable):
+@pytest.mark.parametrize(
+    "trait",
+    [
+        pl.Series([None, None, 1], dtype=pl.Int64),
+        pl.Series([1.0, None, 1.0]),
+        pl.Series(["x", "x", None]),
+    ],
+)
+@pytest.mark.parametrize("by", ["trait", ["other", "trait"]])
+def test_coarsen_taxa_polars_nulls(
+    apply: typing.Callable,
+    trait: pl.Series,
+    by: typing.Union[str, typing.List[str]],
+):
     df = pl.DataFrame(
         {
             "id": [0, 1, 2],
             "ancestor_id": [0, 0, 1],
-            "trait": [None, None, 1],
+            "other": [0, 0, 0],
+            "trait": trait,
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_coarsen_taxa_polars(apply(df), by=by)
+    # missing values outside of `by` columns are fine
+    result = (
+        alifestd_coarsen_taxa_polars(apply(df), by="other").lazy().collect()
+    )
+    assert result["id"].to_list() == [0]
+
+
+@_apply
+def test_coarsen_taxa_polars_nan(apply: typing.Callable):
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 1, 2],
+            "trait": [1.0, float("nan"), float("nan"), 1.0],
         }
     )
     result = (
         alifestd_coarsen_taxa_polars(apply(df), by="trait").lazy().collect()
     )
-    assert result["id"].to_list() == [0, 2]
+    # NaN values compare equal, as per polars semantics
+    assert result["id"].to_list() == [0, 1, 3]
+    assert result["ancestor_id"].to_list() == [0, 0, 1]
 
 
 @_apply
