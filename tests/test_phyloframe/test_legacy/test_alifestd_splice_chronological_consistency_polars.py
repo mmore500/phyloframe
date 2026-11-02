@@ -34,10 +34,6 @@ _apply = pytest.mark.parametrize(
 )
 
 
-def _collect(df: typing.Union[pl.DataFrame, pl.LazyFrame]) -> pl.DataFrame:
-    return df.lazy().collect()
-
-
 @_apply
 def test_splice_chronological_consistency_polars_empty(
     apply: typing.Callable,
@@ -50,7 +46,7 @@ def test_splice_chronological_consistency_polars_empty(
         }
     )
     result = alifestd_splice_chronological_consistency_polars(apply(df))
-    assert _collect(result).is_empty()
+    assert result.lazy().collect().is_empty()
 
 
 @_apply
@@ -65,7 +61,7 @@ def test_splice_chronological_consistency_polars_consistent(
         }
     )
     result = alifestd_splice_chronological_consistency_polars(apply(df))
-    assert _collect(result).equals(df)
+    assert result.lazy().collect().equals(df)
 
 
 @_apply
@@ -80,10 +76,12 @@ def test_splice_chronological_consistency_polars_inconsistent(
             "trait": [1, 2, 3, 4, 5, 6],
         }
     )
-    result = _collect(
+    result = (
         alifestd_splice_chronological_consistency_polars(
             apply(df), ignore_topological_sensitivity=True
-        ),
+        )
+        .lazy()
+        .collect()
     )
     assert result["id"].to_list() == [*range(9)]
     assert result["ancestor_id"].to_list() == [8, 6, 6, 7, 7, 8, 0, 2, 8]
@@ -104,8 +102,10 @@ def test_splice_chronological_consistency_polars_ancestor_list(
             "origin_time": [1, 2, 0, 3],
         }
     )
-    result = _collect(
-        alifestd_splice_chronological_consistency_polars(apply(df)),
+    result = (
+        alifestd_splice_chronological_consistency_polars(apply(df))
+        .lazy()
+        .collect()
     )
     assert result["ancestor_id"].to_list() == [4, 0, 4, 1, 4]
     assert result["ancestor_list"].to_list() == [
@@ -129,8 +129,10 @@ def test_splice_chronological_consistency_polars_dtype(
             "origin_time": pl.Series([0.0, 2.0, 1.0], dtype=pl.Float32),
         }
     )
-    result = _collect(
-        alifestd_splice_chronological_consistency_polars(apply(df)),
+    result = (
+        alifestd_splice_chronological_consistency_polars(apply(df))
+        .lazy()
+        .collect()
     )
     assert result["id"].dtype == dtype
     assert result["ancestor_id"].dtype == dtype
@@ -149,8 +151,10 @@ def test_splice_chronological_consistency_polars_str(
             "origin_time": ["a", "c", "b", "d"],
         }
     )
-    result = _collect(
-        alifestd_splice_chronological_consistency_polars(apply(df)),
+    result = (
+        alifestd_splice_chronological_consistency_polars(apply(df))
+        .lazy()
+        .collect()
     )
     assert result["ancestor_id"].to_list() == [0, 4, 4, 2, 0]
     assert result["origin_time"].to_list() == ["a", "c", "b", "d", "b"]
@@ -238,11 +242,13 @@ def test_splice_chronological_consistency_polars_matches_pandas(
     expected = alifestd_splice_chronological_consistency_asexual(
         phylogeny_df, ignore_topological_sensitivity=True
     )
-    result = _collect(
+    result = (
         alifestd_splice_chronological_consistency_polars(
             apply(pl.from_pandas(phylogeny_df)),
             ignore_topological_sensitivity=True,
-        ),
+        )
+        .lazy()
+        .collect()
     )
     assert len(result) > len(phylogeny_df)
     for col in expected.columns:
