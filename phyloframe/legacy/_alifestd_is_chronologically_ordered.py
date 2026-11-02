@@ -92,7 +92,7 @@ def _report_diagnosis(
             df.set_index("id")["origin_time"],
         )
         if epsilon is not None:
-            ancestor_origin_time = ancestor_origin_time + epsilon
+            ancestor_origin_time += epsilon
         discrepancy_mask = (ancestor_origin_time > df["origin_time"]) & (
             df["ancestor_id"] != df["id"]
         )

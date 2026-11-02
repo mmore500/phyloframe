@@ -40,7 +40,7 @@ def alifestd_find_chronological_inconsistency_polars(
     # Use polars gather to look up ancestor origin times
     ancestor_origin_time = pl.col("origin_time").gather(pl.col("ancestor_id"))
     if epsilon is not None:
-        ancestor_origin_time = ancestor_origin_time + epsilon
+        ancestor_origin_time += epsilon
 
     result = (
         phylogeny_df.lazy()

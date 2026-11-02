@@ -153,7 +153,7 @@ def alifestd_coerce_chronological_consistency(
             ancestor_loc = phylogeny_df.index.get_loc(ancestor_id)
             ancestor_time = phylogeny_df.iat[ancestor_loc, origin_time_loc]
             if epsilon is not None:
-                ancestor_time = ancestor_time + epsilon
+                ancestor_time += epsilon
             offspring_time = phylogeny_df.iat[pos, origin_time_loc]
             phylogeny_df.iat[pos, origin_time_loc] = max(
                 offspring_time, ancestor_time

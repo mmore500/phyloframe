@@ -128,7 +128,7 @@ def alifestd_find_chronological_inconsistency(
             ancestor_loc = phylogeny_df.index.get_loc(ancestor_id)
             ancestor_time = phylogeny_df.iat[ancestor_loc, origin_time_loc]
             if epsilon is not None:
-                ancestor_time = ancestor_time + epsilon
+                ancestor_time += epsilon
             if ancestor_time > row["origin_time"]:
                 return _idx
 
