@@ -514,3 +514,17 @@ def test_coerce_chronological_consistency_fast_path_matches_slow_path(
     slow = alifestd_coerce_chronological_consistency(df_slow, epsilon=epsilon)
     assert alifestd_find_chronological_inconsistency(fast) is None
     assert fast["origin_time"].tolist() == slow["origin_time"].tolist()
+
+
+@pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
+def test_coerce_chronological_consistency_epsilon_default_dtype(dtype: str):
+    phylogeny_df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "origin_time": pd.Series([3, 1, 2], dtype=dtype),
+        }
+    )
+    corrected = alifestd_coerce_chronological_consistency(phylogeny_df)
+    assert corrected["origin_time"].tolist() == [3, 3, 3]
+    assert corrected["origin_time"].dtype == dtype

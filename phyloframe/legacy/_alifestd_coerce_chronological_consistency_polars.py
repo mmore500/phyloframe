@@ -14,7 +14,6 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_coerce_chronological_consistency import (
     _alifestd_coerce_chronological_consistency_asexual_fast_path,
-    _get_epsilon_dtype,
 )
 from ._alifestd_find_chronological_inconsistency_polars import (
     alifestd_find_chronological_inconsistency_polars,
@@ -33,7 +32,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_coerce_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    epsilon: float = 0.0,
+    epsilon: float = 0,
 ) -> pl.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
@@ -51,7 +50,7 @@ def alifestd_coerce_chronological_consistency_polars(
 
         Must represent an asexual phylogeny with contiguous ids, numeric
         `origin_time`, and topologically sorted rows.
-    epsilon : float, default 0.0
+    epsilon : float, default 0
         Minimum origin time gap enforced between each taxon and its parent.
 
     Returns
@@ -120,7 +119,7 @@ def alifestd_coerce_chronological_consistency_polars(
         "- alifestd_coerce_chronological_consistency_polars: "
         "coercing origin times...",
     )
-    dtype = _get_epsilon_dtype(origin_times.dtype, epsilon)
+    dtype = np.result_type(origin_times.dtype, epsilon)
     corrected = _alifestd_coerce_chronological_consistency_asexual_fast_path(
         ancestor_ids,
         origin_times.astype(dtype),
@@ -173,11 +172,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--epsilon",
-        default=0.0,
+        default=0,
         type=float,
         help=(
             "minimum origin time gap enforced between each taxon and its "
-            "parent (default: 0.0)"
+            "parent (default: 0)"
         ),
     )
     return parser

@@ -53,20 +53,6 @@ def _alifestd_coerce_chronological_consistency_asexual_fast_path(
     return result
 
 
-def _get_epsilon_dtype(
-    origin_time_dtype: np.dtype,
-    epsilon: float,
-) -> np.dtype:
-    """Implementation detail for `alifestd_coerce_chronological_consistency`.
-
-    Find dtype that can hold `origin_time + epsilon`. Dtype is unchanged
-    when `epsilon` is zero, so that the default is dtype-stable.
-    """
-    if epsilon == 0:
-        return origin_time_dtype
-    return np.result_type(origin_time_dtype, epsilon)
-
-
 def _is_fast_path_dtype(dtype: typing.Any) -> bool:
     """Implementation detail for `alifestd_coerce_chronological_consistency`."""
     return (
@@ -80,7 +66,7 @@ def alifestd_coerce_chronological_consistency(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    epsilon: float = 0.0,
+    epsilon: float = 0,
 ) -> pd.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
@@ -147,7 +133,7 @@ def _coerce_chronological_consistency_impl(
         and not phylogeny_df.empty
     ):
         # optimized implementation for asexual phylogenies w/ contiguous ids
-        dtype = _get_epsilon_dtype(origin_time_dtype, epsilon)
+        dtype = np.result_type(origin_time_dtype, epsilon)
         phylogeny_df[
             "origin_time"
         ] = _alifestd_coerce_chronological_consistency_asexual_fast_path(
@@ -158,8 +144,8 @@ def _coerce_chronological_consistency_impl(
         return phylogeny_df.set_index("id", drop=False)
 
     # slower fallback implementation
-    if epsilon != 0 and _is_fast_path_dtype(origin_time_dtype):
-        dtype = _get_epsilon_dtype(origin_time_dtype, epsilon)
+    if _is_fast_path_dtype(origin_time_dtype):
+        dtype = np.result_type(origin_time_dtype, epsilon)
         phylogeny_df["origin_time"] = phylogeny_df["origin_time"].astype(dtype)
 
     phylogeny_df = phylogeny_df.set_index("id", drop=False)
@@ -210,11 +196,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--epsilon",
-        default=0.0,
+        default=0,
         type=float,
         help=(
             "minimum origin time gap enforced between each taxon and its "
-            "parent(s) (default: 0.0)"
+            "parent(s) (default: 0)"
         ),
     )
     return parser
