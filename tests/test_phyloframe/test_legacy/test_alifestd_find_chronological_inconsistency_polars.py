@@ -104,3 +104,34 @@ def test_find_chronological_inconsistency_polars_single_node(
     )
 
     assert alifestd_find_chronological_inconsistency_polars(df_pl) is None
+
+
+@pytest.mark.parametrize(
+    "apply",
+    [
+        pytest.param(lambda x: x, id="DataFrame"),
+        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
+    ],
+)
+def test_find_chronological_inconsistency_polars_epsilon(
+    apply: typing.Callable,
+):
+    df_pl = apply(
+        pl.DataFrame(
+            {
+                "id": [0, 1, 2],
+                "ancestor_id": [0, 0, 1],
+                "origin_time": [0.0, 1.0, 2.0],
+            }
+        ),
+    )
+
+    assert alifestd_find_chronological_inconsistency_polars(df_pl) is None
+    assert (
+        alifestd_find_chronological_inconsistency_polars(df_pl, epsilon=1)
+        is None
+    )
+    assert (
+        alifestd_find_chronological_inconsistency_polars(df_pl, epsilon=1.5)
+        == 1
+    )
