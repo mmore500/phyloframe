@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
 
-from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
 from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
+from ._alifestd_mark_lineage_delta_asexual import (
+    _alifestd_mark_lineage_delta_asexual_fast_path,
+)
 from ._alifestd_mask_monomorphic_clades_asexual import (
     _alifestd_mask_monomorphic_clades_asexual_fast_path,
 )
@@ -39,11 +41,18 @@ def _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
     is_all_carrier = _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path(
         ancestor_ids, trait_mask
     )
+    # an MDC's root is where the all-carrier clade mask turns on along a
+    # lineage, i.e., where its lineage delta is +1; a root's delta is its
+    # own value, but a root has no stem branch, so is excluded
     is_root = ancestor_ids == np.arange(len(ancestor_ids))
-    return is_all_carrier & ~is_all_carrier[ancestor_ids] & ~is_root
+    return (
+        _alifestd_mark_lineage_delta_asexual_fast_path(
+            ancestor_ids, is_all_carrier
+        )
+        == 1
+    ) & ~is_root
 
 
-@warn_experimental
 def alifestd_mask_trait_mdcs_strict_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,

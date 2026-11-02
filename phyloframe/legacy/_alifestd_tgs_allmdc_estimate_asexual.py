@@ -71,13 +71,15 @@ def alifestd_tgs_allmdc_estimate_asexual(
       distortion of inner branch lengths (e.g., from reconstruction) also
       distorts the survival term, which neutral calibration does not
       correct; the pendant estimator, which uses no inner branch lengths,
-      is unaffected, so disagreement between the two flags such
+      is unaffected, so disagreement between the two may suggest such
       distortion; and
-    - nested branches share leaves, so their outcomes are not independent;
-      the likelihood treats them as independent, i.e., it is a composite
-      likelihood, so `selection_lrt_naive` is not calibrated as a
-      chi-squared statistic, and bootstrap standard errors are likely too
-      small.
+    - nested branches share leaves, so their outcomes are not independent,
+      but the likelihood treats them as independent (a composite
+      likelihood). So, `selection_lrt_naive` is not calibrated as a
+      chi-squared statistic, and every bootstrap statistic (standard
+      errors, z-scores, and p-values), as replicates resample branches
+      independently, is likely overconfident. No bootstrap that accounts
+      for nesting (e.g., resampling whole clades) is yet provided.
 
     Parameters
     ----------
@@ -173,16 +175,17 @@ def alifestd_tgs_allmdc_estimate_asexual(
     ValueError
         If arguments are invalid, e.g., `calibrate` with fewer than two
         neutral traits, or a `trait_transitions` column is missing or gives
-        states other than 0 and 1.
+        states other than 0 and 1, or if a non-root node has zero,
+        negative, or undefined (nan) branch length.
     NotImplementedError
         If a `trait_transitions` column is not integer, or has loss events,
         i.e., -1 values.
 
     Notes
     -----
-    Unifurcations are bypassed. Branches with zero or undefined length
-    (including roots) are excluded. Bootstrap replicates resample branches
-    independently, ignoring correlation through shared ancestry.
+    Unifurcations are collapsed (see `alifestd_collapse_unifurcations`).
+    Bootstrap replicates resample branches independently, ignoring
+    correlation through shared ancestry.
 
     Input dataframe is not mutated by this operation unless `mutate` set
     True. If mutate set True, operation does not occur in place; still use

@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_is_working_format_asexual import (
     alifestd_is_working_format_asexual,
 )
@@ -65,7 +64,6 @@ def _alifestd_mask_trait_singletons_asexual_fast_path(
     return is_leaf & is_all_carrier & ~is_all_carrier[stem_node_ids]
 
 
-@warn_experimental
 def alifestd_mask_trait_singletons_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,

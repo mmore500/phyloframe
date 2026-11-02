@@ -154,17 +154,19 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         +1, -1, or 0, or gives states other than 0 and 1, if a
         `neutral_traits` name is not among `trait_transitions`, if
         `calibrate_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `calibrate_num_partitions` is not a power of two.
+        (0, 1], if `calibrate_num_partitions` is not a power of two, or if
+        a non-root node has zero, negative, or undefined (nan) branch
+        length.
     NotImplementedError
         If a `trait_transitions` column is not integer, or has loss
         events, i.e., -1 values.
 
     Notes
     -----
-    Unifurcations are bypassed, so pendant branches span from leaves to
-    their stem node, the nearest ancestor with at least two children.
-    Leaves with zero or undefined pendant
-    length (including root leaves) are excluded. Under sparse sampling,
+    Unifurcations are collapsed (see `alifestd_collapse_unifurcations`), so
+    pendant branches span from leaves to their stem node, the nearest
+    ancestor with at least two children. Root leaves have no pendant
+    branch, so are excluded. Under sparse sampling,
     selection estimates the change rate of a reconstructed carrier
     lineage's weight, roughly the difference in per-lineage net growth;
     magnitudes may be biased, but signs and rankings are informative. With

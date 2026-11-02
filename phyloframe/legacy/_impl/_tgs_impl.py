@@ -38,10 +38,21 @@ def tgs_impl(
         & (exposure_df["origin_time"] >= min_leaf_origin_time)
     ]
     trait_leaves, trait_carriers = tgs_find_trait_exposures(leaf_exposure_df)
+    traits = range(len(trait_names))
     estimates_df = tgs_init_results(
         trait_names=trait_names,
-        trait_leaves=trait_leaves,
-        trait_carriers=trait_carriers,
+        counts={
+            "num_leaves": leaf_exposure_df[
+                [f"trait{i}_starts_absent" for i in traits]
+            ]
+            .sum()
+            .to_numpy(),
+            "num_trait_present": leaf_exposure_df[
+                [f"trait{i}_gain" for i in traits]
+            ]
+            .sum()
+            .to_numpy(),
+        },
     )
     replicate_fits_df = None
     if len(leaf_exposure_df):
