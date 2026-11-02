@@ -95,6 +95,9 @@ def alifestd_splice_chronological_consistency_polars(
         eligible ancestor node.
     alifestd_find_chronological_inconsistency_polars :
         Finds taxa with origin time inversions.
+    alifestd_coarsen_taxa_asexual :
+        With ``by="origin_time"``, collapses zero-length branches, merging
+        spliced nodes into the taxa they were spliced for. Pandas-only.
     """
 
     logging.info(

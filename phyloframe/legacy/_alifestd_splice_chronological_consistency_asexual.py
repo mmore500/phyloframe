@@ -147,6 +147,9 @@ def alifestd_splice_chronological_consistency_asexual(
         eligible ancestor node.
     alifestd_find_chronological_inconsistency :
         Finds taxa with origin time inversions.
+    alifestd_coarsen_taxa_asexual :
+        With ``by="origin_time"``, collapses zero-length branches, merging
+        spliced nodes into the taxa they were spliced for.
     """
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
