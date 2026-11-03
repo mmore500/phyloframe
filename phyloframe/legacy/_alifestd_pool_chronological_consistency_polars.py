@@ -38,11 +38,10 @@ def alifestd_pool_chronological_consistency_polars(
     weighted mean origin time.
 
     Performs weighted isotonic regression of origin times over the tree,
-    i.e., finds origin times that minimize
-    `sum_v w_v * (t'_v - t_v) ** 2` while ensuring that no taxon precedes
-    its parent.
-    Unlike `alifestd_coerce_chronological_consistency_polars`, which only
-    ever raises origin times, pooling is unbiased: the weighted sum of origin
+    i.e., finds origin times that minimize `sum_v w_v * (t'_v - t_v) ** 2`
+    while ensuring that no taxon precedes its parent. Unlike
+    `alifestd_coerce_chronological_consistency_polars`, which only ever
+    raises origin times, pooling is unbiased: the weighted sum of origin
     times, `sum_v w_v * t_v`, is conserved exactly within each pooled block.
 
     Taxa with zero weight do not participate in pooling. Instead, after
@@ -58,7 +57,7 @@ def alifestd_pool_chronological_consistency_polars(
     weighted origin time sum. Pinned taxa should themselves be
     chronologically consistent, as their origin times are never changed;
     if a pinned taxon precedes a pinned ancestor, the result will retain
-    that inversion.
+    that inversion, and a warning is issued.
 
     Parameters
     ----------

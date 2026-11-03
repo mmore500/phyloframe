@@ -4,6 +4,7 @@ import heapq
 import logging
 import os
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -190,9 +191,10 @@ def _alifestd_pool_chronological_consistency_asexual_impl(
     `alifestd_pool_chronological_consistency_polars`.
 
     Validates weights (uniform if None), pin mask (none pinned if None), and
-    origin times, then dispatches to
-    jit-compiled fast path. Returns pooled origin times, with dtype of
-    `origin_times` if floating point and float64 otherwise.
+    origin times, then dispatches to jit-compiled fast path. Warns if result
+    retains inversions, i.e., if pinned taxa are chronologically
+    inconsistent. Returns pooled origin times, with dtype of `origin_times`
+    if floating point and float64 otherwise.
     """
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     num_taxa = len(ancestor_ids)
@@ -226,6 +228,13 @@ def _alifestd_pool_chronological_consistency_asexual_impl(
         weights,
         is_pinned,
     )
+    # result inverted only where a pinned taxon precedes a pinned ancestor
+    if (result < result[ancestor_ids]).any():
+        warnings.warn(
+            "pinned taxa are not chronologically consistent; result "
+            "retains origin time inversions among pinned taxa",
+        )
+
     return result.astype(result_dtype, copy=False)
 
 
@@ -241,12 +250,11 @@ def alifestd_pool_chronological_consistency_asexual(
     weighted mean origin time.
 
     Performs weighted isotonic regression of origin times over the tree,
-    i.e., finds origin times that minimize
-    `sum_v w_v * (t'_v - t_v) ** 2` while ensuring that no taxon precedes
-    its parent.
-    Unlike `alifestd_coerce_chronological_consistency`, which only ever
-    raises origin times, pooling is unbiased: the weighted sum of origin
-    times, `sum_v w_v * t_v`, is conserved exactly within each pooled block.
+    i.e., finds origin times that minimize `sum_v w_v * (t'_v - t_v) ** 2`
+    while ensuring that no taxon precedes its parent. Unlike
+    `alifestd_coerce_chronological_consistency`, which only ever raises
+    origin times, pooling is unbiased: the weighted sum of origin times,
+    `sum_v w_v * t_v`, is conserved exactly within each pooled block.
 
     Taxa with zero weight do not participate in pooling. Instead, after
     pooling, each is clamped between its parent's origin time and the
@@ -261,7 +269,7 @@ def alifestd_pool_chronological_consistency_asexual(
     weighted origin time sum. Pinned taxa should themselves be
     chronologically consistent, as their origin times are never changed;
     if a pinned taxon precedes a pinned ancestor, the result will retain
-    that inversion.
+    that inversion, and a warning is issued.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return

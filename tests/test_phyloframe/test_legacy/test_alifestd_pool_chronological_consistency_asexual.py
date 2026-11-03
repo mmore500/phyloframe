@@ -1,5 +1,6 @@
 import os
 import typing
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -199,6 +200,39 @@ def test_pool_chronological_consistency_pin_by_internal():
     )
     # taxa are not pooled across pinned taxon
     assert result["origin_time"].tolist() == [5.0, 5.0, 5.0]
+
+
+def test_pool_chronological_consistency_pin_by_inconsistent_warns():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "origin_time": [5.0, 3.0, 4.0],
+            "is_fixed": [True, True, False],
+        }
+    )
+    with pytest.warns(UserWarning, match="not chronologically consistent"):
+        result = alifestd_pool_chronological_consistency_asexual(
+            df, pin_by="is_fixed"
+        )
+    assert result["origin_time"].tolist() == [5.0, 3.0, 4.0]
+
+
+def test_pool_chronological_consistency_pin_by_consistent_no_warning():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 1],
+            "origin_time": [3.0, 5.0, 4.0],
+            "is_fixed": [True, True, False],
+        }
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = alifestd_pool_chronological_consistency_asexual(
+            df, pin_by="is_fixed"
+        )
+    assert result["origin_time"].tolist() == [3.0, 5.0, 5.0]
 
 
 @_assets
