@@ -360,14 +360,13 @@ def alifestd_pool_chronological_consistency_asexual(
             "non-topologically-sorted data not supported",
         )
 
-    phylogeny_df["origin_time"] = (
-        _alifestd_pool_chronological_consistency_asexual_impl(
-            phylogeny_df["ancestor_id"].to_numpy(),
-            phylogeny_df["origin_time"].to_numpy(),
-            None if weight_by is None else phylogeny_df[weight_by].to_numpy(),
-            None if pin_by is None else phylogeny_df[pin_by].to_numpy(),
-        )
+    pooled = _alifestd_pool_chronological_consistency_asexual_impl(
+        phylogeny_df["ancestor_id"].to_numpy(),
+        phylogeny_df["origin_time"].to_numpy(),
+        None if weight_by is None else phylogeny_df[weight_by].to_numpy(),
+        None if pin_by is None else phylogeny_df[pin_by].to_numpy(),
     )
+    phylogeny_df["origin_time"] = pooled
 
     return phylogeny_df
 
