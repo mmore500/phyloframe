@@ -64,6 +64,8 @@ def alifestd_mark_min_child_value_asexual(
         Polars-based implementation.
     alifestd_mark_lineage_cummin_asexual :
         Minimum along lineages, or over clades with ``reverse=True``.
+    alifestd_mark_max_child_value_asexual :
+        Maximum of ``values`` among each node's children.
     """
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
