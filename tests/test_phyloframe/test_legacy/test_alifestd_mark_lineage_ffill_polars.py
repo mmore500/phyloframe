@@ -90,15 +90,48 @@ def test_dtypes(apply: typing.Callable, values: pl.Series, expected: list):
     assert res["lineage_ffill"].to_list() == expected
 
 
-def test_nan_not_filled():
+@pytest.mark.parametrize(
+    "fill_nan, fill_null, expected",
+    [
+        (True, True, [1.0, 1.0, 1.0, 1.0, 1.0]),
+        (False, True, [1.0, 1.0, np.nan, np.nan, np.nan]),
+        (True, False, [1.0, None, None, None, None]),
+        (False, False, [1.0, None, np.nan, None, np.nan]),
+    ],
+)
+def test_fill_nan_fill_null(fill_nan: bool, fill_null: bool, expected: list):
+    # chain 0 <- 1 <- 2 <- 3 <- 4
     nan = float("nan")
-    df = _make_df(pl.Series([None, nan, None, None, 7.0, None, 2.0, None]))
-    res = alifestd_mark_lineage_ffill_polars(df, "v")
-    np.testing.assert_array_equal(
-        res["lineage_ffill"].to_numpy(),
-        [np.nan, nan, np.nan, nan, 7.0, nan, 2.0, 2.0],
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 1, 2, 3],
+            "v": [1.0, None, nan, None, nan],
+        },
     )
-    assert res["lineage_ffill"].null_count() == 2  # 0 and 2 remain null
+    res = alifestd_mark_lineage_ffill_polars(
+        df, "v", fill_nan=fill_nan, fill_null=fill_null
+    )["lineage_ffill"]
+    assert res.is_null().to_list() == [x is None for x in expected]
+    np.testing.assert_array_equal(
+        res.fill_null(-1.0).to_numpy(),
+        [-1.0 if x is None else x for x in expected],
+    )
+
+
+def test_fill_nan_non_float():
+    df = _make_df(pl.Series([None, "a", None, None, "b", None, "c", None]))
+    res = alifestd_mark_lineage_ffill_polars(df, "v", fill_nan=True)
+    assert res["lineage_ffill"].to_list() == [
+        None,
+        "a",
+        None,
+        "a",
+        "b",
+        "a",
+        "c",
+        "c",
+    ]
 
 
 def test_expression():

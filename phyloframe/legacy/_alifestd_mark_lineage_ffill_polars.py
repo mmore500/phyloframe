@@ -8,6 +8,7 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import polars as pl
 
+from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
@@ -30,15 +31,17 @@ def alifestd_mark_lineage_ffill_polars(
     phylogeny_df: pl.DataFrame,
     values: typing.Union[str, pl.Expr],
     *,
+    fill_nan: bool = True,
+    fill_null: bool = True,
     mark_as: str = "lineage_ffill",
 ) -> pl.DataFrame:
-    """Add column with null ``values`` filled from nearest ancestor with a
-    non-null value.
+    """Add column with missing ``values`` filled from nearest ancestor with
+    a non-missing value.
 
-    Non-null values are unchanged. Null values with no non-null ancestor
-    (e.g., null roots) remain null. As with `polars.Expr.forward_fill`, only
-    nulls are filled; NaN values are treated as values. Column dtype is
-    preserved.
+    Missing values are null values, if ``fill_null``, and NaN values, if
+    ``fill_nan``. Non-missing values are unchanged. Missing values with no
+    non-missing ancestor (e.g., missing roots) remain missing. Column dtype
+    is preserved.
 
     Parameters
     ----------
@@ -49,6 +52,10 @@ def alifestd_mark_lineage_ffill_polars(
         topologically sorted rows.
     values : str or polars.Expr
         Column name or polars expression providing per-node values.
+    fill_nan : bool, default True
+        Fill NaN values (of float columns).
+    fill_null : bool, default True
+        Fill null values.
     mark_as : str, default "lineage_ffill"
         Output column name.
 
@@ -98,19 +105,23 @@ def alifestd_mark_lineage_ffill_polars(
         .select("ancestor_id", values_expr.alias(mark_as))
         .collect()
     )
+    values_series = columns[mark_as]
+    is_missing = values_series.is_null() & fill_null
+    if fill_nan and values_series.dtype.is_float():
+        is_missing |= values_series.is_nan().fill_null(False)
 
     logging.info("- alifestd_mark_lineage_ffill_polars: filling values...")
     sources = _alifestd_mark_lineage_ffill_asexual_fast_path(
         columns["ancestor_id"].to_numpy(),
-        columns[mark_as].is_null().to_numpy(),
+        is_missing.to_numpy(),
     )
 
-    return phylogeny_df.with_columns(columns[mark_as].gather(sources))
+    return phylogeny_df.with_columns(values_series.gather(sources))
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column with null `values` filled from nearest ancestor with a non-null value.
+Add column with missing (null or NaN) `values` filled from nearest ancestor with a non-missing value.
 
 Data is assumed to be in alife standard format.
 
@@ -118,7 +129,9 @@ Additional Notes
 ================
 - Requires asexual phylogeny with contiguous ids and topologically sorted rows.
 
-- Null values with no non-null ancestor (e.g., null roots) remain null.
+- Missing values with no non-missing ancestor (e.g., missing roots) remain missing.
+
+- Use `--no-fill-nan` or `--no-fill-null` to leave NaN or null values, respectively, unfilled.
 
 - Use `--eager-read` if modifying data file inplace.
 
@@ -149,6 +162,18 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         help="name of column to fill along lineage",
     )
+    add_bool_arg(
+        parser,
+        "fill-nan",
+        default=True,
+        help="fill NaN values (default: True)",
+    )
+    add_bool_arg(
+        parser,
+        "fill-null",
+        default=True,
+        help="fill null values (default: True)",
+    )
     parser.add_argument(
         "--mark-as",
         default="lineage_ffill",
@@ -174,6 +199,8 @@ if __name__ == "__main__":
                 output_dataframe_op=functools.partial(
                     alifestd_mark_lineage_ffill_polars,
                     values=args.values,
+                    fill_nan=args.fill_nan,
+                    fill_null=args.fill_null,
                     mark_as=args.mark_as,
                 ),
             )

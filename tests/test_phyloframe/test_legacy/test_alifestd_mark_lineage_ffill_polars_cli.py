@@ -58,3 +58,9 @@ def test_create_parser():
     args, __ = parser.parse_known_args(["--values", "v"])
     assert args.values == "v"
     assert args.mark_as == "lineage_ffill"
+    assert args.fill_nan and args.fill_null
+
+    args, __ = parser.parse_known_args(
+        ["--values", "v", "--no-fill-nan", "--no-fill-null"],
+    )
+    assert not args.fill_nan and not args.fill_null

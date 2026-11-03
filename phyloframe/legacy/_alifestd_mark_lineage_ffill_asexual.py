@@ -106,7 +106,8 @@ def alifestd_mark_lineage_ffill_asexual(
         phylogeny_df["ancestor_id"].to_numpy(),
         phylogeny_df[values].isna().to_numpy(),
     )
-    phylogeny_df[mark_as] = phylogeny_df[values].array.take(sources)
+    # sources are row positions; take .array to skip index alignment
+    phylogeny_df[mark_as] = phylogeny_df[values].iloc[sources].array
     return phylogeny_df
 
 
