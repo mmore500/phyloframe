@@ -276,7 +276,7 @@ def alifestd_pool_chronological_consistency_asexual(
     weighted origin time sum. Pinned taxa should themselves be
     chronologically consistent, as their origin times are never changed;
     if a pinned taxon precedes a pinned ancestor, the result will retain
-    that inversion, and a warning is issued.
+    that inversion.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
