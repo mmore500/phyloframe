@@ -1,6 +1,7 @@
 import argparse
 import functools
 import logging
+import numbers
 import os
 
 import joinem
@@ -35,8 +36,8 @@ def _alifestd_mark_lineage_cummax_asexual_fast_path(
     (via `np.maximum`).
     """
 
-    def max_(first, second):
-        return np.fmax(first, second) if skipna else np.maximum(first, second)
+    def max_(a: numbers.Number, b: numbers.Number) -> numbers.Number:
+        return np.fmax(a, b) if skipna else np.maximum(a, b)
 
     n = ancestor_ids.shape[0]
     result = np.copy(values)

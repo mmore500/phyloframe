@@ -1,6 +1,7 @@
 import argparse
 import functools
 import logging
+import numbers
 import os
 
 import joinem
@@ -35,8 +36,8 @@ def _alifestd_mark_lineage_cummin_asexual_fast_path(
     (via `np.minimum`).
     """
 
-    def min_(first, second):
-        return np.fmin(first, second) if skipna else np.minimum(first, second)
+    def min_(a: numbers.Number, b: numbers.Number) -> numbers.Number:
+        return np.fmin(a, b) if skipna else np.minimum(a, b)
 
     n = ancestor_ids.shape[0]
     result = np.copy(values)

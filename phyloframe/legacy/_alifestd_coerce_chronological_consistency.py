@@ -1,7 +1,7 @@
 import argparse
 import functools
 import logging
-from numbers import Number
+import numbers
 import os
 import typing
 
@@ -36,7 +36,7 @@ from ._alifestd_try_add_ancestor_list_col import (
 def _alifestd_coerce_chronological_consistency_asexual_fast_path(
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    epsilon: Number,
+    epsilon: numbers.Number,
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_coerce_chronological_consistency` and
@@ -60,7 +60,7 @@ def alifestd_coerce_chronological_consistency(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    epsilon: typing.Optional[Number] = None,
+    epsilon: typing.Optional[numbers.Number] = None,
 ) -> pd.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
