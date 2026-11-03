@@ -100,23 +100,34 @@ def alifestd_mark_lineage_ffill_polars(
     logging.info(
         "- alifestd_mark_lineage_ffill_polars: extracting columns...",
     )
+    (values_dtype,) = (
+        phylogeny_df.lazy().select(values_expr).collect_schema().dtypes()
+    )
+    is_nan = (  # is_nan only defined for float dtypes
+        values_expr.is_nan().fill_null(False)
+        if values_dtype.is_float()
+        else pl.lit(False)
+    )
     columns = (
         phylogeny_df.lazy()
-        .select("ancestor_id", values_expr.alias(mark_as))
+        .select(
+            "ancestor_id",
+            values_expr.alias(mark_as),
+            _alifestd_mark_lineage_ffill_polars_is_missing=(
+                values_expr.is_null() & fill_null
+            )
+            | (is_nan & fill_nan),
+        )
         .collect()
     )
-    values_series = columns[mark_as]
-    is_missing = values_series.is_null() & fill_null
-    if fill_nan and values_series.dtype.is_float():
-        is_missing |= values_series.is_nan().fill_null(False)
 
     logging.info("- alifestd_mark_lineage_ffill_polars: filling values...")
     sources = _alifestd_mark_lineage_ffill_asexual_fast_path(
         columns["ancestor_id"].to_numpy(),
-        is_missing.to_numpy(),
+        columns["_alifestd_mark_lineage_ffill_polars_is_missing"].to_numpy(),
     )
 
-    return phylogeny_df.with_columns(values_series.gather(sources))
+    return phylogeny_df.with_columns(columns[mark_as].gather(sources))
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
