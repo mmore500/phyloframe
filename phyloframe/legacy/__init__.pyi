@@ -519,6 +519,12 @@ from ._alifestd_mark_num_leaves_sibling_asexual import (
 from ._alifestd_mark_num_leaves_sibling_polars import (
     alifestd_mark_num_leaves_sibling_polars,
 )
+from ._alifestd_mark_num_mrca_pairs_asexual import (
+    alifestd_mark_num_mrca_pairs_asexual,
+)
+from ._alifestd_mark_num_mrca_pairs_polars import (
+    alifestd_mark_num_mrca_pairs_polars,
+)
 from ._alifestd_mark_num_preceding_leaves_asexual import (
     alifestd_mark_num_preceding_leaves_asexual,
 )
@@ -995,6 +1001,8 @@ __all__ = [
     "alifestd_mark_num_leaves_polars",
     "alifestd_mark_num_leaves_sibling_asexual",
     "alifestd_mark_num_leaves_sibling_polars",
+    "alifestd_mark_num_mrca_pairs_asexual",
+    "alifestd_mark_num_mrca_pairs_polars",
     "alifestd_mark_num_preceding_leaves_asexual",
     "alifestd_mark_num_preceding_leaves_polars",
     "alifestd_mark_oldest_root",
