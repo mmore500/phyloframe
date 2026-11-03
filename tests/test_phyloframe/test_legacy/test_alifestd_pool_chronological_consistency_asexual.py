@@ -11,6 +11,7 @@ from phyloframe.legacy import (
     alifestd_find_chronological_inconsistency,
     alifestd_find_leaf_ids,
     alifestd_make_empty,
+    alifestd_mark_leaves,
     alifestd_mark_num_mrca_leaf_pairs_asexual,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
@@ -83,6 +84,13 @@ def _pairs_weighted_sum(phylogeny_df: pd.DataFrame) -> float:
         "num_mrca_leaf_pairs"
     ]
     return (weights * phylogeny_df["origin_time"]).sum()
+
+
+def _pinned(phylogeny_df: pd.DataFrame, pin_by) -> pd.DataFrame:
+    """Add `is_leaf` pin column, if requested."""
+    if pin_by == "is_leaf":
+        phylogeny_df = alifestd_mark_leaves(phylogeny_df)
+    return phylogeny_df
 
 
 def _weighted(phylogeny_df: pd.DataFrame, weight_by) -> pd.DataFrame:
@@ -263,7 +271,7 @@ def test_pool_chronological_consistency_pin_by_fuzz(
     ).all()
 
 
-def test_pool_chronological_consistency_pin_by_reuses_is_leaf():
+def test_pool_chronological_consistency_pin_by_is_leaf():
     df = pd.DataFrame(
         {
             "id": [0, 1, 2],
@@ -271,15 +279,15 @@ def test_pool_chronological_consistency_pin_by_reuses_is_leaf():
             "origin_time": [5.0, 3.0, 10.0],
         }
     )
-    result = alifestd_pool_chronological_consistency_asexual(df)
-    assert result["origin_time"].tolist() == [3.0, 3.0, 10.0]
-    assert "is_leaf" not in result.columns
-
-    # precomputed column is used as-is, and retained
-    df["is_leaf"] = False
+    # no taxa pinned by default
     result = alifestd_pool_chronological_consistency_asexual(df)
     assert result["origin_time"].tolist() == [4.0, 4.0, 10.0]
-    assert result["is_leaf"].tolist() == [False] * 3
+
+    result = alifestd_pool_chronological_consistency_asexual(
+        alifestd_mark_leaves(df), pin_by="is_leaf"
+    )
+    assert result["origin_time"].tolist() == [3.0, 3.0, 10.0]
+    assert result["is_leaf"].tolist() == [False, True, True]
 
 
 def test_pool_chronological_consistency_pin_by_non_bool():
@@ -387,9 +395,9 @@ def test_pool_chronological_consistency_no_pin(weight_by):
             "origin_time": [5.0, 3.0, 10.0],
         }
     )
-    df = _weighted(df, weight_by)
+    df = _weighted(_pinned(df, "is_leaf"), weight_by)
     result = alifestd_pool_chronological_consistency_asexual(
-        df, weight_by=weight_by
+        df, weight_by=weight_by, pin_by="is_leaf"
     )
     assert result["origin_time"].tolist() == [3.0, 3.0, 10.0]
 
@@ -523,7 +531,7 @@ def test_pool_chronological_consistency_fuzz(
     pin_by: typing.Optional[str],
 ):
     phylogeny_df = _add_noise(_prepare(phylogeny_df), seed)
-    phylogeny_df = _weighted(phylogeny_df, weight_by)
+    phylogeny_df = _pinned(_weighted(phylogeny_df, weight_by), pin_by)
     phylogeny_df["trait"] = np.arange(len(phylogeny_df))
     original = phylogeny_df.copy()
 
@@ -611,7 +619,7 @@ def test_pool_chronological_consistency_consistent_unchanged(
             _add_noise(phylogeny_df, seed)
         ).reset_index(drop=True)
     assert alifestd_find_chronological_inconsistency(phylogeny_df) is None
-    phylogeny_df = _weighted(phylogeny_df, weight_by)
+    phylogeny_df = _pinned(_weighted(phylogeny_df, weight_by), pin_by)
 
     result = alifestd_pool_chronological_consistency_asexual(
         phylogeny_df, weight_by=weight_by, pin_by=pin_by

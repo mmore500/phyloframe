@@ -8,6 +8,8 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_chronological_inconsistency_polars,
+    alifestd_mark_leaves,
+    alifestd_mark_leaves_polars,
     alifestd_mark_num_mrca_leaf_pairs_asexual,
     alifestd_mark_num_mrca_leaf_pairs_polars,
     alifestd_pool_chronological_consistency_asexual,
@@ -133,6 +135,8 @@ def test_pool_chronological_consistency_polars_pin_by(
             "origin_time": [5.0, 3.0, 10.0],
         }
     )
+    if pin_by == "is_leaf":
+        df = alifestd_mark_leaves_polars(df)
     result = (
         alifestd_pool_chronological_consistency_polars(
             apply(df), pin_by=pin_by
@@ -292,6 +296,8 @@ def test_pool_chronological_consistency_polars_matches_pandas(
     ]
     if weight_by is not None:
         phylogeny_df = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
+    if pin_by == "is_leaf":
+        phylogeny_df = alifestd_mark_leaves(phylogeny_df)
 
     expected = alifestd_pool_chronological_consistency_asexual(
         phylogeny_df, weight_by=weight_by, pin_by=pin_by
