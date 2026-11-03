@@ -131,7 +131,7 @@ def test_pool_chronological_consistency_inconsistent(mutate: bool):
         {
             "id": [0, 1, 2, 3, 4, 5, 6],
             "ancestor_id": [0, 0, 0, 1, 1, 2, 2],
-            "origin_time": [5, 1, 6, 10, 10, 10, 10],
+            "origin_time": [5.0, 1.0, 6.0, 10.0, 10.0, 10.0, 10.0],
             "trait": [1, 2, 3, 4, 5, 6, 7],
         }
     )
@@ -461,8 +461,6 @@ def test_pool_chronological_consistency_nan_origin_time():
 @pytest.mark.parametrize(
     "dtype, expected_dtype",
     [
-        (np.int64, np.float64),
-        (np.uint32, np.float64),
         (np.float32, np.float32),
         (np.float64, np.float64),
     ],
@@ -480,6 +478,19 @@ def test_pool_chronological_consistency_dtype(
     result = alifestd_pool_chronological_consistency_asexual(df)
     assert result["origin_time"].dtype == expected_dtype
     assert result["origin_time"].tolist() == [1.5, 1.5, 3, 3]
+
+
+@pytest.mark.parametrize("dtype", [np.int64, np.uint32])
+def test_pool_chronological_consistency_integer_origin_time(dtype: type):
+    df = pd.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "origin_time": np.array([2, 1], dtype=dtype),
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_pool_chronological_consistency_asexual(df)
 
 
 @pytest.mark.parametrize(

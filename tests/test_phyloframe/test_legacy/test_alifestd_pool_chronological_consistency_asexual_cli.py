@@ -10,6 +10,16 @@ from phyloframe.legacy._alifestd_pool_chronological_consistency_asexual import (
 
 assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
+
+def _float_input_file() -> str:
+    """Write copy of asset with floating point origin times."""
+    input_file = "/tmp/phyloframe_alifestd_pool_chronological_consistency_asexual_in.csv"  # nosec B108
+    pd.read_csv(f"{assets}/nk_ecoeaselection-workingformat.csv").astype(
+        {"origin_time": float}
+    ).to_csv(input_file, index=False)
+    return input_file
+
+
 MODULE = "phyloframe.legacy._alifestd_pool_chronological_consistency_asexual"
 
 
@@ -45,7 +55,7 @@ def test_cli_csv():
     subprocess.run(  # nosec B603
         ["python3", "-m", MODULE, output_file],
         check=True,
-        input=f"{assets}/nk_ecoeaselection-workingformat.csv".encode(),
+        input=_float_input_file().encode(),
     )
     assert os.path.exists(output_file)
     result_df = pd.read_csv(output_file)
@@ -66,7 +76,7 @@ def test_cli_parquet():
             output_file,
         ],
         check=True,
-        input=f"{assets}/nk_ecoeaselection-workingformat.csv".encode(),
+        input=_float_input_file().encode(),
     )
     assert os.path.exists(output_file)
     result_df = pd.read_parquet(output_file)

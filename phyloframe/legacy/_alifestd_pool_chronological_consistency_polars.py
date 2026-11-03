@@ -62,8 +62,8 @@ def alifestd_pool_chronological_consistency_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format.
 
-        Must represent an asexual phylogeny with contiguous ids, numeric
-        `origin_time`, and topologically sorted rows.
+        Must represent an asexual phylogeny with contiguous ids, floating
+        point `origin_time`, and topologically sorted rows.
     weight_by : str, optional
         Name of column holding per-taxon pooling weights, which must be
         finite and non-negative. If None (default), all taxa have unit weight,
@@ -85,15 +85,14 @@ def alifestd_pool_chronological_consistency_polars(
     Returns
     -------
     polars.DataFrame or polars.LazyFrame
-        The phylogeny with pooled `origin_time` column. Floating point
-        dtype is preserved; integer origin times are converted to Float64,
-        as pooled means may be fractional.
+        The phylogeny with pooled `origin_time` column, with dtype
+        preserved.
 
     Raises
     ------
     NotImplementedError
         If `phylogeny_df` is sexual, has non-contiguous ids, is not
-        topologically sorted, or has non-numeric `origin_time`.
+        topologically sorted, or has non-floating point `origin_time`.
     ValueError
         If weights are invalid, `pin_by` column is not boolean, or
         `origin_time` contains NaN values.
@@ -203,7 +202,7 @@ Data is assumed to be in alife standard format.
 
 Additional Notes
 ================
-- Requires asexual phylogeny with contiguous ids and topologically sorted rows.
+- Requires asexual phylogeny with contiguous ids, floating point `origin_time`, and topologically sorted rows.
 
 - Use `--eager-read` if modifying data file inplace.
 

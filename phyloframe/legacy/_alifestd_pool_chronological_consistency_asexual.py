@@ -195,19 +195,17 @@ def _alifestd_pool_chronological_consistency_asexual_impl(
     Validates weights (uniform if None), pin mask (none pinned if None), and
     origin times, then dispatches to jit-compiled fast path. Warns if result
     retains inversions, i.e., if pinned taxa are chronologically
-    inconsistent. Returns pooled origin times, with dtype of `origin_times`
-    if floating point and float64 otherwise.
+    inconsistent. Returns pooled origin times, with dtype of `origin_times`.
     """
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     num_taxa = len(ancestor_ids)
 
-    try:
-        result_dtype = np.result_type(origin_times.dtype, np.float16)
-        if not np.issubdtype(result_dtype, np.floating):
-            result_dtype = np.float64
-        origin_times = np.asarray(origin_times, dtype=np.float64)
-    except (TypeError, ValueError):
-        raise NotImplementedError("non-numeric origin_time not supported")
+    result_dtype = np.asarray(origin_times).dtype
+    if not np.issubdtype(result_dtype, np.floating):
+        raise NotImplementedError(
+            "non-floating point origin_time not supported",
+        )
+    origin_times = np.asarray(origin_times, dtype=np.float64)
     if np.isnan(origin_times).any():
         raise ValueError("origin_time must not contain NaN values")
 
@@ -285,8 +283,8 @@ def alifestd_pool_chronological_consistency_asexual(
     phylogeny_df : pandas.DataFrame
         The phylogeny as a dataframe in alife standard format.
 
-        Must represent an asexual phylogeny with contiguous ids, numeric
-        `origin_time`, and topologically sorted rows.
+        Must represent an asexual phylogeny with contiguous ids, floating
+        point `origin_time`, and topologically sorted rows.
     mutate : bool, default False
         Allow in-place mutations of the input dataframe.
     weight_by : str, optional
@@ -310,15 +308,14 @@ def alifestd_pool_chronological_consistency_asexual(
     Returns
     -------
     pandas.DataFrame
-        The phylogeny with pooled `origin_time` column. Floating point
-        dtype is preserved; integer origin times are converted to float64,
-        as pooled means may be fractional.
+        The phylogeny with pooled `origin_time` column, with dtype
+        preserved.
 
     Raises
     ------
     NotImplementedError
         If `phylogeny_df` is sexual, has non-contiguous ids, is not
-        topologically sorted, or has non-numeric `origin_time`.
+        topologically sorted, or has non-floating point `origin_time`.
     ValueError
         If weights are invalid, `pin_by` column is not boolean, or
         `origin_time` contains NaN values.
@@ -387,7 +384,7 @@ Data is assumed to be in alife standard format.
 
 Additional Notes
 ================
-- Requires asexual phylogeny with contiguous ids and topologically sorted rows.
+- Requires asexual phylogeny with contiguous ids, floating point `origin_time`, and topologically sorted rows.
 
 - Use `--eager-read` if modifying data file inplace.
 

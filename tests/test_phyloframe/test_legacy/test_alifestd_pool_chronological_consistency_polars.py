@@ -77,7 +77,7 @@ def test_pool_chronological_consistency_polars_inconsistent(
         {
             "id": [0, 1, 2, 3, 4, 5, 6],
             "ancestor_id": [0, 0, 0, 1, 1, 2, 2],
-            "origin_time": [5, 1, 6, 10, 10, 10, 10],
+            "origin_time": [5.0, 1.0, 6.0, 10.0, 10.0, 10.0, 10.0],
             "trait": [1, 2, 3, 4, 5, 6, 7],
         }
     )
@@ -192,8 +192,6 @@ def test_pool_chronological_consistency_polars_invalid_weights(
 @pytest.mark.parametrize(
     "dtype, expected_dtype",
     [
-        (pl.Int64, pl.Float64),
-        (pl.UInt32, pl.Float64),
         (pl.Float32, pl.Float32),
         (pl.Float64, pl.Float64),
     ],
@@ -221,6 +219,22 @@ def test_pool_chronological_consistency_polars_dtype(
     assert result["ancestor_id"].dtype == id_dtype
     assert result["origin_time"].dtype == expected_dtype
     assert result["origin_time"].to_list() == [1.5, 1.5, 3, 3]
+
+
+@_apply
+@pytest.mark.parametrize("dtype", [pl.Int64, pl.UInt32])
+def test_pool_chronological_consistency_polars_integer_origin_time(
+    apply: typing.Callable, dtype: pl.DataType
+):
+    df = pl.DataFrame(
+        {
+            "id": [0, 1],
+            "ancestor_id": [0, 0],
+            "origin_time": pl.Series([2, 1], dtype=dtype),
+        }
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_pool_chronological_consistency_polars(apply(df))
 
 
 @_apply
