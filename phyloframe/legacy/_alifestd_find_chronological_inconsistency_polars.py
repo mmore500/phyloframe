@@ -33,6 +33,9 @@ def alifestd_find_chronological_inconsistency_polars(
     alifestd_splice_chronological_consistency_polars :
         Resolves origin time inversions by grafting onto a node spliced
         into nearest eligible ancestor edge.
+    alifestd_pool_chronological_consistency_polars :
+        Resolves origin time inversions by pooling origin times into
+        weighted means.
     """
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)

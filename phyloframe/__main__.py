@@ -145,6 +145,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_sibling_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_sibling_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_num_mrca_leaf_pairs_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_num_mrca_leaf_pairs_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_preceding_leaves_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_preceding_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_oldest_root
@@ -183,6 +185,8 @@ $ python3 -m phyloframe.legacy._alifestd_minify_asexual
 $ python3 -m phyloframe.legacy._alifestd_minify_polars
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars
+$ python3 -m phyloframe.legacy._alifestd_pool_chronological_consistency_asexual
+$ python3 -m phyloframe.legacy._alifestd_pool_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_asexual

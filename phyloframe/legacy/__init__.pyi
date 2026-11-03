@@ -519,6 +519,12 @@ from ._alifestd_mark_num_leaves_sibling_asexual import (
 from ._alifestd_mark_num_leaves_sibling_polars import (
     alifestd_mark_num_leaves_sibling_polars,
 )
+from ._alifestd_mark_num_mrca_leaf_pairs_asexual import (
+    alifestd_mark_num_mrca_leaf_pairs_asexual,
+)
+from ._alifestd_mark_num_mrca_leaf_pairs_polars import (
+    alifestd_mark_num_mrca_leaf_pairs_polars,
+)
 from ._alifestd_mark_num_preceding_leaves_asexual import (
     alifestd_mark_num_preceding_leaves_asexual,
 )
@@ -623,6 +629,12 @@ from ._alifestd_parse_ancestor_id import alifestd_parse_ancestor_id
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_pipe_unary_ops import alifestd_pipe_unary_ops
 from ._alifestd_pipe_unary_ops_polars import alifestd_pipe_unary_ops_polars
+from ._alifestd_pool_chronological_consistency_asexual import (
+    alifestd_pool_chronological_consistency_asexual,
+)
+from ._alifestd_pool_chronological_consistency_polars import (
+    alifestd_pool_chronological_consistency_polars,
+)
 from ._alifestd_prefix_roots import alifestd_prefix_roots
 from ._alifestd_prefix_roots_polars import alifestd_prefix_roots_polars
 from ._alifestd_prune_extinct_lineages_asexual import (
@@ -995,6 +1007,8 @@ __all__ = [
     "alifestd_mark_num_leaves_polars",
     "alifestd_mark_num_leaves_sibling_asexual",
     "alifestd_mark_num_leaves_sibling_polars",
+    "alifestd_mark_num_mrca_leaf_pairs_asexual",
+    "alifestd_mark_num_mrca_leaf_pairs_polars",
     "alifestd_mark_num_preceding_leaves_asexual",
     "alifestd_mark_num_preceding_leaves_polars",
     "alifestd_mark_oldest_root",
@@ -1027,6 +1041,8 @@ __all__ = [
     "alifestd_pipe_unary_ops",
     "alifestd_pipe_unary_ops_polars",
     "alifestd_parse_ancestor_ids",
+    "alifestd_pool_chronological_consistency_asexual",
+    "alifestd_pool_chronological_consistency_polars",
     "alifestd_prefix_roots",
     "alifestd_prefix_roots_polars",
     "alifestd_prune_extinct_lineages_asexual",
