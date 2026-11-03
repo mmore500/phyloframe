@@ -7,6 +7,7 @@ import typing
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import polars as pl
+import polars.selectors as cs
 
 from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -100,23 +101,22 @@ def alifestd_mark_lineage_ffill_polars(
     logging.info(
         "- alifestd_mark_lineage_ffill_polars: extracting columns...",
     )
-    (values_dtype,) = (
-        phylogeny_df.lazy().select(values_expr).collect_schema().dtypes()
-    )
-    is_nan = (  # is_nan only defined for float dtypes
-        values_expr.is_nan().fill_null(False)
-        if values_dtype.is_float()
-        else pl.lit(False)
-    )
     columns = (
         phylogeny_df.lazy()
-        .select(
-            "ancestor_id",
-            values_expr.alias(mark_as),
+        .select("ancestor_id", values_expr.alias(mark_as))
+        .with_columns(
             _alifestd_mark_lineage_ffill_polars_is_missing=(
-                values_expr.is_null() & fill_null
+                pl.col(mark_as).is_null() & fill_null
             )
-            | (is_nan & fill_nan),
+            | (
+                pl.any_horizontal(
+                    pl.lit(False),  # selector is empty unless values are float
+                    (cs.by_name(mark_as) & cs.float())
+                    .is_nan()
+                    .fill_null(False),
+                )
+                & fill_nan
+            ),
         )
         .collect()
     )
