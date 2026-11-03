@@ -203,7 +203,7 @@ def _alifestd_pool_chronological_consistency_asexual_impl(
     result_dtype = np.asarray(origin_times).dtype
     if not np.issubdtype(result_dtype, np.floating):
         raise NotImplementedError(
-            "non-floating point origin_time not supported",
+            "non-floating point origin_time not yet supported",
         )
     origin_times = np.asarray(origin_times, dtype=np.float64)
     if np.isnan(origin_times).any():
