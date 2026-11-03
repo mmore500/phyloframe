@@ -173,3 +173,22 @@ def test_skipna_all_nan():
     )
     res = alifestd_mark_lineage_cummin_asexual(df, "v")
     assert res["lineage_cummin"].isna().all()
+
+
+@pytest.mark.parametrize(
+    "reverse, expected",
+    [(False, [1.0, np.nan, np.nan, 1.0]), (True, [np.nan, np.nan, 2.0, 3.0])],
+)
+def test_no_skipna_propagates(reverse: bool, expected: list):
+    # 0 <- 1 <- 2, 0 <- 3
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 1, 0],
+            "v": [1.0, np.nan, 2.0, 3.0],
+        }
+    )
+    res = alifestd_mark_lineage_cummin_asexual(
+        df, "v", reverse=reverse, skipna=False
+    )
+    np.testing.assert_array_equal(res["lineage_cummin"], expected)

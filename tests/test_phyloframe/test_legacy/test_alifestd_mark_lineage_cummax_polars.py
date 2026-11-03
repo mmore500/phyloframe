@@ -162,3 +162,25 @@ def test_skipna_int_with_nulls():
     )
     res = alifestd_mark_lineage_cummax_polars(df, "v")
     assert res["lineage_cummax"].to_list() == [None, 3.0, 3.0]
+
+
+@pytest.mark.parametrize("missing", [None, float("nan")])
+@pytest.mark.parametrize(
+    "reverse, expected",
+    [(False, [1.0, np.nan, np.nan, 3.0]), (True, [np.nan, np.nan, 2.0, 3.0])],
+)
+def test_no_skipna_propagates(
+    missing: typing.Optional[float], reverse: bool, expected: list
+):
+    # 0 <- 1 <- 2, 0 <- 3
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 1, 0],
+            "v": pl.Series([1.0, missing, 2.0, 3.0], dtype=pl.Float64),
+        }
+    )
+    res = alifestd_mark_lineage_cummax_polars(
+        df, "v", reverse=reverse, skipna=False
+    )
+    np.testing.assert_array_equal(res["lineage_cummax"].to_numpy(), expected)

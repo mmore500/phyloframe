@@ -37,7 +37,14 @@ def _alifestd_mark_lineage_cummin_asexual_fast_path(
     for k in range(n - 1, -1, -1) if reverse else range(n):
         anc = ancestor_ids[k]
         target = anc if reverse else k
-        result[target] = min(result[anc], result[k])
+        first, second = result[anc], result[k]
+        # propagate NaN (x != x only for NaN), as builtin min doesn't
+        if first != first:
+            result[target] = first
+        elif second != second:
+            result[target] = second
+        else:
+            result[target] = min(first, second)
     return result
 
 
