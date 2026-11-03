@@ -89,15 +89,14 @@ def alifestd_mark_min_child_value_polars(
     logging.info(
         "- alifestd_mark_min_child_value_polars: aggregating children...",
     )
-    series = arrays["values"]
-    if series.null_count() or (
-        series.dtype.is_float() and series.is_nan().any()
+    if arrays["values"].null_count() or (
+        arrays["values"].dtype.is_float() and arrays["values"].is_nan().any()
     ):
         raise NotImplementedError("NaN or null values not yet supported")
 
     result = _alifestd_mark_min_child_value_asexual_fast_path(
         arrays["ancestor_id"].to_numpy(),
-        series.to_numpy(),
+        arrays["values"].to_numpy(),
     )
 
     return phylogeny_df.with_columns(
