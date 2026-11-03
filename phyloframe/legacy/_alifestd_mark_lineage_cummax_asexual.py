@@ -34,15 +34,16 @@ def _alifestd_mark_lineage_cummax_asexual_fast_path(
     NaN values are skipped (via `np.fmax`) if `skipna`, else propagate
     (via `np.maximum`).
     """
+
+    def max_(first, second):
+        return np.fmax(first, second) if skipna else np.maximum(first, second)
+
     n = ancestor_ids.shape[0]
     result = np.copy(values)
     for k in range(n - 1, -1, -1) if reverse else range(n):
         anc = ancestor_ids[k]
         target = anc if reverse else k
-        if skipna:
-            result[target] = np.fmax(result[anc], result[k])
-        else:
-            result[target] = np.maximum(result[anc], result[k])
+        result[target] = max_(result[anc], result[k])
     return result
 
 

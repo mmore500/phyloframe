@@ -34,15 +34,16 @@ def _alifestd_mark_lineage_cummin_asexual_fast_path(
     NaN values are skipped (via `np.fmin`) if `skipna`, else propagate
     (via `np.minimum`).
     """
+
+    def min_(first, second):
+        return np.fmin(first, second) if skipna else np.minimum(first, second)
+
     n = ancestor_ids.shape[0]
     result = np.copy(values)
     for k in range(n - 1, -1, -1) if reverse else range(n):
         anc = ancestor_ids[k]
         target = anc if reverse else k
-        if skipna:
-            result[target] = np.fmin(result[anc], result[k])
-        else:
-            result[target] = np.minimum(result[anc], result[k])
+        result[target] = min_(result[anc], result[k])
     return result
 
 
