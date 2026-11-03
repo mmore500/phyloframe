@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -41,6 +40,9 @@ assets_path = os.path.join(os.path.dirname(__file__), "assets")
     ],
 )
 def test_fuzz(phylogeny_df: pd.DataFrame):
+    phylogeny_df = alifestd_try_add_ancestor_id_col(
+        alifestd_to_working_format(phylogeny_df), mutate=True
+    )
     original = phylogeny_df.copy()
 
     result = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
@@ -134,50 +136,35 @@ def test_mark_as():
     assert result_df["custom"].tolist() == [1, 0, 0]
 
 
+def test_existing_num_leaves_used():
+    phylogeny_df = pd.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "num_leaves": [2, 1, 1]},
+    )
+    result_df = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
+    assert result_df["num_mrca_leaf_pairs"].tolist() == [1, 0, 0]
+
+    # deliberately inconsistent column, to check it is used as-is
+    phylogeny_df["num_leaves"] = [3, 1, 1]
+    result_df = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
+    assert result_df["num_mrca_leaf_pairs"].tolist() == [3, 0, 0]
+
+
+def test_num_leaves_added():
+    phylogeny_df = pd.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
+    result_df = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
+    assert result_df["num_leaves"].tolist() == [2, 1, 1]
+
+
 @pytest.mark.parametrize(
     "phylogeny_df",
     [
-        pd.read_csv(
-            f"{assets_path}/example-standard-toy-asexual-phylogeny.csv"
-        ),
-        pd.read_csv(f"{assets_path}/nk_ecoeaselection.csv"),
-        pd.read_csv(f"{assets_path}/nk_tournamentselection.csv"),
+        pd.DataFrame({"id": [0, 1, 3], "ancestor_id": [0, 0, 1]}),
+        pd.DataFrame({"id": [0, 1, 2, 3, 4], "ancestor_id": [4, 4, 3, 3, 3]}),
     ],
 )
-def test_noncontiguous_matches_contiguous(phylogeny_df: pd.DataFrame):
-    phylogeny_df = alifestd_try_add_ancestor_id_col(
-        alifestd_to_working_format(phylogeny_df), mutate=True
-    )
-    expected = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
-
-    relabeled = phylogeny_df.copy()
-    relabeled["id"] = relabeled["id"] * 3 + 7
-    relabeled["ancestor_id"] = relabeled["ancestor_id"] * 3 + 7
-    relabeled = relabeled.drop(columns=["ancestor_list"])
-    result = alifestd_mark_num_mrca_leaf_pairs_asexual(relabeled)
-
-    assert np.array_equal(
-        result.sort_values("id")["num_mrca_leaf_pairs"].to_numpy(),
-        expected.sort_values("id")["num_mrca_leaf_pairs"].to_numpy(),
-    )
-
-
-def test_unsorted():
-    phylogeny_df = pd.DataFrame(
-        {
-            "id": [0, 1, 2, 3, 4],
-            "ancestor_id": [4, 4, 3, 3, 3],
-        }
-    )
-    result_df = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
-    result_df = result_df.set_index("id")
-    assert result_df.loc[[0, 1, 2, 3, 4], "num_mrca_leaf_pairs"].tolist() == [
-        0,
-        0,
-        0,
-        2,
-        1,
-    ]
+def test_noncontiguous_or_unsorted_unsupported(phylogeny_df: pd.DataFrame):
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
 
 
 def test_sexual_unsupported():

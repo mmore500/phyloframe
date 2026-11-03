@@ -18,27 +18,25 @@ from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
-from ._alifestd_mark_num_leaves_asexual import (
-    _alifestd_mark_num_leaves_asexual_fast_path,
-    alifestd_mark_num_leaves_asexual,
-)
-from ._alifestd_topological_sort import alifestd_topological_sort
+from ._alifestd_mark_num_leaves_asexual import alifestd_mark_num_leaves_asexual
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
 @jit(nopython=True)
 def _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path(
     ancestor_ids: np.ndarray,
+    num_leaves: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mark_num_mrca_leaf_pairs_asexual`
     and `alifestd_mark_num_mrca_leaf_pairs_polars`.
 
     Requires contiguous ids and topologically sorted rows.
     """
-    num_leaves = _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)
     num_leaves = num_leaves.astype(np.int64)
 
-    # leaf pairs within each clade, less leaf pairs within each child clade
+    # a leaf pair within a taxon's clade has its mrca at that taxon, unless
+    # both leaves are within the same child's clade; so, count all pairs
+    # within clade, then subtract pairs within each child's clade
     num_pairs = num_leaves * (num_leaves - 1) // 2
     for idx, ancestor_id in enumerate(ancestor_ids):
         if ancestor_id != idx:  # exclude genesis cases
@@ -48,32 +46,6 @@ def _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path(
             )
 
     return num_pairs
-
-
-def _alifestd_mark_num_mrca_leaf_pairs_asexual_slow_path(
-    phylogeny_df: pd.DataFrame,
-    mark_as: str,
-) -> pd.DataFrame:
-    """Implementation detail for `alifestd_mark_num_mrca_leaf_pairs_asexual`.
-
-    Supports non-contiguous ids.
-    """
-    num_leaves = alifestd_mark_num_leaves_asexual(
-        phylogeny_df, mark_as="num_leaves"
-    ).set_index("id")["num_leaves"]
-    num_leaves = num_leaves.astype(np.int64)
-    num_pairs = num_leaves * (num_leaves - 1) // 2
-
-    is_nonroot = (phylogeny_df["id"] != phylogeny_df["ancestor_id"]).to_numpy()
-    child_pairs = (
-        num_pairs.loc[phylogeny_df.loc[is_nonroot, "id"]]
-        .groupby(phylogeny_df.loc[is_nonroot, "ancestor_id"].to_numpy())
-        .sum()
-    )
-    num_pairs = num_pairs.sub(child_pairs, fill_value=0).astype(np.int64)
-
-    phylogeny_df[mark_as] = num_pairs.loc[phylogeny_df["id"]].to_numpy()
-    return phylogeny_df
 
 
 def alifestd_mark_num_mrca_leaf_pairs_asexual(
@@ -92,19 +64,27 @@ def alifestd_mark_num_mrca_leaf_pairs_asexual(
 
     The output column name can be changed via the ``mark_as`` parameter.
 
-    A topological sort will be applied if `phylogeny_df` is not topologically
-    sorted. Dataframe reindexing (e.g., df.index) may be applied.
+    If present, an existing `num_leaves` column is used; otherwise, one is
+    added.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
     value to get transformed phylogeny dataframe.
 
+    Raises
+    ------
+    NotImplementedError
+        If `phylogeny_df` is sexual, has non-contiguous ids, or is not
+        topologically sorted.
+
     See Also
     --------
     alifestd_mark_num_mrca_leaf_pairs_polars :
         Polars-based implementation.
+    alifestd_mark_num_leaves_asexual :
+        Counts descendant leaves of each taxon.
     alifestd_pool_chronological_consistency_asexual :
-        Uses these counts as default weights.
+        Can use these counts as weights.
     """
 
     if not mutate:
@@ -121,21 +101,26 @@ def alifestd_mark_num_mrca_leaf_pairs_asexual(
         phylogeny_df[mark_as] = pd.Series(dtype=np.int64)
         return phylogeny_df
 
-    if not alifestd_is_topologically_sorted(phylogeny_df):
-        phylogeny_df = alifestd_topological_sort(phylogeny_df, mutate=True)
+    if not alifestd_has_contiguous_ids(phylogeny_df):
+        raise NotImplementedError("non-contiguous ids not supported")
 
-    if alifestd_has_contiguous_ids(phylogeny_df):
-        phylogeny_df[
-            mark_as
-        ] = _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path(
-            phylogeny_df["ancestor_id"].to_numpy().astype(np.int64),
+    if not alifestd_is_topologically_sorted(phylogeny_df):
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
         )
-        return phylogeny_df
-    else:
-        return _alifestd_mark_num_mrca_leaf_pairs_asexual_slow_path(
-            phylogeny_df,
-            mark_as=mark_as,
+
+    if "num_leaves" not in phylogeny_df.columns:
+        phylogeny_df = alifestd_mark_num_leaves_asexual(
+            phylogeny_df, mutate=True
         )
+
+    phylogeny_df[
+        mark_as
+    ] = _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path(
+        phylogeny_df["ancestor_id"].to_numpy(),
+        phylogeny_df["num_leaves"].to_numpy(),
+    )
+    return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})

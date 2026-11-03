@@ -6,7 +6,6 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._add_bool_arg import add_bool_arg
@@ -31,12 +30,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_pool_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    weight_by: typing.Union[
-        typing.Literal["mrca_leaf_pairs", "uniform"],
-        str,
-        np.ndarray,
-        pl.Series,
-    ] = "mrca_leaf_pairs",
+    weight_by: typing.Optional[str] = None,
     pin_leaves: bool = True,
 ) -> pl.DataFrame:
     """Resolve origin time inversions by pooling inverted taxa with their
@@ -53,8 +47,8 @@ def alifestd_pool_chronological_consistency_polars(
     Taxa with zero weight do not participate in pooling. Instead, after
     pooling, each is clamped between its parent's origin time and the
     minimum origin time among its descendants with positive weight (or
-    pinned). Under the default `mrca_leaf_pairs` weighting, this is the
-    case for unifurcations.
+    pinned). Under `num_mrca_leaf_pairs` weighting (see `weight_by`), this
+    is the case for leaves and unifurcations.
 
     If `pin_leaves` is set, leaf origin times are kept unchanged, and leaves
     are excluded from pooling. Taxa with positive weight are then clamped
@@ -69,17 +63,16 @@ def alifestd_pool_chronological_consistency_polars(
 
         Must represent an asexual phylogeny with contiguous ids, numeric
         `origin_time`, and topologically sorted rows.
-    weight_by : str, numpy.ndarray, or polars.Series, default "mrca_leaf_pairs"
-        Per-taxon pooling weights, which must be finite and non-negative.
+    weight_by : str, optional
+        Name of column holding per-taxon pooling weights, which must be
+        finite and non-negative. If None (default), all taxa have unit weight,
+        minimizing unweighted squared origin time change.
 
-        - ``"mrca_leaf_pairs"``: number of leaf pairs with each taxon as
-          most recent common ancestor (see
-          `alifestd_mark_num_mrca_leaf_pairs_polars`). Conserves mean MRCA
-          origin time over all leaf pairs.
-        - ``"uniform"``: unit weight for all taxa, minimizing unweighted
-          squared origin time change.
-        - other str: name of column holding weights.
-        - array-like: weights, aligned with rows.
+        To weight each taxon by the number of leaf pairs with it as most
+        recent common ancestor, conserving mean MRCA origin time over all
+        leaf pairs, add a `num_mrca_leaf_pairs` column with
+        `alifestd_mark_num_mrca_leaf_pairs_polars` and pass
+        ``weight_by="num_mrca_leaf_pairs"``.
     pin_leaves : bool, default True
         Keep leaf origin times unchanged, excluding leaves from pooling.
 
@@ -112,7 +105,7 @@ def alifestd_pool_chronological_consistency_polars(
     alifestd_find_chronological_inconsistency_polars :
         Finds taxa with origin time inversions.
     alifestd_mark_num_mrca_leaf_pairs_polars :
-        Computes default `mrca_leaf_pairs` weights.
+        Computes `num_mrca_leaf_pairs` weights.
     """
 
     logging.info(
@@ -154,19 +147,15 @@ def alifestd_pool_chronological_consistency_polars(
         .to_series()
         .to_numpy()
     )
-    if isinstance(weight_by, str) and weight_by not in (
-        "mrca_leaf_pairs",
-        "uniform",
-    ):
-        weight_by = (
-            phylogeny_df.lazy()
-            .select(weight_by)
-            .collect()
-            .to_series()
-            .to_numpy()
-        )
-    elif isinstance(weight_by, pl.Series):
-        weight_by = weight_by.to_numpy()
+    weights = (
+        None
+        if weight_by is None
+        else phylogeny_df.lazy()
+        .select(weight_by)
+        .collect()
+        .to_series()
+        .to_numpy()
+    )
 
     logging.info(
         "- alifestd_pool_chronological_consistency_polars: "
@@ -175,7 +164,7 @@ def alifestd_pool_chronological_consistency_polars(
     pooled = _alifestd_pool_chronological_consistency_asexual_impl(
         ancestor_ids,
         origin_times,
-        weight_by,
+        weights,
         pin_leaves,
     )
 
@@ -186,7 +175,7 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 
 Resolve origin time inversions by pooling inverted taxa with their ancestors, setting each pooled block to its weighted mean origin time (i.e., weighted isotonic regression over the tree).
 
-Use `--weight-by` to choose weights: `mrca_leaf_pairs` (default), `uniform`, or a column name.
+Use `--weight-by` to weight taxa by a column (e.g., `num_mrca_leaf_pairs`, as added by `alifestd_mark_num_mrca_leaf_pairs_polars`); otherwise, taxa are uniformly weighted.
 
 Data is assumed to be in alife standard format.
 
@@ -219,12 +208,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--weight-by",
-        default="mrca_leaf_pairs",
+        default=None,
         type=str,
-        help=(
-            "pooling weights: 'mrca_leaf_pairs', 'uniform', or column name "
-            "(default: mrca_leaf_pairs)"
-        ),
+        help="column name of pooling weights (default: None, i.e., uniform)",
     )
     add_bool_arg(
         parser,

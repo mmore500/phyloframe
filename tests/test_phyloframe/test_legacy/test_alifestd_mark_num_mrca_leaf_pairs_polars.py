@@ -60,6 +60,27 @@ def test_simple(apply: typing.Callable):
 
 
 @_apply
+def test_existing_num_leaves_used(apply: typing.Callable):
+    # deliberately inconsistent column, to check it is used as-is
+    df = pl.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "num_leaves": [3, 1, 1]},
+    )
+    result = (
+        alifestd_mark_num_mrca_leaf_pairs_polars(apply(df)).lazy().collect()
+    )
+    assert result["num_mrca_leaf_pairs"].to_list() == [3, 0, 0]
+
+
+@_apply
+def test_num_leaves_added(apply: typing.Callable):
+    df = pl.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
+    result = (
+        alifestd_mark_num_mrca_leaf_pairs_polars(apply(df)).lazy().collect()
+    )
+    assert result["num_leaves"].to_list() == [2, 1, 1]
+
+
+@_apply
 def test_multiple_roots_ancestor_list(apply: typing.Callable):
     df = pl.DataFrame(
         {

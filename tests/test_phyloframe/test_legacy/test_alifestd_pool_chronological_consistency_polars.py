@@ -8,6 +8,8 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_find_chronological_inconsistency_polars,
+    alifestd_mark_num_mrca_leaf_pairs_asexual,
+    alifestd_mark_num_mrca_leaf_pairs_polars,
     alifestd_pool_chronological_consistency_asexual,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col,
@@ -77,8 +79,11 @@ def test_pool_chronological_consistency_polars_inconsistent(
             "trait": [1, 2, 3, 4, 5, 6, 7],
         }
     )
+    df = alifestd_mark_num_mrca_leaf_pairs_polars(df).drop("num_leaves")
     result = (
-        alifestd_pool_chronological_consistency_polars(apply(df))
+        alifestd_pool_chronological_consistency_polars(
+            apply(df), weight_by="num_mrca_leaf_pairs"
+        )
         .lazy()
         .collect()
     )
@@ -87,9 +92,7 @@ def test_pool_chronological_consistency_polars_inconsistent(
     assert result.drop("origin_time").equals(df.drop("origin_time"))
 
     result = (
-        alifestd_pool_chronological_consistency_polars(
-            apply(df), weight_by="uniform"
-        )
+        alifestd_pool_chronological_consistency_polars(apply(df))
         .lazy()
         .collect()
     )
@@ -107,8 +110,11 @@ def test_pool_chronological_consistency_polars_unifurcation(
             "origin_time": [5.0, 7.0, 2.0, 10.0, 10.0, 10.0],
         }
     )
+    df = alifestd_mark_num_mrca_leaf_pairs_polars(df)
     result = (
-        alifestd_pool_chronological_consistency_polars(apply(df))
+        alifestd_pool_chronological_consistency_polars(
+            apply(df), weight_by="num_mrca_leaf_pairs"
+        )
         .lazy()
         .collect()
     )
@@ -129,7 +135,7 @@ def test_pool_chronological_consistency_polars_pin_leaves(
     )
     result = (
         alifestd_pool_chronological_consistency_polars(
-            apply(df), weight_by="uniform", pin_leaves=pin_leaves
+            apply(df), pin_leaves=pin_leaves
         )
         .lazy()
         .collect()
@@ -139,9 +145,8 @@ def test_pool_chronological_consistency_polars_pin_leaves(
 
 
 @_apply
-@pytest.mark.parametrize("as_type", ["column", "ndarray", "series"])
 def test_pool_chronological_consistency_polars_custom_weights(
-    apply: typing.Callable, as_type: str
+    apply: typing.Callable,
 ):
     df = pl.DataFrame(
         {
@@ -151,14 +156,9 @@ def test_pool_chronological_consistency_polars_custom_weights(
             "w": [1.0, 2.0, 0.0, 0.0],
         }
     )
-    weight_by = {
-        "column": "w",
-        "ndarray": df["w"].to_numpy(),
-        "series": df["w"],
-    }[as_type]
     result = (
         alifestd_pool_chronological_consistency_polars(
-            apply(df), weight_by=weight_by
+            apply(df), weight_by="w"
         )
         .lazy()
         .collect()
@@ -175,11 +175,12 @@ def test_pool_chronological_consistency_polars_invalid_weights(
             "id": [0, 1, 2],
             "ancestor_id": [0, 0, 1],
             "origin_time": [1.0, 0.0, 2.0],
+            "w": [1.0, -1.0, 0.0],
         }
     )
     with pytest.raises(ValueError):
         alifestd_pool_chronological_consistency_polars(
-            apply(df), weight_by=np.array([1.0, -1.0, 0.0])
+            apply(df), weight_by="w"
         )
 
 
@@ -208,9 +209,7 @@ def test_pool_chronological_consistency_polars_dtype(
         }
     )
     result = (
-        alifestd_pool_chronological_consistency_polars(
-            apply(df), weight_by="uniform"
-        )
+        alifestd_pool_chronological_consistency_polars(apply(df))
         .lazy()
         .collect()
     )
@@ -271,13 +270,13 @@ def test_pool_chronological_consistency_polars_unsupported(
     ],
 )
 @pytest.mark.parametrize("seed", range(3))
-@pytest.mark.parametrize("weight_by", ["mrca_leaf_pairs", "uniform"])
+@pytest.mark.parametrize("weight_by", ["num_mrca_leaf_pairs", None])
 @pytest.mark.parametrize("pin_leaves", [True, False])
 def test_pool_chronological_consistency_polars_matches_pandas(
     apply: typing.Callable,
     phylogeny_df: pd.DataFrame,
     seed: int,
-    weight_by: str,
+    weight_by: typing.Optional[str],
     pin_leaves: bool,
 ):
     phylogeny_df = alifestd_try_add_ancestor_id_col(
@@ -291,6 +290,8 @@ def test_pool_chronological_consistency_polars_matches_pandas(
     phylogeny_df = phylogeny_df[
         ["id", "ancestor_id", "ancestor_list", "origin_time"]
     ]
+    if weight_by is not None:
+        phylogeny_df = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
 
     expected = alifestd_pool_chronological_consistency_asexual(
         phylogeny_df, weight_by=weight_by, pin_leaves=pin_leaves

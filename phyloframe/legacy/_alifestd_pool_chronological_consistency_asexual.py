@@ -1,5 +1,6 @@
 import argparse
 import functools
+import heapq
 import logging
 import os
 import typing
@@ -20,95 +21,10 @@ from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
-from ._alifestd_mark_num_mrca_leaf_pairs_asexual import (
-    _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path,
+from ._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
-
-
-@jit(nopython=True)
-def _alifestd_pool_chronological_consistency_heap_push(
-    heap_keys: np.ndarray,
-    heap_nodes: np.ndarray,
-    heap_versions: np.ndarray,
-    size: int,
-    key: float,
-    node: int,
-    version: int,
-) -> int:
-    """Implementation detail for
-    `_alifestd_pool_chronological_consistency_asexual_fast_path`.
-
-    Pushes onto binary min-heap ordered by key, then node, stored across
-    parallel arrays. Returns new heap size.
-    """
-    pos = size
-    while pos > 0:
-        parent = (pos - 1) // 2
-        if heap_keys[parent] < key or (
-            heap_keys[parent] == key and heap_nodes[parent] <= node
-        ):
-            break
-        heap_keys[pos] = heap_keys[parent]
-        heap_nodes[pos] = heap_nodes[parent]
-        heap_versions[pos] = heap_versions[parent]
-        pos = parent
-
-    heap_keys[pos] = key
-    heap_nodes[pos] = node
-    heap_versions[pos] = version
-    return size + 1
-
-
-@jit(nopython=True)
-def _alifestd_pool_chronological_consistency_heap_pop(
-    heap_keys: np.ndarray,
-    heap_nodes: np.ndarray,
-    heap_versions: np.ndarray,
-    size: int,
-) -> typing.Tuple[int, int, int]:
-    """Implementation detail for
-    `_alifestd_pool_chronological_consistency_asexual_fast_path`.
-
-    Pops minimum from binary min-heap stored across parallel arrays. Returns
-    popped node, its version, and new heap size.
-    """
-    node = heap_nodes[0]
-    version = heap_versions[0]
-
-    size -= 1
-    key = heap_keys[size]
-    last_node = heap_nodes[size]
-    last_version = heap_versions[size]
-
-    pos = 0
-    while True:
-        child = 2 * pos + 1
-        if child >= size:
-            break
-        if child + 1 < size and (
-            heap_keys[child + 1] < heap_keys[child]
-            or (
-                heap_keys[child + 1] == heap_keys[child]
-                and heap_nodes[child + 1] < heap_nodes[child]
-            )
-        ):
-            child += 1
-        if key < heap_keys[child] or (
-            key == heap_keys[child] and last_node <= heap_nodes[child]
-        ):
-            break
-        heap_keys[pos] = heap_keys[child]
-        heap_nodes[pos] = heap_nodes[child]
-        heap_versions[pos] = heap_versions[child]
-        pos = child
-
-    if size > 0:
-        heap_keys[pos] = key
-        heap_nodes[pos] = last_node
-        heap_versions[pos] = last_version
-
-    return node, version, size
 
 
 @jit(nopython=True)
@@ -175,34 +91,12 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
     versions = np.zeros(num_taxa, dtype=np.int64)  # invalidates heap entries
     is_finalized = np.zeros(num_taxa, dtype=np.bool_)
 
-    # each pooling pushes one entry, so at most 2 * num_taxa pushes
-    heap_keys = np.empty(2 * num_taxa, dtype=np.float64)
-    heap_nodes = np.empty(2 * num_taxa, dtype=np.int64)
-    heap_versions = np.empty(2 * num_taxa, dtype=np.int64)
-    heap_size = 0
-    for idx in range(num_taxa):
-        if is_active[idx]:
-            heap_size = _alifestd_pool_chronological_consistency_heap_push(
-                heap_keys,
-                heap_nodes,
-                heap_versions,
-                heap_size,
-                means[idx],
-                idx,
-                0,
-            )
-
-    while heap_size > 0:
-        (
-            block,
-            version,
-            heap_size,
-        ) = _alifestd_pool_chronological_consistency_heap_pop(
-            heap_keys,
-            heap_nodes,
-            heap_versions,
-            heap_size,
-        )
+    # min-heap of unfinalized blocks by mean, then topmost taxon, with
+    # version to detect stale entries for since-updated blocks
+    heap = [(means[idx], idx, 0) for idx in range(num_taxa) if is_active[idx]]
+    heapq.heapify(heap)
+    while heap:
+        __, block, version = heapq.heappop(heap)
         if blocks[block] != block or versions[block] != version:
             continue  # stale entry, block pooled away or since updated
 
@@ -228,14 +122,9 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
                 weighted_time_sums[parent_block] / weight_sums[parent_block]
             )
         versions[parent_block] += 1
-        heap_size = _alifestd_pool_chronological_consistency_heap_push(
-            heap_keys,
-            heap_nodes,
-            heap_versions,
-            heap_size,
-            means[parent_block],
-            parent_block,
-            versions[parent_block],
+        heapq.heappush(
+            heap,
+            (means[parent_block], parent_block, versions[parent_block]),
         )
 
     # upper bound on each taxon from descendant pinned taxa, inclusive
@@ -278,14 +167,14 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
 def _alifestd_pool_chronological_consistency_asexual_impl(
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    weights: typing.Union[str, np.ndarray],
+    weights: typing.Optional[np.ndarray],
     pin_leaves: bool,
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_pool_chronological_consistency_asexual` and
     `alifestd_pool_chronological_consistency_polars`.
 
-    Resolves and validates weights and origin times, then dispatches to
+    Validates weights (uniform if None) and origin times, then dispatches to
     jit-compiled fast path. Returns pooled origin times, with dtype of
     `origin_times` if floating point and float64 otherwise.
     """
@@ -302,29 +191,19 @@ def _alifestd_pool_chronological_consistency_asexual_impl(
     if np.isnan(origin_times).any():
         raise ValueError("origin_time must not contain NaN values")
 
-    if isinstance(weights, str) and weights == "mrca_leaf_pairs":
-        weights = _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path(
-            ancestor_ids,
-        )
-    elif isinstance(weights, str) and weights == "uniform":
+    if weights is None:
         weights = np.ones(num_taxa, dtype=np.float64)
-    elif isinstance(weights, str):
-        raise ValueError(f"unrecognized weight_by {weights!r}")
 
     weights = np.asarray(weights, dtype=np.float64)
-    if weights.shape != (num_taxa,):
-        raise ValueError(
-            f"weights must have one value per taxon, expected shape "
-            f"{(num_taxa,)} but got {weights.shape}",
-        )
     if not (np.isfinite(weights) & (weights >= 0)).all():
         raise ValueError("weights must be finite and non-negative")
 
-    is_pinned = np.zeros(num_taxa, dtype=np.bool_)
-    if pin_leaves:
-        is_pinned[:] = True
-        is_nonroot = ancestor_ids != np.arange(num_taxa)
-        is_pinned[ancestor_ids[is_nonroot]] = False
+    if pin_leaves:  # pin leaves, i.e., taxa without children
+        is_pinned = (
+            _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) == 0
+        )
+    else:
+        is_pinned = np.zeros(num_taxa, dtype=np.bool_)
 
     result = _alifestd_pool_chronological_consistency_asexual_fast_path(
         ancestor_ids,
@@ -339,12 +218,7 @@ def alifestd_pool_chronological_consistency_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
-    weight_by: typing.Union[
-        typing.Literal["mrca_leaf_pairs", "uniform"],
-        str,
-        np.ndarray,
-        pd.Series,
-    ] = "mrca_leaf_pairs",
+    weight_by: typing.Optional[str] = None,
     pin_leaves: bool = True,
 ) -> pd.DataFrame:
     """Resolve origin time inversions by pooling inverted taxa with their
@@ -361,8 +235,8 @@ def alifestd_pool_chronological_consistency_asexual(
     Taxa with zero weight do not participate in pooling. Instead, after
     pooling, each is clamped between its parent's origin time and the
     minimum origin time among its descendants with positive weight (or
-    pinned). Under the default `mrca_leaf_pairs` weighting, this is the
-    case for unifurcations.
+    pinned). Under `num_mrca_leaf_pairs` weighting (see `weight_by`), this
+    is the case for leaves and unifurcations.
 
     If `pin_leaves` is set, leaf origin times are kept unchanged, and leaves
     are excluded from pooling. Taxa with positive weight are then clamped
@@ -383,17 +257,16 @@ def alifestd_pool_chronological_consistency_asexual(
         `origin_time`, and topologically sorted rows.
     mutate : bool, default False
         Allow in-place mutations of the input dataframe.
-    weight_by : str, numpy.ndarray, or pandas.Series, default "mrca_leaf_pairs"
-        Per-taxon pooling weights, which must be finite and non-negative.
+    weight_by : str, optional
+        Name of column holding per-taxon pooling weights, which must be
+        finite and non-negative. If None (default), all taxa have unit weight,
+        minimizing unweighted squared origin time change.
 
-        - ``"mrca_leaf_pairs"``: number of leaf pairs with each taxon as
-          most recent common ancestor (see
-          `alifestd_mark_num_mrca_leaf_pairs_asexual`). Conserves mean MRCA
-          origin time over all leaf pairs.
-        - ``"uniform"``: unit weight for all taxa, minimizing unweighted
-          squared origin time change.
-        - other str: name of column holding weights.
-        - array-like: weights, aligned with rows.
+        To weight each taxon by the number of leaf pairs with it as most
+        recent common ancestor, conserving mean MRCA origin time over all
+        leaf pairs, add a `num_mrca_leaf_pairs` column with
+        `alifestd_mark_num_mrca_leaf_pairs_asexual` and pass
+        ``weight_by="num_mrca_leaf_pairs"``.
     pin_leaves : bool, default True
         Keep leaf origin times unchanged, excluding leaves from pooling.
 
@@ -426,7 +299,7 @@ def alifestd_pool_chronological_consistency_asexual(
     alifestd_find_chronological_inconsistency :
         Finds taxa with origin time inversions.
     alifestd_mark_num_mrca_leaf_pairs_asexual :
-        Computes default `mrca_leaf_pairs` weights.
+        Computes `num_mrca_leaf_pairs` weights.
     """
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
@@ -449,20 +322,12 @@ def alifestd_pool_chronological_consistency_asexual(
             "non-topologically-sorted data not supported",
         )
 
-    if isinstance(weight_by, str) and weight_by not in (
-        "mrca_leaf_pairs",
-        "uniform",
-    ):
-        weight_by = phylogeny_df[weight_by].to_numpy()
-    elif isinstance(weight_by, pd.Series):
-        weight_by = weight_by.to_numpy()
-
     phylogeny_df[
         "origin_time"
     ] = _alifestd_pool_chronological_consistency_asexual_impl(
         phylogeny_df["ancestor_id"].to_numpy(),
         phylogeny_df["origin_time"].to_numpy(),
-        weight_by,
+        None if weight_by is None else phylogeny_df[weight_by].to_numpy(),
         pin_leaves,
     )
     return phylogeny_df
@@ -472,7 +337,7 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 
 Resolve origin time inversions by pooling inverted taxa with their ancestors, setting each pooled block to its weighted mean origin time (i.e., weighted isotonic regression over the tree).
 
-Use `--weight-by` to choose weights: `mrca_leaf_pairs` (default), `uniform`, or a column name.
+Use `--weight-by` to weight taxa by a column (e.g., `num_mrca_leaf_pairs`, as added by `alifestd_mark_num_mrca_leaf_pairs_asexual`); otherwise, taxa are uniformly weighted.
 
 Data is assumed to be in alife standard format.
 
@@ -505,12 +370,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--weight-by",
-        default="mrca_leaf_pairs",
+        default=None,
         type=str,
-        help=(
-            "pooling weights: 'mrca_leaf_pairs', 'uniform', or column name "
-            "(default: mrca_leaf_pairs)"
-        ),
+        help="column name of pooling weights (default: None, i.e., uniform)",
     )
     add_bool_arg(
         parser,

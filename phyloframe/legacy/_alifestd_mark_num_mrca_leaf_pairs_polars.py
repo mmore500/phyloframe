@@ -5,7 +5,6 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -18,6 +17,7 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_num_leaves_polars import alifestd_mark_num_leaves_polars
 from ._alifestd_mark_num_mrca_leaf_pairs_asexual import (
     _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path,
 )
@@ -41,6 +41,9 @@ def alifestd_mark_num_mrca_leaf_pairs_polars(
 
     The output column name can be changed via the ``mark_as`` parameter.
 
+    If present, an existing `num_leaves` column is used; otherwise, one is
+    added.
+
     Parameters
     ----------
     phylogeny_df : polars.DataFrame or polars.LazyFrame
@@ -56,12 +59,20 @@ def alifestd_mark_num_mrca_leaf_pairs_polars(
     polars.DataFrame or polars.LazyFrame
         The phylogeny with added Int64 column `mark_as`.
 
+    Raises
+    ------
+    NotImplementedError
+        If `phylogeny_df` is sexual, has non-contiguous ids, or is not
+        topologically sorted.
+
     See Also
     --------
     alifestd_mark_num_mrca_leaf_pairs_asexual :
         Pandas-based implementation.
+    alifestd_mark_num_leaves_polars :
+        Counts descendant leaves of each taxon.
     alifestd_pool_chronological_consistency_polars :
-        Uses these counts as default weights.
+        Can use these counts as weights.
     """
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
@@ -83,25 +94,21 @@ def alifestd_mark_num_mrca_leaf_pairs_polars(
             "non-topologically-sorted data not supported",
         )
 
+    if "num_leaves" not in phylogeny_df.lazy().collect_schema().names():
+        phylogeny_df = alifestd_mark_num_leaves_polars(phylogeny_df)
+
     logging.info(
-        "- alifestd_mark_num_mrca_leaf_pairs_polars: "
-        "extracting ancestor ids...",
+        "- alifestd_mark_num_mrca_leaf_pairs_polars: extracting columns...",
     )
-    ancestor_ids = (
-        phylogeny_df.lazy()
-        .select("ancestor_id")
-        .collect()
-        .to_series()
-        .to_numpy()
-        .astype(np.int64)
-    )
+    columns = phylogeny_df.lazy().select("ancestor_id", "num_leaves").collect()
 
     logging.info(
         "- alifestd_mark_num_mrca_leaf_pairs_polars: "
         "tabulating leaf pair counts...",
     )
     num_pairs = _alifestd_mark_num_mrca_leaf_pairs_asexual_fast_path(
-        ancestor_ids,
+        columns["ancestor_id"].to_numpy(),
+        columns["num_leaves"].to_numpy(),
     )
 
     return phylogeny_df.with_columns(
