@@ -101,22 +101,20 @@ def alifestd_mark_lineage_ffill_polars(
     logging.info(
         "- alifestd_mark_lineage_ffill_polars: extracting columns...",
     )
+    null_missing = pl.col(mark_as).is_null() & fill_null
+    nan_missing = (
+        pl.any_horizontal(
+            pl.lit(False),  # selector is empty unless values are float
+            (cs.by_name(mark_as) & cs.float()).is_nan().fill_null(False),
+        )
+        & fill_nan
+    )
     columns = (
         phylogeny_df.lazy()
         .select("ancestor_id", values_expr.alias(mark_as))
         .with_columns(
-            _alifestd_mark_lineage_ffill_polars_is_missing=(
-                pl.col(mark_as).is_null() & fill_null
-            )
-            | (
-                pl.any_horizontal(
-                    pl.lit(False),  # selector is empty unless values are float
-                    (cs.by_name(mark_as) & cs.float())
-                    .is_nan()
-                    .fill_null(False),
-                )
-                & fill_nan
-            ),
+            _alifestd_mark_lineage_ffill_polars_is_missing=null_missing
+            | nan_missing,
         )
         .collect()
     )
