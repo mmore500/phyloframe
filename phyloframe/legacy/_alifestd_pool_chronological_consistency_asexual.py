@@ -10,7 +10,6 @@ from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import pandas as pd
 
-from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._delegate_polars_implementation import (
     delegate_polars_implementation,
@@ -19,28 +18,13 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._union_find_lookup_path_halving import (
+    union_find_lookup_path_halving,
+)
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
-from ._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
-)
+from ._alifestd_mark_leaves import alifestd_mark_leaves
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
-
-
-@jit(nopython=True)
-def _alifestd_pool_chronological_consistency_find(
-    blocks: np.ndarray,
-    node: int,
-) -> int:
-    """Implementation detail for
-    `_alifestd_pool_chronological_consistency_asexual_fast_path`.
-
-    Union-find lookup with path halving.
-    """
-    while blocks[node] != node:
-        blocks[node] = blocks[blocks[node]]
-        node = blocks[node]
-    return node
 
 
 @jit(nopython=True)
@@ -60,18 +44,21 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
 
     Taxa with positive weight that are not pinned ("active" taxa) undergo
     weighted isotonic regression over the forest induced by linking each to
-    its nearest active ancestor, via Thompson's minimum-block pooling
-    algorithm: repeatedly, the unfinalized block with smallest mean is
-    either finalized, if its topmost taxon has no unfinalized ancestor
-    block, or pooled into its ancestor block. Pinned taxa keep their origin
-    times, and active taxa are clamped to not exceed any descendant pinned
-    taxon. Remaining (zero-weight) taxa are clamped between their parent's
-    and their descendants' result origin times.
+    its nearest active ancestor not separated from it by a pinned taxon, via
+    Thompson's minimum-block pooling algorithm: repeatedly, the unfinalized
+    block with smallest mean is either finalized, if its topmost taxon has
+    no unfinalized ancestor block, or pooled into its ancestor block. Pinned
+    taxa keep their origin times, and active taxa are clamped between their
+    nearest pinned ancestor and any descendant pinned taxa. As these bounds
+    are themselves chronologically consistent (if pinned taxa are), such
+    clamping preserves optimality. Remaining (zero-weight) taxa are clamped
+    between their parent's and their descendants' result origin times.
     """
     num_taxa = len(ancestor_ids)
     is_active = (weights > 0.0) & ~is_pinned
 
-    # link each taxon to nearest active proper ancestor, or -1 if none
+    # link each taxon to nearest active proper ancestor, or -1 if none or if
+    # a pinned taxon intervenes; pinned taxa partition pooling
     nearest_active = np.full(num_taxa, -1, dtype=np.int64)  # inclusive
     effective_parents = np.full(num_taxa, -1, dtype=np.int64)
     for idx, ancestor_id in enumerate(ancestor_ids):
@@ -79,6 +66,8 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
             effective_parents[idx] = nearest_active[ancestor_id]
         if is_active[idx]:
             nearest_active[idx] = idx
+        elif is_pinned[idx]:
+            nearest_active[idx] = -1
         else:
             nearest_active[idx] = effective_parents[idx]
 
@@ -90,8 +79,7 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
     means = origin_times.copy()
     is_finalized = np.zeros(num_taxa, dtype=np.bool_)
 
-    # min-heap of unfinalized blocks by mean, then topmost taxon; entries
-    # are stale if their block was since pooled away, finalized, or updated
+    # min-heap of unfinalized blocks, keyed by mean then topmost taxon
     heap = [(means[idx], idx) for idx in range(num_taxa) if is_active[idx]]
     heapq.heapify(heap)
     while heap:
@@ -101,14 +89,14 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
             or is_finalized[block]
             or means[block] != mean
         ):
-            continue  # stale entry
+            continue  # block since pooled away, finalized, or updated
 
         effective_parent = effective_parents[block]
         if effective_parent == -1:
             is_finalized[block] = True
             continue
 
-        parent_block = _alifestd_pool_chronological_consistency_find(
+        parent_block = union_find_lookup_path_halving(
             blocks,
             effective_parent,
         )
@@ -127,21 +115,33 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
             # otherwise, mean is unchanged, so existing entry remains valid
             heapq.heappush(heap, (means[parent_block], parent_block))
 
+    # lower bound on each taxon from ancestor pinned taxa, inclusive
+    pinned_lower_bounds = np.where(is_pinned, origin_times, -np.inf)
+    for idx, ancestor_id in enumerate(ancestor_ids):
+        if ancestor_id != idx and not is_pinned[idx]:  # exclude genesis
+            pinned_lower_bounds[idx] = pinned_lower_bounds[ancestor_id]
+
     # upper bound on each taxon from descendant pinned taxa, inclusive
-    pinned_bounds = np.where(is_pinned, origin_times, np.inf)
+    pinned_upper_bounds = np.where(is_pinned, origin_times, np.inf)
     for idx in range(num_taxa - 1, -1, -1):
         ancestor_id = ancestor_ids[idx]
         if ancestor_id != idx:  # exclude genesis cases
-            pinned_bounds[ancestor_id] = min(
-                pinned_bounds[ancestor_id],
-                pinned_bounds[idx],
+            pinned_upper_bounds[ancestor_id] = min(
+                pinned_upper_bounds[ancestor_id],
+                pinned_upper_bounds[idx],
             )
 
-    result = origin_times.copy()
+    pooled_times = origin_times.copy()
     for idx in range(num_taxa):
         if is_active[idx]:
-            block = _alifestd_pool_chronological_consistency_find(blocks, idx)
-            result[idx] = min(means[block], pinned_bounds[idx])
+            block = union_find_lookup_path_halving(blocks, idx)
+            pooled_times[idx] = means[block]
+
+    result = np.where(
+        is_active,
+        np.clip(pooled_times, pinned_lower_bounds, pinned_upper_bounds),
+        origin_times,
+    )
 
     # upper bound on each taxon from descendant active or pinned taxa
     is_settled = is_active | is_pinned
@@ -154,27 +154,43 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
                 settled_bounds[idx],
             )
 
-    # clamp remaining taxa between parent and descendant settled taxa
+    # clamp remaining taxa between parent and descendant settled taxa; as
+    # bounds are consistent, parent result is max of its own origin time
+    # (capped by its upper bound) and its lower bound, if not settled
+    capped_times = np.where(
+        is_settled, result, np.minimum(result, settled_bounds)
+    )
+    lower_bounds = np.full(num_taxa, -np.inf)
     for idx, ancestor_id in enumerate(ancestor_ids):
-        if is_settled[idx]:
+        if ancestor_id == idx:  # genesis case
             continue
-        lower_bound = result[ancestor_id] if ancestor_id != idx else -np.inf
-        result[idx] = min(max(result[idx], lower_bound), settled_bounds[idx])
+        elif is_settled[ancestor_id]:
+            lower_bounds[idx] = result[ancestor_id]
+        else:
+            lower_bounds[idx] = max(
+                lower_bounds[ancestor_id],
+                capped_times[ancestor_id],
+            )
 
-    return result
+    return np.where(
+        is_settled,
+        result,
+        np.clip(result, lower_bounds, settled_bounds),
+    )
 
 
 def _alifestd_pool_chronological_consistency_asexual_impl(
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
     weights: typing.Optional[np.ndarray],
-    pin_leaves: bool,
+    is_pinned: typing.Optional[np.ndarray],
 ) -> np.ndarray:
     """Implementation detail for
     `alifestd_pool_chronological_consistency_asexual` and
     `alifestd_pool_chronological_consistency_polars`.
 
-    Validates weights (uniform if None) and origin times, then dispatches to
+    Validates weights (uniform if None), pin mask (none pinned if None), and
+    origin times, then dispatches to
     jit-compiled fast path. Returns pooled origin times, with dtype of
     `origin_times` if floating point and float64 otherwise.
     """
@@ -198,12 +214,11 @@ def _alifestd_pool_chronological_consistency_asexual_impl(
     if not (np.isfinite(weights) & (weights >= 0)).all():
         raise ValueError("weights must be finite and non-negative")
 
-    if pin_leaves:  # pin leaves, i.e., taxa without children
-        is_pinned = (
-            _alifestd_mark_num_children_asexual_fast_path(ancestor_ids) == 0
-        )
-    else:
+    if is_pinned is None:
         is_pinned = np.zeros(num_taxa, dtype=np.bool_)
+    elif not np.issubdtype(np.asarray(is_pinned).dtype, np.bool_):
+        raise ValueError("pin_by column must be boolean")
+    is_pinned = np.asarray(is_pinned, dtype=np.bool_)
 
     result = _alifestd_pool_chronological_consistency_asexual_fast_path(
         ancestor_ids,
@@ -219,7 +234,7 @@ def alifestd_pool_chronological_consistency_asexual(
     mutate: bool = False,
     *,
     weight_by: typing.Optional[str] = None,
-    pin_leaves: bool = True,
+    pin_by: typing.Optional[str] = "is_leaf",
 ) -> pd.DataFrame:
     """Resolve origin time inversions by pooling inverted taxa with their
     ancestors, setting each pooled block to its weighted mean origin time.
@@ -238,11 +253,12 @@ def alifestd_pool_chronological_consistency_asexual(
     pinned). Under `num_mrca_leaf_pairs` weighting (see `weight_by`), this
     is the case for leaves and unifurcations.
 
-    If `pin_leaves` is set, leaf origin times are kept unchanged, and leaves
-    are excluded from pooling. Taxa with positive weight are then clamped
-    not to exceed origin times of any descendant leaves; only such clamping,
-    which is necessary only if a leaf precedes pooled ancestors, breaks
-    conservation of weighted origin time sum.
+    Pinned taxa (see `pin_by`; by default, leaves) keep their origin times
+    unchanged, and are excluded from pooling. Taxa with positive weight are
+    then clamped between origin times of their nearest pinned ancestor and
+    any descendant pinned taxa; only such clamping breaks conservation of
+    weighted origin time sum. Pinned taxa should themselves be
+    chronologically consistent; otherwise, result may not be.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
@@ -267,8 +283,12 @@ def alifestd_pool_chronological_consistency_asexual(
         leaf pairs, add a `num_mrca_leaf_pairs` column with
         `alifestd_mark_num_mrca_leaf_pairs_asexual` and pass
         ``weight_by="num_mrca_leaf_pairs"``.
-    pin_leaves : bool, default True
-        Keep leaf origin times unchanged, excluding leaves from pooling.
+    pin_by : str, optional, default "is_leaf"
+        Name of boolean column marking taxa whose origin times are kept
+        unchanged, excluding them from pooling. If None, no taxa are pinned.
+
+        By default, leaves are pinned. If the `is_leaf` column is absent, it
+        is computed with `alifestd_mark_leaves` (and not retained in output).
 
     Returns
     -------
@@ -282,7 +302,8 @@ def alifestd_pool_chronological_consistency_asexual(
         If `phylogeny_df` is sexual, has non-contiguous ids, is not
         topologically sorted, or has non-numeric `origin_time`.
     ValueError
-        If weights are invalid or `origin_time` contains NaN values.
+        If weights are invalid, `pin_by` column is not boolean, or
+        `origin_time` contains NaN values.
 
     See Also
     --------
@@ -322,14 +343,22 @@ def alifestd_pool_chronological_consistency_asexual(
             "non-topologically-sorted data not supported",
         )
 
-    phylogeny_df[
-        "origin_time"
-    ] = _alifestd_pool_chronological_consistency_asexual_impl(
-        phylogeny_df["ancestor_id"].to_numpy(),
-        phylogeny_df["origin_time"].to_numpy(),
-        None if weight_by is None else phylogeny_df[weight_by].to_numpy(),
-        pin_leaves,
+    had_is_leaf = "is_leaf" in phylogeny_df.columns
+    if pin_by == "is_leaf" and not had_is_leaf:
+        phylogeny_df = alifestd_mark_leaves(phylogeny_df, mutate=True)
+
+    phylogeny_df["origin_time"] = (
+        _alifestd_pool_chronological_consistency_asexual_impl(
+            phylogeny_df["ancestor_id"].to_numpy(),
+            phylogeny_df["origin_time"].to_numpy(),
+            None if weight_by is None else phylogeny_df[weight_by].to_numpy(),
+            None if pin_by is None else phylogeny_df[pin_by].to_numpy(),
+        )
     )
+
+    if not had_is_leaf and "is_leaf" in phylogeny_df.columns:
+        phylogeny_df.drop(columns=["is_leaf"], inplace=True)
+
     return phylogeny_df
 
 
@@ -338,6 +367,8 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 Resolve origin time inversions by pooling inverted taxa with their ancestors, setting each pooled block to its weighted mean origin time (i.e., weighted isotonic regression over the tree).
 
 Use `--weight-by` to weight taxa by a column (e.g., `num_mrca_leaf_pairs`, as added by `alifestd_mark_num_mrca_leaf_pairs_asexual`); otherwise, taxa are uniformly weighted.
+
+Use `--pin-by` to keep origin times of taxa marked by a boolean column unchanged (default: `is_leaf`, computed if absent); pass `--no-pin` to pin no taxa.
 
 Data is assumed to be in alife standard format.
 
@@ -374,11 +405,20 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         help="column name of pooling weights (default: None, i.e., uniform)",
     )
-    add_bool_arg(
-        parser,
-        "pin-leaves",
-        default=True,
-        help="keep leaf origin times unchanged (default: True)",
+    parser.add_argument(
+        "--pin-by",
+        default="is_leaf",
+        type=str,
+        help=(
+            "column name of boolean mask for taxa with origin times kept "
+            "unchanged (default: is_leaf, computed if absent)"
+        ),
+    )
+    parser.add_argument(
+        "--no-pin",
+        action="store_true",
+        default=False,
+        help="pin no taxa, overriding --pin-by",
     )
     return parser
 
@@ -398,7 +438,7 @@ if __name__ == "__main__":
                 functools.partial(
                     alifestd_pool_chronological_consistency_asexual,
                     weight_by=args.weight_by,
-                    pin_leaves=args.pin_leaves,
+                    pin_by=None if args.no_pin else args.pin_by,
                 ),
             ),
         )

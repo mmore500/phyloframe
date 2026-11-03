@@ -16,13 +16,14 @@ MODULE = "phyloframe.legacy._alifestd_pool_chronological_consistency_asexual"
 def test_create_parser():
     args, __ = _create_parser().parse_known_args([])
     assert args.weight_by is None
-    assert args.pin_leaves
+    assert args.pin_by == "is_leaf"
+    assert not args.no_pin
 
     args, __ = _create_parser().parse_known_args(
-        ["--weight-by", "num_mrca_leaf_pairs", "--no-pin-leaves"],
+        ["--weight-by", "num_mrca_leaf_pairs", "--no-pin"],
     )
     assert args.weight_by == "num_mrca_leaf_pairs"
-    assert not args.pin_leaves
+    assert args.no_pin
 
 
 def test_cli_help():
@@ -63,7 +64,7 @@ def test_cli_parquet():
             MODULE,
             "--weight-by",
             "tot_orgs",
-            "--no-pin-leaves",
+            "--no-pin",
             output_file,
         ],
         check=True,
