@@ -1,0 +1,72 @@
+import os
+import pathlib
+import subprocess
+
+import pandas as pd
+
+assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+
+MODULE = "phyloframe.legacy._alifestd_mark_num_mrca_leaf_pairs_asexual"
+
+
+def test_alifestd_mark_num_mrca_leaf_pairs_asexual_cli_help():
+    subprocess.run(  # nosec B603
+        ["python3", "-m", MODULE, "--help"],
+        check=True,
+    )
+
+
+def test_alifestd_mark_num_mrca_leaf_pairs_asexual_cli_version():
+    subprocess.run(  # nosec B603
+        ["python3", "-m", MODULE, "--version"],
+        check=True,
+    )
+
+
+def test_alifestd_mark_num_mrca_leaf_pairs_asexual_cli_csv():
+    output_file = "/tmp/phyloframe_alifestd_mark_num_mrca_leaf_pairs_asexual.csv"  # nosec B108
+    pathlib.Path(output_file).unlink(missing_ok=True)
+    subprocess.run(  # nosec B603
+        ["python3", "-m", MODULE, "--eager-write", output_file],
+        check=True,
+        input=f"{assets}/trunktestphylo.csv".encode(),
+    )
+    assert os.path.exists(output_file)
+    result_df = pd.read_csv(output_file)
+    assert len(result_df) > 0
+    assert "num_mrca_leaf_pairs" in result_df.columns
+
+
+def test_alifestd_mark_num_mrca_leaf_pairs_asexual_cli_parquet():
+    output_file = "/tmp/phyloframe_alifestd_mark_num_mrca_leaf_pairs_asexual.pqt"  # nosec B108
+    pathlib.Path(output_file).unlink(missing_ok=True)
+    subprocess.run(  # nosec B603
+        ["python3", "-m", MODULE, "--eager-write", output_file],
+        check=True,
+        input=f"{assets}/trunktestphylo.csv".encode(),
+    )
+    assert os.path.exists(output_file)
+    result_df = pd.read_parquet(output_file)
+    assert len(result_df) > 0
+    assert "num_mrca_leaf_pairs" in result_df.columns
+
+
+def test_alifestd_mark_num_mrca_leaf_pairs_asexual_cli_mark_as():
+    output_file = "/tmp/phyloframe_alifestd_mark_num_mrca_leaf_pairs_asexual_mark_as.csv"  # nosec B108
+    pathlib.Path(output_file).unlink(missing_ok=True)
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--mark-as",
+            "custom_col_name",
+            output_file,
+        ],
+        check=True,
+        input=f"{assets}/trunktestphylo.csv".encode(),
+    )
+    assert os.path.exists(output_file)
+    result_df = pd.read_csv(output_file)
+    assert len(result_df) > 0
+    assert "custom_col_name" in result_df.columns

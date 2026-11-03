@@ -117,6 +117,9 @@ def alifestd_find_chronological_inconsistency(
     alifestd_splice_chronological_consistency_asexual :
         Resolves origin time inversions by grafting onto a node spliced
         into nearest eligible ancestor edge.
+    alifestd_pool_chronological_consistency_asexual :
+        Resolves origin time inversions by pooling origin times into
+        weighted means.
     """
 
     if "ancestor_id" in phylogeny_df.columns:

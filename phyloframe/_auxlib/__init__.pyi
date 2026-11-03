@@ -40,6 +40,7 @@ from ._textwrap_respect_indents import textwrap_respect_indents
 from ._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
+from ._union_find_lookup_path_halving import union_find_lookup_path_halving
 from ._warn_once import warn_once
 from ._with_rng_state_context import with_rng_state_context
 from ._write_text_with_compression import write_text_with_compression
@@ -83,6 +84,7 @@ __all__ = [
     "seed_random",
     "textwrap_respect_indents",
     "unfurl_lineage_with_contiguous_ids",
+    "union_find_lookup_path_halving",
     "warn_once",
     "with_rng_state_context",
     "write_text_with_compression",

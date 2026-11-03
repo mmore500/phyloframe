@@ -145,6 +145,9 @@ def alifestd_splice_chronological_consistency_asexual(
     alifestd_graft_chronological_consistency_asexual :
         Resolves origin time inversions by grafting onto nearest
         eligible ancestor node.
+    alifestd_pool_chronological_consistency_asexual :
+        Resolves origin time inversions by pooling origin times into
+        weighted means.
     alifestd_find_chronological_inconsistency :
         Finds taxa with origin time inversions.
     alifestd_coarsen_taxa_asexual :
