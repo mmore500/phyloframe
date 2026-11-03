@@ -88,17 +88,20 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
     weight_sums = weights.copy()
     weighted_time_sums = weights * origin_times
     means = origin_times.copy()
-    versions = np.zeros(num_taxa, dtype=np.int64)  # invalidates heap entries
     is_finalized = np.zeros(num_taxa, dtype=np.bool_)
 
-    # min-heap of unfinalized blocks by mean, then topmost taxon, with
-    # version to detect stale entries for since-updated blocks
-    heap = [(means[idx], idx, 0) for idx in range(num_taxa) if is_active[idx]]
+    # min-heap of unfinalized blocks by mean, then topmost taxon; entries
+    # are stale if their block was since pooled away, finalized, or updated
+    heap = [(means[idx], idx) for idx in range(num_taxa) if is_active[idx]]
     heapq.heapify(heap)
     while heap:
-        __, block, version = heapq.heappop(heap)
-        if blocks[block] != block or versions[block] != version:
-            continue  # stale entry, block pooled away or since updated
+        mean, block = heapq.heappop(heap)
+        if (
+            blocks[block] != block
+            or is_finalized[block]
+            or means[block] != mean
+        ):
+            continue  # stale entry
 
         effective_parent = effective_parents[block]
         if effective_parent == -1:
@@ -121,11 +124,8 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
             means[parent_block] = (
                 weighted_time_sums[parent_block] / weight_sums[parent_block]
             )
-        versions[parent_block] += 1
-        heapq.heappush(
-            heap,
-            (means[parent_block], parent_block, versions[parent_block]),
-        )
+            # otherwise, mean is unchanged, so existing entry remains valid
+            heapq.heappush(heap, (means[parent_block], parent_block))
 
     # upper bound on each taxon from descendant pinned taxa, inclusive
     pinned_bounds = np.where(is_pinned, origin_times, np.inf)
