@@ -27,7 +27,7 @@ def _alifestd_mark_lineage_cummin_asexual_fast_path(
     ancestor_ids: np.ndarray,
     values: np.ndarray,
     reverse: bool,
-    skipna: bool = True,
+    skipna: bool,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mark_lineage_cummin_asexual`.
 
