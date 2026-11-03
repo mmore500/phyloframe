@@ -145,3 +145,48 @@ def test_missing_values_column():
     )
     with pytest.raises(ValueError):
         alifestd_mark_lineage_cummax_asexual(df, "no_such_col")
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_skipna_no_value_in_scope(reverse: bool):
+    # 0 <- 1 <- 2, 0 <- 3
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 1, 0],
+            "v": [np.nan, np.nan, 2.0, -np.inf],
+        }
+    )
+    res = alifestd_mark_lineage_cummax_asexual(df, "v", reverse=reverse)
+    # NaN where no non-NaN value in scope; genuine inf values retained
+    expected = (
+        [2.0, 2.0, 2.0, -np.inf] if reverse else [np.nan, np.nan, 2.0, -np.inf]
+    )
+    np.testing.assert_array_equal(res["lineage_cummax"], expected)
+
+
+def test_skipna_all_nan():
+    df = pd.DataFrame(
+        {"id": [0, 1], "ancestor_id": [0, 0], "v": [np.nan, np.nan]}
+    )
+    res = alifestd_mark_lineage_cummax_asexual(df, "v")
+    assert res["lineage_cummax"].isna().all()
+
+
+@pytest.mark.parametrize(
+    "reverse, expected",
+    [(False, [1.0, np.nan, np.nan, 3.0]), (True, [np.nan, np.nan, 2.0, 3.0])],
+)
+def test_no_skipna_propagates(reverse: bool, expected: list):
+    # 0 <- 1 <- 2, 0 <- 3
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 1, 0],
+            "v": [1.0, np.nan, 2.0, 3.0],
+        }
+    )
+    res = alifestd_mark_lineage_cummax_asexual(
+        df, "v", reverse=reverse, skipna=False
+    )
+    np.testing.assert_array_equal(res["lineage_cummax"], expected)

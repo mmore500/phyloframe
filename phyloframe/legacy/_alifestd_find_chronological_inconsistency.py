@@ -1,4 +1,4 @@
-from numbers import Number
+import numbers
 import typing
 
 import numpy as np
@@ -17,7 +17,7 @@ from ._alifestd_try_add_ancestor_list_col import (
 
 @jit(nopython=True)
 def _alifestd_find_chronological_inconsistency_contiguous(
-    ancestor_ids: np.ndarray, origin_times: np.ndarray, epsilon: Number
+    ancestor_ids: np.ndarray, origin_times: np.ndarray, epsilon: numbers.Number
 ) -> typing.Optional[int]:
     for id_, ancestor_id in enumerate(ancestor_ids):
         if ancestor_id == id_:
@@ -32,7 +32,7 @@ def _alifestd_find_chronological_inconsistency_compact(
     ids: np.ndarray,
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    epsilon: Number,
+    epsilon: numbers.Number,
 ) -> typing.Optional[int]:
     origin_time_lookup = np.empty(len(ids))
     for id_, origin_time in zip(ids, origin_times):
@@ -51,7 +51,7 @@ def _alifestd_find_chronological_inconsistency_arbitrary(
     ids: np.ndarray,
     ancestor_ids: np.ndarray,
     origin_times: np.ndarray,
-    epsilon: Number,
+    epsilon: numbers.Number,
 ) -> typing.Optional[int]:
     origin_time_lookup = dict()
     for id_, origin_time in zip(ids, origin_times):
@@ -66,7 +66,9 @@ def _alifestd_find_chronological_inconsistency_arbitrary(
 
 
 def _alifestd_find_chronological_inconsistency_asexual(
-    phylogeny_df: pd.DataFrame, unwrap: typing.Callable, epsilon: Number
+    phylogeny_df: pd.DataFrame,
+    unwrap: typing.Callable,
+    epsilon: numbers.Number,
 ) -> typing.Optional[int]:
     if alifestd_has_contiguous_ids(phylogeny_df):
         call = unwrap(_alifestd_find_chronological_inconsistency_contiguous)
@@ -96,7 +98,7 @@ def _alifestd_find_chronological_inconsistency_asexual(
 def alifestd_find_chronological_inconsistency(
     phylogeny_df: pd.DataFrame,
     *,
-    epsilon: typing.Optional[Number] = None,
+    epsilon: typing.Optional[numbers.Number] = None,
 ) -> typing.Optional[int]:
     """Return the id of a taxon with origin time preceding its parent's
     origin time plus `epsilon`, if any are present.

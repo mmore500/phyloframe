@@ -55,7 +55,7 @@ def _alifestd_mark_unifurcation_length_asexual_fast_path(
     )
     # nearest non-unifurcation along lineage, inclusive; roots always count
     anchor_ids = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        ancestor_ids, np.where(is_unifurcation, -1, ids), False
+        ancestor_ids, np.where(is_unifurcation, -1, ids), False, False
     )
 
     # weight of contiguous unifurcations above parent through its anchor
