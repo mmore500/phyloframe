@@ -310,8 +310,9 @@ def alifestd_pool_chronological_consistency_asexual(
     Returns
     -------
     pandas.DataFrame
-        The phylogeny with pooled `origin_time` column. Column dtype is
-        float64, unless input dtype is another floating point type.
+        The phylogeny with pooled `origin_time` column. Floating point
+        dtype is preserved; integer origin times are converted to float64,
+        as pooled means may be fractional.
 
     Raises
     ------
