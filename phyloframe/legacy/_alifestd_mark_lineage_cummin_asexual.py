@@ -19,9 +19,6 @@ from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
-from ._alifestd_mark_lineage_cummax_asexual import (
-    _alifestd_mark_lineage_cumext_skipna_empty_mask,
-)
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
@@ -30,21 +27,22 @@ def _alifestd_mark_lineage_cummin_asexual_fast_path(
     ancestor_ids: np.ndarray,
     values: np.ndarray,
     reverse: bool,
+    skipna: bool = True,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mark_lineage_cummin_asexual`."""
+    """Implementation detail for `alifestd_mark_lineage_cummin_asexual`.
+
+    NaN values are skipped (via `np.fmin`) if `skipna`, else propagate
+    (via `np.minimum`).
+    """
     n = ancestor_ids.shape[0]
     result = np.copy(values)
     for k in range(n - 1, -1, -1) if reverse else range(n):
         anc = ancestor_ids[k]
         target = anc if reverse else k
-        first, second = result[anc], result[k]
-        # propagate NaN (x != x only for NaN), as builtin min doesn't
-        if first != first:
-            result[target] = first
-        elif second != second:
-            result[target] = second
+        if skipna:
+            result[target] = np.fmin(result[anc], result[k])
         else:
-            result[target] = min(first, second)
+            result[target] = np.minimum(result[anc], result[k])
     return result
 
 
@@ -66,9 +64,7 @@ def alifestd_mark_lineage_cummin_asexual(
     inclusive.
 
     The output column name can be changed via the ``mark_as`` parameter.
-    NaN values are skipped if ``skipna`` (default), else propagate. If
-    skipped, nodes with no non-NaN value in scope (i.e., along lineage, or
-    within clade if ``reverse``) take NaN.
+    NaN values are skipped if ``skipna`` (default), else propagate.
 
     Phylogeny must be asexual, topologically sorted, and have
     contiguous ids; otherwise ``NotImplementedError`` is raised.
@@ -106,28 +102,12 @@ def alifestd_mark_lineage_cummin_asexual(
             "non-topologically-sorted data not supported",
         )
 
-    values_arr = phylogeny_df[values].to_numpy()
-    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
-    empty_mask = None
-    if skipna:
-        empty_mask = _alifestd_mark_lineage_cumext_skipna_empty_mask(
-            ancestor_ids, values_arr, reverse
-        )
-        values_arr = np.nan_to_num(
-            values_arr,
-            nan=np.inf,
-            posinf=np.inf,
-            neginf=-np.inf,
-        )
-
-    result = _alifestd_mark_lineage_cummin_asexual_fast_path(
-        ancestor_ids,
-        values_arr,
+    phylogeny_df[mark_as] = _alifestd_mark_lineage_cummin_asexual_fast_path(
+        phylogeny_df["ancestor_id"].to_numpy(),
+        phylogeny_df[values].to_numpy(),
         reverse,
+        skipna,
     )
-    if empty_mask is not None:
-        result[empty_mask] = np.nan
-    phylogeny_df[mark_as] = result
     return phylogeny_df
 
 

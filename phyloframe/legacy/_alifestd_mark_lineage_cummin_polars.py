@@ -20,9 +20,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_lineage_cummax_asexual import (
-    _alifestd_mark_lineage_cumext_skipna_empty_mask,
-)
 from ._alifestd_mark_lineage_cummin_asexual import (
     _alifestd_mark_lineage_cummin_asexual_fast_path,
 )
@@ -48,8 +45,7 @@ def alifestd_mark_lineage_cummin_polars(
     inclusive.
 
     Null and NaN values are skipped if ``skipna`` (default), else propagate
-    as NaN. If skipped, nodes with no non-missing value in scope (i.e., along
-    lineage, or within clade if ``reverse``) take null.
+    as NaN.
 
     See Also
     --------
@@ -103,32 +99,18 @@ def alifestd_mark_lineage_cummin_polars(
         .to_series()
         .to_numpy()
     )
-    empty_mask = None
-    if skipna:
-        empty_mask = _alifestd_mark_lineage_cumext_skipna_empty_mask(
-            ancestor_ids, values_arr, reverse
-        )
-        values_arr = np.nan_to_num(
-            values_arr,
-            nan=np.inf,
-            posinf=np.inf,
-            neginf=-np.inf,
-        )
-
     result = _alifestd_mark_lineage_cummin_asexual_fast_path(
         ancestor_ids,
         values_arr,
         reverse,
+        skipna,
     )
-
-    if empty_mask is not None:
-        result[empty_mask] = np.nan
 
     return phylogeny_df.with_columns(
         pl.Series(
             name=mark_as,
             values=result,
-            nan_to_null=empty_mask is not None,  # no other NaN, if skipna
+            nan_to_null=skipna,  # if skipna, NaN only where no value in scope
         ),
     )
 
