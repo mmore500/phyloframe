@@ -122,9 +122,9 @@ def test_pool_chronological_consistency_polars_unifurcation(
 
 
 @_apply
-@pytest.mark.parametrize("pin_leaves", [True, False])
-def test_pool_chronological_consistency_polars_pin_leaves(
-    apply: typing.Callable, pin_leaves: bool
+@pytest.mark.parametrize("pin_by", ["is_leaf", None])
+def test_pool_chronological_consistency_polars_pin_by(
+    apply: typing.Callable, pin_by: typing.Optional[str]
 ):
     df = pl.DataFrame(
         {
@@ -135,12 +135,12 @@ def test_pool_chronological_consistency_polars_pin_leaves(
     )
     result = (
         alifestd_pool_chronological_consistency_polars(
-            apply(df), pin_leaves=pin_leaves
+            apply(df), pin_by=pin_by
         )
         .lazy()
         .collect()
     )
-    expected = [3.0, 3.0, 10.0] if pin_leaves else [4.0, 4.0, 10.0]
+    expected = [3.0, 3.0, 10.0] if pin_by is not None else [4.0, 4.0, 10.0]
     assert result["origin_time"].to_list() == expected
 
 
@@ -271,13 +271,13 @@ def test_pool_chronological_consistency_polars_unsupported(
 )
 @pytest.mark.parametrize("seed", range(3))
 @pytest.mark.parametrize("weight_by", ["num_mrca_leaf_pairs", None])
-@pytest.mark.parametrize("pin_leaves", [True, False])
+@pytest.mark.parametrize("pin_by", ["is_leaf", None])
 def test_pool_chronological_consistency_polars_matches_pandas(
     apply: typing.Callable,
     phylogeny_df: pd.DataFrame,
     seed: int,
     weight_by: typing.Optional[str],
-    pin_leaves: bool,
+    pin_by: typing.Optional[str],
 ):
     phylogeny_df = alifestd_try_add_ancestor_id_col(
         alifestd_to_working_format(phylogeny_df), mutate=True
@@ -294,13 +294,13 @@ def test_pool_chronological_consistency_polars_matches_pandas(
         phylogeny_df = alifestd_mark_num_mrca_leaf_pairs_asexual(phylogeny_df)
 
     expected = alifestd_pool_chronological_consistency_asexual(
-        phylogeny_df, weight_by=weight_by, pin_leaves=pin_leaves
+        phylogeny_df, weight_by=weight_by, pin_by=pin_by
     )
     result = (
         alifestd_pool_chronological_consistency_polars(
             apply(pl.from_pandas(phylogeny_df)),
             weight_by=weight_by,
-            pin_leaves=pin_leaves,
+            pin_by=pin_by,
         )
         .lazy()
         .collect()

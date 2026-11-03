@@ -8,7 +8,6 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import polars as pl
 
-from .._auxlib._add_bool_arg import add_bool_arg
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
@@ -19,6 +18,7 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_pool_chronological_consistency_asexual import (
     _alifestd_pool_chronological_consistency_asexual_impl,
 )
@@ -31,7 +31,7 @@ def alifestd_pool_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
     weight_by: typing.Optional[str] = None,
-    pin_leaves: bool = True,
+    pin_by: typing.Optional[str] = "is_leaf",
 ) -> pl.DataFrame:
     """Resolve origin time inversions by pooling inverted taxa with their
     ancestors, setting each pooled block to its weighted mean origin time.
@@ -50,11 +50,12 @@ def alifestd_pool_chronological_consistency_polars(
     pinned). Under `num_mrca_leaf_pairs` weighting (see `weight_by`), this
     is the case for leaves and unifurcations.
 
-    If `pin_leaves` is set, leaf origin times are kept unchanged, and leaves
-    are excluded from pooling. Taxa with positive weight are then clamped
-    not to exceed origin times of any descendant leaves; only such clamping,
-    which is necessary only if a leaf precedes pooled ancestors, breaks
-    conservation of weighted origin time sum.
+    Pinned taxa (see `pin_by`; by default, leaves) keep their origin times
+    unchanged, and are excluded from pooling. Taxa with positive weight are
+    then clamped between origin times of their nearest pinned ancestor and
+    any descendant pinned taxa; only such clamping breaks conservation of
+    weighted origin time sum. Pinned taxa should themselves be
+    chronologically consistent; otherwise, result may not be.
 
     Parameters
     ----------
@@ -73,8 +74,13 @@ def alifestd_pool_chronological_consistency_polars(
         leaf pairs, add a `num_mrca_leaf_pairs` column with
         `alifestd_mark_num_mrca_leaf_pairs_polars` and pass
         ``weight_by="num_mrca_leaf_pairs"``.
-    pin_leaves : bool, default True
-        Keep leaf origin times unchanged, excluding leaves from pooling.
+    pin_by : str, optional, default "is_leaf"
+        Name of boolean column marking taxa whose origin times are kept
+        unchanged, excluding them from pooling. If None, no taxa are pinned.
+
+        By default, leaves are pinned. If the `is_leaf` column is absent, it
+        is computed with `alifestd_mark_leaves_polars` (and not retained in
+        output).
 
     Returns
     -------
@@ -88,7 +94,8 @@ def alifestd_pool_chronological_consistency_polars(
         If `phylogeny_df` is sexual, has non-contiguous ids, is not
         topologically sorted, or has non-numeric `origin_time`.
     ValueError
-        If weights are invalid or `origin_time` contains NaN values.
+        If weights are invalid, `pin_by` column is not boolean, or
+        `origin_time` contains NaN values.
 
     See Also
     --------
@@ -157,6 +164,25 @@ def alifestd_pool_chronological_consistency_polars(
         .to_numpy()
     )
 
+    if pin_by == "is_leaf" and "is_leaf" not in schema.names():
+        logging.info(
+            "- alifestd_pool_chronological_consistency_polars: "
+            "marking leaves...",
+        )
+        is_pinned = (
+            alifestd_mark_leaves_polars(phylogeny_df.lazy())
+            .select("is_leaf")
+            .collect()
+            .to_series()
+            .to_numpy()
+        )
+    elif pin_by is not None:
+        is_pinned = (
+            phylogeny_df.lazy().select(pin_by).collect().to_series().to_numpy()
+        )
+    else:
+        is_pinned = None
+
     logging.info(
         "- alifestd_pool_chronological_consistency_polars: "
         "pooling origin times...",
@@ -165,7 +191,7 @@ def alifestd_pool_chronological_consistency_polars(
         ancestor_ids,
         origin_times,
         weights,
-        pin_leaves,
+        is_pinned,
     )
 
     return phylogeny_df.with_columns(pl.Series("origin_time", pooled))
@@ -176,6 +202,8 @@ _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phylofra
 Resolve origin time inversions by pooling inverted taxa with their ancestors, setting each pooled block to its weighted mean origin time (i.e., weighted isotonic regression over the tree).
 
 Use `--weight-by` to weight taxa by a column (e.g., `num_mrca_leaf_pairs`, as added by `alifestd_mark_num_mrca_leaf_pairs_polars`); otherwise, taxa are uniformly weighted.
+
+Use `--pin-by` to keep origin times of taxa marked by a boolean column unchanged (default: `is_leaf`, computed if absent); pass `--no-pin` to pin no taxa.
 
 Data is assumed to be in alife standard format.
 
@@ -212,11 +240,20 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         help="column name of pooling weights (default: None, i.e., uniform)",
     )
-    add_bool_arg(
-        parser,
-        "pin-leaves",
-        default=True,
-        help="keep leaf origin times unchanged (default: True)",
+    parser.add_argument(
+        "--pin-by",
+        default="is_leaf",
+        type=str,
+        help=(
+            "column name of boolean mask for taxa with origin times kept "
+            "unchanged (default: is_leaf, computed if absent)"
+        ),
+    )
+    parser.add_argument(
+        "--no-pin",
+        action="store_true",
+        default=False,
+        help="pin no taxa, overriding --pin-by",
     )
     return parser
 
@@ -237,7 +274,7 @@ if __name__ == "__main__":
                 output_dataframe_op=functools.partial(
                     alifestd_pool_chronological_consistency_polars,
                     weight_by=args.weight_by,
-                    pin_leaves=args.pin_leaves,
+                    pin_by=None if args.no_pin else args.pin_by,
                 ),
             )
     except NotImplementedError as e:
