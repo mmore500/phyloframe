@@ -29,7 +29,7 @@ def _alifestd_mark_max_child_value_asexual_fast_path(
     result = np.copy(values)
     seen_child = np.zeros(len(ancestor_ids), dtype=np.bool_)
     for k, anc in enumerate(ancestor_ids):
-        if anc == k:
+        if anc == k:  # skip roots
             continue
         if not seen_child[anc] or values[k] > result[anc]:
             result[anc] = values[k]
