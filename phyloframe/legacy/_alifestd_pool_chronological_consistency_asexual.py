@@ -22,6 +22,9 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._union_find_lookup_path_halving import (
     union_find_lookup_path_halving,
 )
+from ._alifestd_find_chronological_inconsistency import (
+    _alifestd_find_chronological_inconsistency_contiguous,
+)
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_mark_leaves import alifestd_mark_leaves
@@ -229,10 +232,14 @@ def _alifestd_pool_chronological_consistency_asexual_impl(
         is_pinned,
     )
     # result inverted only where a pinned taxon precedes a pinned ancestor
-    if (result < result[ancestor_ids]).any():
+    inconsistent_id = _alifestd_find_chronological_inconsistency_contiguous(
+        ancestor_ids, result, epsilon=0.0
+    )
+    if inconsistent_id is not None:
         warnings.warn(
             "pinned taxa are not chronologically consistent; result "
-            "retains origin time inversions among pinned taxa",
+            "retains origin time inversions among pinned taxa (e.g., "
+            f"taxon {inconsistent_id} precedes its parent)",
         )
 
     return result.astype(result_dtype, copy=False)

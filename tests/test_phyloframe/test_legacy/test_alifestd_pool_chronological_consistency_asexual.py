@@ -211,7 +211,7 @@ def test_pool_chronological_consistency_pin_by_inconsistent_warns():
             "is_fixed": [True, True, False],
         }
     )
-    with pytest.warns(UserWarning, match="not chronologically consistent"):
+    with pytest.warns(UserWarning, match="taxon 1 precedes its parent"):
         result = alifestd_pool_chronological_consistency_asexual(
             df, pin_by="is_fixed"
         )
