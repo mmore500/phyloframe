@@ -25,6 +25,7 @@ $ python3 -m phyloframe.legacy._alifestd_chronological_sort
 $ python3 -m phyloframe.legacy._alifestd_chronological_sort_polars
 $ python3 -m phyloframe.legacy._alifestd_coarsen_dilate_asexual
 $ python3 -m phyloframe.legacy._alifestd_coarsen_dilate_polars
+$ python3 -m phyloframe.legacy._alifestd_coarsen_taxa_polars
 $ python3 -m phyloframe.legacy._alifestd_coerce_chronological_consistency
 $ python3 -m phyloframe.legacy._alifestd_coerce_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_collapse_trunk_asexual
@@ -66,6 +67,8 @@ $ python3 -m phyloframe.legacy._alifestd_drop_topological_sensitivity_polars
 $ python3 -m phyloframe.legacy._alifestd_from_avida_spop
 $ python3 -m phyloframe.legacy._alifestd_from_newick
 $ python3 -m phyloframe.legacy._alifestd_from_newick_polars
+$ python3 -m phyloframe.legacy._alifestd_graft_chronological_consistency_asexual
+$ python3 -m phyloframe.legacy._alifestd_graft_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_join_roots
 $ python3 -m phyloframe.legacy._alifestd_join_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_ladderize_asexual
@@ -127,6 +130,10 @@ $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_delta_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_delta_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_lineage_ffill_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_lineage_ffill_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_max_child_value_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_max_child_value_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_max_descendant_origin_time_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_min_child_value_asexual
@@ -144,6 +151,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_sibling_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_leaves_sibling_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_num_mrca_leaf_pairs_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_num_mrca_leaf_pairs_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_num_preceding_leaves_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_num_preceding_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_oldest_root
@@ -184,6 +193,8 @@ $ python3 -m phyloframe.legacy._alifestd_minify_asexual
 $ python3 -m phyloframe.legacy._alifestd_minify_polars
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops_polars
+$ python3 -m phyloframe.legacy._alifestd_pool_chronological_consistency_asexual
+$ python3 -m phyloframe.legacy._alifestd_pool_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots
 $ python3 -m phyloframe.legacy._alifestd_prefix_roots_polars
 $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_asexual
@@ -191,10 +202,14 @@ $ python3 -m phyloframe.legacy._alifestd_prune_extinct_lineages_polars
 $ python3 -m phyloframe.legacy._alifestd_reroot_at_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_reroot_at_id_polars
 $ python3 -m phyloframe.legacy._alifestd_screen_trait_defined_clades_fitch_polars
+$ python3 -m phyloframe.legacy._alifestd_shuffle_working_format
+$ python3 -m phyloframe.legacy._alifestd_shuffle_working_format_polars
 $ python3 -m phyloframe.legacy._alifestd_sort_children_asexual
 $ python3 -m phyloframe.legacy._alifestd_sort_children_polars
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies
 $ python3 -m phyloframe.legacy._alifestd_splay_polytomies_polars
+$ python3 -m phyloframe.legacy._alifestd_splice_chronological_consistency_asexual
+$ python3 -m phyloframe.legacy._alifestd_splice_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_polars
 $ python3 -m phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars

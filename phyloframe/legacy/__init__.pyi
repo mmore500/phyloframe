@@ -101,6 +101,10 @@ from ._alifestd_coarsen_taxa_asexual import (
     alifestd_coarsen_taxa_asexual,
     alifestd_coarsen_taxa_asexual_make_agg,
 )
+from ._alifestd_coarsen_taxa_polars import (
+    alifestd_coarsen_taxa_polars,
+    alifestd_coarsen_taxa_polars_make_agg,
+)
 from ._alifestd_coerce_chronological_consistency import (
     alifestd_coerce_chronological_consistency,
 )
@@ -226,6 +230,12 @@ from ._alifestd_from_avida_spop import alifestd_from_avida_spop
 from ._alifestd_from_avida_spop_polars import alifestd_from_avida_spop_polars
 from ._alifestd_from_newick import alifestd_from_newick
 from ._alifestd_from_newick_polars import alifestd_from_newick_polars
+from ._alifestd_graft_chronological_consistency_asexual import (
+    alifestd_graft_chronological_consistency_asexual,
+)
+from ._alifestd_graft_chronological_consistency_polars import (
+    alifestd_graft_chronological_consistency_polars,
+)
 from ._alifestd_has_compact_ids import alifestd_has_compact_ids
 from ._alifestd_has_compact_ids_polars import alifestd_has_compact_ids_polars
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
@@ -472,6 +482,18 @@ from ._alifestd_mark_lineage_delta_asexual import (
 from ._alifestd_mark_lineage_delta_polars import (
     alifestd_mark_lineage_delta_polars,
 )
+from ._alifestd_mark_lineage_ffill_asexual import (
+    alifestd_mark_lineage_ffill_asexual,
+)
+from ._alifestd_mark_lineage_ffill_polars import (
+    alifestd_mark_lineage_ffill_polars,
+)
+from ._alifestd_mark_max_child_value_asexual import (
+    alifestd_mark_max_child_value_asexual,
+)
+from ._alifestd_mark_max_child_value_polars import (
+    alifestd_mark_max_child_value_polars,
+)
 from ._alifestd_mark_max_descendant_origin_time_asexual import (
     alifestd_mark_max_descendant_origin_time_asexual,
 )
@@ -514,6 +536,12 @@ from ._alifestd_mark_num_leaves_sibling_asexual import (
 )
 from ._alifestd_mark_num_leaves_sibling_polars import (
     alifestd_mark_num_leaves_sibling_polars,
+)
+from ._alifestd_mark_num_mrca_leaf_pairs_asexual import (
+    alifestd_mark_num_mrca_leaf_pairs_asexual,
+)
+from ._alifestd_mark_num_mrca_leaf_pairs_polars import (
+    alifestd_mark_num_mrca_leaf_pairs_polars,
 )
 from ._alifestd_mark_num_preceding_leaves_asexual import (
     alifestd_mark_num_preceding_leaves_asexual,
@@ -631,6 +659,12 @@ from ._alifestd_parse_ancestor_id import alifestd_parse_ancestor_id
 from ._alifestd_parse_ancestor_ids import alifestd_parse_ancestor_ids
 from ._alifestd_pipe_unary_ops import alifestd_pipe_unary_ops
 from ._alifestd_pipe_unary_ops_polars import alifestd_pipe_unary_ops_polars
+from ._alifestd_pool_chronological_consistency_asexual import (
+    alifestd_pool_chronological_consistency_asexual,
+)
+from ._alifestd_pool_chronological_consistency_polars import (
+    alifestd_pool_chronological_consistency_polars,
+)
 from ._alifestd_prefix_roots import alifestd_prefix_roots
 from ._alifestd_prefix_roots_polars import alifestd_prefix_roots_polars
 from ._alifestd_prune_extinct_lineages_asexual import (
@@ -656,11 +690,21 @@ from ._alifestd_screen_trait_defined_clades_fitch_polars import (
 from ._alifestd_screen_trait_defined_clades_naive_asexual import (
     alifestd_screen_trait_defined_clades_naive_asexual,
 )
+from ._alifestd_shuffle_working_format import alifestd_shuffle_working_format
+from ._alifestd_shuffle_working_format_polars import (
+    alifestd_shuffle_working_format_polars,
+)
 from ._alifestd_sort_children_asexual import alifestd_sort_children_asexual
 from ._alifestd_sort_children_polars import alifestd_sort_children_polars
 from ._alifestd_splay_polytomies import alifestd_splay_polytomies
 from ._alifestd_splay_polytomies_polars import (
     alifestd_splay_polytomies_polars,
+)
+from ._alifestd_splice_chronological_consistency_asexual import (
+    alifestd_splice_chronological_consistency_asexual,
+)
+from ._alifestd_splice_chronological_consistency_polars import (
+    alifestd_splice_chronological_consistency_polars,
 )
 from ._alifestd_sum_origin_time_deltas_asexual import (
     alifestd_sum_origin_time_deltas_asexual,
@@ -809,6 +853,8 @@ __all__ = [
     "alifestd_coarsen_mask",
     "alifestd_coarsen_taxa_asexual",
     "alifestd_coarsen_taxa_asexual_make_agg",
+    "alifestd_coarsen_taxa_polars",
+    "alifestd_coarsen_taxa_polars_make_agg",
     "alifestd_coerce_chronological_consistency",
     "alifestd_coerce_chronological_consistency_polars",
     "alifestd_collapse_trunk_asexual",
@@ -882,6 +928,8 @@ __all__ = [
     "alifestd_from_avida_spop_polars",
     "alifestd_from_newick",
     "alifestd_from_newick_polars",
+    "alifestd_graft_chronological_consistency_asexual",
+    "alifestd_graft_chronological_consistency_polars",
     "alifestd_has_compact_ids",
     "alifestd_has_compact_ids_polars",
     "alifestd_has_contiguous_ids",
@@ -994,6 +1042,10 @@ __all__ = [
     "alifestd_mark_lineage_cumsum_polars",
     "alifestd_mark_lineage_delta_asexual",
     "alifestd_mark_lineage_delta_polars",
+    "alifestd_mark_lineage_ffill_asexual",
+    "alifestd_mark_lineage_ffill_polars",
+    "alifestd_mark_max_child_value_asexual",
+    "alifestd_mark_max_child_value_polars",
     "alifestd_mark_max_descendant_origin_time_asexual",
     "alifestd_mark_max_descendant_origin_time_polars",
     "alifestd_mark_monomorphic_clades_polars",
@@ -1009,6 +1061,8 @@ __all__ = [
     "alifestd_mark_num_leaves_polars",
     "alifestd_mark_num_leaves_sibling_asexual",
     "alifestd_mark_num_leaves_sibling_polars",
+    "alifestd_mark_num_mrca_leaf_pairs_asexual",
+    "alifestd_mark_num_mrca_leaf_pairs_polars",
     "alifestd_mark_num_preceding_leaves_asexual",
     "alifestd_mark_num_preceding_leaves_polars",
     "alifestd_mark_oldest_root",
@@ -1043,6 +1097,8 @@ __all__ = [
     "alifestd_pipe_unary_ops",
     "alifestd_pipe_unary_ops_polars",
     "alifestd_parse_ancestor_ids",
+    "alifestd_pool_chronological_consistency_asexual",
+    "alifestd_pool_chronological_consistency_polars",
     "alifestd_prefix_roots",
     "alifestd_prefix_roots_polars",
     "alifestd_prune_extinct_lineages_asexual",
@@ -1054,10 +1110,14 @@ __all__ = [
     "alifestd_screen_trait_defined_clades_fitch_asexual",
     "alifestd_screen_trait_defined_clades_fitch_polars",
     "alifestd_screen_trait_defined_clades_naive_asexual",
+    "alifestd_shuffle_working_format",
+    "alifestd_shuffle_working_format_polars",
     "alifestd_sort_children_asexual",
     "alifestd_sort_children_polars",
     "alifestd_splay_polytomies",
     "alifestd_splay_polytomies_polars",
+    "alifestd_splice_chronological_consistency_asexual",
+    "alifestd_splice_chronological_consistency_polars",
     "alifestd_sum_origin_time_deltas_asexual",
     "alifestd_sum_origin_time_deltas_polars",
     "alifestd_test_leaves_isomorphic_asexual",

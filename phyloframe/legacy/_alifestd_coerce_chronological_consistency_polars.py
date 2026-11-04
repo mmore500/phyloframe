@@ -1,7 +1,7 @@
 import argparse
 import functools
 import logging
-from numbers import Number
+import numbers
 import os
 import typing
 
@@ -33,7 +33,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_coerce_chronological_consistency_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    epsilon: typing.Optional[Number] = None,
+    epsilon: typing.Optional[numbers.Number] = None,
 ) -> pl.DataFrame:
     """For any taxa with origin time preceding its parent's origin time plus
     `epsilon`, set origin time to parent's origin time plus
@@ -51,7 +51,7 @@ def alifestd_coerce_chronological_consistency_polars(
 
         Must represent an asexual phylogeny with contiguous ids, numeric
         `origin_time`, and topologically sorted rows.
-    epsilon : Number, optional
+    epsilon : numbers.Number, optional
         Minimum origin time gap enforced between each taxon and its parent.
 
     Returns
@@ -63,6 +63,17 @@ def alifestd_coerce_chronological_consistency_polars(
     --------
     alifestd_coerce_chronological_consistency :
         Pandas-based implementation.
+    alifestd_graft_chronological_consistency_polars :
+        Resolves origin time inversions by grafting onto nearest
+        eligible ancestor node.
+    alifestd_splice_chronological_consistency_polars :
+        Resolves origin time inversions by grafting onto a node spliced
+        into nearest eligible ancestor edge.
+    alifestd_pool_chronological_consistency_polars :
+        Resolves origin time inversions by pooling origin times into
+        weighted means.
+    alifestd_find_chronological_inconsistency_polars :
+        Finds taxa with origin time inversions.
     """
 
     logging.info(

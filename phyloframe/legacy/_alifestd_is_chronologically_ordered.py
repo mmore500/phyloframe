@@ -1,5 +1,5 @@
 import io
-from numbers import Number
+import numbers
 import typing
 import warnings
 
@@ -20,7 +20,9 @@ from ._alifestd_try_add_ancestor_list_col import (
 
 
 def _report_diagnosis(
-    df: pd.DataFrame, taxon_id: int, epsilon: typing.Optional[Number] = None
+    df: pd.DataFrame,
+    taxon_id: int,
+    epsilon: typing.Optional[numbers.Number] = None,
 ) -> None:
     warning_lines = [""]
     append = warning_lines.append
@@ -108,7 +110,7 @@ def alifestd_is_chronologically_ordered(
     phylogeny_df: pd.DataFrame,
     diagnose: bool = True,
     *,
-    epsilon: typing.Optional[Number] = None,
+    epsilon: typing.Optional[numbers.Number] = None,
 ) -> bool:
     """Do all organisms have `origin_time`s at least `epsilon` after members
     of their `ancestor_list`?

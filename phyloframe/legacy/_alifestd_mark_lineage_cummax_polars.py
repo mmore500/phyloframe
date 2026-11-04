@@ -6,7 +6,6 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 
 from .._auxlib._add_bool_arg import add_bool_arg
@@ -43,6 +42,9 @@ def alifestd_mark_lineage_cummax_polars(
     inclusive. With ``reverse=True``, the result at each node is the
     maximum of ``values`` over the entire clade rooted at that node,
     inclusive.
+
+    Null and NaN values are skipped if ``skipna`` (default), else propagate
+    as NaN.
 
     See Also
     --------
@@ -96,22 +98,19 @@ def alifestd_mark_lineage_cummax_polars(
         .to_series()
         .to_numpy()
     )
-    if skipna:
-        values_arr = np.nan_to_num(
-            values_arr,
-            nan=-np.inf,
-            posinf=np.inf,
-            neginf=-np.inf,
-        )
-
     result = _alifestd_mark_lineage_cummax_asexual_fast_path(
         ancestor_ids,
         values_arr,
         reverse,
+        skipna,
     )
 
     return phylogeny_df.with_columns(
-        pl.Series(name=mark_as, values=result),
+        pl.Series(
+            name=mark_as,
+            values=result,
+            nan_to_null=skipna,  # if skipna, NaN only where no value in scope
+        ),
     )
 
 

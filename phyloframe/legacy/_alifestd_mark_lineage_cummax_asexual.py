@@ -1,6 +1,7 @@
 import argparse
 import functools
 import logging
+import numbers
 import os
 
 import joinem
@@ -27,14 +28,23 @@ def _alifestd_mark_lineage_cummax_asexual_fast_path(
     ancestor_ids: np.ndarray,
     values: np.ndarray,
     reverse: bool,
+    skipna: bool,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mark_lineage_cummax_asexual`."""
+    """Implementation detail for `alifestd_mark_lineage_cummax_asexual`.
+
+    NaN values are skipped (via `np.fmax`) if `skipna`, else propagate
+    (via `np.maximum`).
+    """
+
+    def max_(a: numbers.Number, b: numbers.Number) -> numbers.Number:
+        return np.fmax(a, b) if skipna else np.maximum(a, b)
+
     n = ancestor_ids.shape[0]
     result = np.copy(values)
     for k in range(n - 1, -1, -1) if reverse else range(n):
         anc = ancestor_ids[k]
         target = anc if reverse else k
-        result[target] = max(result[anc], result[k])
+        result[target] = max_(result[anc], result[k])
     return result
 
 
@@ -56,8 +66,7 @@ def alifestd_mark_lineage_cummax_asexual(
     inclusive.
 
     The output column name can be changed via the ``mark_as`` parameter.
-    NaN values are treated as -inf if ``skipna`` (default), else
-    propagate.
+    NaN values are skipped if ``skipna`` (default), else propagate.
 
     Phylogeny must be asexual, topologically sorted, and have
     contiguous ids; otherwise ``NotImplementedError`` is raised.
@@ -95,19 +104,11 @@ def alifestd_mark_lineage_cummax_asexual(
             "non-topologically-sorted data not supported",
         )
 
-    values_arr = phylogeny_df[values].to_numpy()
-    if skipna:
-        values_arr = np.nan_to_num(
-            values_arr,
-            nan=-np.inf,
-            posinf=np.inf,
-            neginf=-np.inf,
-        )
-
     phylogeny_df[mark_as] = _alifestd_mark_lineage_cummax_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
-        values_arr,
+        phylogeny_df[values].to_numpy(),
         reverse,
+        skipna,
     )
     return phylogeny_df
 
