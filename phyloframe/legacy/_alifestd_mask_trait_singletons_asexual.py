@@ -34,7 +34,7 @@ def _alifestd_mask_trait_singletons_asexual_stem_node_ids(
     # ids increase along each lineage, so the running max of branching ids
     # (else -1) is the nearest branching node at or above each node
     nearest_branching_ids = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        ancestor_ids, np.where(is_branching, ids, -1), False
+        ancestor_ids, np.where(is_branching, ids, -1), False, False
     )
     stem_node_ids = nearest_branching_ids[ancestor_ids]
     is_root = ancestor_ids == ids
