@@ -185,6 +185,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_stem_node_id_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_stem_node_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_polars
 $ python3 -m phyloframe.legacy._alifestd_mask_trait_mdcs_strict_polars

@@ -18,7 +18,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._alifestd_mask_trait_mdcs_strict_asexual import (
     _alifestd_mask_trait_mdcs_strict_asexual_fast_path,
 )
@@ -30,15 +29,16 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 def alifestd_mask_trait_mdcs_strict_polars(
     phylogeny_df: pl.DataFrame,
     *,
+    observed_mask: typing.Union[str, pl.Expr],
     trait_mask: typing.Union[str, pl.Expr],
     mark_as: str = "alifestd_mask_trait_mdcs_strict_polars",
 ) -> pl.DataFrame:
     """Mark the root of each mutationally defined clade (MDC): a maximal
-    clade whose leaves all have a trait, i.e., a clade whose every leaf has
-    the trait but whose parent's clade does not.
+    clade whose observed nodes (e.g., leaves) all have a trait, i.e., a
+    clade whose every observed node has the trait but whose parent's clade
+    does not.
 
-    Roots are marked False; along a chain of unifurcations, only the
-    earliest node is marked. See `alifestd_mask_trait_mdcs_strict_asexual`.
+    Roots are marked False. See `alifestd_mask_trait_mdcs_strict_asexual`.
 
     Only supports asexual phylogenies.
 
@@ -49,9 +49,14 @@ def alifestd_mask_trait_mdcs_strict_polars(
 
         Must represent an asexual phylogeny with contiguous,
         topologically sorted ids.
+    observed_mask : str or polars.Expr
+        Column name or boolean expression marking taxa whose trait state
+        defines MDCs, e.g., leaves (see `alifestd_mark_leaves_polars`). May
+        include inner nodes. Null values are not supported.
     trait_mask : str or polars.Expr
         Column name or boolean expression marking taxa with the trait.
-        Values at inner nodes are ignored. Null values are not supported.
+        Values at unobserved nodes are ignored. Null values are not
+        supported.
     mark_as : str, default "alifestd_mask_trait_mdcs_strict_polars"
         Column name for the boolean mask.
 
@@ -59,8 +64,8 @@ def alifestd_mask_trait_mdcs_strict_polars(
     ------
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
-        non-contiguous or not topologically sorted, or if `trait_mask` has
-        null values.
+        non-contiguous or not topologically sorted, or if `observed_mask` or
+        `trait_mask` has null values.
 
     Returns
     -------
@@ -72,10 +77,12 @@ def alifestd_mask_trait_mdcs_strict_polars(
     alifestd_mask_monomorphic_clades_polars :
         Marks every node whose clade's leaves share a trait value, present
         or absent; this function marks only the earliest node of each clade
-        whose leaves all have the trait.
+        whose observed nodes all have the trait.
     alifestd_mask_trait_mdcs_strict_asexual :
         Pandas-based implementation.
     """
+    if isinstance(observed_mask, str):
+        observed_mask = pl.col(observed_mask)
     if isinstance(trait_mask, str):
         trait_mask = pl.col(trait_mask)
 
@@ -100,25 +107,17 @@ def alifestd_mask_trait_mdcs_strict_polars(
         phylogeny_df.lazy()
         .select(
             pl.col("ancestor_id"),
+            observed_mask=observed_mask.cast(pl.Boolean),
             trait_mask=trait_mask.cast(pl.Boolean),
-            **(
-                {"is_leaf": pl.col("is_leaf")}
-                if "is_leaf" in schema_names
-                else {}
-            ),
         )
         .collect()
     )
-    if selected["trait_mask"].has_nulls():
-        raise NotImplementedError("null trait_mask values not supported")
-    ancestor_ids = selected["ancestor_id"].to_numpy()
+    for name in ("observed_mask", "trait_mask"):
+        if selected[name].has_nulls():
+            raise NotImplementedError(f"null {name} values not supported")
     result = _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
-        ancestor_ids,
-        (
-            selected["is_leaf"].to_numpy()
-            if "is_leaf" in schema_names
-            else _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
-        ),
+        selected["ancestor_id"].to_numpy(),
+        selected["observed_mask"].to_numpy(),
         selected["trait_mask"].to_numpy(),
     )
     return phylogeny_df.with_columns(pl.Series(name=mark_as, values=result))
@@ -129,7 +128,7 @@ _raw_description = f"""\
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Mark the root of each mutationally defined clade (MDC): a maximal clade
-whose leaves all have a trait.
+whose observed nodes (e.g., leaves) all have a trait.
 
 Roots are marked False.
 
@@ -166,6 +165,15 @@ def _create_parser() -> argparse.ArgumentParser:
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
+        "--observed-mask",
+        required=True,
+        type=str,
+        help=(
+            "Name of boolean column marking taxa whose trait state defines "
+            "MDCs, e.g., leaves (see _alifestd_mark_leaves_polars)."
+        ),
+    )
+    parser.add_argument(
         "--trait-mask",
         required=True,
         type=str,
@@ -198,6 +206,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mask_trait_mdcs_strict_polars,
+                    observed_mask=args.observed_mask,
                     trait_mask=args.trait_mask,
                     mark_as=args.mark_as,
                 ),

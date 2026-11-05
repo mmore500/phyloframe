@@ -33,9 +33,17 @@ def _make_tree() -> pd.DataFrame:
     )
 
 
+def _leaves(phylogeny_df: pd.DataFrame) -> np.ndarray:
+    return (~phylogeny_df["id"].isin(phylogeny_df["ancestor_id"])).to_numpy(
+        copy=True
+    )
+
+
 def test_empty():
     res = alifestd_mask_trait_mdcs_strict_asexual(
-        alifestd_make_empty(), trait_mask=np.array([], dtype=bool)
+        alifestd_make_empty(),
+        observed_mask=np.array([], dtype=bool),
+        trait_mask=np.array([], dtype=bool),
     )
     assert "alifestd_mask_trait_mdcs_strict_asexual" in res.columns
     assert len(res) == 0
@@ -47,7 +55,10 @@ def test_simple(mutate: bool):
     original_df = phylogeny_df.copy()
     trait_mask = np.array([0, 0, 0, 0, 1, 1, 0, 1, 1], dtype=bool)
     res = alifestd_mask_trait_mdcs_strict_asexual(
-        phylogeny_df, mutate=mutate, trait_mask=trait_mask
+        phylogeny_df,
+        mutate=mutate,
+        observed_mask=_leaves(phylogeny_df),
+        trait_mask=trait_mask,
     )
     res.index = res["id"]
     # leaves 4, 7, 8 make up clade 1, whose parent's clade includes leaf 6,
@@ -65,6 +76,7 @@ def test_root_and_inner_values_ignored():
     # every leaf has the trait, so it predates the root
     res = alifestd_mask_trait_mdcs_strict_asexual(
         phylogeny_df,
+        observed_mask=_leaves(phylogeny_df),
         trait_mask=np.array([0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=bool),
         mark_as="m",
     )
@@ -79,7 +91,9 @@ def test_unifurcation_earliest_marked():
         {"id": [0, 1, 2, 3], "ancestor_id": [0, 0, 0, 1]}
     )
     res = alifestd_mask_trait_mdcs_strict_asexual(
-        phylogeny_df, trait_mask=np.array([False, False, False, True])
+        phylogeny_df,
+        observed_mask=_leaves(phylogeny_df),
+        trait_mask=np.array([False, False, False, True]),
     )
     assert res["alifestd_mask_trait_mdcs_strict_asexual"].tolist() == [
         False,
@@ -105,7 +119,7 @@ def test_matches_singletons_at_leaves():
     is_leaf = ~phylogeny_df["id"].isin(phylogeny_df["ancestor_id"])
     trait_mask = rng.random(len(phylogeny_df)) < 0.3
     mdcs = alifestd_mask_trait_mdcs_strict_asexual(
-        phylogeny_df, trait_mask=trait_mask
+        phylogeny_df, observed_mask=is_leaf.to_numpy(), trait_mask=trait_mask
     )["alifestd_mask_trait_mdcs_strict_asexual"]
     singletons = alifestd_mask_trait_singletons_asexual(
         phylogeny_df, trait_mask=trait_mask
@@ -132,29 +146,54 @@ def test_matches_singletons_at_leaves():
 def test_not_working_format_raises(phylogeny_df: pd.DataFrame):
     with pytest.raises(NotImplementedError):
         alifestd_mask_trait_mdcs_strict_asexual(
-            phylogeny_df, trait_mask=np.zeros(3, dtype=bool)
+            phylogeny_df,
+            observed_mask=np.ones(3, dtype=bool),
+            trait_mask=np.zeros(3, dtype=bool),
         )
 
 
-def test_non_bool_trait_mask_raises():
+@pytest.mark.parametrize(
+    "masks",
+    [
+        dict(observed_mask=[False, True, True], trait_mask=[0, 1, 0]),
+        dict(observed_mask=[0, 1, 1], trait_mask=[False, True, False]),
+    ],
+)
+def test_non_bool_mask_raises(masks: dict):
     phylogeny_df = pd.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
     with pytest.raises(NotImplementedError):
-        alifestd_mask_trait_mdcs_strict_asexual(
-            phylogeny_df, trait_mask=[0, 1, 0]
-        )
+        alifestd_mask_trait_mdcs_strict_asexual(phylogeny_df, **masks)
 
 
-def test_is_leaf_column_used_if_present():
+def test_observed_inner_node():
     phylogeny_df = _make_tree()
-    trait_mask = np.zeros(len(phylogeny_df), dtype=bool)
-    trait_mask[[4, 7]] = True
+    trait_mask = np.zeros(9, dtype=bool)
+    trait_mask[[7, 8]] = True
+    observed_mask = _leaves(phylogeny_df)
+    col = "alifestd_mask_trait_mdcs_strict_asexual"
+    # with only leaves observed, leaves 7 and 8 share one gain, above node 3
     res = alifestd_mask_trait_mdcs_strict_asexual(
-        phylogeny_df, trait_mask=trait_mask
+        phylogeny_df, observed_mask=observed_mask, trait_mask=trait_mask
     )
-    assert "is_leaf" not in res.columns
-    assert res["alifestd_mask_trait_mdcs_strict_asexual"].any()
-    # a (deliberately wrong) is_leaf column is used rather than recomputed
+    assert np.flatnonzero(res[col]).tolist() == [3]
+    # observing node 3 without the trait splits that MDC into two gains
+    observed_mask[3] = True
     res = alifestd_mask_trait_mdcs_strict_asexual(
-        phylogeny_df.assign(is_leaf=False), trait_mask=trait_mask
+        phylogeny_df, observed_mask=observed_mask, trait_mask=trait_mask
     )
-    assert not res["alifestd_mask_trait_mdcs_strict_asexual"].any()
+    assert np.flatnonzero(res[col]).tolist() == [7, 8]
+
+
+def test_clade_without_observed_nodes_not_marked():
+    phylogeny_df = _make_tree()
+    # leaf 5 is unobserved, so its clade is never marked, despite its trait
+    observed_mask = np.zeros(9, dtype=bool)
+    observed_mask[[4, 6, 7, 8]] = True
+    trait_mask = np.ones(9, dtype=bool)
+    trait_mask[6] = False
+    res = alifestd_mask_trait_mdcs_strict_asexual(
+        phylogeny_df, observed_mask=observed_mask, trait_mask=trait_mask
+    )
+    assert np.flatnonzero(
+        res["alifestd_mask_trait_mdcs_strict_asexual"]
+    ).tolist() == [1]

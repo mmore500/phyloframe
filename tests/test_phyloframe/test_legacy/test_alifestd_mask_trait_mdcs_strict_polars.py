@@ -39,6 +39,7 @@ def _make_tree() -> pl.DataFrame:
                 True,
                 True,
             ],
+            "is_leaf": [False] * 4 + [True] * 5,
         },
     )
 
@@ -51,11 +52,14 @@ def test_empty(apply: typing.Callable):
                 "id": pl.Series([], dtype=pl.Int64),
                 "ancestor_id": pl.Series([], dtype=pl.Int64),
                 "trait": pl.Series([], dtype=pl.Boolean),
+                "is_leaf": pl.Series([], dtype=pl.Boolean),
             }
         ),
     )
     res = (
-        alifestd_mask_trait_mdcs_strict_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_mdcs_strict_polars(
+            df_pl, observed_mask="is_leaf", trait_mask="trait"
+        )
         .lazy()
         .collect()
     )
@@ -68,13 +72,17 @@ def test_matches_pandas(apply: typing.Callable):
     df_pl = _make_tree()
     res = (
         alifestd_mask_trait_mdcs_strict_polars(
-            apply(df_pl), trait_mask=pl.col("trait"), mark_as="m"
+            apply(df_pl),
+            observed_mask=pl.col("is_leaf"),
+            trait_mask=pl.col("trait"),
+            mark_as="m",
         )
         .lazy()
         .collect()
     )
     expected = alifestd_mask_trait_mdcs_strict_asexual(
         df_pl.to_pandas(),
+        observed_mask=df_pl["is_leaf"].to_numpy(),
         trait_mask=df_pl["trait"].to_numpy(),
         mark_as="m",
     )
@@ -87,7 +95,33 @@ def test_null_trait_raises():
         trait=pl.when(pl.col("id") == 4).then(None).otherwise(pl.col("trait"))
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mask_trait_mdcs_strict_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_mdcs_strict_polars(
+            df_pl, observed_mask="is_leaf", trait_mask="trait"
+        )
+
+
+def test_null_observed_raises():
+    df_pl = _make_tree().with_columns(
+        is_leaf=pl.when(pl.col("id") == 4)
+        .then(None)
+        .otherwise(pl.col("is_leaf"))
+    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mask_trait_mdcs_strict_polars(
+            df_pl, observed_mask="is_leaf", trait_mask="trait"
+        )
+
+
+def test_observed_inner_node():
+    df_pl = _make_tree().with_columns(
+        trait=pl.col("id").is_in([7, 8]),
+        observed=pl.col("is_leaf") | (pl.col("id") == 3),
+    )
+    res = alifestd_mask_trait_mdcs_strict_polars(
+        df_pl, observed_mask="observed", trait_mask="trait", mark_as="m"
+    )
+    # observing node 3 without the trait splits clade 3 into two gains
+    assert res["m"].arg_true().to_list() == [7, 8]
 
 
 def test_unsorted_raises():
@@ -95,7 +129,9 @@ def test_unsorted_raises():
         {"id": [0, 1, 2], "ancestor_id": [1, 1, 1], "trait": [1, 0, 1]},
     ).with_columns(pl.col("trait").cast(pl.Boolean))
     with pytest.raises(NotImplementedError):
-        alifestd_mask_trait_mdcs_strict_polars(df_pl, trait_mask="trait")
+        alifestd_mask_trait_mdcs_strict_polars(
+            df_pl, observed_mask=pl.lit(True), trait_mask="trait"
+        )
 
 
 def test_random_tree_matches_pandas():
@@ -107,36 +143,18 @@ def test_random_tree_matches_pandas():
             "id": range(n),
             "ancestor_id": ancestor_id,
             "trait": rng.random(n) < 0.3,
+            "observed": rng.random(n) < 0.5,
         },
     )
     expected = alifestd_mask_trait_mdcs_strict_asexual(
-        df_pd, trait_mask=df_pd["trait"].to_numpy()
+        df_pd,
+        observed_mask=df_pd["observed"].to_numpy(),
+        trait_mask=df_pd["trait"].to_numpy(),
     )
     res = alifestd_mask_trait_mdcs_strict_polars(
-        pl.from_pandas(df_pd), trait_mask="trait"
+        pl.from_pandas(df_pd), observed_mask="observed", trait_mask="trait"
     )
     assert (
         res["alifestd_mask_trait_mdcs_strict_polars"].to_list()
         == expected["alifestd_mask_trait_mdcs_strict_asexual"].tolist()
     )
-
-
-def test_is_leaf_column_used_if_present():
-    #     0
-    #   1   2
-    #  3 4
-    df = pl.DataFrame(
-        {
-            "id": [0, 1, 2, 3, 4],
-            "ancestor_id": [0, 0, 0, 1, 1],
-            "trait": [False, False, False, True, False],
-        },
-    )
-    res = alifestd_mask_trait_mdcs_strict_polars(df, trait_mask="trait")
-    assert "is_leaf" not in res.columns
-    assert res["alifestd_mask_trait_mdcs_strict_polars"].any()
-    # a (deliberately wrong) is_leaf column is used rather than recomputed
-    res = alifestd_mask_trait_mdcs_strict_polars(
-        df.with_columns(is_leaf=pl.lit(False)), trait_mask="trait"
-    )
-    assert not res["alifestd_mask_trait_mdcs_strict_polars"].any()
