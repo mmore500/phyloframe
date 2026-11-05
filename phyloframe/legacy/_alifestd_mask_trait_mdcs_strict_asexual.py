@@ -14,40 +14,42 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-def _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path(
+def _alifestd_mask_trait_uniform_clades_asexual_fast_path(
     ancestor_ids: np.ndarray,
+    is_leaf: np.ndarray,
     trait_mask: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mask_trait_mdcs_strict_asexual`.
+    """Implementation detail for `alifestd_mask_trait_mdcs_strict_asexual`
+    and `alifestd_mask_trait_singletons_asexual`.
 
     Returns, for each node, whether every leaf of its clade has the trait.
     Assumes contiguous, topologically sorted ids.
     """
-    is_leaf = _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
     # carries each clade's leaf value up to its inner nodes, so that a
     # monomorphic clade's representative value is its leaves' shared value
     representative = is_leaf & np.asarray(trait_mask, dtype=bool)
     is_monomorphic = _alifestd_mask_monomorphic_clades_asexual_fast_path(
-        ancestor_ids, is_leaf.copy(), representative
+        ancestor_ids, np.array(is_leaf, dtype=bool), representative
     )
     return is_monomorphic & representative
 
 
 def _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
     ancestor_ids: np.ndarray,
+    is_leaf: np.ndarray,
     trait_mask: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mask_trait_mdcs_strict_asexual`."""
-    is_all_carrier = _alifestd_mask_trait_mdcs_strict_asexual_clade_fast_path(
-        ancestor_ids, trait_mask
+    is_trait_uniform = _alifestd_mask_trait_uniform_clades_asexual_fast_path(
+        ancestor_ids, is_leaf, trait_mask
     )
-    # an MDC's root is where the all-carrier clade mask turns on along a
-    # lineage, i.e., where its lineage delta is +1; a root's delta is its
-    # own value, but a root has no stem branch, so is excluded
+    # an MDC's root is where clades whose leaves all have the trait begin
+    # along a lineage, i.e., where the lineage delta is +1; roots have no
+    # stem branch, so are excluded
     is_root = ancestor_ids == np.arange(len(ancestor_ids))
     return (
         _alifestd_mark_lineage_delta_asexual_fast_path(
-            ancestor_ids, is_all_carrier
+            ancestor_ids, is_trait_uniform
         )
         == 1
     ) & ~is_root
@@ -64,18 +66,12 @@ def alifestd_mask_trait_mdcs_strict_asexual(
     clade whose leaves all have a trait, i.e., a clade whose every leaf has
     the trait but whose parent's clade does not.
 
-    Under parsimony without loss, an MDC gained the trait on the branch
-    leading to its root, its stem branch. Single-leaf MDCs are trait
-    singletons (see `alifestd_mask_trait_singletons_asexual`); larger MDCs
-    are clades sharing one gain. Roots are marked False, as they have no
-    stem branch to have gained the trait on. A unifurcation's clade has the
-    same leaves as its child's, so along a chain of unifurcations, only the
-    rootmost node is marked.
+    Roots are marked False, as they have no stem branch to have gained the
+    trait on. A unifurcation's clade has the same leaves as its child's, so
+    along a chain of unifurcations, only the earliest node is marked.
 
     Strict, as a clade qualifies only if every one of its leaves has the
-    trait. Builds on `alifestd_mask_monomorphic_clades_asexual`, which
-    marks clades whose leaves share a value, but excludes clades sharing
-    absence of the trait and marks only each maximal clade's root.
+    trait.
 
     Parameters
     ----------
@@ -128,8 +124,14 @@ def alifestd_mask_trait_mdcs_strict_asexual(
             "current implementation requires phylogeny_df in working format",
         )
 
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy()
     phylogeny_df[mark_as] = _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
-        phylogeny_df["ancestor_id"].to_numpy(),
+        ancestor_ids,
+        (
+            phylogeny_df["is_leaf"].to_numpy()
+            if "is_leaf" in phylogeny_df.columns
+            else _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
+        ),
         trait_mask,
     )
     return phylogeny_df

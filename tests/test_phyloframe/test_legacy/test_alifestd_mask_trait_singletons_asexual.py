@@ -212,3 +212,19 @@ def test_no_stem_node():
         phylogeny_df, trait_mask=np.array([False, False, True])
     )
     assert not res["alifestd_mask_trait_singletons_asexual"].any()
+
+
+def test_is_leaf_column_used_if_present():
+    phylogeny_df = _make_tree()
+    trait_mask = np.zeros(len(phylogeny_df), dtype=bool)
+    trait_mask[[4, 7]] = True
+    res = alifestd_mask_trait_singletons_asexual(
+        phylogeny_df, trait_mask=trait_mask
+    )
+    assert "is_leaf" not in res.columns
+    assert res["alifestd_mask_trait_singletons_asexual"].any()
+    # a (deliberately wrong) is_leaf column is used rather than recomputed
+    res = alifestd_mask_trait_singletons_asexual(
+        phylogeny_df.assign(is_leaf=False), trait_mask=trait_mask
+    )
+    assert not res["alifestd_mask_trait_singletons_asexual"].any()

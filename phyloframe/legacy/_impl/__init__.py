@@ -1,7 +1,6 @@
 """Implementation helpers."""
 
 from ._TgsCounts import TgsCounts
-from ._alifestd_mask_trait_polars_impl import alifestd_mask_trait_polars_impl
 from ._tgs_allmdc_impl import tgs_allmdc_impl
 from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_build_estimates_df import tgs_build_estimates_df
@@ -55,7 +54,6 @@ from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
 __all__ = [
     "TgsCounts",
     "TgsFitResult",
-    "alifestd_mask_trait_polars_impl",
     "tgs_allmdc_impl",
     "tgs_bootstrap",
     "tgs_build_estimates_df",
