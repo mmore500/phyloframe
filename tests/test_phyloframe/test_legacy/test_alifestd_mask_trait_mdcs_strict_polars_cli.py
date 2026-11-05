@@ -18,6 +18,7 @@ def input_csv_with_trait(tmp_path):
     """Create a CSV with a trait column from the test asset."""
     df = pd.read_csv(f"{assets}/nk_ecoeaselection-workingformat.csv")
     df["trait"] = df["id"] % 5 != 0
+    df["is_leaf"] = ~df["id"].isin(df["ancestor_id"])
     path = tmp_path / "input_with_trait.csv"
     df.to_csv(path, index=False)
     return str(path)
@@ -25,7 +26,16 @@ def input_csv_with_trait(tmp_path):
 
 def test_cli_help():
     subprocess.run(  # nosec B603
-        ["python3", "-m", MODULE, "--trait-mask", "trait", "--help"],
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--observed-mask",
+            "is_leaf",
+            "--trait-mask",
+            "trait",
+            "--help",
+        ],
         check=True,
     )
 
@@ -50,6 +60,8 @@ def test_cli(input_csv_with_trait, ext, tmp_path):
             "python3",
             "-m",
             MODULE,
+            "--observed-mask",
+            "is_leaf",
             "--trait-mask",
             "trait",
             "--eager-write",
@@ -76,6 +88,8 @@ def test_cli_mark_as(input_csv_with_trait, tmp_path):
             "python3",
             "-m",
             MODULE,
+            "--observed-mask",
+            "is_leaf",
             "--trait-mask",
             "trait",
             "--mark-as",

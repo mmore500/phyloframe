@@ -621,6 +621,12 @@ from ._alifestd_mark_sample_tips_uniform_polars import (
 )
 from ._alifestd_mark_sister_asexual import alifestd_mark_sister_asexual
 from ._alifestd_mark_sister_polars import alifestd_mark_sister_polars
+from ._alifestd_mark_stem_node_id_asexual import (
+    alifestd_mark_stem_node_id_asexual,
+)
+from ._alifestd_mark_stem_node_id_polars import (
+    alifestd_mark_stem_node_id_polars,
+)
 from ._alifestd_mark_to_array import alifestd_mark_to_array
 from ._alifestd_mark_to_array_polars import alifestd_mark_to_array_polars
 from ._alifestd_mark_unifurcation_length_asexual import (
@@ -941,6 +947,8 @@ __all__ = [
     "AlifestdIplotxShimNumpy",
     "AlifestdIplotxShimPandas",
     "AlifestdIplotxShimPolars",
+    "alifestd_mark_stem_node_id_asexual",
+    "alifestd_mark_stem_node_id_polars",
     "alifestd_mark_unifurcation_length_asexual",
     "alifestd_mark_unifurcation_length_polars",
     "alifestd_mask_trait_mdcs_strict_asexual",

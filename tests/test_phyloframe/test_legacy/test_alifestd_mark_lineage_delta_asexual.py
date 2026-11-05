@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -59,10 +60,19 @@ def test_root_gives_initial_value():
 
 def test_keeps_input_dtype():
     df = _make_tree().assign(v=np.array([5, 7, 4, 7, 9], dtype=np.uint8))
-    res = alifestd_mark_lineage_delta_asexual(df, "v")
+    with pytest.warns(UserWarning, match="wrap around"):
+        res = alifestd_mark_lineage_delta_asexual(df, "v")
     # negative deltas of unsigned values wrap around
     assert res["lineage_delta"].tolist() == [5, 2, 253, 0, 4]
     assert res["lineage_delta"].dtype == np.uint8
+
+
+def test_unsigned_without_negative_deltas_does_not_warn():
+    df = _make_tree().assign(v=np.array([5, 7, 8, 7, 9], dtype=np.uint8))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        res = alifestd_mark_lineage_delta_asexual(df, "v")
+    assert res["lineage_delta"].tolist() == [5, 2, 1, 0, 4]
 
 
 def test_nan_propagates():

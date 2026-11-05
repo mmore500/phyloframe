@@ -1,4 +1,5 @@
 import typing
+import warnings
 
 import numpy as np
 import polars as pl
@@ -80,7 +81,18 @@ def test_keeps_input_dtype():
     df_pl = pl.from_pandas(
         _make_tree().assign(v=np.array([5, 7, 4, 7, 9], dtype=np.uint8))
     )
-    res = alifestd_mark_lineage_delta_polars(df_pl, "v")
+    with pytest.warns(UserWarning, match="wrap around"):
+        res = alifestd_mark_lineage_delta_polars(df_pl, "v")
     # negative deltas of unsigned values wrap around
     assert res["lineage_delta"].to_numpy().tolist() == [5, 2, 253, 0, 4]
     assert res["lineage_delta"].to_numpy().dtype == np.uint8
+
+
+def test_unsigned_without_negative_deltas_does_not_warn():
+    df_pl = pl.from_pandas(
+        _make_tree().assign(v=np.array([5, 7, 8, 7, 9], dtype=np.uint8))
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        res = alifestd_mark_lineage_delta_polars(df_pl, "v")
+    assert res["lineage_delta"].to_numpy().tolist() == [5, 2, 1, 0, 4]

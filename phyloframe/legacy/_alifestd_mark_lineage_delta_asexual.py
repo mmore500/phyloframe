@@ -29,13 +29,14 @@ def _alifestd_mark_lineage_delta_asexual_fast_path(
     values = np.asarray(values)
     if values.dtype == np.bool_:
         values = values.astype(np.int8)  # deltas -1, 0, or 1 fit
-    elif np.issubdtype(values.dtype, np.unsignedinteger):
-        warnings.warn(
-            f"lineage deltas of unsigned values ({values.dtype}) are computed "
-            "in the same dtype, so negative deltas wrap around; cast values "
-            "to a signed dtype first to avoid this",
-        )
     is_root = ancestor_ids == np.arange(len(ancestor_ids))
+    if (
+        np.issubdtype(values.dtype, np.unsignedinteger)
+        and (values[ancestor_ids] > values)[~is_root].any()
+    ):
+        warnings.warn(
+            f"negative deltas of unsigned values ({values.dtype}) wrap around",
+        )
     # a root has no parent, so keeps its own value
     return np.where(is_root, values, values - values[ancestor_ids]).astype(
         values.dtype
