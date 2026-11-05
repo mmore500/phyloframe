@@ -44,7 +44,17 @@ def test_expression_values():
     res = alifestd_mark_lineage_delta_polars(
         df_pl, pl.col("v") * 2, mark_as="d"
     )
-    assert res["d"].to_list() == [10, 4, -6, 0, 8]
+    assert res["d"].to_list() == [0, 4, -6, 0, 8]
+
+
+def test_basal_value():
+    df_pl = pl.from_pandas(_make_tree())
+    res = alifestd_mark_lineage_delta_polars(df_pl, "v", basal_value=3)
+    expected = alifestd_mark_lineage_delta_asexual(
+        _make_tree(), "v", basal_value=3
+    )
+    assert res["lineage_delta"].to_list() == [2, 2, -3, 0, 4]
+    assert res["lineage_delta"].to_list() == expected["lineage_delta"].tolist()
 
 
 @apply_params
@@ -84,7 +94,7 @@ def test_keeps_input_dtype():
     with pytest.warns(UserWarning, match="wrap around"):
         res = alifestd_mark_lineage_delta_polars(df_pl, "v")
     # negative deltas of unsigned values wrap around
-    assert res["lineage_delta"].to_numpy().tolist() == [5, 2, 253, 0, 4]
+    assert res["lineage_delta"].to_numpy().tolist() == [0, 2, 253, 0, 4]
     assert res["lineage_delta"].to_numpy().dtype == np.uint8
 
 
@@ -95,4 +105,4 @@ def test_unsigned_without_negative_deltas_does_not_warn():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         res = alifestd_mark_lineage_delta_polars(df_pl, "v")
-    assert res["lineage_delta"].to_numpy().tolist() == [5, 2, 1, 0, 4]
+    assert res["lineage_delta"].to_numpy().tolist() == [0, 2, 1, 0, 4]

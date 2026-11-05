@@ -28,10 +28,11 @@ def _alifestd_mask_trait_uniform_clades_asexual_fast_path(
     # carries each clade's observed value up to its other nodes, so that a
     # monomorphic clade's representative value is its observed nodes' shared
     # value, and False without observed nodes
-    observed_mask = np.array(observed_mask, dtype=bool)
-    representative = observed_mask & np.asarray(trait_mask, dtype=bool)
+    representative = observed_mask & trait_mask
     is_monomorphic = _alifestd_mask_monomorphic_clades_asexual_fast_path(
-        ancestor_ids, observed_mask, representative
+        ancestor_ids,
+        observed_mask.copy(),  # copy, modified in place
+        representative,
     )
     return is_monomorphic & representative
 
@@ -41,21 +42,20 @@ def _alifestd_mask_trait_mdcs_strict_asexual_fast_path(
     observed_mask: np.ndarray,
     trait_mask: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mask_trait_mdcs_strict_asexual`."""
+    """Implementation detail for
+    `alifestd_mask_trait_mdcs_strict_asexual`."""
     is_trait_uniform = _alifestd_mask_trait_uniform_clades_asexual_fast_path(
         ancestor_ids, observed_mask, trait_mask
     )
     # an MDC's root is where clades whose observed nodes all have the trait
-    # begin
-    # along a lineage, i.e., where the lineage delta is +1; roots have no
-    # stem branch, so are excluded
-    is_root = ancestor_ids == np.arange(len(ancestor_ids))
+    # begin along a lineage, i.e., where the lineage delta is +1; roots have
+    # no stem branch, and their deltas are zero, so are never marked
     return (
         _alifestd_mark_lineage_delta_asexual_fast_path(
             ancestor_ids, is_trait_uniform
         )
         == 1
-    ) & ~is_root
+    )
 
 
 def alifestd_mask_trait_mdcs_strict_asexual(

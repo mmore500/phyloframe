@@ -35,7 +35,7 @@ def _alifestd_mark_stem_node_id_asexual_fast_path(
     is_branching = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
     is_branching = is_branching >= 2
     # ids increase along each lineage, so the running max of branching ids
-    # (else -1) is the nearest branching node at or above each node
+    # (others -1) is the nearest branching node at or above each node
     nearest_branching_ids = _alifestd_mark_lineage_cummax_asexual_fast_path(
         ancestor_ids, np.where(is_branching, ids, -1), False, False
     )

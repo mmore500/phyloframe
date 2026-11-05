@@ -39,7 +39,17 @@ def test_empty():
 
 def test_deltas():
     res = alifestd_mark_lineage_delta_asexual(_make_tree(), "v")
-    assert res["lineage_delta"].tolist() == [5, 2, -3, 0, 4]
+    # a root's delta is zero by default
+    assert res["lineage_delta"].tolist() == [0, 2, -3, 0, 4]
+    assert res["lineage_delta"].dtype == np.int64
+
+
+@pytest.mark.parametrize("basal_value, root_delta", [(0, 5), (3, 2), (5, 0)])
+def test_basal_value(basal_value: int, root_delta: int):
+    res = alifestd_mark_lineage_delta_asexual(
+        _make_tree(), "v", basal_value=basal_value
+    )
+    assert res["lineage_delta"].tolist() == [root_delta, 2, -3, 0, 4]
     assert res["lineage_delta"].dtype == np.int64
 
 
@@ -52,10 +62,13 @@ def test_binary_trait_transitions():
     assert res["transitions"].dtype == np.int8
 
 
-def test_root_gives_initial_value():
+def test_basal_value_gives_root_gain():
     df = _make_tree().assign(trait=[True, True, True, True, False])
     res = alifestd_mark_lineage_delta_asexual(df, "trait")
+    assert res["lineage_delta"].tolist() == [0, 0, 0, 0, -1]
+    res = alifestd_mark_lineage_delta_asexual(df, "trait", basal_value=False)
     assert res["lineage_delta"].tolist() == [1, 0, 0, 0, -1]
+    assert res["lineage_delta"].dtype == np.int8
 
 
 def test_keeps_input_dtype():
@@ -63,7 +76,7 @@ def test_keeps_input_dtype():
     with pytest.warns(UserWarning, match="wrap around"):
         res = alifestd_mark_lineage_delta_asexual(df, "v")
     # negative deltas of unsigned values wrap around
-    assert res["lineage_delta"].tolist() == [5, 2, 253, 0, 4]
+    assert res["lineage_delta"].tolist() == [0, 2, 253, 0, 4]
     assert res["lineage_delta"].dtype == np.uint8
 
 
@@ -72,14 +85,17 @@ def test_unsigned_without_negative_deltas_does_not_warn():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         res = alifestd_mark_lineage_delta_asexual(df, "v")
-    assert res["lineage_delta"].tolist() == [5, 2, 1, 0, 4]
+    assert res["lineage_delta"].tolist() == [0, 2, 1, 0, 4]
+    # a basal value above the root's value gives a negative root delta
+    with pytest.warns(UserWarning, match="wrap around"):
+        alifestd_mark_lineage_delta_asexual(df, "v", basal_value=6)
 
 
 def test_nan_propagates():
     df = _make_tree().assign(v=[1.0, np.nan, 2.0, 3.0, 4.0])
     res = alifestd_mark_lineage_delta_asexual(df, "v")
     assert np.isnan(res["lineage_delta"].to_numpy()[[1, 2, 3]]).all()
-    assert res["lineage_delta"].to_numpy()[[0, 4]].tolist() == [1.0, 3.0]
+    assert res["lineage_delta"].to_numpy()[[0, 4]].tolist() == [0.0, 3.0]
 
 
 def test_inverts_cumsum():
@@ -90,11 +106,15 @@ def test_inverts_cumsum():
     )
     rng = np.random.default_rng(1)
     df["v"] = rng.integers(-100, 100, len(df))
-    deltas = alifestd_mark_lineage_delta_asexual(df, "v", mark_as="d")
+    deltas = alifestd_mark_lineage_delta_asexual(
+        df, "v", basal_value=0, mark_as="d"
+    )
     back = alifestd_mark_lineage_cumsum_asexual(deltas, "d", mark_as="back")
     assert (back["back"] == df["v"]).all()
     sums = alifestd_mark_lineage_cumsum_asexual(df, "v", mark_as="s")
-    forth = alifestd_mark_lineage_delta_asexual(sums, "s", mark_as="forth")
+    forth = alifestd_mark_lineage_delta_asexual(
+        sums, "s", basal_value=0, mark_as="forth"
+    )
     assert (forth["forth"] == df["v"]).all()
 
 
@@ -128,4 +148,4 @@ def test_ancestor_list_column():
         },
     )
     res = alifestd_mark_lineage_delta_asexual(df, "v")
-    assert res["lineage_delta"].tolist() == [1, 2, -1]
+    assert res["lineage_delta"].tolist() == [0, 2, -1]

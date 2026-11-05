@@ -27,14 +27,16 @@ def alifestd_mark_lineage_delta_polars(
     phylogeny_df: pl.DataFrame,
     values: typing.Union[str, pl.Expr],
     *,
+    basal_value: typing.Optional[typing.Any] = None,
     mark_as: str = "lineage_delta",
 ) -> pl.DataFrame:
     """Add column with the change in ``values`` from each node's parent.
 
-    The result at each node is its value minus its parent's value, and at
-    a root, its own value. Boolean values are taken as 0 and 1, so for a
-    binary trait's state at every node, deltas are its transitions on each
-    branch. See `alifestd_mark_lineage_delta_asexual`.
+    The result at each node is its value minus its parent's value. At a
+    root, it is zero, or, if ``basal_value`` is given, the root's value
+    minus ``basal_value``. Boolean values are cast to int8, producing deltas
+    +1 for a gain, -1 for a loss, and 0 for no change. See
+    `alifestd_mark_lineage_delta_asexual`.
 
     Parameters
     ----------
@@ -44,6 +46,9 @@ def alifestd_mark_lineage_delta_polars(
         Must represent an asexual phylogeny with contiguous ids.
     values : str or polars.Expr
         Column name or polars expression providing per-node values.
+    basal_value : optional
+        Value above each root, from which root deltas are measured; if not
+        given, root deltas are zero.
     mark_as : str, default "lineage_delta"
         Output column name.
 
@@ -90,6 +95,7 @@ def alifestd_mark_lineage_delta_polars(
     result = _alifestd_mark_lineage_delta_asexual_fast_path(
         selected["ancestor_id"].to_numpy(),
         selected["values"].to_numpy(),
+        basal_value,
     )
 
     return phylogeny_df.with_columns(
@@ -102,7 +108,7 @@ _raw_description = f"""\
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Add column with the change in `values` from each node's parent (at a root,
-its own value).
+zero, or its value minus `--basal-value` if given).
 
 Data is assumed to be in alife standard format.
 
@@ -142,6 +148,15 @@ def _create_parser() -> argparse.ArgumentParser:
         help="name of column to take deltas of",
     )
     parser.add_argument(
+        "--basal-value",
+        default=None,
+        type=float,
+        help=(
+            "value above each root, from which root deltas are measured "
+            "(default: none, giving zero root deltas)"
+        ),
+    )
+    parser.add_argument(
         "--mark-as",
         default="lineage_delta",
         type=str,
@@ -166,6 +181,7 @@ if __name__ == "__main__":
                 output_dataframe_op=functools.partial(
                     alifestd_mark_lineage_delta_polars,
                     values=args.values,
+                    basal_value=args.basal_value,
                     mark_as=args.mark_as,
                 ),
             )
