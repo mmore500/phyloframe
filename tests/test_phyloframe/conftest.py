@@ -3,12 +3,10 @@
 import random
 
 import numpy as np
-import numpy.random
+import numpy.random  # pre-imports prevent worker deadlock
 import pandas  # noqa: F401
 import polars  # noqa: F401
 import pytest
-
-# pre-import to avoid xdist controller import deadlock between worker threads
 
 
 @pytest.fixture(autouse=True)
