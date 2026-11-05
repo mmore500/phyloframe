@@ -10,6 +10,7 @@ def tgs_validate_args(
     calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
+    calibrate_max_rate_ratio: float,
 ) -> typing.Tuple[typing.List[str], typing.List[int]]:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual`,
@@ -68,5 +69,10 @@ def tgs_validate_args(
         raise ValueError(
             "calibrate_num_partitions must be a power of two, got "
             f"{calibrate_num_partitions}",
+        )
+    if not calibrate_max_rate_ratio > 0:
+        raise ValueError(
+            "calibrate_max_rate_ratio must be positive, got "
+            f"{calibrate_max_rate_ratio}",
         )
     return trait_transitions, neutral_traits

@@ -6,6 +6,7 @@ import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -35,6 +36,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         1.0,
     ),
     calibrate_num_partitions: int = 4096,
+    calibrate_max_rate_ratio: float = np.inf,
     calibrate_size_partition_ratio: float = 2.0,
     calibrate_size_partition_min_neutral_gains: int = 20,
     num_bootstrap: int = 0,
@@ -95,6 +97,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
     )
     exposure_df = tgs_prepare_polars(
         phylogeny_df,
@@ -113,6 +116,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         calibrate_size_partition_ratio=calibrate_size_partition_ratio,
         calibrate_size_partition_min_neutral_gains=calibrate_size_partition_min_neutral_gains,
         num_bootstrap=num_bootstrap,
@@ -219,6 +223,15 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--calibrate-max-rate-ratio",
+        default=np.inf,
+        type=float,
+        help=(
+            "Cap on calibration's neutral gain rate ratios "
+            "(default: uncapped)."
+        ),
+    )
+    parser.add_argument(
         "--calibrate-size-partition-ratio",
         default=2.0,
         type=float,
@@ -302,6 +315,7 @@ if __name__ == "__main__":
                         args.calibrate_neighborhood_fractions
                     ),
                     calibrate_num_partitions=args.calibrate_num_partitions,
+                    calibrate_max_rate_ratio=args.calibrate_max_rate_ratio,
                     calibrate_size_partition_ratio=(
                         args.calibrate_size_partition_ratio
                     ),

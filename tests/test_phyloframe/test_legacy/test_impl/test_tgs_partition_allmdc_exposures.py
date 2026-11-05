@@ -10,6 +10,7 @@ _KWARGS = dict(
     trait_names=["focal", "n1", "n2"],
     calibrate_neighborhood_fractions=(0.25, 1.0),
     calibrate_num_partitions=64,
+    calibrate_max_rate_ratio=np.inf,
     calibrate_size_partition_ratio=4.0,
     calibrate_size_partition_min_neutral_gains=1,
 )

@@ -64,3 +64,17 @@ def test_no_exposure_warns():
             exposure=np.zeros(2),
         )
     np.testing.assert_allclose(res, [1.0, 1.0])
+
+
+def test_max_ratio_caps():
+    exposure = np.ones(4)
+    num_events = np.array([2.0, 2.0, 1.0, 1.0])
+    pairs = sparse.csr_matrix(np.kron(np.eye(2), np.ones((2, 2))))
+    res = calc_neighborhood_rate_ratios(
+        neighborhoods=pairs,
+        num_events=num_events,
+        exposure=exposure,
+        max_ratio=1.2,
+    )
+    # caps the high ratios (4 / 3), leaving the low ones (2 / 3)
+    np.testing.assert_allclose(res, [1.2, 1.2, 2 / 3, 2 / 3])

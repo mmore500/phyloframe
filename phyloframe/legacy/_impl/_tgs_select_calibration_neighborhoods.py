@@ -17,6 +17,7 @@ def tgs_select_calibration_neighborhoods(
     counts: TgsCounts,
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
+    max_rate_ratio: float,
 ) -> sparse.spmatrix:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual`.
@@ -26,7 +27,8 @@ def tgs_select_calibration_neighborhoods(
     Returns partition-by-partition neighborhood membership matrix for the
     neighborhood size, among `neighborhood_fractions`, that best predicts
     each held-out neutral trait's carriers when calibrating against the
-    others, warning about any neighborhoods without neutral gains.
+    others (with rate ratios capped at `max_rate_ratio`), warning about any
+    neighborhoods without neutral gains.
     """
     best_nll, best_neighborhoods, best_fraction = np.inf, None, np.nan
     for fraction in neighborhood_fractions:
@@ -41,6 +43,7 @@ def tgs_select_calibration_neighborhoods(
             counts=counts,
             neutral_traits=neutral_traits,
             trait_names=trait_names,
+            max_rate_ratio=max_rate_ratio,
         )
         logging.info(
             "- alifestd_tgs_pendantmdc_estimate_asexual: "

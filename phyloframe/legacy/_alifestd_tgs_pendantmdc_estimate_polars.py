@@ -36,6 +36,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         1.0,
     ),
     calibrate_num_partitions: int = 4096,
+    calibrate_max_rate_ratio: float = np.inf,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -118,6 +119,10 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         formed; a power of two. Also bins leaves for fitting, so that fit
         cost is bounded independent of leaf count. Fewer are used if needed
         to keep at least 4 leaves in each.
+    calibrate_max_rate_ratio : float, default np.inf
+        Cap on the neutral gain rate ratios that rescale pendant lengths in
+        calibration, bounding the inflation of lengths in neighborhoods
+        with little exposure; uncapped by default. Must be positive.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling leaves with replacement
         and refitting, for standard errors, z-scores, and p-values. The
@@ -154,7 +159,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         +1, -1, or 0, or gives states other than 0 and 1, if a
         `neutral_traits` name is not among `trait_transitions`, or if
         `calibrate_neighborhood_fractions` is empty or has a value outside
-        (0, 1], or if `calibrate_num_partitions` is not a power of two.
+        (0, 1], if `calibrate_num_partitions` is not a power of two, or if
+        `calibrate_max_rate_ratio` is not positive.
 
     Returns
     -------
@@ -173,6 +179,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
     )
     exposure_df = tgs_prepare_polars(
         phylogeny_df,
@@ -191,6 +198,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
@@ -293,6 +301,15 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--calibrate-max-rate-ratio",
+        default=np.inf,
+        type=float,
+        help=(
+            "Cap on calibration's neutral gain rate ratios "
+            "(default: uncapped)."
+        ),
+    )
+    parser.add_argument(
         "--num-bootstrap",
         default=0,
         type=int,
@@ -363,6 +380,7 @@ if __name__ == "__main__":
                         args.calibrate_neighborhood_fractions
                     ),
                     calibrate_num_partitions=args.calibrate_num_partitions,
+                    calibrate_max_rate_ratio=args.calibrate_max_rate_ratio,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,

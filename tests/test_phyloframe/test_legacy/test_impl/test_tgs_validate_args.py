@@ -7,6 +7,7 @@ _KWARGS = dict(
     calibrate=False,
     calibrate_neighborhood_fractions=(0.1, 1.0),
     calibrate_num_partitions=64,
+    calibrate_max_rate_ratio=np.inf,
 )
 
 
@@ -55,6 +56,9 @@ def test_neutral_trait_index_raises():
         dict(calibrate_neighborhood_fractions=(1.5,)),
         dict(calibrate_num_partitions=48),
         dict(calibrate_num_partitions=0),
+        dict(calibrate_max_rate_ratio=0.0),
+        dict(calibrate_max_rate_ratio=-1.0),
+        dict(calibrate_max_rate_ratio=np.nan),
     ],
 )
 def test_invalid(kwargs: dict):

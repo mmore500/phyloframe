@@ -21,6 +21,7 @@ def tgs_allmdc_impl(
     calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
+    calibrate_max_rate_ratio: float,
     calibrate_size_partition_ratio: float,
     calibrate_size_partition_min_neutral_gains: int,
     num_bootstrap: int,
@@ -63,6 +64,7 @@ def tgs_allmdc_impl(
                     calibrate_neighborhood_fractions
                 ),
                 calibrate_num_partitions=calibrate_num_partitions,
+                calibrate_max_rate_ratio=calibrate_max_rate_ratio,
                 calibrate_size_partition_ratio=calibrate_size_partition_ratio,
                 calibrate_size_partition_min_neutral_gains=(
                     calibrate_size_partition_min_neutral_gains
@@ -70,6 +72,7 @@ def tgs_allmdc_impl(
             ),
             neutral_traits=neutral_traits,
             calibrate=calibrate,
+            calibrate_max_rate_ratio=calibrate_max_rate_ratio,
             loss_rate=loss_rate,
             selection_starts=selection_starts,
             growth_exponent_bound=growth_exponent_bound,

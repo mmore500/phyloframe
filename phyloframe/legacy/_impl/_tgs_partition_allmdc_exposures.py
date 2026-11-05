@@ -20,6 +20,7 @@ def tgs_partition_allmdc_exposures(
     calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
+    calibrate_max_rate_ratio: float,
     calibrate_size_partition_ratio: float,
     calibrate_size_partition_min_neutral_gains: int,
 ) -> typing.Dict[str, typing.Any]:
@@ -82,6 +83,7 @@ def tgs_partition_allmdc_exposures(
                 neighborhood_fractions=calibrate_neighborhood_fractions,
                 neutral_traits=neutral_traits,
                 trait_names=trait_names,
+                max_rate_ratio=calibrate_max_rate_ratio,
             )
             if calibrate
             else None

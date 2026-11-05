@@ -31,6 +31,7 @@ def _partition(exposure_df, calibrate):
         calibrate=calibrate,
         calibrate_neighborhood_fractions=(0.25, 1.0),
         calibrate_num_partitions=64,
+        calibrate_max_rate_ratio=np.inf,
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
     )
@@ -47,6 +48,7 @@ def test_data(calibrate: bool):
             weights=np.ones(4_000),
             neutral_traits=[1, 2],
             calibrate=calibrate,
+            calibrate_max_rate_ratio=np.inf,
         )
     )
     assert len(data) == 3
@@ -78,6 +80,7 @@ def test_weights():
             weights=weights,
             neutral_traits=[1, 2],
             calibrate=False,
+            calibrate_max_rate_ratio=np.inf,
         )
     )
     # partitions without weighted branches are omitted
@@ -98,6 +101,7 @@ def test_trait_without_units():
             weights=np.ones(1_000),
             neutral_traits=[1, 2],
             calibrate=False,
+            calibrate_max_rate_ratio=np.inf,
         )
     )
     assert len(n) == len(k) == len(lengths) == shares.shape[0] == 0
@@ -113,6 +117,7 @@ def test_survival_shares_exact(rate: float):
         weights=np.ones(len(exposure_df)),
         neutral_traits=[1, 2],
         calibrate=False,
+        calibrate_max_rate_ratio=np.inf,
     )
     times = partitioning["distinct_survival_times"]
     discounts = shares @ np.exp(rate * times)

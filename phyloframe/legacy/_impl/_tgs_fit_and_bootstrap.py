@@ -24,6 +24,7 @@ def tgs_fit_and_bootstrap(
     calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
+    calibrate_max_rate_ratio: float,
     num_bootstrap: int,
     loss_rate: float,
     selection_starts: typing.Sequence[float],
@@ -58,6 +59,7 @@ def tgs_fit_and_bootstrap(
         trait_carriers=trait_carriers,
         neutral_traits=neutral_traits,
         calibration_neighborhoods=None,
+        max_rate_ratio=calibrate_max_rate_ratio,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
         growth_exponent_bound=growth_exponent_bound,
@@ -78,6 +80,7 @@ def tgs_fit_and_bootstrap(
             neighborhood_fractions=calibrate_neighborhood_fractions,
             neutral_traits=neutral_traits,
             trait_names=trait_names,
+            max_rate_ratio=calibrate_max_rate_ratio,
         )
 
     logging.info(

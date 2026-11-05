@@ -14,6 +14,7 @@ def tgs_fit_allmdc_traits(
     weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
+    calibrate_max_rate_ratio: float,
     loss_rate: float,
     selection_starts: typing.Sequence[float],
     growth_exponent_bound: float,
@@ -32,6 +33,7 @@ def tgs_fit_allmdc_traits(
         weights=weights,
         neutral_traits=neutral_traits,
         calibrate=calibrate,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
     )
     return tgs_fit_trait_partitions(
         data=data,

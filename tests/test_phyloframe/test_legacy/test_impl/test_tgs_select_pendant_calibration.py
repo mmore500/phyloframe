@@ -35,6 +35,7 @@ def test_select(caplog):
             neighborhood_fractions=(0.25, 1.0),
             neutral_traits=[0, 1, 2],
             trait_names=["a", "b", "c"],
+            max_rate_ratio=np.inf,
         )
     assert res.shape == (num_partitions, num_partitions)
     assert "calibrated trait a" in caplog.text

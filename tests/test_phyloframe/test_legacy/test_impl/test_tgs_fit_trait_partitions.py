@@ -25,6 +25,7 @@ def fixture():
         calibrate=False,
         calibrate_neighborhood_fractions=(1.0,),
         calibrate_num_partitions=256,
+        calibrate_max_rate_ratio=np.inf,
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
     )
@@ -34,6 +35,7 @@ def fixture():
         weights=np.ones(len(exposure_df)),
         neutral_traits=[1, 2],
         calibrate=False,
+        calibrate_max_rate_ratio=np.inf,
     )
     return data, shares, partitioning["distinct_survival_times"]
 

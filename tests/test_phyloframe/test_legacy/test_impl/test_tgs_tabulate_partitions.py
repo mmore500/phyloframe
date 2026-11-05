@@ -15,7 +15,10 @@ def _counts():
 
 def test_uncalibrated():
     res = tgs_tabulate_partitions(
-        counts=_counts(), neutral_traits=[], calibration_neighborhoods=None
+        counts=_counts(),
+        neutral_traits=[],
+        calibration_neighborhoods=None,
+        max_rate_ratio=np.inf,
     )
     assert res["trait"].tolist() == [0, 0, 1, 1]
     assert list(res["trait"].cat.categories) == [0, 1]
@@ -38,5 +41,6 @@ def test_calibrated_with_uniform_rates_unchanged():
             counts=counts,
             neutral_traits=[1],
             calibration_neighborhoods=sparse.identity(2, format="csr"),
+            max_rate_ratio=np.inf,
         )
     np.testing.assert_allclose(res["length"][:2], [3.0, 0.0])

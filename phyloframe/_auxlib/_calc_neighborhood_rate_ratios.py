@@ -9,6 +9,7 @@ def calc_neighborhood_rate_ratios(
     neighborhoods: sparse.spmatrix,
     num_events: np.ndarray,
     exposure: np.ndarray,
+    max_ratio: float = np.inf,
 ) -> np.ndarray:
     """Calculate, for each item, its neighborhood's event rate relative to
     the global event rate.
@@ -28,6 +29,9 @@ def calc_neighborhood_rate_ratios(
         Event count of each item.
     exposure : np.ndarray
         Exposure of each item.
+    max_ratio : float, default np.inf
+        Cap on each rate ratio, e.g., to bound ratios of neighborhoods with
+        little exposure.
 
     Returns
     -------
@@ -46,6 +50,7 @@ def calc_neighborhood_rate_ratios(
     )
     observed = neighborhoods @ num_events
     expected = rate * (neighborhoods @ exposure)
-    return np.divide(
+    ratios = np.divide(
         observed, expected, out=np.ones_like(observed), where=expected > 0
     )
+    return np.clip(ratios, None, max_ratio)

@@ -16,6 +16,7 @@ def tgs_calc_calibrated_pendant_lengths(
     trait: int,
     neutral_traits: typing.Sequence[int],
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
+    max_rate_ratio: float,
 ) -> typing.Tuple[np.ndarray, typing.Optional[np.ndarray]]:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual`.
@@ -26,7 +27,8 @@ def tgs_calc_calibrated_pendant_lengths(
     has no leaves) and the factors calibrating it (None without
     `calibration_neighborhoods`). Calibration rescales each partition's
     pendant length by the rate ratio of gains among `trait`'s neutral
-    reference within the partition's neighborhood.
+    reference within the partition's neighborhood, capped at
+    `max_rate_ratio`.
     """
     num_leaves = counts.num_leaves[trait]
     pendant_lengths = np.divide(
@@ -45,5 +47,6 @@ def tgs_calc_calibrated_pendant_lengths(
         neighborhoods=calibration_neighborhoods,
         num_events=counts.num_carriers[refs].sum(axis=0),
         exposure=counts.pendant_length_sums[refs].sum(axis=0),
+        max_ratio=max_rate_ratio,
     )
     return pendant_lengths * factors, factors

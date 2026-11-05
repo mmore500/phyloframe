@@ -1,5 +1,6 @@
 import typing
 
+import numpy as np
 import pandas as pd
 
 from .._auxlib._identity import identity
@@ -26,6 +27,7 @@ def alifestd_tgs_allmdc_estimate_asexual(
         1.0,
     ),
     calibrate_num_partitions: int = 4096,
+    calibrate_max_rate_ratio: float = np.inf,
     calibrate_size_partition_ratio: float = 2.0,
     calibrate_size_partition_min_neutral_gains: int = 20,
     num_bootstrap: int = 0,
@@ -115,6 +117,9 @@ def alifestd_tgs_allmdc_estimate_asexual(
         Maximum number of equal-occupancy partitions of each size
         partition's branches, by ranked length and origin time, for
         calibration and fitting; a power of two.
+    calibrate_max_rate_ratio : float, default np.inf
+        Cap on the neutral gain rate ratios that rescale branch lengths in
+        calibration; see the pendant estimator.
     calibrate_size_partition_ratio : float, default 2.0
         Ratio between successive size partitions, which group branches by
         clade size for calibration: a branch subtending `n` leaves falls in
@@ -203,6 +208,7 @@ def alifestd_tgs_allmdc_estimate_asexual(
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
     )
     exposure_df = tgs_prepare_asexual(
         phylogeny_df,
@@ -216,6 +222,7 @@ def alifestd_tgs_allmdc_estimate_asexual(
         calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         calibrate_size_partition_ratio=calibrate_size_partition_ratio,
         calibrate_size_partition_min_neutral_gains=calibrate_size_partition_min_neutral_gains,
         num_bootstrap=num_bootstrap,

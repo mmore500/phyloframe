@@ -15,6 +15,7 @@ def tgs_tabulate_partitions(
     counts: TgsCounts,
     neutral_traits: typing.Sequence[int],
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
+    max_rate_ratio: float,
 ) -> pd.DataFrame:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual` and
@@ -27,7 +28,8 @@ def tgs_tabulate_partitions(
     branches starting without the trait, `num_trials`, and of gains,
     `num_successes`, and their mean `length` (zero without branches),
     calibrated against neutral traits if `calibration_neighborhoods` is
-    given (see `tgs_calc_calibrated_pendant_lengths`).
+    given, with rate ratios capped at `max_rate_ratio` (see
+    `tgs_calc_calibrated_pendant_lengths`).
     """
     num_traits, num_partitions = counts.num_leaves.shape
     lengths = np.stack(
@@ -37,6 +39,7 @@ def tgs_tabulate_partitions(
                 trait=trait,
                 neutral_traits=neutral_traits,
                 calibration_neighborhoods=calibration_neighborhoods,
+                max_rate_ratio=max_rate_ratio,
             )[0]
             for trait in range(num_traits)
         ],

@@ -409,6 +409,7 @@ def test_tgs_select_calibration_neighborhoods():
         counts=counts,
         neutral_traits=[0, 1, 2],
         trait_names=["a", "b", "c"],
+        max_rate_ratio=np.inf,
     )
     assert res.shape == (256, 256)
     # each cell belongs to its own neighborhood
@@ -524,6 +525,39 @@ def test_calibrate_num_partitions(calibrate_num_partitions: int):
     assert np.isfinite(res["selection"]).all()
 
 
+def test_calibrate_max_rate_ratio():
+    phylogeny_df, traits = _make_cherries(4_000)
+    kwargs = dict(
+        trait_masks=traits,
+        neutral_traits=[1, 2, 3, 4],
+        calibrate=True,
+        calibrate_neighborhood_fractions=[0.1],
+    )
+    default = _estimate_from_masks(phylogeny_df, **kwargs)
+    uncapped = _estimate_from_masks(
+        phylogeny_df, calibrate_max_rate_ratio=np.inf, **kwargs
+    )
+    pd.testing.assert_frame_equal(default, uncapped)
+    # a tight cap clips the larger calibration factors, changing the fit
+    capped = _estimate_from_masks(
+        phylogeny_df, calibrate_max_rate_ratio=1.0, **kwargs
+    )
+    assert not np.allclose(capped["gain_rate"], default["gain_rate"])
+
+
+@pytest.mark.parametrize("calibrate_max_rate_ratio", [0.0, -1.0, np.nan])
+def test_calibrate_max_rate_ratio_not_positive_raises(
+    calibrate_max_rate_ratio: float,
+):
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError, match="calibrate_max_rate_ratio"):
+        _estimate_from_masks(
+            phylogeny_df,
+            trait_masks=traits,
+            calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        )
+
+
 def test_heldout_neutral_without_carriers_warns():
     phylogeny_df, traits = _make_cherries(2_000)
     with pytest.warns(UserWarning, match="does not inform"):
@@ -560,6 +594,7 @@ def test_tgs_calc_calibrated_pendant_lengths():
         trait=0,
         neutral_traits=[1, 2],
         calibration_neighborhoods=None,
+        max_rate_ratio=np.inf,
     )
     np.testing.assert_array_equal(lengths, [3.0, 0.0])  # zero if no leaves
     assert factors is None
@@ -569,6 +604,7 @@ def test_tgs_calc_calibrated_pendant_lengths():
         trait=0,
         neutral_traits=[1, 2],
         calibration_neighborhoods=sparse.identity(2, format="csr"),
+        max_rate_ratio=np.inf,
     )
     # neutral gains per unit length are 4 / 16 and 2 / 16, vs 6 / 32 overall
     np.testing.assert_allclose(factors, [4 / 3, 2 / 3])

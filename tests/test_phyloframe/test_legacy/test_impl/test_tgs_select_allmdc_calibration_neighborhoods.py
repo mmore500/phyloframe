@@ -33,6 +33,7 @@ def test_block_diagonal():
         neighborhood_fractions=(0.25, 1.0),
         neutral_traits=[1, 2],
         trait_names=["focal", "n1", "n2"],
+        max_rate_ratio=np.inf,
     )
     num_partitions = partitions.max() + 1
     assert res.shape == (num_partitions, num_partitions)

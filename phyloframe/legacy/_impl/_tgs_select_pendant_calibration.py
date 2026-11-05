@@ -20,6 +20,7 @@ def tgs_select_pendant_calibration(
     neighborhood_fractions: typing.Sequence[float],
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
+    max_rate_ratio: float,
 ) -> sparse.spmatrix:
     """Implementation detail for
     `alifestd_tgs_pendantmdc_estimate_asexual`.
@@ -37,6 +38,7 @@ def tgs_select_pendant_calibration(
         counts=counts,
         neutral_traits=neutral_traits,
         trait_names=trait_names,
+        max_rate_ratio=max_rate_ratio,
     )
     if not logging.getLogger().isEnabledFor(logging.INFO):
         return neighborhoods  # factors are computed only to log them
@@ -46,6 +48,7 @@ def tgs_select_pendant_calibration(
             trait=trait,
             neutral_traits=neutral_traits,
             calibration_neighborhoods=neighborhoods,
+            max_rate_ratio=max_rate_ratio,
         )
         factors = factors[counts.num_leaves[trait] > 0]
         if len(factors):

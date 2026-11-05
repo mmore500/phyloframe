@@ -17,6 +17,7 @@ def tgs_calc_allmdc_data(
     weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
     calibrate: bool,
+    calibrate_max_rate_ratio: float,
 ) -> typing.Tuple[pd.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
 
@@ -53,6 +54,7 @@ def tgs_calc_allmdc_data(
         calibration_neighborhoods=(
             partitioning["calibration_neighborhoods"] if calibrate else None
         ),
+        max_rate_ratio=calibrate_max_rate_ratio,
     )
     # sparse, as partitions span few of many distinct survival times; each
     # trait's branches go in that trait's block of rows

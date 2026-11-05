@@ -17,6 +17,7 @@ _KWARGS = dict(
     calibrate=True,
     calibrate_neighborhood_fractions=(0.25, 1.0),
     calibrate_num_partitions=64,
+    calibrate_max_rate_ratio=np.inf,
     calibrate_size_partition_ratio=2.0,
     calibrate_size_partition_min_neutral_gains=1,
     num_bootstrap=2,

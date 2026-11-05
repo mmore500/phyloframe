@@ -19,6 +19,7 @@ def _fit(exposure_df, calibrate=False, weights=None):
         calibrate=calibrate,
         calibrate_neighborhood_fractions=(0.5, 1.0),
         calibrate_num_partitions=256,
+        calibrate_max_rate_ratio=np.inf,
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
     )
@@ -28,6 +29,7 @@ def _fit(exposure_df, calibrate=False, weights=None):
         weights=(np.ones(len(exposure_df)) if weights is None else weights),
         neutral_traits=neutral,
         calibrate=calibrate,
+        calibrate_max_rate_ratio=np.inf,
         loss_rate=0.0,
         selection_starts=(0.0, -0.3, -1.8),
         growth_exponent_bound=600.0,

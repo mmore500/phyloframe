@@ -16,6 +16,7 @@ def tgs_calc_heldout_nll(
     counts: TgsCounts,
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
+    max_rate_ratio: float,
 ) -> float:
     """Implementation detail for `tgs_select_calibration_neighborhoods`.
 
@@ -34,6 +35,7 @@ def tgs_calc_heldout_nll(
             trait=trait,
             neutral_traits=neutral_traits,
             calibration_neighborhoods=calibration_neighborhoods,
+            max_rate_ratio=max_rate_ratio,
         )
         exposure = (n * pendant_length).sum()
         if k.any() and exposure:

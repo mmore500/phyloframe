@@ -16,6 +16,7 @@ def tgs_select_allmdc_calibration_neighborhoods(
     neighborhood_fractions: typing.Sequence[float],
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
+    max_rate_ratio: float,
 ) -> sparse.csr_matrix:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
 
@@ -38,6 +39,7 @@ def tgs_select_allmdc_calibration_neighborhoods(
                 ),
                 neutral_traits=neutral_traits,
                 trait_names=trait_names,
+                max_rate_ratio=max_rate_ratio,
             )
             for offset, num, coords in blocks
         ],
