@@ -31,24 +31,24 @@ def _alifestd_mark_lineage_delta_asexual_fast_path(
     values = np.asarray(values)
     if values.dtype == np.bool_:
         values = values.astype(np.int8)  # deltas -1, 0, or 1 fit
-    # a root is its own ancestor, so its delta is zero, unless measured from
-    # a basal value above it
-    parent_values = values[ancestor_ids]
+    # a root is its own ancestor, so its delta is 0, unless measured from a
+    # basal value
+    ancestral_values = values[ancestor_ids]
     if basal_value is not None:
         is_root = ancestor_ids == np.arange(len(ancestor_ids))
-        parent_values = np.where(
+        ancestral_values = np.where(
             is_root,
             np.asarray(basal_value).astype(values.dtype),
-            parent_values,
+            ancestral_values,
         )
     if (
         np.issubdtype(values.dtype, np.unsignedinteger)
-        and (parent_values > values).any()
+        and (ancestral_values > values).any()
     ):
         warnings.warn(
             f"negative deltas of unsigned values ({values.dtype}) wrap around",
         )
-    return (values - parent_values).astype(values.dtype)
+    return (values - ancestral_values).astype(values.dtype)
 
 
 def alifestd_mark_lineage_delta_asexual(
@@ -61,8 +61,8 @@ def alifestd_mark_lineage_delta_asexual(
 ) -> pd.DataFrame:
     """Add column with the change in ``values`` from each node's parent.
 
-    The result at each node is its value minus its parent's value. At a
-    root, it is zero, or, if ``basal_value`` is given, the root's value
+    The result at each node is its value minus its parent's value. A
+    root's delta is 0, or, if ``basal_value`` is given, the root's value
     minus ``basal_value`` (e.g., with ``basal_value=0``, the root's own
     value). NaN values propagate to a node and its children.
 
@@ -121,8 +121,8 @@ def alifestd_mark_lineage_delta_asexual(
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column with the change in `values` from each node's parent (at a root,
-zero, or its value minus `--basal-value` if given).
+Add column with the change in `values` from each node's parent. A root's
+delta is 0, or its value minus `--basal-value` if given.
 
 Data is assumed to be in alife standard format.
 
@@ -161,8 +161,8 @@ def _create_parser() -> argparse.ArgumentParser:
         default=None,
         type=float,
         help=(
-            "value above each root, from which root deltas are measured "
-            "(default: none, giving zero root deltas)"
+            "value that each root's delta is measured from (default: "
+            "none, so each root's delta is 0)"
         ),
     )
     parser.add_argument(
