@@ -476,6 +476,12 @@ from ._alifestd_mark_lineage_cumsum_asexual import (
 from ._alifestd_mark_lineage_cumsum_polars import (
     alifestd_mark_lineage_cumsum_polars,
 )
+from ._alifestd_mark_lineage_delta_asexual import (
+    alifestd_mark_lineage_delta_asexual,
+)
+from ._alifestd_mark_lineage_delta_polars import (
+    alifestd_mark_lineage_delta_polars,
+)
 from ._alifestd_mark_lineage_ffill_asexual import (
     alifestd_mark_lineage_ffill_asexual,
 )
@@ -634,6 +640,18 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 )
 from ._alifestd_mask_monomorphic_clades_polars import (
     alifestd_mask_monomorphic_clades_polars,
+)
+from ._alifestd_mask_trait_mdcs_strict_asexual import (
+    alifestd_mask_trait_mdcs_strict_asexual,
+)
+from ._alifestd_mask_trait_mdcs_strict_polars import (
+    alifestd_mask_trait_mdcs_strict_polars,
+)
+from ._alifestd_mask_trait_singletons_asexual import (
+    alifestd_mask_trait_singletons_asexual,
+)
+from ._alifestd_mask_trait_singletons_polars import (
+    alifestd_mask_trait_singletons_polars,
 )
 from ._alifestd_minify_asexual import alifestd_minify_asexual
 from ._alifestd_minify_polars import alifestd_minify_polars
@@ -913,6 +931,8 @@ __all__ = [
     "AlifestdIplotxShimPolars",
     "alifestd_mark_unifurcation_length_asexual",
     "alifestd_mark_unifurcation_length_polars",
+    "alifestd_mask_trait_mdcs_strict_asexual",
+    "alifestd_mask_trait_mdcs_strict_polars",
     "alifestd_to_iplotx_pandas",
     "alifestd_to_iplotx_polars",
     "alifestd_is_asexual",
@@ -1004,6 +1024,8 @@ __all__ = [
     "alifestd_mark_lineage_cumprod_polars",
     "alifestd_mark_lineage_cumsum_asexual",
     "alifestd_mark_lineage_cumsum_polars",
+    "alifestd_mark_lineage_delta_asexual",
+    "alifestd_mark_lineage_delta_polars",
     "alifestd_mark_lineage_ffill_asexual",
     "alifestd_mark_lineage_ffill_polars",
     "alifestd_mark_max_child_value_asexual",
@@ -1051,6 +1073,8 @@ __all__ = [
     "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
     "alifestd_mask_monomorphic_clades_polars",
+    "alifestd_mask_trait_singletons_asexual",
+    "alifestd_mask_trait_singletons_polars",
     "alifestd_minify_asexual",
     "alifestd_minify_polars",
     "alifestd_parse_ancestor_id",
