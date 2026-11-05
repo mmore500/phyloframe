@@ -5,6 +5,7 @@ import os
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
+import numpy as np
 import pandas as pd
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -16,6 +17,17 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_find_root_ids import alifestd_find_root_ids
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
+
+
+def _alifestd_mark_roots_asexual_fast_path(
+    ancestor_ids: np.ndarray,
+) -> np.ndarray:
+    """Implementation detail for `alifestd_mark_roots`.
+
+    Returns boolean mask of roots, given ancestor ids of a phylogeny with
+    contiguous ids.
+    """
+    return ancestor_ids == np.arange(len(ancestor_ids))
 
 
 def alifestd_mark_roots(
@@ -37,6 +49,11 @@ def alifestd_mark_roots(
 
     if alifestd_has_contiguous_ids(phylogeny_df):
         phylogeny_df.reset_index(drop=True, inplace=True)
+        if "ancestor_id" in phylogeny_df:
+            phylogeny_df[mark_as] = _alifestd_mark_roots_asexual_fast_path(
+                phylogeny_df["ancestor_id"].to_numpy(),
+            )
+            return phylogeny_df
     else:
         phylogeny_df.index = phylogeny_df["id"]
 

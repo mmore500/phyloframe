@@ -128,6 +128,8 @@ $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumprod_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumprod_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_cumsum_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_lineage_delta_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_lineage_delta_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_ffill_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_lineage_ffill_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_max_child_value_asexual
@@ -183,8 +185,12 @@ $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sample_tips_uniform_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_sister_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_stem_node_id_asexual
+$ python3 -m phyloframe.legacy._alifestd_mark_stem_node_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_polars
+$ python3 -m phyloframe.legacy._alifestd_mask_trait_mdcs_strict_polars
+$ python3 -m phyloframe.legacy._alifestd_mask_trait_singletons_polars
 $ python3 -m phyloframe.legacy._alifestd_minify_asexual
 $ python3 -m phyloframe.legacy._alifestd_minify_polars
 $ python3 -m phyloframe.legacy._alifestd_pipe_unary_ops
