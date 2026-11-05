@@ -19,8 +19,7 @@ def tgs_calc_heldout_nll(
     max_rate_ratio: float,
 ) -> float:
     """Implementation detail for `tgs_select_calibration_neighborhoods`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Returns summed negative log likelihood of each neutral trait's carriers
     under no selection, with pendant lengths calibrated against the other

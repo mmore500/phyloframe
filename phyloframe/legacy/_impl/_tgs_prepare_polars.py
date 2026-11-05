@@ -29,11 +29,9 @@ def tgs_prepare_polars(
     trait_transitions: typing.Sequence[str],
     caller: str,
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
 
     Sums each trait's transitions into node states (see
     `tgs_calc_trait_states`), collapses unifurcations, and returns the

@@ -21,11 +21,9 @@ def tgs_fit_trait_partitions(
     survival_shares: typing.Optional[sparse.csr_matrix] = None,
     distinct_survival_times: typing.Optional[np.ndarray] = None,
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    gain/selection.
 
     Fits each trait's gain rate and selection to its partitions, the rows
     of `data` with its `trait` (see `tgs_tabulate_partitions`), and, if

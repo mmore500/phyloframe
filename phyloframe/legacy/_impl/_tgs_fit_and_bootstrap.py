@@ -14,7 +14,6 @@ from ._tgs_select_pendant_calibration import tgs_select_pendant_calibration
 
 def tgs_fit_and_bootstrap(
     *,
-    estimates_df: pd.DataFrame,
     pendant_lengths: np.ndarray,
     origin_times: np.ndarray,
     trait_leaves: typing.Sequence[np.ndarray],
@@ -32,15 +31,13 @@ def tgs_fit_and_bootstrap(
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
-) -> typing.Optional[pd.DataFrame]:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+) -> typing.Tuple[pd.DataFrame, typing.Optional[pd.DataFrame]]:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    Acronym tgs stands for trait gain/selection.
 
     Fits each trait to informative leaves, given their pendant lengths and
-    origin times, filling point estimates into `estimates_df` in place, and returns
-    bootstrap replicate fits (None without bootstrap replicates).
+    origin times, returning point fits and bootstrap replicate fits (None
+    without bootstrap replicates).
     """
     (
         leaf_partitions,
@@ -88,15 +85,14 @@ def tgs_fit_and_bootstrap(
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
     point_df = tgs_fit_traits(weights=np.ones(num_leaves), **fit_kwargs)
-    estimates_df[list(point_df.columns)] = point_df
     if not num_bootstrap:
-        return None
+        return point_df, None
 
     logging.info(
         "- alifestd_tgs_pendantmdc_estimate_asexual: "
         f"fitting {num_bootstrap} bootstrap replicates...",
     )
-    return tgs_bootstrap(
+    return point_df, tgs_bootstrap(
         fit=functools.partial(tgs_fit_traits, **fit_kwargs),
         num_items=num_leaves,
         num_bootstrap=num_bootstrap,

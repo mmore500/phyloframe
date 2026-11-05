@@ -17,11 +17,9 @@ def tgs_calc_exposure_df(
     origin_time: np.ndarray,
     trait_states: typing.Sequence[np.ndarray],
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`,
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`,
     `alifestd_tgs_allmdc_estimate_asexual`, and their polars counterparts.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Takes a phylogeny with contiguous, topologically sorted ids and no
     unifurcations, and each trait's state (0 or 1) at every node. Returns

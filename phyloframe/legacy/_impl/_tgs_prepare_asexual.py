@@ -14,11 +14,9 @@ def tgs_prepare_asexual(
     *,
     trait_transitions: typing.Sequence[str],
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    gain/selection.
 
     Converts `phylogeny_df` to working format, sums each trait's
     transitions into node states (see `tgs_calc_trait_states`), collapses

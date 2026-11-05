@@ -10,10 +10,8 @@ def tgs_summarize_bootstrap(
     point_df: pd.DataFrame,
     replicate_fits_df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    Acronym tgs stands for trait gain/selection.
 
     Returns bootstrap standard errors, z-scores, and p-values, given point
     estimates and replicate fits indexed by replicate and trait index.

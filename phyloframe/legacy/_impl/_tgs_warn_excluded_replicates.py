@@ -11,9 +11,8 @@ def tgs_warn_excluded_replicates(
     num_replicates: int,
     reason: str,
 ) -> None:
-    """Implementation detail for `tgs_summarize_bootstrap`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `tgs_summarize_bootstrap`. Acronym tgs stands
+    for trait gain/selection.
 
     Warns, if any, how many bootstrap replicates were excluded per trait,
     from `is_excluded`, a boolean series indexed by replicate and trait

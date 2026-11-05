@@ -19,8 +19,7 @@ def tgs_select_allmdc_calibration_neighborhoods(
     max_rate_ratio: float,
 ) -> sparse.csr_matrix:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Returns partition-by-partition calibration neighborhoods, selected
     within each size partition's `blocks` (see

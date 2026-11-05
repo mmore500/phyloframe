@@ -17,11 +17,9 @@ def tgs_tabulate_partitions(
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
     max_rate_ratio: float,
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns one row per trait and partition, trait-major, with columns
     `trait` (index, categorical over all traits), the (weighted) counts of

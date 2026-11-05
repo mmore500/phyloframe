@@ -29,16 +29,17 @@ def calc_group_means(
     assert len(groups) == len(values)
     assert (np.clip(groups, 0, num_groups - 1) == groups).all()
     df = pl.DataFrame(np.column_stack([values]), orient="row").with_columns(
-        group=groups
+        group=pl.Series(groups, dtype=pl.Int64)
     )
-    means = pl.DataFrame({"group": np.arange(num_groups)}).join(
-        df.group_by("group").mean(),
-        on="group",
-        how="left",
-        maintain_order="left",
+    # an empty row per group, so that groups without items get null (nan)
+    # means rather than being dropped
+    placeholders = pl.DataFrame({"group": np.arange(num_groups)})
+    means = (
+        pl.concat([df, placeholders], how="diagonal")
+        .group_by("group")
+        .mean()
+        .sort("group")
     )
     return (
-        means.drop("group")
-        .to_numpy()
-        .reshape((num_groups,) + values.shape[1:])
+        means.drop("group").to_numpy().reshape((num_groups, *values.shape[1:]))
     )

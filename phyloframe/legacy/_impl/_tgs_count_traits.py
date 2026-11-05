@@ -14,10 +14,8 @@ def tgs_count_traits(
     trait_leaves: typing.Sequence[np.ndarray],
     trait_carriers: typing.Sequence[np.ndarray],
 ) -> TgsCounts:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    Acronym tgs stands for trait gain/selection.
 
     Returns, per trait, (weighted) counts of leaves and of trait carriers,
     and summed pendant length, in each partition.

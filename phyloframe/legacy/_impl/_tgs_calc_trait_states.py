@@ -11,11 +11,9 @@ def tgs_calc_trait_states(
     transitions: np.ndarray,
     trait_name: str,
 ) -> np.ndarray:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`,
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`,
     `alifestd_tgs_allmdc_estimate_asexual`, and their polars counterparts.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Takes a phylogeny with contiguous, topologically sorted ids and one
     trait's transitions (see `alifestd_mark_lineage_delta_asexual`).

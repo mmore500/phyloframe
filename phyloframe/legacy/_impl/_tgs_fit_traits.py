@@ -24,10 +24,8 @@ def tgs_fit_traits(
     selection_starts: typing.Sequence[float],
     growth_exponent_bound: float,
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    Acronym tgs stands for trait gain/selection.
 
     Fits each trait to its leaves' pendant branches, weighted by `weights`
     (e.g., bootstrap draw counts), returning one row per trait (see

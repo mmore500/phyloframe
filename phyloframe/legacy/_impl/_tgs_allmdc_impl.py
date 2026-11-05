@@ -7,8 +7,8 @@ import pandas as pd
 
 from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_build_estimates_df import tgs_build_estimates_df
+from ._tgs_count_allmdc_branches import tgs_count_allmdc_branches
 from ._tgs_fit_allmdc_traits import tgs_fit_allmdc_traits
-from ._tgs_init_allmdc_results import tgs_init_allmdc_results
 from ._tgs_partition_allmdc_exposures import tgs_partition_allmdc_exposures
 from ._tgs_validate_allmdc_args import tgs_validate_allmdc_args
 
@@ -32,11 +32,9 @@ def tgs_allmdc_impl(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_allmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_polars`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
 
     Takes `exposure_df` from `tgs_calc_exposure_df` and arguments as documented in
     `alifestd_tgs_allmdc_estimate_asexual`, with `neutral_traits` as
@@ -48,10 +46,11 @@ def tgs_allmdc_impl(
             calibrate_size_partition_min_neutral_gains
         ),
     )
-    estimates_df = tgs_init_allmdc_results(
+    counts_df = tgs_count_allmdc_branches(
         trait_names=trait_names, exposure_df=exposure_df
     )
     num_branches = len(exposure_df)
+    point_df = None
     if num_branches:
         fit_kwargs = dict(
             exposure_df=exposure_df,
@@ -84,10 +83,9 @@ def tgs_allmdc_impl(
         point_df = tgs_fit_allmdc_traits(
             weights=np.ones(num_branches), **fit_kwargs
         )
-        estimates_df[list(point_df.columns)] = point_df
-        for __, row in estimates_df.iterrows():
+        for name, (__, row) in zip(trait_names, point_df.iterrows()):
             logging.info(
-                f"- alifestd_tgs_allmdc_estimate_asexual: trait {row['trait']} "
+                f"- alifestd_tgs_allmdc_estimate_asexual: trait {name} "
                 f"fit gain rate {row['gain_rate']:.4g}, selection "
                 f"{row['selection']:.4g}, gain ratio {row['gain_ratio']:.4g}, "
                 f"selection lrt {row['selection_lrt_naive']:.4g}",
@@ -107,7 +105,8 @@ def tgs_allmdc_impl(
             progress_wrap=progress_wrap,
         )
     return tgs_build_estimates_df(
-        estimates_df,
+        counts_df,
+        point_df=point_df,
         replicate_fits_df=replicate_fits_df,
         num_bootstrap=num_bootstrap,
     )

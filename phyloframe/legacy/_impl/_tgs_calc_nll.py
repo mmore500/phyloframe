@@ -13,9 +13,8 @@ _MAX_EXPONENT = np.log(np.finfo(np.float64).max)
 def _tgs_calc_effective_length(
     *, length: np.ndarray, rate: float, growth_exponent_bound: float
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
-    """Implementation detail for `tgs_calc_nll`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `tgs_calc_nll`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns effective length (exp(rate * t) - 1) / rate for each length t,
     and its derivative with respect to `rate`, with rate * t capped at
@@ -61,11 +60,9 @@ def tgs_calc_nll(
     survival_shares: typing.Optional[sparse.csr_matrix] = None,
     distinct_survival_times: typing.Optional[np.ndarray] = None,
 ) -> typing.Tuple[float, float, float]:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns negative log likelihood (up to a constant) of one trait's
     `partitions` (with columns `num_trials`, `num_successes`, and mean

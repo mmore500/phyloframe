@@ -17,11 +17,9 @@ def tgs_calc_gain_ratio_lrts(
     loss_rate: float,
     selection_starts: typing.Sequence[float],
 ) -> np.ndarray:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns, per trait, the likelihood-ratio test (LRT) statistic for gain
     ratio = 1, a profile likelihood test: twice the increase in negative

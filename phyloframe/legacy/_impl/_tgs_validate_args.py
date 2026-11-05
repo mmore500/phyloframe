@@ -12,11 +12,9 @@ def tgs_validate_args(
     calibrate_num_partitions: int,
     calibrate_max_rate_ratio: float,
 ) -> typing.Tuple[typing.List[str], typing.List[int]]:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`,
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`,
     `alifestd_tgs_allmdc_estimate_asexual`, and their polars counterparts.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Validates arguments shared by the trait gain/selection estimators.
     Returns trait names, i.e., the transition column names, and

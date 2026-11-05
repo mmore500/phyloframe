@@ -59,8 +59,8 @@ def calc_binomial_nll_proxy(
         + special.xlog1py(num_failures, -clipped_p)
     )
     dnll_dp = np.where(
-        clipped_p != raw_p,
-        0.0,
+        clipped_p == raw_p,
         num_failures / (1 - clipped_p) - num_successes / clipped_p,
+        0.0,
     )
     return nll, dnll_dp

@@ -17,6 +17,7 @@ from ._tgs_calc_rank_partitions import tgs_calc_rank_partitions
 from ._tgs_calc_size_partitions import tgs_calc_size_partitions
 from ._tgs_calc_trait_masks import tgs_calc_trait_masks
 from ._tgs_calc_trait_states import tgs_calc_trait_states
+from ._tgs_count_allmdc_branches import tgs_count_allmdc_branches
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_reference_traits import tgs_find_reference_traits
 from ._tgs_find_trait_exposures import tgs_find_trait_exposures
@@ -31,8 +32,6 @@ from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_impl import tgs_impl
-from ._tgs_init_allmdc_results import tgs_init_allmdc_results
-from ._tgs_init_results import tgs_init_results
 from ._tgs_partition_allmdc_exposures import tgs_partition_allmdc_exposures
 from ._tgs_partition_size_partitions import tgs_partition_size_partitions
 from ._tgs_prepare_asexual import tgs_prepare_asexual
@@ -68,6 +67,7 @@ __all__ = [
     "tgs_calc_size_partitions",
     "tgs_calc_trait_masks",
     "tgs_calc_trait_states",
+    "tgs_count_allmdc_branches",
     "tgs_count_traits",
     "tgs_find_reference_traits",
     "tgs_find_trait_exposures",
@@ -78,8 +78,6 @@ __all__ = [
     "tgs_fit_trait_partitions",
     "tgs_fit_traits",
     "tgs_impl",
-    "tgs_init_allmdc_results",
-    "tgs_init_results",
     "tgs_minimize_nll",
     "tgs_partition_allmdc_exposures",
     "tgs_partition_size_partitions",

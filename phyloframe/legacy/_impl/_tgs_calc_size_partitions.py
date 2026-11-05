@@ -14,8 +14,7 @@ def tgs_calc_size_partitions(
     calibrate_size_partition_min_neutral_gains: int,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Returns each branch's size partition, by clade size on a log scale
     with base `calibrate_size_partition_ratio` (see `calc_geometric_bins`),

@@ -11,9 +11,7 @@ from ._tgs_calc_nll import tgs_calc_nll
 
 
 class TgsFitResult(typing.NamedTuple):
-    """Result of `tgs_fit`.
-
-    Here, tgs stands for trait gain/selection.
+    """Result of `tgs_fit`. Acronym tgs stands for trait gain/selection.
 
     Attributes
     ----------
@@ -37,9 +35,7 @@ class TgsFitResult(typing.NamedTuple):
 
 def _tgs_calc_scales(partitions: pd.DataFrame) -> typing.Tuple[float, float]:
     """Implementation detail for `tgs_fit_partitions` and
-    `tgs_calc_gain_ratio_lrts`.
-
-    Here, tgs stands for trait gain/selection.
+    `tgs_calc_gain_ratio_lrts`. Acronym tgs stands for trait gain/selection.
 
     Returns the selection scale, 1 / mean branch length, and the neutral
     log gain rate, log(gains per unit branch length), of `partitions`.
@@ -61,9 +57,7 @@ def tgs_minimize_nll(
     loss_rate: float,
 ) -> optimize.OptimizeResult:
     """Implementation detail for `tgs_fit_partitions` and
-    `tgs_calc_gain_ratio_lrts`.
-
-    Here, tgs stands for trait gain/selection.
+    `tgs_calc_gain_ratio_lrts`. Acronym tgs stands for trait gain/selection.
 
     Minimizes `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`)
     by L-BFGS-B over the `is_free` ones of (log gain rate, selection),
@@ -119,8 +113,7 @@ def tgs_fit_partitions(
     selection_starts: typing.Sequence[float],
 ) -> TgsFitResult:
     """Implementation detail for `tgs_fit` and `tgs_fit_trait_partitions`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Fits one trait's gain rate and selection to its `partitions` (with
     columns `num_trials`, `num_successes`, and mean branch `length`),
@@ -186,8 +179,7 @@ def tgs_fit(
     pendant branch length.
 
     Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     A leaf's pendant branch starts without the trait, so pendant length is
     an exposure window: a leaf with pendant length `t` carries the trait

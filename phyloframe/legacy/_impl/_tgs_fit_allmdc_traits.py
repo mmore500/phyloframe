@@ -20,8 +20,7 @@ def tgs_fit_allmdc_traits(
     growth_exponent_bound: float,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Fits each trait to all branches, each weighted by `weights` (e.g.,
     bootstrap draw counts), returning one row per trait (see

@@ -19,10 +19,8 @@ def tgs_select_calibration_neighborhoods(
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
 ) -> sparse.spmatrix:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    Acronym tgs stands for trait gain/selection.
 
     Returns partition-by-partition neighborhood membership matrix for the
     neighborhood size, among `neighborhood_fractions`, that best predicts

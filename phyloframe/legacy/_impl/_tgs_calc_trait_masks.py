@@ -7,11 +7,9 @@ import pandas as pd
 def tgs_calc_trait_masks(
     exposure_df: pd.DataFrame,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns boolean arrays of shape (num_branches, num_traits) marking,
     for each branch of `exposure_df` (see `tgs_calc_exposure_df`) and

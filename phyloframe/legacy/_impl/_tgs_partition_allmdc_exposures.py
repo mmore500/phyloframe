@@ -25,8 +25,7 @@ def tgs_partition_allmdc_exposures(
     calibrate_size_partition_min_neutral_gains: int,
 ) -> typing.Dict[str, typing.Any]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Splits `exposure_df` (see `tgs_calc_exposure_df`) into size partitions by
     clade size (see `tgs_calc_size_partitions`), then each into

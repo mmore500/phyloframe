@@ -10,11 +10,9 @@ def tgs_calc_gain_ratios(
     gain_rates: np.ndarray,
     neutral_traits: typing.Sequence[int],
 ) -> np.ndarray:
-    """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
+    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns each trait's gain rate relative to the mean gain rate of its
     neutral reference (see `tgs_find_reference_traits`); nan without

@@ -20,8 +20,7 @@ def tgs_calc_allmdc_data(
     calibrate_max_rate_ratio: float,
 ) -> typing.Tuple[pd.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Summarizes `exposure_df` (see `tgs_calc_exposure_df`) by its
     `partitioning` (see `tgs_partition_allmdc_exposures`). Returns

@@ -14,8 +14,7 @@ def tgs_partition_size_partitions(
     max_partitions: int,
 ) -> typing.Tuple[np.ndarray, typing.List[typing.Tuple[int, int, np.ndarray]]]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-
-    Here, tgs stands for trait gain/selection.
+    Acronym tgs stands for trait gain/selection.
 
     Partitions each size partition's branches into up to `max_partitions`
     equal-occupancy partitions by ranked length and origin time, skipping
