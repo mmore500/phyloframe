@@ -2,6 +2,7 @@ import argparse
 import functools
 import logging
 import os
+import typing
 import warnings
 
 import joinem
@@ -23,24 +24,31 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def _alifestd_mark_lineage_delta_asexual_fast_path(
     ancestor_ids: np.ndarray,
     values: np.ndarray,
+    basal_value: typing.Optional[typing.Any] = None,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mark_lineage_delta_asexual`."""
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     values = np.asarray(values)
     if values.dtype == np.bool_:
         values = values.astype(np.int8)  # deltas -1, 0, or 1 fit
-    is_root = ancestor_ids == np.arange(len(ancestor_ids))
+    # a root is its own ancestor, so its delta is zero, unless measured from
+    # a basal value above it
+    parent_values = values[ancestor_ids]
+    if basal_value is not None:
+        is_root = ancestor_ids == np.arange(len(ancestor_ids))
+        parent_values = np.where(
+            is_root,
+            np.asarray(basal_value).astype(values.dtype),
+            parent_values,
+        )
     if (
         np.issubdtype(values.dtype, np.unsignedinteger)
-        and (values[ancestor_ids] > values)[~is_root].any()
+        and (parent_values > values).any()
     ):
         warnings.warn(
             f"negative deltas of unsigned values ({values.dtype}) wrap around",
         )
-    # a root has no parent, so keeps its own value
-    return np.where(is_root, values, values - values[ancestor_ids]).astype(
-        values.dtype
-    )
+    return (values - parent_values).astype(values.dtype)
 
 
 def alifestd_mark_lineage_delta_asexual(
@@ -48,19 +56,22 @@ def alifestd_mark_lineage_delta_asexual(
     values: str,
     mutate: bool = False,
     *,
+    basal_value: typing.Optional[typing.Any] = None,
     mark_as: str = "lineage_delta",
 ) -> pd.DataFrame:
     """Add column with the change in ``values`` from each node's parent.
 
-    The result at each node is its value minus its parent's value, and at
-    a root, its own value. NaN values propagate to a node and its children.
+    The result at each node is its value minus its parent's value. At a
+    root, it is zero, or, if ``basal_value`` is given, the root's value
+    minus ``basal_value`` (e.g., with ``basal_value=0``, the root's own
+    value). NaN values propagate to a node and its children.
 
     Deltas take the dtype of ``values``, so integer deltas can overflow, and
     negative deltas of unsigned values may wrap; cast to a wider or signed
-    dtype first to avoid this. Boolean values are taken as 0 and 1, giving
-    int8 deltas, so for a binary trait's state at every node, deltas are its
-    transitions on each branch: +1 for a gain, -1 for a loss, and 0 for no
-    change, with the root's initial state at the root.
+    dtype first to avoid this. Boolean values are cast to int8, producing
+    deltas +1 for a gain, -1 for a loss, and 0 for no change, so for a
+    binary trait's state at every node, deltas are its transitions on each
+    branch (with ``basal_value=False``, including any gain at a root).
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -105,6 +116,7 @@ def alifestd_mark_lineage_delta_asexual(
     phylogeny_df[mark_as] = _alifestd_mark_lineage_delta_asexual_fast_path(
         phylogeny_df["ancestor_id"].to_numpy(),
         phylogeny_df[values].to_numpy(),
+        basal_value,
     )
     return phylogeny_df
 
@@ -112,7 +124,7 @@ def alifestd_mark_lineage_delta_asexual(
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Add column with the change in `values` from each node's parent (at a root,
-its own value).
+zero, or its value minus `--basal-value` if given).
 
 Data is assumed to be in alife standard format.
 
@@ -147,6 +159,15 @@ def _create_parser() -> argparse.ArgumentParser:
         help="name of column to take deltas of",
     )
     parser.add_argument(
+        "--basal-value",
+        default=None,
+        type=float,
+        help=(
+            "value above each root, from which root deltas are measured "
+            "(default: none, giving zero root deltas)"
+        ),
+    )
+    parser.add_argument(
         "--mark-as",
         default="lineage_delta",
         type=str,
@@ -170,6 +191,7 @@ if __name__ == "__main__":
                 functools.partial(
                     alifestd_mark_lineage_delta_asexual,
                     values=args.values,
+                    basal_value=args.basal_value,
                     mark_as=args.mark_as,
                 ),
             ),

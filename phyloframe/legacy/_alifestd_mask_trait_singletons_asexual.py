@@ -26,8 +26,8 @@ def _alifestd_mask_trait_singletons_asexual_fast_path(
     )
     stem_node_ids = _alifestd_mark_stem_node_id_asexual_fast_path(ancestor_ids)
     # a leaf with the trait is a singleton unless every leaf of its stem
-    # node's clade has it; a leaf without a stem node is its own stem node,
-    # so is never a singleton
+    # node's clade has the trait; a leaf without a stem node is its own stem
+    # node, so is never a singleton
     return is_leaf & is_trait_uniform & ~is_trait_uniform[stem_node_ids]
 
 
