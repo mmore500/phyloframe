@@ -19,7 +19,7 @@ def tgs_select_calibration_neighborhoods(
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
 ) -> sparse.spmatrix:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
     Acronym tgs stands for trait gain/selection.
 
     Returns partition-by-partition neighborhood membership matrix for the
@@ -44,7 +44,7 @@ def tgs_select_calibration_neighborhoods(
             max_rate_ratio=max_rate_ratio,
         )
         logging.info(
-            "- alifestd_tgs_pendantmdc_estimate_asexual: "
+            "- alifestd_tgs_pendantmdc_estimate_polars: "
             f"calibration neighborhoods of {fraction:.1%} of leaves give "
             f"held-out neutral negative log likelihood {nll:.1f}",
         )
@@ -55,7 +55,7 @@ def tgs_select_calibration_neighborhoods(
     neutral_gains = counts.num_carriers[neutral_traits].sum(axis=0)
     num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
     logging.info(
-        "- alifestd_tgs_pendantmdc_estimate_asexual: selected calibration "
+        "- alifestd_tgs_pendantmdc_estimate_polars: selected calibration "
         f"neighborhoods of {best_fraction:.1%} of {len(partition_coords)} "
         f"partitions, {num_empty} without neutral trait gains",
     )

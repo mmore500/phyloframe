@@ -3,8 +3,8 @@ def tgs_validate_allmdc_args(
     calibrate_size_partition_ratio: float,
     calibrate_size_partition_min_neutral_gains: int,
 ) -> None:
-    """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-    Acronym tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
+    tgs stands for trait gain/selection.
 
     Validates arguments specific to the allmdc estimator; see also
     `tgs_validate_args`.

@@ -14,8 +14,8 @@ def tgs_bootstrap(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
     Returns fits to bootstrap resamples of `num_items` leaves (or

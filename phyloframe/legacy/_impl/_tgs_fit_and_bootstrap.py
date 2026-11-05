@@ -32,7 +32,7 @@ def tgs_fit_and_bootstrap(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> typing.Tuple[pd.DataFrame, typing.Optional[pd.DataFrame]]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
     Acronym tgs stands for trait gain/selection.
 
     Fits each trait to informative leaves, given their pendant lengths and
@@ -81,7 +81,7 @@ def tgs_fit_and_bootstrap(
         )
 
     logging.info(
-        "- alifestd_tgs_pendantmdc_estimate_asexual: "
+        "- alifestd_tgs_pendantmdc_estimate_polars: "
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
     point_df = tgs_fit_traits(weights=np.ones(num_leaves), **fit_kwargs)
@@ -89,7 +89,7 @@ def tgs_fit_and_bootstrap(
         return point_df, None
 
     logging.info(
-        "- alifestd_tgs_pendantmdc_estimate_asexual: "
+        "- alifestd_tgs_pendantmdc_estimate_polars: "
         f"fitting {num_bootstrap} bootstrap replicates...",
     )
     return point_df, tgs_bootstrap(

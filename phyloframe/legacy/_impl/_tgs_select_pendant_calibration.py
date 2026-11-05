@@ -22,7 +22,7 @@ def tgs_select_pendant_calibration(
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
 ) -> sparse.spmatrix:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
     Acronym tgs stands for trait gain/selection.
 
     Returns calibration neighborhoods selected from unweighted
@@ -51,7 +51,7 @@ def tgs_select_pendant_calibration(
         factors = factors[counts.num_leaves[trait] > 0]
         if len(factors):
             logging.info(
-                "- alifestd_tgs_pendantmdc_estimate_asexual: calibrated "
+                "- alifestd_tgs_pendantmdc_estimate_polars: calibrated "
                 f"trait {name}, rescaling pendant lengths by "
                 f"{factors.min():.3g} to {factors.max():.3g} (median "
                 f"{np.median(factors):.3g})",

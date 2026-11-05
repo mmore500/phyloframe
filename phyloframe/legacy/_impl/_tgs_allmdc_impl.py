@@ -32,13 +32,12 @@ def tgs_allmdc_impl(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
-    """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
+    tgs stands for trait gain/selection.
 
-    Takes `exposure_df` from `tgs_calc_exposure_df` and arguments as documented in
-    `alifestd_tgs_allmdc_estimate_asexual`, with `neutral_traits` as
-    indices and `trait_names` as labels (see `tgs_validate_args`).
+    Takes `exposure_df` from `tgs_calc_exposure_df` and arguments as documented
+    in `alifestd_tgs_allmdc_estimate_polars`, with `neutral_traits` as indices
+    and `trait_names` as labels (see `tgs_validate_args`).
     """
     tgs_validate_allmdc_args(
         calibrate_size_partition_ratio=calibrate_size_partition_ratio,
@@ -77,7 +76,7 @@ def tgs_allmdc_impl(
             growth_exponent_bound=growth_exponent_bound,
         )
         logging.info(
-            "- alifestd_tgs_allmdc_estimate_asexual: fitting "
+            "- alifestd_tgs_allmdc_estimate_polars: fitting "
             f"{len(trait_names)} traits to {num_branches} branches...",
         )
         point_df = tgs_fit_allmdc_traits(
@@ -85,7 +84,7 @@ def tgs_allmdc_impl(
         )
         for name, (__, row) in zip(trait_names, point_df.iterrows()):
             logging.info(
-                f"- alifestd_tgs_allmdc_estimate_asexual: trait {name} "
+                f"- alifestd_tgs_allmdc_estimate_polars: trait {name} "
                 f"fit gain rate {row['gain_rate']:.4g}, selection "
                 f"{row['selection']:.4g}, gain ratio {row['gain_ratio']:.4g}, "
                 f"selection lrt {row['selection_lrt_naive']:.4g}",
@@ -93,7 +92,7 @@ def tgs_allmdc_impl(
     replicate_fits_df = None
     if num_branches and num_bootstrap:
         logging.info(
-            "- alifestd_tgs_allmdc_estimate_asexual: "
+            "- alifestd_tgs_allmdc_estimate_polars: "
             f"fitting {num_bootstrap} bootstrap replicates...",
         )
         replicate_fits_df = tgs_bootstrap(

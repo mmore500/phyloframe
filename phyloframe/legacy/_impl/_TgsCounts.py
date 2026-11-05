@@ -4,7 +4,7 @@ import numpy as np
 
 
 class TgsCounts(typing.NamedTuple):
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
     Acronym tgs stands for trait gain/selection.
 
     Per-trait (weighted) counts in each partition, as arrays of shape

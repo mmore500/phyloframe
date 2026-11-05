@@ -26,12 +26,11 @@ def tgs_impl(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pd.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_pendantmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
+    Acronym tgs stands for trait gain/selection.
 
-    Takes `exposure_df` from `tgs_calc_exposure_df` and validated arguments (see
-    `tgs_validate_args`), and fits leaf pendant branches originating at or
+    Takes `exposure_df` from `tgs_calc_exposure_df` and validated arguments
+    (see `tgs_validate_args`), and fits leaf pendant branches originating at or
     after `min_leaf_origin_time`.
     """
     leaf_exposure_df = exposure_df[

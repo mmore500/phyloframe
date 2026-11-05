@@ -13,8 +13,8 @@ def tgs_calc_size_partitions(
     calibrate_size_partition_ratio: float,
     calibrate_size_partition_min_neutral_gains: int,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-    Acronym tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
+    tgs stands for trait gain/selection.
 
     Returns each branch's size partition, by clade size on a log scale
     with base `calibrate_size_partition_ratio` (see `calc_geometric_bins`),
@@ -49,7 +49,7 @@ def tgs_calc_size_partitions(
             cap = max(sparse_inner[0], 1)
             if cap < num_size_partitions - 1:
                 logging.info(
-                    "- alifestd_tgs_allmdc_estimate_asexual: size partitions "
+                    "- alifestd_tgs_allmdc_estimate_polars: size partitions "
                     f"above {cap} have fewer than "
                     f"{calibrate_size_partition_min_neutral_gains} neutral "
                     f"gains, so join size partition {cap} for calibration",
@@ -64,7 +64,7 @@ def tgs_calc_size_partitions(
     for size_partition in range(num_size_partitions):
         sizes = clade_sizes[size_partitions == size_partition]
         logging.info(
-            "- alifestd_tgs_allmdc_estimate_asexual: size partition "
+            "- alifestd_tgs_allmdc_estimate_polars: size partition "
             f"{size_partition} has clade sizes {sizes.min()}-{sizes.max()}, "
             f"{len(sizes)} branches, and {neutral_gains[size_partition]} "
             "neutral trait gains",

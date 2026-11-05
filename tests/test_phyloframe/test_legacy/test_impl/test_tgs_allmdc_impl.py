@@ -1,17 +1,18 @@
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
 
 from phyloframe._auxlib import identity
-from phyloframe.legacy import alifestd_tgs_allmdc_estimate_asexual
+from phyloframe.legacy import alifestd_tgs_allmdc_estimate_polars
 from phyloframe.legacy._impl import (
     tgs_allmdc_impl,
     tgs_calc_exposure_df,
-    tgs_prepare_asexual,
+    tgs_prepare_polars,
 )
 
 from .._impl import add_trait_transitions
-from ..test_alifestd_tgs_allmdc_estimate_asexual import _make_cherries
+from ..test_alifestd_tgs_allmdc_estimate_polars import _make_cherries
 
 _KWARGS = dict(
     calibrate=True,
@@ -35,8 +36,9 @@ _IMPL_KWARGS = dict(
 def test_matches_public():
     phylogeny_df, traits = _make_cherries(2_000)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    exposure_df = tgs_prepare_asexual(
-        phylogeny_df, False, trait_transitions=names
+    df_pl = pl.from_pandas(phylogeny_df)
+    exposure_df = tgs_prepare_polars(
+        df_pl, trait_transitions=names, caller="test"
     )
     res = tgs_allmdc_impl(
         exposure_df,
@@ -45,13 +47,13 @@ def test_matches_public():
         **_IMPL_KWARGS,
         **_KWARGS,
     )
-    expected = alifestd_tgs_allmdc_estimate_asexual(
-        phylogeny_df,
+    expected = alifestd_tgs_allmdc_estimate_polars(
+        df_pl,
         trait_transitions=names,
         neutral_traits=names[1:],
         **_KWARGS,
     )
-    pd.testing.assert_frame_equal(res, expected)
+    pd.testing.assert_frame_equal(res, expected.to_pandas(), check_dtype=False)
     assert "selection_se" in res.columns
 
 

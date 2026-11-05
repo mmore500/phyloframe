@@ -18,7 +18,7 @@ def tgs_calc_calibrated_pendant_lengths(
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
     max_rate_ratio: float,
 ) -> typing.Tuple[np.ndarray, typing.Optional[np.ndarray]]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
     Acronym tgs stands for trait gain/selection.
 
     Returns `trait`'s mean pendant length in each partition (zero where it

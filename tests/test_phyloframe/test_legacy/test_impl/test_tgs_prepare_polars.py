@@ -2,26 +2,52 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl import tgs_prepare_asexual, tgs_prepare_polars
+from phyloframe.legacy._impl import tgs_prepare_polars
 
-from .test_tgs_prepare_asexual import _make_tree
+
+def _make_tree() -> pl.DataFrame:
+    #     0
+    #   1   2
+    #   3
+    # node 1 is a unifurcation; trait t is gained on the branch into 1
+    return pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 0, 0, 1],
+            "origin_time": [0.0, 1.0, 2.0, 5.0],
+            "t": [0, 1, 0, 0],
+        },
+    )
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-def test_matches_asexual(lazy: bool):
-    phylogeny_df = _make_tree().assign(u=[1, 0, 0, 0])
-    df_pl = pl.from_pandas(phylogeny_df)
+def test_prepare(lazy: bool):
+    df_pl = _make_tree()
     res = tgs_prepare_polars(
-        df_pl.lazy() if lazy else df_pl,
-        trait_transitions=["t", "u"],
-        caller="test",
+        df_pl.lazy() if lazy else df_pl, trait_transitions=["t"], caller="x"
     )
-    expected = tgs_prepare_asexual(
-        phylogeny_df,
-        False,
+    # unifurcation 1 is bypassed, so leaf 3 hangs from root 0, and the
+    # gain into 1 is credited to the merged branch
+    by_time = res.set_index("origin_time")
+    assert sorted(by_time.index) == [2.0, 5.0]
+    assert by_time.loc[5.0, "branch_length"] == 5.0
+    assert by_time.loc[2.0, "branch_length"] == 2.0
+    assert by_time["clade_size"].tolist() == [1, 1]
+    assert by_time["survival_time"].tolist() == [0.0, 0.0]
+    assert by_time["trait0_starts_absent"].all()
+    assert by_time.loc[5.0, "trait0_gain"]
+    assert not by_time.loc[2.0, "trait0_gain"]
+
+
+def test_traits_numbered_in_order():
+    res = tgs_prepare_polars(
+        _make_tree().with_columns(u=pl.Series([1, 0, 0, 0])),
         trait_transitions=["t", "u"],
+        caller="x",
     )
-    pd.testing.assert_frame_equal(res, expected)
+    # u is present from the root, so never starts absent
+    assert not res["trait1_starts_absent"].any()
+    assert res["trait0_gain"].any()
 
 
 def test_empty():
@@ -34,12 +60,13 @@ def test_empty():
         },
     )
     res = tgs_prepare_polars(df_pl, trait_transitions=["t"], caller="test")
+    assert isinstance(res, pd.DataFrame)
     assert res.empty
     assert {"branch_length", "trait0_starts_absent", "trait0_gain"} <= set(res)
 
 
 def test_null_transitions_raise():
-    df_pl = pl.from_pandas(_make_tree()).with_columns(
+    df_pl = _make_tree().with_columns(
         t=pl.Series([None, 1, 0, 0], dtype=pl.Int8)
     )
     with pytest.raises(NotImplementedError):
@@ -49,7 +76,5 @@ def test_null_transitions_raise():
 def test_missing_column_raises():
     with pytest.raises(ValueError):
         tgs_prepare_polars(
-            pl.from_pandas(_make_tree()),
-            trait_transitions=["x"],
-            caller="test",
+            _make_tree(), trait_transitions=["x"], caller="test"
         )

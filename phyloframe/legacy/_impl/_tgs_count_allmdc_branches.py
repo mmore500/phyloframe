@@ -11,8 +11,8 @@ def tgs_count_allmdc_branches(
     trait_names: typing.Sequence[str],
     exposure_df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-    Acronym tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
+    tgs stands for trait gain/selection.
 
     Returns one row per trait, with column `trait` and counts, from
     `exposure_df` (see `tgs_calc_exposure_df`), of leaf branches starting

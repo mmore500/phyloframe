@@ -60,8 +60,8 @@ def tgs_calc_nll(
     survival_shares: typing.Optional[sparse.csr_matrix] = None,
     distinct_survival_times: typing.Optional[np.ndarray] = None,
 ) -> typing.Tuple[float, float, float]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual` and
-    `alifestd_tgs_allmdc_estimate_asexual`. Acronym tgs stands for trait
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
     Returns negative log likelihood (up to a constant) of one trait's

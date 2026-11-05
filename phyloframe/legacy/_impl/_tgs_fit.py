@@ -178,7 +178,7 @@ def tgs_fit(
     selection from the fraction of leaves carrying it as a function of
     pendant branch length.
 
-    Implementation detail for `alifestd_tgs_pendantmdc_estimate_asexual`.
+    Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
     Acronym tgs stands for trait gain/selection.
 
     A leaf's pendant branch starts without the trait, so pendant length is
@@ -234,11 +234,11 @@ def tgs_fit(
         through shared ancestry or space), and ignores uncertainty in any
         calibration of `pendant_length`. Prefer bootstrap standard errors
         for inference (see `num_bootstrap` in
-        `alifestd_tgs_pendantmdc_estimate_asexual`).
+        `alifestd_tgs_pendantmdc_estimate_polars`).
 
     See Also
     --------
-    alifestd_tgs_pendantmdc_estimate_asexual :
+    alifestd_tgs_pendantmdc_estimate_polars :
         Applies this fit to leaf pendant branches of a phylogeny, with
         bootstrap standard errors and optional calibration against neutral
         traits.

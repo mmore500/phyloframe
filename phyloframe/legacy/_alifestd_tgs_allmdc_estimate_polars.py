@@ -50,8 +50,46 @@ def alifestd_tgs_allmdc_estimate_polars(
     """Estimate per-trait gain rate and net selection from mutationally
     defined clades (MDCs) of every size.
 
-    See `alifestd_tgs_allmdc_estimate_asexual` for the model, other
-    parameters, returned columns, and errors raised.
+    Unlike `alifestd_tgs_pendantmdc_estimate_polars`, which considers only
+    leaf pendant branches (i.e., single-leaf MDCs), considers inner
+    branches too, so that trait gains shared by a multi-leaf clade also
+    inform the fit.
+
+    Here, an MDC is a mutationally defined clade: a maximal clade whose
+    leaves all carry the trait, which, under parsimony without loss, gained
+    it on its stem branch. Each branch whose parent lacks the trait started
+    without it, so its length is an exposure window; the branch gained the
+    trait if its end node carries it. Every such branch, pendant or inner,
+    is fit to
+
+        p = gain_rate * (exp(c * length) - 1) / c * exp(c * survival),
+        c = selection - loss_rate
+
+    where `survival` is the branch's survival time, measured on the tree
+    from its end node to the latest sampled leaf below it (zero for a
+    leaf): after a gain on the branch, its carrier lineage must persist
+    that much longer to be seen at every leaf of the clade, which a cost
+    makes less likely. Equivalently, writing `eff(t) = (exp(c * t) - 1) /
+    c` for the effective exposure of a window of length `t`, `p =
+    gain_rate * (eff(length + survival) - eff(survival))`: the exposure of
+    the window from the branch's start to the clade's latest leaf, minus
+    that of the window from the branch's end.
+
+    Notes on interpretation:
+
+    - survival time takes the tree's branch lengths at face value, so
+      distortion of inner branch lengths (e.g., from reconstruction) also
+      distorts the survival term, which neutral calibration does not
+      correct; the pendant estimator, which uses no inner branch lengths,
+      is unaffected, so disagreement between the two may suggest such
+      distortion; and
+    - nested branches share leaves, so their outcomes are not independent, but
+      the likelihood treats them as independent (a composite likelihood). So,
+      `selection_lrt_naive` and `gain_ratio_lrt_naive` are not calibrated as
+      chi-squared statistics, and every bootstrap statistic (standard errors,
+      z-scores, and p-values), as replicates resample branches independently,
+      is likely overconfident. No bootstrap that accounts for nesting (e.g.,
+      resampling whole clades) is yet provided.
 
     Only supports asexual phylogenies.
 
@@ -67,28 +105,110 @@ def alifestd_tgs_allmdc_estimate_polars(
         Names of integer columns, one per trait, giving each node's trait
         state transition on the branch from its parent: +1 for a gain, -1
         for a loss, 0 for none (and, at a root, its initial state). Make
-        them with `alifestd_mark_lineage_delta_polars`, with
-        `basal_value=False` (e.g., from
-        `alifestd_mask_trait_mdcs_strict_polars`).
+        them from trait states at every node with
+        `alifestd_mark_lineage_delta_polars`, with `basal_value=False`
+        to give each root's initial state. For leaf data, under parsimony
+        without loss, a node has the trait if and only if every leaf of its
+        clade does, so gains fall on the stems of mutationally defined
+        clades (see `alifestd_mask_trait_mdcs_strict_polars`). Loss events,
+        i.e., -1 values, are not yet supported. Output rows are labeled by
+        these column names.
+    neutral_traits : Sequence[str], default ()
+        Names, among `trait_transitions`, of traits known to be neutral.
+        Used to calibrate branch lengths (with `calibrate`), which requires
+        at least two, and as the reference for gain ratios.
+    calibrate : bool, default False
+        If True, rescale branch lengths by neutral trait gains, as in the
+        pendant estimator, within neighborhoods of branches of the same
+        size partition (see `calibrate_size_partition_ratio`) similar in
+        length and origin time. So, distortion of branch
+        lengths shared with neutral traits, including any difference
+        between inner and pendant branches, cancels.
+    calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+        Candidate calibration neighborhood sizes, as fractions of each size
+        partition's branches; see the pendant estimator.
+    calibrate_num_partitions : int, default 4096
+        Maximum number of equal-occupancy partitions of each size
+        partition's branches, by ranked length and origin time, for
+        calibration and fitting; a power of two.
+    calibrate_max_rate_ratio : float, default np.inf
+        Cap on the neutral gain rate ratios that rescale branch lengths in
+        calibration; see the pendant estimator.
+    calibrate_size_partition_ratio : float, default 2.0
+        Ratio between successive size partitions, which group branches by
+        clade size for calibration: a branch subtending `n` leaves falls in
+        size partition ceil(log(n) / log(ratio)), so the default gives size
+        partitions of 1, 2, 3-4, 5-8, 9-16, ... leaves. Branches are
+        partitioned and calibrated within their size partition, as neutral
+        gains per unit length may differ with clade size; the model itself
+        is the same for every size partition. Larger ratios give fewer,
+        larger size partitions.
+    calibrate_size_partition_min_neutral_gains : int, default 20
+        With `calibrate`, inner size partitions go up the log scale only
+        while each holds at least this many neutral trait gains; the first
+        with fewer and all larger clades join the one below (or, if the
+        first inner size partition has too few, all inner branches form
+        one), so no inner size partition is left without neutral gains to
+        calibrate against. Leaves always keep their own size partition, and
+        clade sizes absent from the tree leave no empty size partitions.
+    num_bootstrap : int, default 0
+        Number of bootstrap replicates, resampling branches with
+        replacement and refitting, for standard errors,
+        z-scores, and p-values. Calibration neighborhood sizes are held
+        fixed across replicates. More than about 200 replicates are
+        rarely needed for standard errors; see Efron and Tibshirani (1993), An
+        Introduction to the Bootstrap (Chapman & Hall).
+    loss_rate : float, default 0.0
+        Known per-unit-time trait loss rate.
+    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for selection, in units of 1 / mean branch length;
+        the best of the resulting fits is kept. See `tgs_fit`.
+    growth_exponent_bound : float, default 600.0
+        Bound on carrier growth exponents, such as (selection - loss rate) *
+        branch length, keeping optimizer trial steps finite. See `tgs_fit`.
+    seed : int, default None
+        Seed for bootstrap resampling; if None, drawn from numpy's global
+        random state.
+    parallel_backend : str, default None
+        joblib backend to run bootstrap replicates in parallel, e.g., "loky"
+        (processes) or "threading"; if None, runs them sequentially.
+    progress_wrap : Callable, default identity
+        Pass tqdm or equivalent to display bootstrap progress.
 
     Returns
     -------
     polars.DataFrame
-        One row per trait; see
-        `alifestd_tgs_allmdc_estimate_asexual` for columns.
+        One row per trait, with columns `trait`, `num_leaves` and
+        `num_trait_present` (leaf branches that started without the trait,
+        and those that gained it), `num_clades` and `num_clade_gains` (the
+        same for inner branches), `gain_rate`, `selection`, `gain_ratio`
+        (gain rate relative to the mean of neutral traits', leaving the
+        focal trait out), `selection_lrt_naive`, and `gain_ratio_lrt_naive`
+        (likelihood-ratio statistics for selection = 0 and for gain ratio =
+        1; see the pendant estimator). With bootstrap replicates, also the
+        pendant estimator's bootstrap columns.
 
     Raises
     ------
+    ValueError
+        If arguments are invalid, e.g., `calibrate` with fewer than two
+        neutral traits, or a `trait_transitions` column is missing or gives
+        states other than 0 and 1, or if a non-root node has zero,
+        negative, or undefined (nan) branch length.
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
         non-contiguous or not topologically sorted, or if a
-        `trait_transitions` column has null values; see also
-        `alifestd_tgs_allmdc_estimate_asexual`.
+        `trait_transitions` column is not integer, has null values, or has
+        loss events, i.e., -1 values.
+
+    Notes
+    -----
+    Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`).
+    Bootstrap replicates resample branches independently, ignoring
+    correlation through shared ancestry.
 
     See Also
     --------
-    alifestd_tgs_allmdc_estimate_asexual :
-        Pandas-based implementation.
     alifestd_tgs_pendantmdc_estimate_polars :
         Leaf pendant branches only.
     """
@@ -119,7 +239,9 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         calibrate_size_partition_ratio=calibrate_size_partition_ratio,
-        calibrate_size_partition_min_neutral_gains=calibrate_size_partition_min_neutral_gains,
+        calibrate_size_partition_min_neutral_gains=(
+            calibrate_size_partition_min_neutral_gains
+        ),
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
@@ -160,8 +282,8 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_tgs_allmdc_estimate_asexual :
-    Pandas-based implementation.
+phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars :
+    Leaf pendant branches only.
 """
 
 

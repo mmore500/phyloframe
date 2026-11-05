@@ -34,7 +34,6 @@ from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_impl import tgs_impl
 from ._tgs_partition_allmdc_exposures import tgs_partition_allmdc_exposures
 from ._tgs_partition_size_partitions import tgs_partition_size_partitions
-from ._tgs_prepare_asexual import tgs_prepare_asexual
 from ._tgs_prepare_polars import tgs_prepare_polars
 from ._tgs_select_allmdc_calibration_neighborhoods import (
     tgs_select_allmdc_calibration_neighborhoods,
@@ -81,7 +80,6 @@ __all__ = [
     "tgs_minimize_nll",
     "tgs_partition_allmdc_exposures",
     "tgs_partition_size_partitions",
-    "tgs_prepare_asexual",
     "tgs_prepare_polars",
     "tgs_select_allmdc_calibration_neighborhoods",
     "tgs_select_calibration_neighborhoods",

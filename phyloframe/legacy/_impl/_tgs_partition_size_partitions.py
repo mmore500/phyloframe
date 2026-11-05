@@ -13,8 +13,8 @@ def tgs_partition_size_partitions(
     origin_times: np.ndarray,
     max_partitions: int,
 ) -> typing.Tuple[np.ndarray, typing.List[typing.Tuple[int, int, np.ndarray]]]:
-    """Implementation detail for `alifestd_tgs_allmdc_estimate_asexual`.
-    Acronym tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
+    tgs stands for trait gain/selection.
 
     Partitions each size partition's branches into up to `max_partitions`
     equal-occupancy partitions by ranked length and origin time, skipping
@@ -42,7 +42,7 @@ def tgs_partition_size_partitions(
         blocks.append((offset, num, coords))
         offset += num
         logging.info(
-            "- alifestd_tgs_allmdc_estimate_asexual: size partition "
+            "- alifestd_tgs_allmdc_estimate_polars: size partition "
             f"{size_partition} has {len(members)} branches in {num} "
             "partitions",
         )

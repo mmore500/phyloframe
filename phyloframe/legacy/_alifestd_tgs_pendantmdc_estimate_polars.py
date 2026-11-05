@@ -47,9 +47,15 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and net selection from leaf pendant
-    branches only, i.e., from single-leaf mutationally defined clades
-    (MDCs), from how the fraction of leaves carrying each trait varies with
-    pendant branch length.
+    branches only, from how the fraction of leaves carrying each trait
+    varies with pendant branch length.
+
+    Here, an MDC is a mutationally defined clade: a maximal clade whose
+    leaves all carry the trait, which, under parsimony without loss, gained
+    it on its stem branch. This estimator uses single-leaf MDCs only (gains
+    on pendant branches); see
+    `alifestd_tgs_allmdc_estimate_polars` for MDCs of
+    every size.
 
     Each leaf's pendant branch starts without the trait (unless the trait is
     shared across the parent's whole clade, in which case the leaf is
@@ -73,6 +79,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
 
     Calibration also uses pendant branches only, comparing neutral traits'
     pendant gains across leaves of similar pendant length and origin time.
+
+    See `tgs_fit` for the model and its relation to BiSSE.
 
     Only supports asexual phylogenies.
 
@@ -104,10 +112,14 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Without neutral traits, `gain_ratio` and its statistics are nan;
         gain rate and selection are still estimated.
     calibrate : bool, default False
-        If True, measure pendant length by `neutral_traits` gains rather
-        than by branch length, so that distortion of branch lengths shared
-        with neutral traits (e.g., from tree reconstruction) cancels. See
-        `alifestd_tgs_pendantmdc_estimate_asexual` for details.
+        If True, rescale each leaf's pendant length by the ratio of observed
+        to expected `neutral_traits` gains among its nearest leaves in
+        pendant length and origin time (each ranked), so that distortion of
+        branch lengths shared with neutral traits (e.g., from tree
+        reconstruction) cancels. The neighborhood size is chosen, among
+        `calibrate_neighborhood_fractions`, as the one that best predicts
+        each held-out neutral trait's carriers when calibrating against the
+        others. Assumes loss is negligible over a pendant branch.
     calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of leaves.
         With `calibrate`, the candidate whose calibration best predicts
@@ -126,9 +138,10 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         with little exposure; uncapped by default. Must be positive.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling leaves with replacement
-        and refitting, for standard errors, z-scores, and p-values. The
-        calibration neighborhood size is chosen once, on the full data, and
-        held fixed across replicates.
+        and refitting, for standard errors, z-scores, and p-values. Each
+        replicate recomputes calibration rate ratios from its resample, but
+        holds fixed the calibration neighborhood size chosen on the full
+        data, so standard errors omit uncertainty in that choice.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
@@ -143,36 +156,67 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Seed for bootstrap resampling.
     parallel_backend : str, optional
         joblib backend to run bootstrap replicates in parallel, e.g., "loky"
-        (processes) or "threading".
+        (processes) or "threading". Replicate fits are mostly GIL-bound
+        Python (scipy's optimizer loop), so "loky" is typically faster.
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display bootstrap progress.
 
+    Returns
+    -------
+    polars.DataFrame
+        One row per trait, with columns `trait`, `num_leaves`,
+        `num_trait_present`, `gain_rate`, `selection`, `gain_ratio`,
+        `selection_lrt_naive`, and `gain_ratio_lrt_naive` (likelihood-ratio
+        statistics for selection = 0 and for gain ratio = 1; see Notes).
+        With bootstrap replicates, also bootstrap standard errors (se),
+        i.e., standard deviations across replicates, `selection_se` and
+        `log_gain_ratio_se`; z-scores, `selection_z` and `gain_ratio_z`;
+        and p-values, `selection_p` and `gain_ratio_p` (two-sided normal
+        approximation; `gain_ratio` tests against 1), as well as
+        `num_bootstrap_degenerate`, the number of replicates excluded for
+        resampling no carriers of the trait, or of its neutral reference.
+
     Raises
     ------
+    ValueError
+        If `calibrate` is set with fewer than two distinct neutral traits,
+        if a `trait_transitions` column is missing or has values other than
+        +1, -1, or 0, or gives states other than 0 and 1, if a
+        `neutral_traits` name is not among `trait_transitions`, if
+        `calibrate_neighborhood_fractions` is empty or has a value outside
+        (0, 1], if `calibrate_num_partitions` is not a power of two, if
+        `calibrate_max_rate_ratio` is not positive, or if
+        a non-root node has zero, negative, or undefined (nan) branch
+        length.
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
         non-contiguous or not topologically sorted, or if a
         `trait_transitions` column is not integer, has null values, or has
         loss events, i.e., -1 values.
-    ValueError
-        If `calibrate` is set with fewer than two distinct neutral traits,
-        if a `trait_transitions` column is missing or has values other than
-        +1, -1, or 0, or gives states other than 0 and 1, if a
-        `neutral_traits` name is not among `trait_transitions`, or if
-        `calibrate_neighborhood_fractions` is empty or has a value outside
-        (0, 1], if `calibrate_num_partitions` is not a power of two, or if
-        `calibrate_max_rate_ratio` is not positive.
 
-    Returns
-    -------
-    polars.DataFrame
-        One row per trait; see
-        `alifestd_tgs_pendantmdc_estimate_asexual` for columns.
+    Notes
+    -----
+    Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`),
+    so pendant branches span from leaves to their stem node, the nearest
+    ancestor with at least two children. Root leaves have no pendant branch, so
+    are excluded. Under sparse sampling, selection estimates the change rate of
+    a reconstructed carrier lineage's weight, roughly the difference in
+    per-lineage net growth; magnitudes may be biased, but signs and rankings
+    are informative. With few carriers, cost and loss are confounded, so
+    `loss_rate` is fixed rather than fit. Bootstrap replicates resample leaves
+    independently, ignoring correlation through shared ancestry.
+
+    `gain_ratio_lrt_naive` refits selection with the trait's gain rate held
+    at its neutral reference's mean (nan without neutral traits). Both
+    likelihood-ratio statistics treat leaves as independent, and the gain
+    ratio's treats the reference rate as known, so both overstate
+    significance; dividing by their mean over neutral traits before a
+    chi-squared test with one degree of freedom is one remedy.
 
     See Also
     --------
-    alifestd_tgs_pendantmdc_estimate_asexual :
-        Pandas-based implementation.
+    alifestd_mask_trait_singletons_polars :
+        Marks leaves dropped for each trait.
     """
     trait_names, neutral_traits = tgs_validate_args(
         trait_transitions=trait_transitions,
@@ -238,8 +282,8 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_asexual :
-    Pandas-based implementation.
+phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars :
+    MDCs of every size, not only leaf pendant branches.
 """
 
 
