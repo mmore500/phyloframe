@@ -119,3 +119,24 @@ def test_random_tree_matches_pandas():
         res["alifestd_mask_trait_mdcs_strict_polars"].to_list()
         == expected["alifestd_mask_trait_mdcs_strict_asexual"].tolist()
     )
+
+
+def test_is_leaf_column_used_if_present():
+    #     0
+    #   1   2
+    #  3 4
+    df = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 0, 1, 1],
+            "trait": [False, False, False, True, False],
+        },
+    )
+    res = alifestd_mask_trait_mdcs_strict_polars(df, trait_mask="trait")
+    assert "is_leaf" not in res.columns
+    assert res["alifestd_mask_trait_mdcs_strict_polars"].any()
+    # a (deliberately wrong) is_leaf column is used rather than recomputed
+    res = alifestd_mask_trait_mdcs_strict_polars(
+        df.with_columns(is_leaf=pl.lit(False)), trait_mask="trait"
+    )
+    assert not res["alifestd_mask_trait_mdcs_strict_polars"].any()

@@ -71,7 +71,7 @@ def test_root_and_inner_values_ignored():
     assert not res["m"].any()
 
 
-def test_unifurcation_rootmost_marked():
+def test_unifurcation_earliest_marked():
     #     0
     #   1   2
     #   3
@@ -142,3 +142,19 @@ def test_non_bool_trait_mask_raises():
         alifestd_mask_trait_mdcs_strict_asexual(
             phylogeny_df, trait_mask=[0, 1, 0]
         )
+
+
+def test_is_leaf_column_used_if_present():
+    phylogeny_df = _make_tree()
+    trait_mask = np.zeros(len(phylogeny_df), dtype=bool)
+    trait_mask[[4, 7]] = True
+    res = alifestd_mask_trait_mdcs_strict_asexual(
+        phylogeny_df, trait_mask=trait_mask
+    )
+    assert "is_leaf" not in res.columns
+    assert res["alifestd_mask_trait_mdcs_strict_asexual"].any()
+    # a (deliberately wrong) is_leaf column is used rather than recomputed
+    res = alifestd_mask_trait_mdcs_strict_asexual(
+        phylogeny_df.assign(is_leaf=False), trait_mask=trait_mask
+    )
+    assert not res["alifestd_mask_trait_mdcs_strict_asexual"].any()

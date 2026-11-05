@@ -12,11 +12,18 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_has_contiguous_ids_polars import (
+    alifestd_has_contiguous_ids_polars,
+)
+from ._alifestd_is_topologically_sorted_polars import (
+    alifestd_is_topologically_sorted_polars,
+)
+from ._alifestd_mark_leaves import _alifestd_mark_leaves_asexual_fast_path
 from ._alifestd_mask_trait_singletons_asexual import (
     _alifestd_mask_trait_singletons_asexual_fast_path,
 )
-from ._impl._alifestd_mask_trait_polars_impl import (
-    alifestd_mask_trait_polars_impl,
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
 )
 
 
@@ -26,17 +33,9 @@ def alifestd_mask_trait_singletons_polars(
     trait_mask: typing.Union[str, pl.Expr],
     mark_as: str = "alifestd_mask_trait_singletons_polars",
 ) -> pl.DataFrame:
-    """Mark trait singletons: leaves with a trait that is not shared by
-    every leaf descending from their parent, i.e., all-carrier clades of a
-    single leaf, which gained the trait on their own pendant branch.
-
-    Under parsimony, such a leaf's trait arose on its pendant branch; a
-    leaf whose trait is shared by every leaf of its parent's clade could
-    have gained it above its parent node, so is marked False. Root leaves
-    and leaves without the trait are also marked False. Unifurcations are
-    bypassed, so a leaf's parent is its stem node, the nearest ancestor
-    with at least two children; leaves without one have no other leaf to
-    compare against, so are marked False.
+    """Mark trait singletons: leaves that have a trait not shared by every
+    leaf descending from their stem node, i.e., that gained it on their own
+    pendant branch. See `alifestd_mask_trait_singletons_asexual`.
 
     Only supports asexual phylogenies.
 
@@ -70,24 +69,63 @@ def alifestd_mask_trait_singletons_polars(
     alifestd_mask_trait_singletons_asexual :
         Pandas-based implementation.
     """
-    return alifestd_mask_trait_polars_impl(
-        phylogeny_df,
-        trait_mask=trait_mask,
-        mark_as=mark_as,
-        fast_path=_alifestd_mask_trait_singletons_asexual_fast_path,
-        caller="alifestd_mask_trait_singletons_polars",
+    if isinstance(trait_mask, str):
+        trait_mask = pl.col(trait_mask)
+
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+    schema_names = phylogeny_df.lazy().collect_schema().names()
+    if "ancestor_id" not in schema_names:
+        raise NotImplementedError(
+            "alifestd_mask_trait_singletons_polars only supports asexual phylogenies.",
+        )
+    if phylogeny_df.lazy().limit(1).collect().is_empty():
+        return phylogeny_df.with_columns(
+            pl.lit(False, dtype=pl.Boolean).alias(mark_as),
+        )
+    if not alifestd_has_contiguous_ids_polars(phylogeny_df):
+        raise NotImplementedError("non-contiguous ids not supported")
+    if not alifestd_is_topologically_sorted_polars(phylogeny_df):
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
+        )
+
+    selected = (
+        phylogeny_df.lazy()
+        .select(
+            pl.col("ancestor_id"),
+            trait_mask=trait_mask.cast(pl.Boolean),
+            **(
+                {"is_leaf": pl.col("is_leaf")}
+                if "is_leaf" in schema_names
+                else {}
+            ),
+        )
+        .collect()
     )
+    if selected["trait_mask"].has_nulls():
+        raise NotImplementedError("null trait_mask values not supported")
+    ancestor_ids = selected["ancestor_id"].to_numpy()
+    result = _alifestd_mask_trait_singletons_asexual_fast_path(
+        ancestor_ids,
+        (
+            selected["is_leaf"].to_numpy()
+            if "is_leaf" in schema_names
+            else _alifestd_mark_leaves_asexual_fast_path(ancestor_ids)
+        ),
+        selected["trait_mask"].to_numpy(),
+    )
+    return phylogeny_df.with_columns(pl.Series(name=mark_as, values=result))
 
 
 _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Mark trait singletons: leaves with a trait that is not shared by every leaf
-descending from their parent, i.e., all-carrier clades of a single leaf, which
-gained the trait on their own pendant branch.
+Mark trait singletons: leaves that have a trait not shared by every leaf
+descending from their stem node, i.e., that gained it on their own pendant
+branch.
 
-Root leaves and leaves without the trait are marked False.
+Leaves without the trait or without a stem node are marked False.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.

@@ -32,11 +32,9 @@ def alifestd_mark_lineage_delta_polars(
     """Add column with the change in ``values`` from each node's parent.
 
     The result at each node is its value minus its parent's value, and at
-    a root, its own value, inverting `alifestd_mark_lineage_cumsum_polars`
-    (exactly for integers and booleans, up to rounding for floats, and not
-    at NaN values). Boolean values are taken as 0 and 1, so for a binary
-    trait's state at every node, deltas are its transitions on each branch.
-    See `alifestd_mark_lineage_delta_asexual`.
+    a root, its own value. Boolean values are taken as 0 and 1, so for a
+    binary trait's state at every node, deltas are its transitions on each
+    branch. See `alifestd_mark_lineage_delta_asexual`.
 
     Parameters
     ----------
@@ -53,6 +51,8 @@ def alifestd_mark_lineage_delta_polars(
     --------
     alifestd_mark_lineage_delta_asexual :
         Pandas-based implementation.
+    alifestd_mark_lineage_cumsum_polars :
+        Sums values along each lineage.
     """
     if isinstance(values, str):
         schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -102,7 +102,7 @@ _raw_description = f"""\
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Add column with the change in `values` from each node's parent (at a root,
-its own value), inverting a lineage cumulative sum.
+its own value).
 
 Data is assumed to be in alife standard format.
 

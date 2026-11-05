@@ -52,20 +52,14 @@ def alifestd_mark_lineage_delta_asexual(
     """Add column with the change in ``values`` from each node's parent.
 
     The result at each node is its value minus its parent's value, and at
-    a root, its own value. So, it inverts
-    `alifestd_mark_lineage_cumsum_asexual`, in both directions: summing
-    deltas along the path from the root to a node recovers the node's value,
-    and deltas of lineage sums recover the summed values. The inverse is
-    exact for integers and booleans, holds up to rounding for floats, and
-    breaks at NaN values, which propagate here to a node and its children
-    but count as 0 in the default cumulative sum.
+    a root, its own value. NaN values propagate to a node and its children.
 
     Deltas take the dtype of ``values``, so integer deltas can overflow, and
-    negative deltas of unsigned values wrap around (with a warning); cast to
-    a wider or signed dtype first to avoid this. Boolean values are taken as
-    0 and 1, giving int8 deltas, so for a binary trait's state at every
-    node, deltas are its transitions on each branch: +1 for a gain, -1 for a
-    loss, and 0 for no change, with the root's initial state at the root.
+    negative deltas of unsigned values may wrap; cast to a wider or signed
+    dtype first to avoid this. Boolean values are taken as 0 and 1, giving
+    int8 deltas, so for a binary trait's state at every node, deltas are its
+    transitions on each branch: +1 for a gain, -1 for a loss, and 0 for no
+    change, with the root's initial state at the root.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -81,7 +75,7 @@ def alifestd_mark_lineage_delta_asexual(
     alifestd_mark_lineage_delta_polars :
         Polars-based implementation.
     alifestd_mark_lineage_cumsum_asexual :
-        Sums values along each lineage, inverting this operation.
+        Sums values along each lineage.
     """
     if not mutate:
         phylogeny_df = phylogeny_df.copy()
@@ -117,7 +111,7 @@ def alifestd_mark_lineage_delta_asexual(
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Add column with the change in `values` from each node's parent (at a root,
-its own value), inverting a lineage cumulative sum.
+its own value).
 
 Data is assumed to be in alife standard format.
 
