@@ -69,9 +69,7 @@ def alifestd_mark_lineage_delta_asexual(
     Deltas take the dtype of ``values``, so integer deltas can overflow, and
     negative deltas of unsigned values may wrap; cast to a wider or signed
     dtype first to avoid this. Boolean values are cast to int8, producing
-    deltas +1 for a gain, -1 for a loss, and 0 for no change, so for a
-    binary trait's state at every node, deltas are its transitions on each
-    branch (with ``basal_value=False``, including any gain at a root).
+    deltas: +1 for a gain, -1 for a loss, and 0 for no change.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
