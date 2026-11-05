@@ -89,7 +89,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         state transition on the branch from its parent: +1 for a gain, -1
         for a loss, 0 for none (and, at a root, its initial state). Make
         them from trait states at every node with
-        `alifestd_mark_lineage_delta_polars`. For leaf data, under parsimony
+        `alifestd_mark_lineage_delta_polars`, with `basal_value=False`
+        to give each root's initial state. For leaf data, under parsimony
         without loss, a node has the trait if and only if every leaf of its
         clade does, so gains fall on the stems of mutationally defined
         clades (see `alifestd_mask_trait_mdcs_strict_polars`). Loss events,

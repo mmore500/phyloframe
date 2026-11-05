@@ -43,6 +43,6 @@ def add_trait_transitions(
             ancestor_ids, is_leaf, phylogeny_df[name].to_numpy()
         )
         phylogeny_df = alifestd_mark_lineage_delta_asexual(
-            phylogeny_df, name, mutate=True, mark_as=name
+            phylogeny_df, name, mutate=True, basal_value=False, mark_as=name
         )
     return phylogeny_df, names

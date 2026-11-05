@@ -66,8 +66,9 @@ def alifestd_tgs_allmdc_estimate_polars(
     trait_transitions : Sequence[str]
         Names of integer columns, one per trait, giving each node's trait
         state transition on the branch from its parent: +1 for a gain, -1
-        for a loss, 0 for none. Make them with
-        `alifestd_mark_lineage_delta_polars` (e.g., from
+        for a loss, 0 for none (and, at a root, its initial state). Make
+        them with `alifestd_mark_lineage_delta_polars`, with
+        `basal_value=False` (e.g., from
         `alifestd_mask_trait_mdcs_strict_polars`).
 
     Returns
