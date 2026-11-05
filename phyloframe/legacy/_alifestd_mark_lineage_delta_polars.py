@@ -32,9 +32,9 @@ def alifestd_mark_lineage_delta_polars(
 ) -> pl.DataFrame:
     """Add column with the change in ``values`` from each node's parent.
 
-    The result at each node is its value minus its parent's value. A
-    root's delta is 0, or, if ``basal_value`` is given, the root's value
-    minus ``basal_value``. Boolean values are cast to int8, producing
+    The result at each node is its value minus its parent's value. If
+    ``basal_value`` is given, a root's delta is its value minus
+    ``basal_value``. Otherwise, a root's delta is 0. Boolean values are cast to int8, producing
     deltas: +1 for a gain, -1 for a loss, and 0 for no change. See
     `alifestd_mark_lineage_delta_asexual`.
 
@@ -107,8 +107,9 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column with the change in `values` from each node's parent. A root's
-delta is 0, or its value minus `--basal-value` if given.
+Add column with the change in `values` from each node's parent. If
+`--basal-value` is given, a root's delta is its value minus `--basal-value`.
+Otherwise, a root's delta is 0.
 
 Data is assumed to be in alife standard format.
 
