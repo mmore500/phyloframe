@@ -1,13 +1,15 @@
+import warnings
+
 import numpy as np
 
 
 def calc_geometric_bins(values: np.ndarray, *, ratio: float) -> np.ndarray:
-    """Assign values of at least 1 to bins on a log scale.
+    """Assign each value to a bin whose bounds grow geometrically by `ratio`.
 
     Bin `k` holds values in (ratio ** (k - 1), ratio ** k], so, e.g., ratio
-    2 gives bins of 1, 2, 3-4, 5-8, 9-16, ... for integer values. Unlike
-    `ceil(log(value) / log(ratio))`, exact powers of `ratio` stay in the
-    bin they close despite floating point error.
+    2 gives bins of 1, 2, 3-4, 5-8, 9-16, ... for integer values. A value
+    equal to a power of `ratio` lands in the bin it bounds from above, even
+    where floating point error in `log(value) / log(ratio)` would misplace it.
 
     Parameters
     ----------
@@ -22,7 +24,13 @@ def calc_geometric_bins(values: np.ndarray, *, ratio: float) -> np.ndarray:
         Integer bin of each value.
     """
     values = np.asarray(values)
-    if not len(values):
-        return np.zeros(0, dtype=np.int64)
-    bounds = ratio ** np.arange(np.log(values.max()) // np.log(ratio) + 2)
-    return np.searchsorted(bounds, values)
+    assert ratio > 1
+    assert (values >= 1).all()
+    if values.dtype.kind in "iu" and values.max(initial=1) > 2**53:
+        warnings.warn(
+            "values above 2**53 lose precision as float64", stacklevel=2
+        )
+    k = np.ceil(np.log(values) / np.log(ratio)).astype(np.int64)
+    k -= np.float_power(ratio, k - 1) >= values
+    k += np.float_power(ratio, k) < values
+    return k

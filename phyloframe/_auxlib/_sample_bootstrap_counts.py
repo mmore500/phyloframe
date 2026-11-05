@@ -1,8 +1,11 @@
+import typing
+
 import numpy as np
+import opytional as opyt
 
 
 def sample_bootstrap_counts(
-    num_items: int, *, rng: np.random.Generator
+    num_items: int, *, seed: typing.Optional[int] = None
 ) -> np.ndarray:
     """Sample how many times each item is drawn in a given bootstrap
     replicate.
@@ -15,8 +18,9 @@ def sample_bootstrap_counts(
     ----------
     num_items : int
         Number of items.
-    rng : np.random.Generator
-        Random number generator to draw from.
+    seed : int, optional
+        Seed for the draw; drawn from numpy's global random state if not
+        given.
 
     Returns
     -------
@@ -25,8 +29,8 @@ def sample_bootstrap_counts(
 
     Notes
     -----
-    Draws only from `rng`, not global random state. So, concurrent calls
-    from different threads, each with their own generator, are
+    Given `seed`, draws only from a generator seeded by it, not global
+    random state. So, concurrent seeded calls from different threads are
     reproducible.
 
     Representing a replicate as multinomial counts over the original items
@@ -39,8 +43,10 @@ def sample_bootstrap_counts(
     21(4), 2053-2086.
     https://doi.org/10.1214/aop/1176989011
     """
+    seed = opyt.or_else(seed, lambda: np.random.randint(2**31))
     if num_items == 0:
         return np.zeros(0, dtype=np.int64)
+    rng = np.random.default_rng(seed)
     return rng.multinomial(
         n=num_items, pvals=np.full(shape=num_items, fill_value=1 / num_items)
     )

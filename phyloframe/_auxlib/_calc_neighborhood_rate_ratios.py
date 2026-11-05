@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from scipy import sparse
 
@@ -33,7 +35,15 @@ def calc_neighborhood_rate_ratios(
         Rate ratio of each item's neighborhood; 1.0 where a neighborhood has
         no exposure, or where there are no events at all.
     """
-    rate = num_events.sum() / max(exposure.sum(), np.finfo(float).tiny)
+    total_exposure = exposure.sum()
+    if total_exposure <= 0:
+        warnings.warn(
+            "no exposure, so neighborhood rate ratios default to 1.0",
+            stacklevel=2,
+        )
+    rate = num_events.sum() / np.clip(
+        total_exposure, np.finfo(float).tiny, None
+    )
     observed = neighborhoods @ num_events
     expected = rate * (neighborhoods @ exposure)
     return np.divide(

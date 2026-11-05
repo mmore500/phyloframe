@@ -16,7 +16,7 @@ def calc_binomial_nll_proxy(
     The result is offset from the true negative log likelihood by the summed
     log binomial coefficients, which do not depend on `p`. So, differences
     between results for different `p` (e.g., likelihood-ratio statistics),
-    the gradient, and the minimizing `p` are all exact.
+    and the gradient are both exact.
 
     Avoids calculating log binomial coefficients, providing substantial
     speedup over `scipy.stats.binom.logpmf` for repeated evaluation (e.g.,

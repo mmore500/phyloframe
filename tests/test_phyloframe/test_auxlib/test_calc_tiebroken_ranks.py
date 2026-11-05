@@ -5,7 +5,7 @@ from phyloframe._auxlib import calc_tiebroken_ranks
 
 def test_distinct():
     ranks = calc_tiebroken_ranks([np.array([3.0, 1.0, 2.0])])
-    np.testing.assert_allclose(ranks[:, 0], [1.0, 1 / 3, 2 / 3])
+    np.testing.assert_array_equal(ranks[:, 0], [3, 1, 2])
 
 
 def test_ties_broken_by_other_coordinates():
@@ -13,8 +13,8 @@ def test_ties_broken_by_other_coordinates():
     y = np.array([3.0, 1.0, 2.0, 0.0])
     ranks = calc_tiebroken_ranks([x, y])
     assert ranks.shape == (4, 2)
-    np.testing.assert_allclose(ranks[:, 0], [0.75, 0.25, 0.5, 1.0])
-    np.testing.assert_allclose(ranks[:, 1], [1.0, 0.5, 0.75, 0.25])
+    np.testing.assert_array_equal(ranks[:, 0], [3, 1, 2, 4])
+    np.testing.assert_array_equal(ranks[:, 1], [4, 2, 3, 1])
 
 
 def test_independent_of_item_order():
@@ -26,3 +26,9 @@ def test_independent_of_item_order():
         calc_tiebroken_ranks([x, y])[order],
         calc_tiebroken_ranks([x[order], y[order]]),
     )
+
+
+def test_full_ties_broken_by_item_order():
+    x = np.array([1.0, 0.0, 1.0])
+    ranks = calc_tiebroken_ranks([x, x])
+    np.testing.assert_array_equal(ranks, [[2, 2], [1, 1], [3, 3]])

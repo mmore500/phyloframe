@@ -12,9 +12,7 @@ def _run_weighted_bootstrap_replicate(
     *, seed: int, func: typing.Callable, num_items: int
 ) -> typing.Any:
     """Implementation detail for `run_weighted_bootstrap`."""
-    weights = sample_bootstrap_counts(
-        num_items, rng=np.random.default_rng(seed)
-    )
+    weights = sample_bootstrap_counts(num_items, seed=seed)
     return func(weights=weights.astype(np.float64))
 
 

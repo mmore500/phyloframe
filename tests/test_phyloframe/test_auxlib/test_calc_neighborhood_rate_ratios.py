@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from scipy import sparse
 
 from phyloframe._auxlib._calc_neighborhood_rate_ratios import (
@@ -52,4 +53,14 @@ def test_no_exposure_neighborhood():
         num_events=np.array([1.0, 0.0]),
         exposure=np.array([1.0, 0.0]),
     )
+    np.testing.assert_allclose(res, [1.0, 1.0])
+
+
+def test_no_exposure_warns():
+    with pytest.warns(UserWarning, match="no exposure"):
+        res = calc_neighborhood_rate_ratios(
+            neighborhoods=sparse.identity(2, format="csr"),
+            num_events=np.zeros(2),
+            exposure=np.zeros(2),
+        )
     np.testing.assert_allclose(res, [1.0, 1.0])

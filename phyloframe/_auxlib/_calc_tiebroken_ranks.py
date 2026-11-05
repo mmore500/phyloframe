@@ -1,6 +1,7 @@
 import typing
 
 import numpy as np
+import polars as pl
 
 
 def calc_tiebroken_ranks(
@@ -21,15 +22,15 @@ def calc_tiebroken_ranks(
     Returns
     -------
     np.ndarray
-        Array of shape (num_items, num_coordinates), with each item's rank
-        by each coordinate, scaled to (0, 1], i.e., from 1 / num_items for
-        the lowest to 1 for the highest.
+        Integer array of shape (num_items, num_coordinates), with each
+        item's rank by each coordinate, from 1 for the lowest to num_items
+        for the highest.
     """
-    num_items = len(coordinates[0])
-    ranks = np.empty((num_items, len(coordinates)))
-    for i, x in enumerate(coordinates):
-        others = [y for j, y in enumerate(coordinates) if j != i]
-        # np.lexsort's last key is primary
-        order = np.lexsort([*others[::-1], x])
-        ranks[order, i] = np.arange(1, num_items + 1) / num_items
-    return ranks
+    df = pl.DataFrame(coordinates, orient="col")
+    index = pl.int_range(pl.len())  # breaks full ties by item order
+    return df.select(
+        pl.struct(pl.col(c).alias("key"), *df.columns, index)
+        .rank("ordinal")
+        .alias(c)
+        for c in df.columns
+    ).to_numpy()
