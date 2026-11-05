@@ -149,10 +149,11 @@ def alifestd_tgs_pendantmdc_estimate_asexual(
         `num_trait_present`, `gain_rate`, `selection`, `gain_ratio`,
         `selection_lrt_naive`, and `gain_ratio_lrt_naive` (likelihood-ratio
         statistics for selection = 0 and for gain ratio = 1; see Notes).
-        With bootstrap replicates, also
-        `selection_se`, `selection_z`, `selection_p`, `log_gain_ratio_se`,
-        `gain_ratio_z`, and `gain_ratio_p` (two-sided normal approximation;
-        `gain_ratio` tests against 1), as well as
+        With bootstrap replicates, also bootstrap standard errors (se),
+        i.e., standard deviations across replicates, `selection_se` and
+        `log_gain_ratio_se`; z-scores, `selection_z` and `gain_ratio_z`;
+        and p-values, `selection_p` and `gain_ratio_p` (two-sided normal
+        approximation; `gain_ratio` tests against 1), as well as
         `num_bootstrap_degenerate`, the number of replicates excluded for
         resampling no carriers of the trait, or of its neutral reference.
 

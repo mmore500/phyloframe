@@ -1,17 +1,18 @@
 import typing
+import warnings
 
 import numpy as np
 import pandas as pd
 
 from ._tgs_find_reference_traits import tgs_find_reference_traits
-from ._tgs_fit import _tgs_minimize_nll_fixed_gain
+from ._tgs_fit import _tgs_calc_scales, tgs_minimize_nll
 
 
 def tgs_calc_gain_ratio_lrts(
     *,
     fits: pd.DataFrame,
-    calc_nlls: typing.Sequence[typing.Optional[typing.Callable]],
-    selection_scales: typing.Sequence[float],
+    trait_partitions: typing.Sequence[pd.DataFrame],
+    calc_nlls: typing.Sequence[typing.Callable],
     neutral_traits: typing.Sequence[int],
     loss_rate: float,
     selection_starts: typing.Sequence[float],
@@ -27,9 +28,9 @@ def tgs_calc_gain_ratio_lrts(
     log likelihood from holding the trait's gain rate at the mean fitted
     gain rate of its neutral reference (see `tgs_find_reference_traits`)
     and refitting selection alone. `fits` holds each trait's fitted
-    `gain_rate` and `selection`; `calc_nlls`, each trait's `calc_nll(log
-    gain rate, rate)` (None without gains); and `selection_scales`, their
-    selection scales (see `_tgs_minimize_nll`).
+    `gain_rate` and `selection`; `trait_partitions`, each trait's
+    partitions (see `tgs_fit_partitions`); and `calc_nlls`, their
+    `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`).
 
     The statistic naively treats the reference gain rate as known, and
     branches (or bins) as independent, so overstates significance. It is
@@ -38,25 +39,41 @@ def tgs_calc_gain_ratio_lrts(
     gain_rates = fits["gain_rate"].to_numpy()
     selections = fits["selection"].to_numpy()
     lrts = np.full(len(fits), np.nan)
-    for trait, calc_nll in enumerate(calc_nlls):
+    for trait, (partitions, calc_nll) in enumerate(
+        zip(trait_partitions, calc_nlls),
+    ):
         refs = tgs_find_reference_traits(
             neutral_traits=neutral_traits, trait=trait
         )
         ref_gain_rate = gain_rates[refs].mean() if len(refs) else 0.0
-        if calc_nll is None or not ref_gain_rate > 0:
+        if not partitions["num_successes"].to_numpy().any() or not (
+            ref_gain_rate > 0
+        ):
             continue
+        selection_scale, __ = _tgs_calc_scales(partitions)
         free_nll, __, __ = calc_nll(
-            np.log(gain_rates[trait]), selections[trait] - loss_rate
+            log_gain_rate=np.log(gain_rates[trait]),
+            rate=selections[trait] - loss_rate,
         )
-        null_nll = _tgs_minimize_nll_fixed_gain(
+        null = tgs_minimize_nll(
             calc_nll=calc_nll,
-            log_gain_rate=np.log(ref_gain_rate),
-            selection_scale=selection_scales[trait],
-            loss_rate=loss_rate,
-            selection_starts=[
-                selections[trait] / selection_scales[trait],
-                *selection_starts,
+            # from the free fit, then from each of `selection_starts`
+            starts=[
+                (np.log(ref_gain_rate), start)
+                for start in (
+                    selections[trait] / selection_scale,
+                    *selection_starts,
+                )
             ],
+            is_free=(False, True),
+            selection_scale=selection_scale,
+            loss_rate=loss_rate,
         )
-        lrts[trait] = 2 * (null_nll - free_nll)
+        if not null.num_converged:
+            warnings.warn(
+                "tgs fit optimizer did not converge with gain rate fixed at "
+                "its neutral reference's; gain ratio likelihood-ratio "
+                "statistic may be unreliable.",
+            )
+        lrts[trait] = 2 * (null.fun - free_nll)
     return lrts

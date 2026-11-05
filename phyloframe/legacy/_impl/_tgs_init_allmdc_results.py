@@ -1,5 +1,6 @@
 import typing
 
+import numpy as np
 import pandas as pd
 
 from ._tgs_calc_trait_masks import tgs_calc_trait_masks
@@ -22,7 +23,7 @@ def tgs_init_allmdc_results(
     `num_clade_gains`.
     """
     starts_absent, gains = tgs_calc_trait_masks(exposure_df)
-    is_leaf = (exposure_df["clade_size"] == 1).to_numpy()[:, None]
+    is_leaf = np.expand_dims((exposure_df["clade_size"] == 1).to_numpy(), 1)
     return tgs_init_results(
         trait_names=trait_names,
         counts={

@@ -1,8 +1,13 @@
+import functools
+
 import numpy as np
 import pandas as pd
 
-from phyloframe.legacy._impl import tgs_calc_gain_ratio_lrts, tgs_fit
-from phyloframe.legacy._impl._tgs_fit import _tgs_make_nll
+from phyloframe.legacy._impl import (
+    tgs_calc_gain_ratio_lrts,
+    tgs_calc_nll,
+    tgs_fit,
+)
 
 
 def _simulate(gain_rate: float, seed: int):
@@ -10,40 +15,52 @@ def _simulate(gain_rate: float, seed: int):
     lengths = rng.uniform(1, 60, 40)
     num_trials = np.full(40, 20_000.0)
     num_successes = rng.binomial(20_000, gain_rate * lengths).astype(float)
-    return num_trials, num_successes, lengths
+    return pd.DataFrame(
+        {
+            "num_trials": num_trials,
+            "num_successes": num_successes,
+            "length": lengths,
+        },
+    )
 
 
 def _fit_traits(gain_rates):
-    data = [_simulate(g, seed) for seed, g in enumerate(gain_rates)]
+    trait_partitions = [
+        _simulate(g, seed) for seed, g in enumerate(gain_rates)
+    ]
     fits = pd.DataFrame(
         [
-            tgs_fit(num_trials=n, num_successes=k, pendant_length=x)._asdict()
-            for n, k, x in data
+            tgs_fit(
+                num_trials=partitions["num_trials"],
+                num_successes=partitions["num_successes"],
+                pendant_length=partitions["length"],
+            )._asdict()
+            for partitions in trait_partitions
         ],
     )
-    nlls = [
-        _tgs_make_nll(
-            num_trials=n,
-            num_successes=k,
-            pendant_length=x,
-            growth_exponent_bound=600.0,
+    calc_nlls = [
+        functools.partial(
+            tgs_calc_nll, partitions=partitions, growth_exponent_bound=600.0
         )
-        for n, k, x in data
+        for partitions in trait_partitions
     ]
-    return fits, [f for f, __ in nlls], [s for __, s in nlls]
+    return fits, trait_partitions, calc_nlls
+
+
+def _lrts(fits, trait_partitions, calc_nlls, **kwargs):
+    return tgs_calc_gain_ratio_lrts(
+        fits=fits,
+        trait_partitions=trait_partitions,
+        calc_nlls=calc_nlls,
+        loss_rate=0.0,
+        **kwargs,
+    )
 
 
 def test_gain_ratio_lrts():
     # trait 0 gains at twice the rate of neutral traits 1-3
-    fits, calc_nlls, scales = _fit_traits([2e-4, 1e-4, 1e-4, 1e-4])
-    lrts = tgs_calc_gain_ratio_lrts(
-        fits=fits,
-        calc_nlls=calc_nlls,
-        selection_scales=scales,
-        neutral_traits=[1, 2, 3],
-        loss_rate=0.0,
-        selection_starts=(0.0, -0.3),
-    )
+    data = _fit_traits([2e-4, 1e-4, 1e-4, 1e-4])
+    lrts = _lrts(*data, neutral_traits=[1, 2, 3], selection_starts=(0.0, -0.3))
     assert lrts[0] > 100
     assert (lrts[1:] < 20).all()
     # the constrained fit can never beat the unconstrained one
@@ -51,15 +68,14 @@ def test_gain_ratio_lrts():
 
 
 def test_matches_free_fit_at_reference_rate():
-    fits, calc_nlls, scales = _fit_traits([1e-4, 1e-4, 1e-4])
+    fits, trait_partitions, calc_nlls = _fit_traits([1e-4, 1e-4, 1e-4])
     # make trait 0's fitted gain rate exactly its reference's mean
     fits.loc[0, "gain_rate"] = fits.loc[[1, 2], "gain_rate"].mean()
-    lrts = tgs_calc_gain_ratio_lrts(
-        fits=fits,
-        calc_nlls=calc_nlls,
-        selection_scales=scales,
+    lrts = _lrts(
+        fits,
+        trait_partitions,
+        calc_nlls,
         neutral_traits=[1, 2],
-        loss_rate=0.0,
         selection_starts=(0.0,),
     )
     # trait 0's "free" point now satisfies the null, which refits selection,
@@ -68,22 +84,21 @@ def test_matches_free_fit_at_reference_rate():
 
 
 def test_undefined_without_reference_or_gains():
-    fits, calc_nlls, scales = _fit_traits([1e-4, 1e-4])
-    lrts = tgs_calc_gain_ratio_lrts(
-        fits=fits,
-        calc_nlls=calc_nlls,
-        selection_scales=scales,
+    fits, trait_partitions, calc_nlls = _fit_traits([1e-4, 1e-4])
+    lrts = _lrts(
+        fits,
+        trait_partitions,
+        calc_nlls,
         neutral_traits=[],
-        loss_rate=0.0,
         selection_starts=(0.0,),
     )
     assert np.isnan(lrts).all()
-    lrts = tgs_calc_gain_ratio_lrts(
-        fits=fits,
-        calc_nlls=[None, calc_nlls[1]],
-        selection_scales=scales,
+    no_gains = trait_partitions[0].assign(num_successes=0.0)
+    lrts = _lrts(
+        fits,
+        [no_gains, trait_partitions[1]],
+        calc_nlls,
         neutral_traits=[1],
-        loss_rate=0.0,
         selection_starts=(0.0,),
     )
     # trait 0 has no gains; trait 1 is the only neutral trait, so has no

@@ -1,8 +1,8 @@
 import numpy as np
+import pandas as pd
 import pytest
-from scipy import optimize
 
-from phyloframe.legacy._impl._tgs_fit import _tgs_calc_nll, tgs_fit
+from phyloframe.legacy._impl._tgs_fit import tgs_fit
 
 
 def _sample(gain_rate: float, selection: float, seed: int):
@@ -54,34 +54,6 @@ def test_empty_bins_ignored():
     assert res == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("rate", [-0.1, -1e-8, 0.0, 1e-8, 0.05])
-def test_tgs_calc_nll_gradient(rate: float):
-    n, k, x = _sample(1e-3, -0.05, seed=3)
-
-    def nll(params):
-        return _tgs_calc_nll(
-            n, k, x, np.exp(params[0]), params[1], growth_exponent_bound=600.0
-        )[0]
-
-    def grad(params):
-        return _tgs_calc_nll(
-            n, k, x, np.exp(params[0]), params[1], growth_exponent_bound=600.0
-        )[1:]
-
-    params = np.array([np.log(1e-3), rate])
-    expected = optimize.approx_fprime(params, nll, [1e-6, 1e-9])
-    np.testing.assert_allclose(grad(params), expected, rtol=1e-4)
-
-
-def test_tgs_calc_nll_continuous_at_zero_rate():
-    n, k, x = _sample(1e-3, 0.0, seed=4)
-    at_zero = _tgs_calc_nll(n, k, x, 1e-3, 0.0, growth_exponent_bound=600.0)
-    near_zero = _tgs_calc_nll(
-        n, k, x, 1e-3, 1e-12, growth_exponent_bound=600.0
-    )
-    np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)
-
-
 def test_result_fields():
     res = _fit(*_sample(1e-3, -0.05, seed=5))
     gain, sel, lrt = res
@@ -99,16 +71,6 @@ def test_selection_starts(selection_starts):
     res = _fit(*data, selection_starts=selection_starts)
     assert res.selection == pytest.approx(expected.selection, rel=1e-3)
     assert res.gain_rate == pytest.approx(expected.gain_rate, rel=1e-3)
-
-
-def test_tgs_calc_nll_finite_for_extreme_rate():
-    # optimizer trial steps far into positive selection must not overflow
-    n, k, x = _sample(1e-3, -0.05, seed=7)
-    with np.errstate(over="raise", invalid="raise"):
-        nll, dlog_gain, drate = _tgs_calc_nll(
-            n, k, x, 1e-3, 1e3, growth_exponent_bound=600.0
-        )
-    assert np.isfinite([nll, dlog_gain, drate]).all()
 
 
 def test_no_convergence_warns(monkeypatch):
@@ -132,33 +94,21 @@ def test_keyword_only():
         tgs_fit(*_sample(1e-3, -0.05, seed=9))
 
 
-@pytest.mark.parametrize(
-    "rate", [-0.1, -1e-4, -1e-7, -1e-9, 0.0, 1e-9, 1e-7, 1e-4, 0.05]
-)
-def test_tgs_calc_effective_length_deriv(rate: float):
-    from fractions import Fraction
-    from math import factorial
+def test_no_successes_skips_fit_without_warning():
+    import warnings
 
-    from phyloframe.legacy._impl._tgs_fit import (
-        _tgs_calc_effective_length_deriv,
-    )
+    from phyloframe.legacy._impl import tgs_fit_partitions
 
-    pendant_length = np.array([0.01, 1.0, 7.0, 30.0])
-    res = _tgs_calc_effective_length_deriv(
-        pendant_length=pendant_length, rate=rate, growth_exponent_bound=600.0
+    partitions = pd.DataFrame(
+        {"num_trials": [10.0], "num_successes": [0.0], "length": [1.0]}
     )
-    # exact derivative, from the series sum over j >= 2 of
-    # (j - 1) * rate**(j - 2) * t**j / j!
-    expected = [
-        float(
-            sum(
-                (j - 1)
-                * Fraction(rate) ** (j - 2)
-                * Fraction(t) ** j
-                / factorial(j)
-                for j in range(2, 80)
-            )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        res = tgs_fit_partitions(
+            calc_nll=None,
+            partitions=partitions,
+            loss_rate=0.0,
+            selection_starts=(0.0,),
         )
-        for t in pendant_length
-    ]
-    np.testing.assert_allclose(res, expected, rtol=1e-9)
+    assert res.gain_rate == 0.0
+    assert np.isnan(res.selection) and np.isnan(res.selection_lrt_naive)

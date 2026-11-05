@@ -47,8 +47,8 @@ def tgs_summarize_bootstrap(
             reason=reason,
         )
 
-    # standard deviation across replicates, per trait; nan with fewer than
-    # two non-excluded replicates
+    # bootstrap standard errors (se), i.e., standard deviations across
+    # replicates, per trait; nan with fewer than two non-excluded replicates
     selection_se = (
         selection.mask(is_selection_degenerate)
         .groupby(trait_index)

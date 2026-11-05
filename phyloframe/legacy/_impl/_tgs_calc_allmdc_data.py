@@ -5,11 +5,9 @@ import pandas as pd
 from scipy import sparse
 from sklearn import preprocessing
 
-from ._tgs_calc_calibrated_pendant_lengths import (
-    tgs_calc_calibrated_pendant_lengths,
-)
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_trait_exposures import tgs_find_trait_exposures
+from ._tgs_tabulate_partitions import tgs_tabulate_partitions
 
 
 def tgs_calc_allmdc_data(
@@ -48,33 +46,13 @@ def tgs_calc_allmdc_data(
         trait_leaves=trait_units,
         trait_carriers=trait_gains,
     )
-    # one row per trait and partition, trait-major, before dropping rows
-    # without branches
-    lengths = np.stack(
-        [
-            tgs_calc_calibrated_pendant_lengths(
-                counts=counts,
-                trait=trait,
-                neutral_traits=neutral_traits,
-                calibration_neighborhoods=(
-                    partitioning["calibration_neighborhoods"]
-                    if calibrate
-                    else None
-                ),
-            )[0]
-            for trait in range(num_traits)
-        ],
-    )
-    all_partition_df = pd.DataFrame(
-        {
-            "trait": pd.Categorical(
-                np.repeat(np.arange(num_traits), num_partitions),
-                categories=range(num_traits),
-            ),
-            "num_trials": counts.num_leaves.ravel(),
-            "num_successes": counts.num_carriers.ravel(),
-            "length": lengths.ravel(),
-        },
+    # one row per trait and partition, before dropping rows without branches
+    all_partition_df = tgs_tabulate_partitions(
+        counts=counts,
+        neutral_traits=neutral_traits,
+        calibration_neighborhoods=(
+            partitioning["calibration_neighborhoods"] if calibrate else None
+        ),
     )
     # sparse, as partitions span few of many distinct survival times; each
     # trait's branches go in that trait's block of rows
