@@ -32,8 +32,8 @@ def alifestd_mark_lineage_delta_polars(
 ) -> pl.DataFrame:
     """Add column with the change in ``values`` from each node's parent.
 
-    The result at each node is its value minus its parent's value. At a
-    root, it is zero, or, if ``basal_value`` is given, the root's value
+    The result at each node is its value minus its parent's value. A
+    root's delta is 0, or, if ``basal_value`` is given, the root's value
     minus ``basal_value``. Boolean values are cast to int8, producing
     deltas: +1 for a gain, -1 for a loss, and 0 for no change. See
     `alifestd_mark_lineage_delta_asexual`.
@@ -47,8 +47,8 @@ def alifestd_mark_lineage_delta_polars(
     values : str or polars.Expr
         Column name or polars expression providing per-node values.
     basal_value : optional
-        Value above each root, from which root deltas are measured; if not
-        given, root deltas are zero.
+        Value that each root's delta is measured from; if not given, each
+        root's delta is 0.
     mark_as : str, default "lineage_delta"
         Output column name.
 
@@ -107,8 +107,8 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column with the change in `values` from each node's parent (at a root,
-zero, or its value minus `--basal-value` if given).
+Add column with the change in `values` from each node's parent. A root's
+delta is 0, or its value minus `--basal-value` if given.
 
 Data is assumed to be in alife standard format.
 
@@ -152,8 +152,8 @@ def _create_parser() -> argparse.ArgumentParser:
         default=None,
         type=float,
         help=(
-            "value above each root, from which root deltas are measured "
-            "(default: none, giving zero root deltas)"
+            "value that each root's delta is measured from (default: "
+            "none, so each root's delta is 0)"
         ),
     )
     parser.add_argument(
