@@ -34,8 +34,8 @@ def alifestd_mark_lineage_delta_polars(
 
     The result at each node is its value minus its parent's value. At a
     root, it is zero, or, if ``basal_value`` is given, the root's value
-    minus ``basal_value``. Boolean values are cast to int8, producing deltas
-    +1 for a gain, -1 for a loss, and 0 for no change. See
+    minus ``basal_value``. Boolean values are cast to int8, producing
+    deltas: +1 for a gain, -1 for a loss, and 0 for no change. See
     `alifestd_mark_lineage_delta_asexual`.
 
     Parameters
