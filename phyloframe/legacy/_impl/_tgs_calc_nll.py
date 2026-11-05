@@ -28,10 +28,11 @@ def _tgs_calc_effective_length(
     # The exact derivative, (t * exp(rate * t) - effective length) / rate,
     # loses precision as rate * t approaches 0, as it divides a difference of
     # nearly equal numbers by a small rate (relative error ~1e-16 /
-    # |rate * t|). There, the Taylor series of the exponential function is
-    # more stable: with effective length = sum over j >= 1 of
-    # rate**(j - 1) * t**j / j!, the derivative is t**2 / 2 + rate * t**3 / 3
-    # + O(rate**2), truncated with relative error ~(rate * t)**2 / 4; see
+    # |rate * t|). In this regime, the Taylor series of the exponential
+    # function provides better numerical stability: with effective length =
+    # sum over j >= 1 of rate**(j - 1) * t**j / j!, the derivative is
+    # t**2 / 2 + rate * t**3 / 3 + O(rate**2), truncated with relative error
+    # ~(rate * t)**2 / 4; see
     # https://en.wikipedia.org/wiki/Exponential_function#Power_series
     #
     # So, use the series below a |rate * t| < 1e-6 cutoff and the exact form
