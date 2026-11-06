@@ -63,7 +63,7 @@ def calc_binomial_nll_proxy(
         np.sum(successes * np.log(success_p))
         + np.sum(special.xlog1py(num_failures, -clipped_p))
     )
-    dnll_dp = np.asarray(num_failures / (1 - clipped_p))  # 0-d if scalar
+    dnll_dp = np.asarray(num_failures / (1 - clipped_p))  # scalar ok
     dnll_dp[has_successes] -= successes / success_p
     dnll_dp[clipped_p != raw_p] = 0.0
     return nll, dnll_dp
