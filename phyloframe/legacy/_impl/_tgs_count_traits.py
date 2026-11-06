@@ -83,8 +83,8 @@ def tgs_count_traits(
     )
     return pl.concat(
         [
-            pl.DataFrame(  # in case there are no traits
-                schema={
+            pl.DataFrame(
+                schema={  # RE empty edge case
                     "trait": pl.Int64,
                     "bin": pl.Int64,
                     "num_trials": pl.Float64,
@@ -92,8 +92,7 @@ def tgs_count_traits(
                     "length_sum": pl.Float64,
                 },
             ),
-            *(
-                # one trait at a time, bounding memory to its episodes
+            *(  # one trait at a time reduces peak memory
                 bin_df.join(
                     _tgs_count_trait_bins(trait=trait, **trait_bin_kwargs),
                     on="bin",

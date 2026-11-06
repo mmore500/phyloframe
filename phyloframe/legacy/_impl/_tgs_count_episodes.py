@@ -67,8 +67,8 @@ def tgs_count_episodes(
     """
     return pl.concat(
         [
-            pl.DataFrame(  # in case there are no traits
-                schema=dict.fromkeys(
+            pl.DataFrame(
+                schema=dict.fromkeys(  # RE empty edge case
                     [
                         "num_leaves",
                         "num_trait_present",
@@ -78,7 +78,7 @@ def tgs_count_episodes(
                     pl.Int64,
                 ),
             ),
-            *(  # one trait at a time, straight from the exposure table
+            *(  # one trait at a time reduces peak memory
                 _tgs_count_trait_episodes(exposure_df, trait=trait)
                 for trait in range(len(trait_names))
             ),
