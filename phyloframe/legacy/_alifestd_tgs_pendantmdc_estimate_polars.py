@@ -7,6 +7,7 @@ import typing
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
+import pandas as pd
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -17,7 +18,8 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
     tgs_build_exposure_df_polars,
-    tgs_pendantmdc_impl,
+    tgs_extract_trait_masks,
+    tgs_impl,
     tgs_validate_args,
 )
 
@@ -28,6 +30,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     *,
     trait_transitions: typing.Sequence[str],
     neutral_traits: typing.Sequence[str],
+    calibration_partitions: typing.Optional[str] = None,
     calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
@@ -38,8 +41,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         0.5,
         1.0,
     ),
-    calibrate_num_partitions: int = 4096,
     calibrate_max_rate_ratio: float = np.inf,
+    length_rtol: float = 1e-3,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -255,26 +258,34 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         trait_transitions=trait_transitions,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
-        calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        length_rtol=length_rtol,
     )
     exposure_df = tgs_build_exposure_df_polars(
         phylogeny_df,
         trait_transitions=trait_transitions,
         caller="alifestd_tgs_pendantmdc_estimate_polars",
+        calibration_partitions=calibration_partitions,
     )
-
-    logging.info(
-        "- alifestd_tgs_pendantmdc_estimate_polars: "
-        "fitting gain rate and selection coefficient...",
+    # leaf pendant branches only
+    exposure_df = exposure_df[exposure_df["clade_size"] == 1].reset_index(
+        drop=True
     )
-    res = tgs_pendantmdc_impl(
+    starts_absent, gains = tgs_extract_trait_masks(exposure_df)
+    res = tgs_impl(
         exposure_df,
+        counts_df=pd.DataFrame(
+            {
+                "trait": trait_names,
+                "num_leaves": starts_absent.sum(axis=0),
+                "num_trait_present": gains.sum(axis=0),
+            },
+        ),
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
-        calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        length_rtol=length_rtol,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,

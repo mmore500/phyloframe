@@ -8,8 +8,8 @@ def tgs_validate_args(
     trait_transitions: typing.Sequence[str],
     neutral_traits: typing.Sequence[str],
     calibrate_neighborhood_fractions: typing.Sequence[float],
-    calibrate_num_partitions: int,
     calibrate_max_rate_ratio: float,
+    length_rtol: float,
 ) -> typing.Tuple[typing.List[str], typing.List[int]]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -63,16 +63,11 @@ def tgs_validate_args(
             "calibrate_neighborhood_fractions must be nonempty, with each in "
             "(0, 1]",
         )
-    if int(calibrate_num_partitions).bit_count() != 1 or (
-        calibrate_num_partitions < 1
-    ):
-        raise ValueError(
-            "calibrate_num_partitions must be a power of two, got "
-            f"{calibrate_num_partitions}",
-        )
     if not calibrate_max_rate_ratio > 0:
         raise ValueError(
             "calibrate_max_rate_ratio must be positive, got "
             f"{calibrate_max_rate_ratio}",
         )
+    if not length_rtol >= 0:
+        raise ValueError(f"length_rtol must be nonnegative, got {length_rtol}")
     return trait_transitions, neutral_traits

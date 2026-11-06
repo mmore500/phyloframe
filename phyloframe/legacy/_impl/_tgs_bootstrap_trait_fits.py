@@ -5,9 +5,9 @@ import pandas as pd
 from ..._auxlib._run_weighted_bootstrap import run_weighted_bootstrap
 
 
-def tgs_bootstrap(
+def tgs_bootstrap_trait_fits(
     *,
-    fit: typing.Callable[..., pd.DataFrame],
+    do_fit: typing.Callable[..., pd.DataFrame],
     num_items: int,
     num_bootstrap: int,
     seed: typing.Optional[int],
@@ -18,14 +18,14 @@ def tgs_bootstrap(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns fits to bootstrap resamples of `num_items` leaves (or branches),
-    indexed by replicate and trait index, from `fit` (e.g., a
-    `functools.partial` of `tgs_pendantmdc_fit_traits`), called with each
-    replicate's `weights`; see `run_weighted_bootstrap`.
+    Returns per-trait fits to bootstrap resamples of `num_items` exposure
+    episodes, indexed by replicate and trait index, from `do_fit` (e.g., a
+    `functools.partial` of `tgs_fit_traits`), called with each replicate's
+    episode `weights`; see `run_weighted_bootstrap`.
     """
     return pd.concat(
         run_weighted_bootstrap(
-            fit,
+            do_fit,
             num_items=num_items,
             num_replicates=num_bootstrap,
             seed=seed,

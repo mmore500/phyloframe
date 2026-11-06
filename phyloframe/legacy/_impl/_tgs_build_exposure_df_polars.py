@@ -28,7 +28,7 @@ def tgs_build_exposure_df_polars(
     *,
     trait_transitions: typing.Sequence[str],
     caller: str,
-    size_partitions: typing.Optional[str] = None,
+    calibration_partitions: typing.Optional[str] = None,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -36,9 +36,11 @@ def tgs_build_exposure_df_polars(
 
     Sums each trait's transitions into node states (see
     `tgs_calc_trait_states`), collapses unifurcations, and returns the
-    phylogeny's branches (see `tgs_calc_exposure_df`). With
-    `size_partitions`, the name of an integer column, also gives each
-    branch's value there, at its end node, as column `size_partition`.
+    phylogeny's branches (see `tgs_calc_exposure_df`), with column
+    `node_id`, each branch's end node's id in `phylogeny_df`. With
+    `calibration_partitions`, the name of an integer column, also gives
+    each branch's value there, at its end node, as column
+    `calibration_partition`.
     `caller` names the calling function in error messages.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
@@ -47,7 +49,9 @@ def tgs_build_exposure_df_polars(
         raise NotImplementedError(
             f"{caller} only supports asexual phylogenies.",
         )
-    extra_columns = [] if size_partitions is None else [size_partitions]
+    extra_columns = (
+        [] if calibration_partitions is None else [calibration_partitions]
+    )
     for column in [*trait_transitions, *extra_columns]:
         if column not in schema_names:
             raise ValueError(f"phylogeny_df has no column {column}")
@@ -101,8 +105,11 @@ def tgs_build_exposure_df_polars(
                     selected.select(
                         "id", "ancestor_id", "origin_time", *extra_columns
                     ).with_columns(
-                        pl.Series(f"__alifestd_tgs_state{i}", s)
-                        for i, s in enumerate(states)
+                        pl.col("id").alias("__alifestd_tgs_node_id"),
+                        *(
+                            pl.Series(f"__alifestd_tgs_state{i}", s)
+                            for i, s in enumerate(states)
+                        ),
                     ),
                     ignore_topological_sensitivity=True,
                 ),
@@ -119,13 +126,16 @@ def tgs_build_exposure_df_polars(
             for i in range(len(trait_transitions))
         ],
     )
-    if size_partitions is not None:
-        values = collapsed[size_partitions]
+    is_root = ancestor_ids == np.arange(len(ancestor_ids))
+    exposure_df["node_id"] = collapsed["__alifestd_tgs_node_id"].to_numpy()[
+        ~is_root
+    ]
+    if calibration_partitions is not None:
+        values = collapsed[calibration_partitions]
         if not values.dtype.is_integer() or values.has_nulls():
             raise NotImplementedError(
-                f"size_partitions column {size_partitions} must be integer, "
-                "without null values",
+                f"calibration_partitions column {calibration_partitions} must "
+                "be integer, without null values",
             )
-        is_root = ancestor_ids == np.arange(len(ancestor_ids))
-        exposure_df["size_partition"] = values.to_numpy()[~is_root]
+        exposure_df["calibration_partition"] = values.to_numpy()[~is_root]
     return exposure_df
