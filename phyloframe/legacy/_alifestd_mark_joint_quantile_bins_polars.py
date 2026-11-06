@@ -8,6 +8,7 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 
 from .._auxlib._assign_kdtree_partitions import assign_kdtree_partitions
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -103,8 +104,7 @@ def alifestd_mark_joint_quantile_bins_polars(
     Raises
     ------
     NotImplementedError
-        If a `bin_by` value is null or nan, or a `partition_by` value is
-        null.
+        If a `bin_by` or `partition_by` value is null or nan.
     ValueError
         If a column is missing, if `bin_by` is empty, if `max_bins` is not a
         power of two, or if `min_bin_size` is less than 1.
@@ -153,9 +153,7 @@ def alifestd_mark_joint_quantile_bins_polars(
         .collect()
     )
     if selected.select(
-        pl.any_horizontal(
-            pl.all().is_null(), pl.col("^bin_by.*$").fill_nan(None).is_null()
-        ).any()
+        pl.any_horizontal(pl.all().is_null(), cs.float().is_nan()).any()
     ).item():
         raise NotImplementedError(
             "null or nan bin_by or partition_by values not supported",

@@ -121,9 +121,12 @@ def test_full_ties_follow_row_order():
         assert bins.n_unique() == 4
 
 
-def test_null_partition_raises():
+@pytest.mark.parametrize("missing", [None, float("nan")])
+def test_missing_partition_raises(missing):
     df = _make_df().with_columns(
-        p=pl.when(pl.col("id") == 3).then(None).otherwise(pl.col("p")),
+        p=pl.when(pl.col("id") == 3)
+        .then(missing)
+        .otherwise(pl.col("p").cast(pl.Float64)),
     )
     with pytest.raises(NotImplementedError):
         alifestd_mark_joint_quantile_bins_polars(
