@@ -76,7 +76,7 @@ def test_cli(input_pqt, ext, tmp_path):
         else pd.read_parquet(output_file)
     )
     assert result_df["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
-    assert "selection_p" in result_df.columns
+    assert "selection_coef_p" in result_df.columns
     assert result_df.loc[0, "gain_ratio"] > 1.0
 
 

@@ -45,13 +45,13 @@ def alifestd_tgs_allmdc_estimate_polars(
     calibrate_size_partition_min_neutral_gains: int = 20,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
-    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     growth_exponent_bound: float = 600.0,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
-    """Estimate per-trait gain rate and net selection from mutationally
+    """Estimate per-trait gain rate and selection coefficient from mutationally
     defined clades (MDCs) of every size.
 
     Unlike `alifestd_tgs_pendantmdc_estimate_polars`, which considers only
@@ -67,7 +67,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     is fit to
 
         p = gain_rate * (exp(c * length) - 1) / c * exp(c * survival),
-        c = selection - loss_rate
+        c = selection_coef - loss_rate
 
     where `survival` is the branch's survival time, measured on the tree
     from its end node to the latest sampled leaf below it (zero for a
@@ -89,11 +89,11 @@ def alifestd_tgs_allmdc_estimate_polars(
       distortion; and
     - nested branches share leaves, so their outcomes are not independent, but
       the likelihood treats them as independent (a composite likelihood). So,
-      `selection_lrt_naive` and `gain_ratio_lrt_naive` are not calibrated as
-      chi-squared statistics, and every bootstrap statistic (standard errors,
-      z-scores, and p-values), as replicates resample branches independently,
-      is likely overconfident. No bootstrap that accounts for nesting (e.g.,
-      resampling whole clades) is yet provided.
+      `selection_coef_lrt_naive` and `gain_ratio_lrt_naive` are not calibrated
+      as chi-squared statistics, and every bootstrap statistic (standard
+      errors, z-scores, and p-values), as replicates resample branches
+      independently, is likely overconfident. No bootstrap that accounts for
+      nesting (e.g., resampling whole clades) is yet provided.
 
     Only supports asexual phylogenies.
 
@@ -164,12 +164,13 @@ def alifestd_tgs_allmdc_estimate_polars(
         Introduction to the Bootstrap (Chapman & Hall).
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
-    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
-        Starting values for selection, in units of 1 / mean branch length;
-        the best of the resulting fits is kept. See `tgs_fit`.
+    selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for the selection coefficient, in units of 1 / mean
+        branch length; the best of the resulting fits is kept. See `tgs_fit`.
     growth_exponent_bound : float, default 600.0
-        Bound on carrier growth exponents, such as (selection - loss rate) *
-        branch length, keeping optimizer trial steps finite. See `tgs_fit`.
+        Bound on carrier growth exponents, such as (selection coefficient -
+        loss rate) * branch length, keeping optimizer trial steps finite. See
+        `tgs_fit`.
     seed : int, default None
         Seed for bootstrap resampling; if None, drawn from numpy's global
         random state.
@@ -183,14 +184,14 @@ def alifestd_tgs_allmdc_estimate_polars(
     -------
     polars.DataFrame
         One row per trait, with columns `trait`, `num_leaves` and
-        `num_trait_present` (leaf branches that started without the trait,
-        and those that gained it), `num_clades` and `num_clade_gains` (the
-        same for inner branches), `gain_rate`, `selection`, `gain_ratio`
-        (gain rate relative to the mean of neutral traits', leaving the
-        focal trait out), `selection_lrt_naive`, and `gain_ratio_lrt_naive`
-        (likelihood-ratio statistics for selection = 0 and for gain ratio =
-        1; see the pendant estimator). With bootstrap replicates, also the
-        pendant estimator's bootstrap columns.
+        `num_trait_present` (leaf branches that started without the trait, and
+        those that gained it), `num_clades` and `num_clade_gains` (the same for
+        inner branches), `gain_rate`, `selection_coef`, `gain_ratio` (gain rate
+        relative to the mean of neutral traits', leaving the focal trait out),
+        `selection_coef_lrt_naive`, and `gain_ratio_lrt_naive`
+        (likelihood-ratio statistics for selection coefficient = 0 and for gain
+        ratio = 1; see the pendant estimator). With bootstrap replicates, also
+        the pendant estimator's bootstrap columns.
 
     Raises
     ------
@@ -233,7 +234,7 @@ def alifestd_tgs_allmdc_estimate_polars(
 
     logging.info(
         "- alifestd_tgs_allmdc_estimate_polars: "
-        "fitting gain and selection...",
+        "fitting gain rate and selection coefficient...",
     )
     res = tgs_allmdc_impl(
         exposure_df,
@@ -249,7 +250,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         ),
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
         seed=seed,
         parallel_backend=parallel_backend,
@@ -262,17 +263,17 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Estimate per-trait gain rate and net selection from how often each branch's
-clade carries each trait as a function of branch length and survival time
-(from the branch's end to its latest sampled leaf), using pendant and inner
-branches.
+Estimate per-trait gain rate and selection coefficient from how often each
+branch's clade carries each trait as a function of branch length and survival
+time (from the branch's end to its latest sampled leaf), using pendant and
+inner branches.
 
 Output is one row per trait, with columns `trait`, `num_leaves`,
 `num_trait_present`, `num_clades`, `num_clade_gains`, `gain_rate`,
-`selection`, `gain_ratio`, `selection_lrt_naive`, and `gain_ratio_lrt_naive`;
-with `--num-bootstrap`, also `selection_se`, `selection_z`, `selection_p`,
-`log_gain_ratio_se`, `gain_ratio_z`, `gain_ratio_p`, and
-`num_bootstrap_degenerate`.
+`selection_coef`, `gain_ratio`, `selection_coef_lrt_naive`, and
+`gain_ratio_lrt_naive`; with `--num-bootstrap`, also `selection_coef_se`,
+`selection_coef_z`, `selection_coef_p`, `log_gain_ratio_se`, `gain_ratio_z`,
+`gain_ratio_p`, and `num_bootstrap_degenerate`.
 
 Data is assumed to be in alife standard format, with column `origin_time`.
 Only supports asexual phylogenies.
@@ -397,13 +398,13 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Known per-unit-time trait loss rate (default: 0.0).",
     )
     parser.add_argument(
-        "--selection-starts",
+        "--selection-coef-starts",
         default=(0.0, -0.3, -1.8),
         nargs="+",
         type=float,
         help=(
-            "Starting values for selection, in units of 1 / mean branch "
-            "length (default: 0.0 -0.3 -1.8)."
+            "Starting values for the selection coefficient, in units of "
+            "1 / mean branch length (default: 0.0 -0.3 -1.8)."
         ),
     )
     parser.add_argument(
@@ -453,7 +454,7 @@ if __name__ == "__main__":
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
-                    selection_starts=args.selection_starts,
+                    selection_coef_starts=args.selection_coef_starts,
                     growth_exponent_bound=args.growth_exponent_bound,
                     parallel_backend=args.parallel_backend,
                 ),

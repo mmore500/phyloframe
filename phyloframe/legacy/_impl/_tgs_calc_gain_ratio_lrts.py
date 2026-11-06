@@ -12,10 +12,10 @@ def _tgs_calc_gain_ratio_lrt(
     partitions: pd.DataFrame,
     calc_nll: typing.Callable,
     gain_rate: float,
-    selection: float,
+    selection_coef: float,
     gain_ratio: float,
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
 ) -> float:
     """Implementation detail for `tgs_calc_gain_ratio_lrts`. Acronym tgs
     stands for trait gain/selection.
@@ -27,15 +27,18 @@ def _tgs_calc_gain_ratio_lrt(
         return np.nan
     selection_scale, __ = _tgs_calc_scales(partitions)
     free_nll, __, __ = calc_nll(
-        log_gain_rate=np.log(gain_rate), rate=selection - loss_rate
+        log_gain_rate=np.log(gain_rate), rate=selection_coef - loss_rate
     )
     reference_log_gain_rate = np.log(gain_rate / gain_ratio)
     null = tgs_minimize_nll(
         calc_nll=calc_nll,
-        # from the free fit, then from each of `selection_starts`
+        # from the free fit, then from each of `selection_coef_starts`
         starts=[
             (reference_log_gain_rate, start)
-            for start in (selection / selection_scale, *selection_starts)
+            for start in (
+                selection_coef / selection_scale,
+                *selection_coef_starts,
+            )
         ],
         fit_gain=False,
         fit_selection=True,
@@ -57,7 +60,7 @@ def tgs_calc_gain_ratio_lrts(
     trait_partitions: typing.Sequence[pd.DataFrame],
     calc_nlls: typing.Sequence[typing.Callable],
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
 ) -> np.ndarray:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -67,8 +70,8 @@ def tgs_calc_gain_ratio_lrts(
     ratio = 1, a profile likelihood test: twice the increase in negative
     log likelihood from holding the trait's gain rate at the mean fitted
     gain rate of its neutral reference, i.e., `gain_rate / gain_ratio`, and
-    refitting selection alone. `fits` holds each trait's fitted
-    `gain_rate`, `selection`, and `gain_ratio`; `trait_partitions`, each
+    refitting the selection coefficient alone. `fits` holds each trait's fitted
+    `gain_rate`, `selection_coef`, and `gain_ratio`; `trait_partitions`, each
     trait's
     partitions (see `tgs_fit_partitions`); and `calc_nlls`, their
     `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`).
@@ -83,10 +86,10 @@ def tgs_calc_gain_ratio_lrts(
                 partitions=partitions,
                 calc_nll=calc_nll,
                 gain_rate=fit.gain_rate,
-                selection=fit.selection,
+                selection_coef=fit.selection_coef,
                 gain_ratio=fit.gain_ratio,
                 loss_rate=loss_rate,
-                selection_starts=selection_starts,
+                selection_coef_starts=selection_coef_starts,
             )
             for partitions, calc_nll, fit in zip(
                 trait_partitions, calc_nlls, fits.itertuples()

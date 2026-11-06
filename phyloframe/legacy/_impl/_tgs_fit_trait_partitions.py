@@ -18,7 +18,7 @@ def tgs_fit_trait_partitions(
     partition_df: pd.DataFrame,
     neutral_traits: typing.Sequence[int],
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
     survival_shares: typing.Optional[sparse.csr_matrix] = None,
     distinct_survival_times: typing.Optional[np.ndarray] = None,
@@ -27,13 +27,13 @@ def tgs_fit_trait_partitions(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Fits each trait's gain rate and selection to its partitions, the rows
-    of `partition_df` with its `trait` (see `tgs_tabulate_partitions`), and, if
-    given, their `survival_shares` over `distinct_survival_times` (see
-    `tgs_calc_nll`). Returns one row per trait, with columns of
-    `TgsFitResult` (see `tgs_fit_partitions`) plus `gain_ratio`, the gain
-    rate relative to neutral traits, and `gain_ratio_lrt_naive` (see
-    `tgs_calc_gain_ratio_lrts`).
+    Fits each trait's gain rate and selection coefficient to its partitions,
+    the rows of `partition_df` with its `trait` (see
+    `tgs_tabulate_partitions`), and, if given, their `survival_shares` over
+    `distinct_survival_times` (see `tgs_calc_nll`). Returns one row per trait,
+    with columns of `TgsFitResult` (see `tgs_fit_partitions`) plus
+    `gain_ratio`, the gain rate relative to neutral traits, and
+    `gain_ratio_lrt_naive` (see `tgs_calc_gain_ratio_lrts`).
     """
     trait_partitions = [
         partitions
@@ -59,7 +59,7 @@ def tgs_fit_trait_partitions(
                 calc_nll=calc_nll,
                 partitions=partitions,
                 loss_rate=loss_rate,
-                selection_starts=selection_starts,
+                selection_coef_starts=selection_coef_starts,
             )
             for partitions, calc_nll in zip(trait_partitions, calc_nlls)
         ],
@@ -76,6 +76,6 @@ def tgs_fit_trait_partitions(
         trait_partitions=trait_partitions,
         calc_nlls=calc_nlls,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
     )
     return res

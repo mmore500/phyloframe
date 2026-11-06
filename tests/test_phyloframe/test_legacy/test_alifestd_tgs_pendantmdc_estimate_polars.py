@@ -67,13 +67,13 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
     origin_time[leaves] = origin_time[ancestor_id[leaves]] + length
 
     traits = np.zeros((5, num_nodes), dtype=bool)
-    for trait, (gain, selection) in enumerate(
+    for trait, (gain, selection_coef) in enumerate(
         [(2e-3, -0.05)] + [(1e-3, 0.0)] * 4
     ):
         p = (
             gain * length
-            if selection == 0
-            else gain * np.expm1(selection * length) / selection
+            if selection_coef == 0
+            else gain * np.expm1(selection_coef * length) / selection_coef
         )
         traits[trait, leaves] = rng.random(len(leaves)) < p
 
@@ -104,16 +104,16 @@ def test_recovers_gain_selection(calibrate: bool):
 
     focal = res.iloc[0]
     assert focal["gain_ratio"] == pytest.approx(2.0, rel=0.2)
-    assert focal["selection"] == pytest.approx(-0.05, abs=0.02)
-    assert focal["selection_p"] < 1e-3
+    assert focal["selection_coef"] == pytest.approx(-0.05, abs=0.02)
+    assert focal["selection_coef_p"] < 1e-3
     assert focal["gain_ratio_p"] < 1e-3
 
     neutral = res.iloc[1:]
-    # gain rate trades off against selection, so with ~2k carriers per
-    # trait, neutral gain ratios scatter by ~20%
+    # gain rate trades off against the selection coefficient, so with ~2k
+    # carriers per trait, neutral gain ratios scatter by ~20%
     assert neutral["gain_ratio"].tolist() == pytest.approx([1.0] * 4, rel=0.3)
-    assert (neutral["selection"].abs() < 0.02).all()
-    assert np.isfinite(res["selection_se"]).all()
+    assert (neutral["selection_coef"].abs() < 0.02).all()
+    assert np.isfinite(res["selection_coef_se"]).all()
     assert np.isfinite(res["log_gain_ratio_se"]).all()
 
 
@@ -153,7 +153,7 @@ def test_drops_inherited_and_rootward():
     # both leaves carry trait 0 from above their parent, so both drop
     assert res["num_leaves"].tolist() == [0, 2]
     assert res["num_trait_present"].tolist() == [0, 1]
-    assert np.isnan(res.loc[0, "selection"])
+    assert np.isnan(res.loc[0, "selection_coef"])
     assert np.isnan(res["gain_ratio"]).all()
 
     res = _estimate_from_masks(
@@ -334,7 +334,7 @@ def test_seed_reproducible():
     # seeded runs leave global rng state untouched
     np.testing.assert_array_equal(np.random.get_state()[1], expected_state)
     pd.testing.assert_frame_equal(res1, res2)
-    assert not res1["selection_se"].equals(res3["selection_se"])
+    assert not res1["selection_coef_se"].equals(res3["selection_coef_se"])
 
 
 def test_bootstrap_without_neutral_traits():
@@ -348,10 +348,11 @@ def test_bootstrap_without_neutral_traits():
             num_bootstrap=4,
             seed=1,
         )
-    # gain ratio is undefined, but selection still gets standard errors
+    # gain ratio is undefined, but the selection coefficient still gets
+    # standard errors
     assert np.isnan(res["gain_ratio"]).all()
     assert np.isnan(res["log_gain_ratio_se"]).all()
-    assert np.isfinite(res["selection_se"]).all()
+    assert np.isfinite(res["selection_coef_se"]).all()
     assert (res["num_bootstrap_degenerate"] == 0).all()
 
 
@@ -375,7 +376,7 @@ def test_bootstrap_rare_trait():
         for warning in record
     )
     assert (res.loc[1:, "num_bootstrap_degenerate"] == 0).all()
-    assert np.isfinite(res["selection_se"]).all()
+    assert np.isfinite(res["selection_coef_se"]).all()
     assert np.isfinite(res["log_gain_ratio_se"]).all()
 
 
@@ -437,7 +438,7 @@ def test_neighborhood_fractions_single_candidate():
         calibrate=True,
         calibrate_neighborhood_fractions=[0.1],
     )
-    assert np.isfinite(res["selection"]).all()
+    assert np.isfinite(res["selection_coef"]).all()
 
 
 def test_parallel_backend_matches_serial_many_replicates():
@@ -474,7 +475,7 @@ def test_bootstrap_neutral_reference_without_carriers():
             seed=1,
         )
     # the focal trait always has carriers, but its reference sometimes not
-    assert np.isfinite(res.loc[0, "selection_se"])
+    assert np.isfinite(res.loc[0, "selection_coef_se"])
     assert 0 < res.loc[0, "num_bootstrap_degenerate"] < 50
     assert np.isfinite(res.loc[0, "log_gain_ratio_se"])
 
@@ -521,7 +522,7 @@ def test_calibrate_num_partitions(calibrate_num_partitions: int):
         calibrate=True,
         calibrate_num_partitions=calibrate_num_partitions,
     )
-    assert np.isfinite(res["selection"]).all()
+    assert np.isfinite(res["selection_coef"]).all()
 
 
 def test_calibrate_max_rate_ratio():

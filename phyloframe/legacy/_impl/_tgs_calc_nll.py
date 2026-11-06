@@ -62,10 +62,10 @@ def tgs_calc_nll(
     gain/selection.
 
     Returns negative log likelihood (up to a constant) of one trait's
-    `partitions` (with columns `num_trials`, `num_successes`, and mean
-    branch `length`), and its derivatives with respect to log gain rate
-    and to `rate` (selection minus loss rate). A branch of length `t` gains
-    the trait with probability
+    `partitions` (with columns `num_trials`, `num_successes`, and mean branch
+    `length`), and its derivatives with respect to log gain rate and to `rate`
+    (selection coefficient minus loss rate). A branch of length `t` gains the
+    trait with probability
 
         gain_rate * (exp(rate * t) - 1) / rate * exp(rate * u)
 

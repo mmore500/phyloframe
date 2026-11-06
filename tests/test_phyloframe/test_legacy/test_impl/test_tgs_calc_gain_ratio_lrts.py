@@ -67,7 +67,9 @@ def _lrts(fits, trait_partitions, calc_nlls, *, neutral_traits, **kwargs):
 def test_gain_ratio_lrts():
     # trait 0 gains at twice the rate of neutral traits 1-3
     data = _fit_traits([2e-4, 1e-4, 1e-4, 1e-4])
-    lrts = _lrts(*data, neutral_traits=[1, 2, 3], selection_starts=(0.0, -0.3))
+    lrts = _lrts(
+        *data, neutral_traits=[1, 2, 3], selection_coef_starts=(0.0, -0.3)
+    )
     assert lrts[0] > 100
     assert (lrts[1:] < 20).all()
     # the constrained fit can never beat the unconstrained one
@@ -83,10 +85,10 @@ def test_matches_free_fit_at_reference_rate():
         trait_partitions,
         calc_nlls,
         neutral_traits=[1, 2],
-        selection_starts=(0.0,),
+        selection_coef_starts=(0.0,),
     )
-    # trait 0's "free" point now satisfies the null, which refits selection,
-    # so the null can only fit as well or better
+    # trait 0's "free" point now satisfies the null, which refits the selection
+    # coefficient, so the null can only fit as well or better
     assert lrts[0] <= 1e-6
 
 
@@ -97,7 +99,7 @@ def test_undefined_without_reference_or_gains():
         trait_partitions,
         calc_nlls,
         neutral_traits=[],
-        selection_starts=(0.0,),
+        selection_coef_starts=(0.0,),
     )
     assert np.isnan(lrts).all()
     # without gains, a trait's fitted gain rate is 0
@@ -106,7 +108,7 @@ def test_undefined_without_reference_or_gains():
         trait_partitions,
         calc_nlls,
         neutral_traits=[1],
-        selection_starts=(0.0,),
+        selection_coef_starts=(0.0,),
     )
     # trait 0 has no gains; trait 1 is the only neutral trait, so has no
     # reference

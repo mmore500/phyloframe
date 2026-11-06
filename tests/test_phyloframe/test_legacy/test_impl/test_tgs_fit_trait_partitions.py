@@ -75,27 +75,33 @@ def test_recovers_focal(fixture):
     res = tgs_fit_partitions(
         **_trait_kwargs(fixture, 0),
         loss_rate=0.0,
-        selection_starts=(0.0, -0.3, -1.8),
+        selection_coef_starts=(0.0, -0.3, -1.8),
     )
     assert res.gain_rate == pytest.approx(2e-3, rel=0.15)
-    assert res.selection == pytest.approx(-0.05, abs=0.01)
-    assert res.selection_lrt_naive > 10
+    assert res.selection_coef == pytest.approx(-0.05, abs=0.01)
+    assert res.selection_coef_lrt_naive > 10
 
 
 def test_recovers_neutral(fixture):
     res = tgs_fit_partitions(
-        **_trait_kwargs(fixture, 1), loss_rate=0.0, selection_starts=(0.0,)
+        **_trait_kwargs(fixture, 1),
+        loss_rate=0.0,
+        selection_coef_starts=(0.0,),
     )
     assert res.gain_rate == pytest.approx(1e-3, rel=0.15)
-    assert abs(res.selection) < 0.01
+    assert abs(res.selection_coef) < 0.01
 
 
 def test_loss_rate_shifts_selection(fixture):
-    kwargs = dict(**_trait_kwargs(fixture, 0), selection_starts=(0.0, -0.3))
+    kwargs = dict(
+        **_trait_kwargs(fixture, 0), selection_coef_starts=(0.0, -0.3)
+    )
     res = tgs_fit_partitions(loss_rate=0.0, **kwargs)
     lossy = tgs_fit_partitions(loss_rate=0.01, **kwargs)
-    # fitted rate, selection - loss rate, is unchanged
-    assert lossy.selection - 0.01 == pytest.approx(res.selection, abs=1e-4)
+    # fitted rate, selection coefficient - loss rate, is unchanged
+    assert lossy.selection_coef - 0.01 == pytest.approx(
+        res.selection_coef, abs=1e-4
+    )
 
 
 def test_fit_trait_partitions(fixture):
@@ -104,15 +110,15 @@ def test_fit_trait_partitions(fixture):
         partition_df=data,
         neutral_traits=[1, 2],
         loss_rate=0.0,
-        selection_starts=(0.0, -0.3),
+        selection_coef_starts=(0.0, -0.3),
         growth_exponent_bound=600.0,
         survival_shares=shares,
         distinct_survival_times=times,
     )
     assert list(res.columns) == [
         "gain_rate",
-        "selection",
-        "selection_lrt_naive",
+        "selection_coef",
+        "selection_coef_lrt_naive",
         "gain_ratio",
         "gain_ratio_lrt_naive",
     ]
@@ -122,10 +128,12 @@ def test_fit_trait_partitions(fixture):
         alone = tgs_fit_partitions(
             **_trait_kwargs(fixture, trait),
             loss_rate=0.0,
-            selection_starts=(0.0, -0.3),
+            selection_coef_starts=(0.0, -0.3),
         )
         assert res.loc[trait, "gain_rate"] == pytest.approx(alone.gain_rate)
-        assert res.loc[trait, "selection"] == pytest.approx(alone.selection)
+        assert res.loc[trait, "selection_coef"] == pytest.approx(
+            alone.selection_coef
+        )
     # focal gains at twice the neutral rate
     assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.2)
     assert res.loc[0, "gain_ratio_lrt_naive"] > 10

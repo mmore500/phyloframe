@@ -24,14 +24,14 @@ def _data():
     return data, np.array([0.0, 5.0, 30.0])
 
 
-def _pendant_partitions(gain_rate: float, selection: float, seed: int):
+def _pendant_partitions(gain_rate: float, selection_coef: float, seed: int):
     rng = np.random.default_rng(seed)
     length = np.linspace(0.5, 60.0, 120)
     num_trials = np.full_like(length, 20_000)
     p = (
         gain_rate * length
-        if selection == 0
-        else gain_rate * np.expm1(selection * length) / selection
+        if selection_coef == 0
+        else gain_rate * np.expm1(selection_coef * length) / selection_coef
     )
     return pd.DataFrame(
         {

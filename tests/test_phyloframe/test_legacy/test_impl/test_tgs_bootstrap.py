@@ -32,7 +32,7 @@ def test_replicate():
         calibrate=False,
         calibrate_max_rate_ratio=np.inf,
         loss_rate=0.0,
-        selection_starts=(0.0, -0.3),
+        selection_coef_starts=(0.0, -0.3),
         growth_exponent_bound=600.0,
     )
     kwargs = dict(

@@ -43,14 +43,14 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     calibrate_max_rate_ratio: float = np.inf,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
-    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     growth_exponent_bound: float = 600.0,
     min_leaf_origin_time: float = -np.inf,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
-    """Estimate per-trait gain rate and net selection from leaf pendant
+    """Estimate per-trait gain rate and selection coefficient from leaf pendant
     branches only, from how the fraction of leaves carrying each trait
     varies with pendant branch length.
 
@@ -66,7 +66,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     dropped for that trait), so pendant length is an exposure window. Trait
     presence versus pendant length is fit to
 
-        p = gain_rate * (exp(c * length) - 1) / c,  c = selection - loss_rate
+        p = gain_rate * (exp(c * length) - 1) / c,
+        c = selection_coef - loss_rate
 
     which is linear in length at neutrality and saturates under a cost.
 
@@ -114,7 +115,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         at least two, and as the reference for gain ratios (relative to
         their mean gain rate, leaving the focal trait out).
         Without neutral traits, `gain_ratio` and its statistics are nan;
-        gain rate and selection are still estimated.
+        gain rate and selection coefficient are still estimated.
     calibrate : bool, default False
         If True, rescale each leaf's pendant length by the ratio of observed
         to expected `neutral_traits` gains among its nearest leaves in
@@ -148,12 +149,13 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         data, so standard errors omit uncertainty in that choice.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
-    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
-        Starting values for selection, in units of 1 / mean pendant length;
-        the best of the resulting fits is kept. See `tgs_fit`.
+    selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for the selection coefficient, in units of 1 / mean
+        pendant length; the best of the resulting fits is kept. See `tgs_fit`.
     growth_exponent_bound : float, default 600.0
-        Bound on carrier growth exponents, (selection - loss rate) *
-        pendant length, keeping optimizer trial steps finite. See `tgs_fit`.
+        Bound on carrier growth exponents, the selection coefficient minus
+        loss rate, times pendant length, keeping optimizer trial steps
+        finite. See `tgs_fit`.
     min_leaf_origin_time : float, default -inf
         Leaves originating earlier are excluded.
     seed : int, optional
@@ -169,16 +171,17 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     -------
     polars.DataFrame
         One row per trait, with columns `trait`, `num_leaves`,
-        `num_trait_present`, `gain_rate`, `selection`, `gain_ratio`,
-        `selection_lrt_naive`, and `gain_ratio_lrt_naive` (likelihood-ratio
-        statistics for selection = 0 and for gain ratio = 1; see Notes).
-        With bootstrap replicates, also bootstrap standard errors (se),
-        i.e., standard deviations across replicates, `selection_se` and
-        `log_gain_ratio_se`; z-scores, `selection_z` and `gain_ratio_z`;
-        and p-values, `selection_p` and `gain_ratio_p` (two-sided normal
-        approximation; `gain_ratio` tests against 1), as well as
-        `num_bootstrap_degenerate`, the number of replicates excluded for
-        resampling no carriers of the trait, or of its neutral reference.
+        `num_trait_present`, `gain_rate`, `selection_coef`, `gain_ratio`,
+        `selection_coef_lrt_naive`, and `gain_ratio_lrt_naive`
+        (likelihood-ratio statistics for selection coefficient = 0 and for gain
+        ratio = 1; see Notes). With bootstrap replicates, also bootstrap
+        standard errors (se), i.e., standard deviations across replicates,
+        `selection_coef_se` and `log_gain_ratio_se`; z-scores,
+        `selection_coef_z` and `gain_ratio_z`; and p-values, `selection_coef_p`
+        and `gain_ratio_p` (two-sided normal approximation; `gain_ratio` tests
+        against 1), as well as `num_bootstrap_degenerate`, the number of
+        replicates excluded for resampling no carriers of the trait, or of its
+        neutral reference.
 
     Raises
     ------
@@ -203,17 +206,18 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`),
     so pendant branches span from leaves to their stem node, the nearest
     ancestor with at least two children. Root leaves have no pendant branch, so
-    are excluded. Under sparse sampling, selection estimates the change rate of
-    a reconstructed carrier lineage's weight, roughly the difference in
-    per-lineage net growth; magnitudes may be biased, but signs and rankings
-    are informative. With few carriers, cost and loss are confounded, so
-    `loss_rate` is fixed rather than fit. Bootstrap replicates resample leaves
-    independently, ignoring correlation through shared ancestry.
+    are excluded. Under sparse sampling, the selection coefficient estimates
+    the change rate of a reconstructed carrier lineage's weight, roughly the
+    difference in per-lineage net growth; magnitudes may be biased, but signs
+    and rankings are informative. With few carriers, cost and loss are
+    confounded, so `loss_rate` is fixed rather than fit. Bootstrap replicates
+    resample leaves independently, ignoring correlation through shared
+    ancestry.
 
-    `gain_ratio_lrt_naive` refits selection with the trait's gain rate held
-    at its neutral reference's mean (nan without neutral traits). Both
-    likelihood-ratio statistics treat leaves as independent, and the gain
-    ratio's treats the reference rate as known, so both overstate
+    `gain_ratio_lrt_naive` refits the selection coefficient with the trait's
+    gain rate held at its neutral reference's mean (nan without neutral
+    traits). Both likelihood-ratio statistics treat leaves as independent, and
+    the gain ratio's treats the reference rate as known, so both overstate
     significance; dividing by their mean over neutral traits before a
     chi-squared test with one degree of freedom is one remedy.
 
@@ -238,7 +242,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
 
     logging.info(
         "- alifestd_tgs_pendantmdc_estimate_polars: "
-        "fitting gain and selection...",
+        "fitting gain rate and selection coefficient...",
     )
     res = tgs_pendantmdc_impl(
         exposure_df,
@@ -250,7 +254,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
         min_leaf_origin_time=min_leaf_origin_time,
         seed=seed,
@@ -264,14 +268,15 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Estimate per-trait gain rate and net selection from how often leaves carry
-each trait as a function of pendant branch length.
+Estimate per-trait gain rate and selection coefficient from how often leaves
+carry each trait as a function of pendant branch length.
 
 Output is one row per trait, with columns `trait`, `num_leaves`,
-`num_trait_present`, `gain_rate`, `selection`, `gain_ratio`,
-`selection_lrt_naive`, and `gain_ratio_lrt_naive`; with `--num-bootstrap`,
-also `selection_se`, `selection_z`, `selection_p`, `log_gain_ratio_se`,
-`gain_ratio_z`, `gain_ratio_p`, and `num_bootstrap_degenerate`.
+`num_trait_present`, `gain_rate`, `selection_coef`, `gain_ratio`,
+`selection_coef_lrt_naive`, and `gain_ratio_lrt_naive`; with `--num-bootstrap`,
+also `selection_coef_se`, `selection_coef_z`, `selection_coef_p`,
+`log_gain_ratio_se`, `gain_ratio_z`, `gain_ratio_p`, and
+`num_bootstrap_degenerate`.
 
 Data is assumed to be in alife standard format, with column `origin_time`.
 Only supports asexual phylogenies.
@@ -377,13 +382,13 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Known per-unit-time trait loss rate (default: 0.0).",
     )
     parser.add_argument(
-        "--selection-starts",
+        "--selection-coef-starts",
         default=(0.0, -0.3, -1.8),
         nargs="+",
         type=float,
         help=(
-            "Starting values for selection, in units of 1 / mean pendant "
-            "length (default: 0.0 -0.3 -1.8)."
+            "Starting values for the selection coefficient, in units of "
+            "1 / mean pendant length (default: 0.0 -0.3 -1.8)."
         ),
     )
     parser.add_argument(
@@ -433,7 +438,7 @@ if __name__ == "__main__":
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,
-                    selection_starts=args.selection_starts,
+                    selection_coef_starts=args.selection_coef_starts,
                     growth_exponent_bound=args.growth_exponent_bound,
                     min_leaf_origin_time=args.min_leaf_origin_time,
                     parallel_backend=args.parallel_backend,

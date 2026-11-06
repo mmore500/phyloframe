@@ -27,7 +27,7 @@ _KWARGS = dict(
     parallel_backend=None,
 )
 _IMPL_KWARGS = dict(
-    selection_starts=(0.0, -0.3, -1.8),
+    selection_coef_starts=(0.0, -0.3, -1.8),
     growth_exponent_bound=600.0,
     progress_wrap=identity,
 )
@@ -54,7 +54,7 @@ def test_matches_public():
         **_KWARGS,
     )
     pd.testing.assert_frame_equal(res, expected.to_pandas(), check_dtype=False)
-    assert "selection_se" in res.columns
+    assert "selection_coef_se" in res.columns
 
 
 def _no_branches() -> pd.DataFrame:

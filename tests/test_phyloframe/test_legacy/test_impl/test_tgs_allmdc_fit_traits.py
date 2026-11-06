@@ -31,7 +31,7 @@ def _fit(exposure_df, calibrate=False, weights=None):
         calibrate=calibrate,
         calibrate_max_rate_ratio=np.inf,
         loss_rate=0.0,
-        selection_starts=(0.0, -0.3, -1.8),
+        selection_coef_starts=(0.0, -0.3, -1.8),
         growth_exponent_bound=600.0,
     )
 
@@ -42,8 +42,8 @@ def test_recovers(calibrate: bool):
     res = _fit(simulate_allmdc_exposure_df(num_neutral=4), calibrate=calibrate)
     assert list(res.columns) == [
         "gain_rate",
-        "selection",
-        "selection_lrt_naive",
+        "selection_coef",
+        "selection_coef_lrt_naive",
         "gain_ratio",
         "gain_ratio_lrt_naive",
     ]
@@ -53,13 +53,13 @@ def test_recovers(calibrate: bool):
     assert (res.loc[1:, "gain_ratio_lrt_naive"] < 20).all()
     assert (res["gain_ratio_lrt_naive"] > -1e-6).all()
     assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.2)
-    assert res.loc[0, "selection"] == pytest.approx(-0.05, abs=0.015)
-    # each neutral trait's ~1,200 gains, with selection free to trade off
-    # against gain rate, leave its gain ratio uncertain by ~10%
+    assert res.loc[0, "selection_coef"] == pytest.approx(-0.05, abs=0.015)
+    # each neutral trait's ~1,200 gains, with the selection coefficient free to
+    # trade off against gain rate, leave its gain ratio uncertain by ~10%
     assert res.loc[1:, "gain_ratio"].tolist() == pytest.approx(
         [1.0] * 4, rel=0.3
     )
-    assert (res.loc[1:, "selection"].abs() < 0.01).all()
+    assert (res.loc[1:, "selection_coef"].abs() < 0.01).all()
 
 
 def test_trait_without_gains():
@@ -67,7 +67,7 @@ def test_trait_without_gains():
     exposure_df = exposure_df.assign(trait0_gain=False)
     res = _fit(exposure_df)
     assert res.loc[0, "gain_rate"] == 0.0
-    assert np.isnan(res.loc[0, "selection"])
+    assert np.isnan(res.loc[0, "selection_coef"])
     assert np.isfinite(res.loc[1:, "gain_rate"]).all()
 
 

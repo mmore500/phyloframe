@@ -17,14 +17,14 @@ def tgs_summarize_bootstrap(
     estimates and replicate fits indexed by replicate and trait index.
     """
     # replicates resampling no carriers of a trait leave its selection
-    # undefined, and those resampling no carriers of its neutral reference
-    # leave its gain ratio undefined, so exclude them; gain ratio is also
-    # undefined, by design, without neutral traits, which does not make a
+    # coefficient undefined, and those resampling no carriers of its neutral
+    # reference leave its gain ratio undefined, so exclude them; gain ratio is
+    # also undefined, by design, without neutral traits, which does not make a
     # replicate degenerate
     trait_index = bootstrap_fits_df.index.get_level_values("trait_index")
-    selection = bootstrap_fits_df["selection"]
+    selection_coef = bootstrap_fits_df["selection_coef"]
     gain_ratio = bootstrap_fits_df["gain_ratio"]
-    is_selection_degenerate = ~np.isfinite(selection)
+    is_selection_degenerate = ~np.isfinite(selection_coef)
     is_gain_ratio_degenerate = is_selection_degenerate | (
         np.isfinite(point_estimate_df["gain_ratio"].to_numpy())[trait_index]
         & ~np.isfinite(gain_ratio)
@@ -47,8 +47,8 @@ def tgs_summarize_bootstrap(
 
     # bootstrap standard errors (se), i.e., standard deviations across
     # replicates, per trait; nan with fewer than two non-excluded replicates
-    selection_se = (
-        selection.mask(is_selection_degenerate)
+    selection_coef_se = (
+        selection_coef.mask(is_selection_degenerate)
         .groupby(trait_index)
         .std()
         .to_numpy()
@@ -59,15 +59,17 @@ def tgs_summarize_bootstrap(
         .std()
         .to_numpy()
     )
-    selection_z = point_estimate_df["selection"].to_numpy() / selection_se
+    selection_coef_z = (
+        point_estimate_df["selection_coef"].to_numpy() / selection_coef_se
+    )
     gain_ratio_z = (
         np.log(point_estimate_df["gain_ratio"].to_numpy()) / log_gain_ratio_se
     )
     return pd.DataFrame(
         {
-            "selection_se": selection_se,
-            "selection_z": selection_z,
-            "selection_p": calc_two_sided_normal_p(selection_z),
+            "selection_coef_se": selection_coef_se,
+            "selection_coef_z": selection_coef_z,
+            "selection_coef_p": calc_two_sided_normal_p(selection_coef_z),
             "log_gain_ratio_se": log_gain_ratio_se,
             "gain_ratio_z": gain_ratio_z,
             "gain_ratio_p": calc_two_sided_normal_p(gain_ratio_z),

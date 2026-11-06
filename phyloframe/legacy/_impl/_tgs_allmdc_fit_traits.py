@@ -16,7 +16,7 @@ def tgs_allmdc_fit_traits(
     calibrate: bool,
     calibrate_max_rate_ratio: float,
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
@@ -38,7 +38,7 @@ def tgs_allmdc_fit_traits(
         partition_df=partition_df,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
         survival_shares=survival_shares,
         distinct_survival_times=partitioning["distinct_survival_times"],

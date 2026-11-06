@@ -28,7 +28,7 @@ def tgs_pendantmdc_fit_and_bootstrap(
     calibrate_max_rate_ratio: float,
     num_bootstrap: int,
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
@@ -60,7 +60,7 @@ def tgs_pendantmdc_fit_and_bootstrap(
         calibration_neighborhoods=None,
         max_rate_ratio=calibrate_max_rate_ratio,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
     )
     if calibrate:

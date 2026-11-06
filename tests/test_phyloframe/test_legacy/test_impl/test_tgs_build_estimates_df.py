@@ -12,8 +12,8 @@ def _point() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "gain_rate": [1e-3, 2e-3],
-            "selection": [-0.05, 0.0],
-            "selection_lrt_naive": [9.0, 0.1],
+            "selection_coef": [-0.05, 0.0],
+            "selection_coef_lrt_naive": [9.0, 0.1],
             "gain_ratio": [0.5, 2.0],
             "gain_ratio_lrt_naive": [3.0, 4.0],
         },
@@ -24,9 +24,9 @@ _COLUMNS = [
     "trait",
     "num_leaves",
     "gain_rate",
-    "selection",
+    "selection_coef",
     "gain_ratio",
-    "selection_lrt_naive",
+    "selection_coef_lrt_naive",
     "gain_ratio_lrt_naive",
 ]
 
@@ -46,7 +46,7 @@ def test_summary_appended():
     point = _point()
     replicate_fits = pd.concat(
         [
-            point.assign(selection=point["selection"] + delta)
+            point.assign(selection_coef=point["selection_coef"] + delta)
             for delta in (-0.01, 0.0, 0.01)
         ],
         keys=range(3),
@@ -59,4 +59,4 @@ def test_summary_appended():
         num_bootstrap=3,
     )
     assert out.columns[: len(_COLUMNS)].tolist() == _COLUMNS
-    np.testing.assert_allclose(out["selection_se"], 0.01)
+    np.testing.assert_allclose(out["selection_coef_se"], 0.01)

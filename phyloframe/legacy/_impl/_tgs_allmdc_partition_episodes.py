@@ -33,11 +33,12 @@ def tgs_allmdc_partition_episodes(
 
     Splits `exposure_df` (see `tgs_calc_exposure_df`) into size partitions by
     clade size (see `tgs_allmdc_assign_size_partitions`), then each into
-    equal-occupancy partitions (see `tgs_allmdc_partition_by_rank_within_sizes`), and,
-    with `calibrate`, selects calibration neighborhoods within each size
-    partition (see `tgs_allmdc_select_calibration_neighborhoods`). Also bins
-    branches by survival time, exactly, as trees typically have few distinct
-    survival times (e.g., from integer generations).
+    equal-occupancy partitions (see
+    `tgs_allmdc_partition_by_rank_within_sizes`), and, with `calibrate`,
+    selects calibration neighborhoods within each size partition (see
+    `tgs_allmdc_select_calibration_neighborhoods`). Also bins branches by
+    survival time, exactly, as trees typically have few distinct survival times
+    (e.g., from integer generations).
 
     Returns a dict with each branch's `partitions` index (numbered
     consecutively across size partitions) and `survival_time_indices`

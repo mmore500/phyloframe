@@ -21,11 +21,11 @@ def tgs_allmdc_select_calibration_neighborhoods(
     """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
     tgs stands for trait gain/selection.
 
-    Returns partition-by-partition calibration neighborhoods, selected
-    within each size partition's `blocks` (see
-    `tgs_allmdc_partition_by_rank_within_sizes`) from its slice of per-partition
-    `counts` (see `tgs_select_calibration_neighborhoods`), so that
-    neighborhoods never mix size partitions, as neutral gains per unit
+    Returns partition-by-partition calibration neighborhoods, selected within
+    each size partition's `blocks` (see
+    `tgs_allmdc_partition_by_rank_within_sizes`) from its slice of
+    per-partition `counts` (see `tgs_select_calibration_neighborhoods`), so
+    that neighborhoods never mix size partitions, as neutral gains per unit
     length may differ with clade size.
     """
     return sparse.block_diag(

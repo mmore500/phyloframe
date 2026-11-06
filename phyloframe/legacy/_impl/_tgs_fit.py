@@ -18,19 +18,19 @@ class TgsFitResult(typing.NamedTuple):
     gain_rate : float
         Estimated rate at which non-carrier lineages gain the trait, per
         unit pendant length; 0.0 if no leaf carries the trait.
-    selection : float
-        Estimated net selection on the trait, the rate at which a carrier
-        lineage's expected number of sampled descendants grows relative to
-        a non-carrier's (negative for a cost); nan if no leaf carries the
+    selection_coef : float
+        Estimated selection coefficient of the trait, the rate at which a
+        carrier lineage's expected number of sampled descendants grows relative
+        to a non-carrier's (negative for a cost); nan if no leaf carries the
         trait.
-    selection_lrt_naive : float
-        Likelihood-ratio test (LRT) statistic for selection = 0, naively
-        treating bins as independent; nan if no leaf carries the trait.
+    selection_coef_lrt_naive : float
+        Likelihood-ratio test (LRT) statistic for selection coefficient = 0,
+        naively treating bins as independent; nan if no leaf carries the trait.
     """
 
     gain_rate: float
-    selection: float
-    selection_lrt_naive: float
+    selection_coef: float
+    selection_coef_lrt_naive: float
 
 
 def _tgs_calc_scales(partitions: pd.DataFrame) -> typing.Tuple[float, float]:
@@ -60,17 +60,17 @@ def tgs_minimize_nll(
     """Implementation detail for `tgs_fit_partitions` and
     `tgs_calc_gain_ratio_lrts`. Acronym tgs stands for trait gain/selection.
 
-    Minimizes `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`)
-    by L-BFGS-B over log gain rate if `fit_gain` and selection if
-    `fit_selection`, holding the others at their `starts` values. Starts from each of
-    `starts` and returns the best fit, preferring converged ones, with
+    Minimizes `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`) by
+    L-BFGS-B over log gain rate if `fit_gain` and selection coefficient if
+    `fit_selection`, holding the others at their `starts` values. Starts from
+    each of `starts` and returns the best fit, preferring converged ones, with
     both parameters in `.x` and the number of converged fits in
     `.num_converged`.
 
-    Selection is optimized, and given in `starts`, as a multiple of
-    `selection_scale`, a typical rate, e.g., 1 / mean branch length, so
-    that both parameters are of order one; otherwise, with long lengths,
-    L-BFGS-B stops early on the tiny selection parameter.
+    The selection coefficient is optimized, and given in `starts`, as a
+    multiple of `selection_scale`, a typical rate, e.g., 1 / mean branch
+    length, so that both parameters are of order one; otherwise, with long
+    lengths, L-BFGS-B stops early on the tiny selection coefficient.
     """
     is_free = np.array([fit_gain, fit_selection])
 
@@ -111,22 +111,24 @@ def tgs_fit_partitions(
     calc_nll: typing.Callable[..., typing.Tuple[float, float, float]],
     partitions: pd.DataFrame,
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
 ) -> TgsFitResult:
     """Implementation detail for `tgs_fit` and `tgs_fit_trait_partitions`.
     Acronym tgs stands for trait gain/selection.
 
-    Fits one trait's gain rate and selection to its `partitions` (with
-    columns `num_trials`, `num_successes`, and mean branch `length`),
-    minimizing `calc_nll(log_gain_rate=..., rate=...)` (see
-    `tgs_calc_nll`) from each of `selection_starts` (in units of 1 / mean
-    branch length) and keeping the best fit, then fitting gain rate alone
-    under no selection for the likelihood-ratio statistic. Without gains,
-    skips fitting, giving zero gain rate and undefined selection.
+    Fits one trait's gain rate and selection coefficient coefficient to its
+    `partitions` (with columns `num_trials`, `num_successes`, and mean branch
+    `length`), minimizing `calc_nll(log_gain_rate=..., rate=...)` (see
+    `tgs_calc_nll`) from each of `selection_coef_starts` (in units of 1 / mean
+    branch length) and keeping the best fit, then fitting gain rate alone under
+    no selection for the likelihood-ratio statistic. Without gains, skips
+    fitting, giving zero gain rate and undefined selection coefficient.
     """
     if not partitions["num_successes"].to_numpy().any():
         return TgsFitResult(
-            gain_rate=0.0, selection=np.nan, selection_lrt_naive=np.nan
+            gain_rate=0.0,
+            selection_coef=np.nan,
+            selection_coef_lrt_naive=np.nan,
         )
 
     selection_scale, log_gain_start = _tgs_calc_scales(partitions)
@@ -137,7 +139,7 @@ def tgs_fit_partitions(
         loss_rate=loss_rate,
     )
     best = minimize(
-        starts=[(log_gain_start, start) for start in selection_starts],
+        starts=[(log_gain_start, start) for start in selection_coef_starts],
         fit_gain=True,
         fit_selection=True,
     )
@@ -157,15 +159,16 @@ def tgs_fit_partitions(
             "may be unreliable.",
         )
     logging.debug(
-        f"- tgs fit: {best.num_converged} of {len(selection_starts)} starts "
+        f"- tgs fit: {best.num_converged} of "
+        f"{len(selection_coef_starts)} starts "
         f"converged; best negative log likelihood {best.fun:.6g}, null "
         f"{null.fun:.6g}",
     )
     return TgsFitResult(
         gain_rate=float(np.exp(best.x[0])),
-        selection=float(best.x[1] * selection_scale),
-        # two-tailed, testing selection != 0 in either direction
-        selection_lrt_naive=float(2 * (null.fun - best.fun)),
+        selection_coef=float(best.x[1] * selection_scale),
+        # two-tailed, testing selection coefficient != 0 in either direction
+        selection_coef_lrt_naive=float(2 * (null.fun - best.fun)),
     )
 
 
@@ -175,11 +178,11 @@ def tgs_fit(
     num_successes: np.ndarray,
     pendant_length: np.ndarray,
     loss_rate: float = 0.0,
-    selection_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     growth_exponent_bound: float = 600.0,
 ) -> TgsFitResult:
-    """Maximum likelihood fit of a binary trait's gain rate and net
-    selection from the fraction of leaves carrying it as a function of
+    """Maximum likelihood fit of a binary trait's gain rate and selection
+    coefficient from the fraction of leaves carrying it as a function of
     pendant branch length.
 
     Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
@@ -189,7 +192,7 @@ def tgs_fit(
     an exposure window: a leaf with pendant length `t` carries the trait
     with probability
 
-        p = gain_rate * (exp(c * t) - 1) / c,  c = selection - loss_rate
+        p = gain_rate * (exp(c * t) - 1) / c,  c = selection_coef - loss_rate
 
     i.e., gains arrive at constant `gain_rate`, after which a carrier
     lineage's expected number of sampled descendants, relative to a
@@ -197,7 +200,7 @@ def tgs_fit(
     `t`; under a cost (`c` < 0), it saturates at ~`gain_rate` / |`c`|.
 
     In BiSSE terms (Maddison et al. 2007), `gain_rate` corresponds to the
-    0 -> 1 transition rate q01, `loss_rate` to q10, and `selection` to the
+    0 -> 1 transition rate q01, `loss_rate` to q10, and `selection_coef` to the
     difference in net diversification rate between states, (lambda1 - mu1)
     - (lambda0 - mu0). Unlike BiSSE, which fits a full tree likelihood,
     this model considers each pendant branch independently and assumes the
@@ -217,21 +220,21 @@ def tgs_fit(
         traits).
     loss_rate : float, default 0.0
         Fixed a priori trait loss rate.
-    selection_starts : Sequence[float], default (0.0, -0.3, -1.8)
-        Starting values for selection, in units of 1 / mean pendant length;
-        the best of the resulting fits is kept.
+    selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
+        Starting values for the selection coefficient, in units of 1 / mean
+        pendant length; the best of the resulting fits is kept.
     growth_exponent_bound : float, default 600.0
-        Bound on the carrier growth exponent, (selection - loss rate) *
-        pendant length, keeping optimizer trial steps far into positive
+        Bound on the carrier growth exponent, (selection coefficient - loss
+        rate) * pendant length, keeping optimizer trial steps far into positive
         selection finite.
 
     Returns
     -------
     TgsFitResult
-        Named tuple of `gain_rate`, the estimated gain rate; `selection`,
-        the estimated selection (negative for a cost); and
-        `selection_lrt_naive`, the likelihood-ratio test (LRT) statistic for
-        selection = 0.
+        Named tuple of `gain_rate`, the estimated gain rate; `selection_coef`,
+        the estimated selection coefficient (negative for a cost); and
+        `selection_coef_lrt_naive`, the likelihood-ratio test (LRT) statistic
+        for selection coefficient = 0.
 
         The likelihood-ratio statistic treats bins as independent, so it
         naively overstates significance when lineages are correlated (e.g.,
@@ -258,8 +261,8 @@ def tgs_fit(
     num_successes = np.asarray(num_successes, dtype=np.float64).ravel()
     if not num_successes.any():
         warnings.warn(
-            "tgs_fit got no trait carriers, so gain rate is 0 and selection "
-            "is undefined.",
+            "tgs_fit got no trait carriers, so gain rate is 0 and the "
+            "selection coefficient is undefined.",
         )
     partitions = pd.DataFrame(
         {
@@ -276,5 +279,5 @@ def tgs_fit(
         ),
         partitions=partitions,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
     )

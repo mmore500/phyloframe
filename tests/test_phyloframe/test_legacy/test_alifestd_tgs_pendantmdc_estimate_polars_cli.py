@@ -76,7 +76,7 @@ def test_cli(input_pqt, ext, tmp_path):
         else pd.read_parquet(output_file)
     )
     assert result_df["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
-    assert "selection_p" in result_df.columns
+    assert "selection_coef_p" in result_df.columns
     assert result_df.loc[0, "gain_ratio"] > 1.0
 
 
@@ -96,7 +96,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "0.001",
             "--min-leaf-origin-time",
             "5.0",
-            "--selection-starts",
+            "--selection-coef-starts",
             "0.0",
             "-0.5",
             "--growth-exponent-bound",
@@ -112,7 +112,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
         trait_transitions=["focal", "n1"],
         loss_rate=0.001,
         min_leaf_origin_time=5.0,
-        selection_starts=(0.0, -0.5),
+        selection_coef_starts=(0.0, -0.5),
         growth_exponent_bound=300.0,
     )
     pd.testing.assert_frame_equal(

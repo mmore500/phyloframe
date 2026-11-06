@@ -21,7 +21,7 @@ def tgs_pendantmdc_fit_traits(
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
     max_rate_ratio: float,
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
@@ -52,6 +52,6 @@ def tgs_pendantmdc_fit_traits(
         partition_df=partition_df,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
     )

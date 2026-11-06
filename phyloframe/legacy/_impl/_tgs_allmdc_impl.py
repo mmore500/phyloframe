@@ -26,7 +26,7 @@ def tgs_allmdc_impl(
     calibrate_size_partition_min_neutral_gains: int,
     num_bootstrap: int,
     loss_rate: float,
-    selection_starts: typing.Sequence[float],
+    selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
@@ -69,7 +69,7 @@ def tgs_allmdc_impl(
         calibrate=calibrate,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         loss_rate=loss_rate,
-        selection_starts=selection_starts,
+        selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
     )
     logging.info(
@@ -82,9 +82,10 @@ def tgs_allmdc_impl(
     for name, (__, row) in zip(trait_names, point_estimate_df.iterrows()):
         logging.info(
             f"- alifestd_tgs_allmdc_estimate_polars: trait {name} "
-            f"fit gain rate {row['gain_rate']:.4g}, selection "
-            f"{row['selection']:.4g}, gain ratio {row['gain_ratio']:.4g}, "
-            f"selection lrt {row['selection_lrt_naive']:.4g}",
+            f"fit gain rate {row['gain_rate']:.4g}, selection coefficient "
+            f"{row['selection_coef']:.4g}, gain ratio "
+            f"{row['gain_ratio']:.4g}, selection coefficient lrt "
+            f"{row['selection_coef_lrt_naive']:.4g}",
         )
     bootstrap_fits_df = None
     if num_bootstrap:

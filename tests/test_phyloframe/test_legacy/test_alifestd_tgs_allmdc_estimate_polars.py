@@ -74,18 +74,18 @@ def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
     origin_time[inner + 2] = stem + pendant[:, 1]
 
     traits = np.zeros((5, num_nodes), dtype=bool)
-    for trait, (gain, selection) in enumerate(
+    for trait, (gain, selection_coef) in enumerate(
         [(2e-3, -0.05)] + [(1e-3, 0.0)] * 4
     ):
 
         def p(length: np.ndarray) -> np.ndarray:
-            if selection == 0:
+            if selection_coef == 0:
                 return gain * length
-            return gain * np.expm1(selection * length) / selection
+            return gain * np.expm1(selection_coef * length) / selection_coef
 
         survival = pendant.max(axis=1)
         stem_gain = rng.random(num_cherries) < p(stem) * np.exp(
-            selection * survival
+            selection_coef * survival
         )
         own_gain = rng.random((num_cherries, 2)) < p(pendant)
         traits[trait, inner + 1] = stem_gain | own_gain[:, 0]
@@ -119,15 +119,15 @@ def test_recovers_gain_selection(calibrate: bool):
 
     focal = res.iloc[0]
     assert focal["gain_ratio"] == pytest.approx(2.0, rel=0.25)
-    assert focal["selection"] == pytest.approx(-0.05, abs=0.02)
+    assert focal["selection_coef"] == pytest.approx(-0.05, abs=0.02)
     assert focal["gain_ratio_p"] < 1e-3
-    assert focal["selection_p"] < 1e-3
-    assert np.isfinite(res["selection_se"]).all()
+    assert focal["selection_coef_p"] < 1e-3
+    assert np.isfinite(res["selection_coef_se"]).all()
     assert not any("shift" in c for c in res.columns)
 
     neutral = res.iloc[1:]
     assert neutral["gain_ratio"].tolist() == pytest.approx([1.0] * 4, rel=0.3)
-    assert (neutral["selection"].abs() < 0.02).all()
+    assert (neutral["selection_coef"].abs() < 0.02).all()
 
 
 @pytest.mark.parametrize("calibrate", [False, True])
@@ -159,7 +159,7 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
     expected = _estimate_pendantmdc(phylogeny_df, **kwargs)
     for column in ("num_leaves", "num_trait_present"):
         assert res[column].tolist() == expected[column].tolist()
-    for column in ("gain_rate", "selection", "gain_ratio"):
+    for column in ("gain_rate", "selection_coef", "gain_ratio"):
         assert res[column].to_numpy() == pytest.approx(
             expected[column].to_numpy(), rel=1e-4, abs=1e-8
         )
@@ -194,7 +194,7 @@ def test_counts():
     # trait 2: every leaf carries it, so it predates every branch
     assert res.loc[2, ["num_leaves", "num_trait_present"]].tolist() == [0, 0]
     assert res.loc[2, ["num_clades", "num_clade_gains"]].tolist() == [0, 0]
-    assert np.isnan(res.loc[2, "selection"])
+    assert np.isnan(res.loc[2, "selection_coef"])
 
 
 def test_row_order_invariant():
@@ -243,7 +243,7 @@ def test_calibrate_size_partition_ratio(ratio: float):
         calibrate=True,
         calibrate_size_partition_ratio=ratio,
     )
-    assert res.loc[0, "selection"] < 0
+    assert res.loc[0, "selection_coef"] < 0
     assert np.isfinite(res["gain_ratio"]).all()
 
 

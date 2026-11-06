@@ -5,14 +5,16 @@ import pytest
 from phyloframe.legacy._impl._tgs_fit import tgs_fit
 
 
-def _sample(gain_rate: float, selection: float, seed: int):
+def _sample(gain_rate: float, selection_coef: float, seed: int):
     rng = np.random.default_rng(seed)
     pendant_length = np.linspace(0.5, 60.0, 120)
     num_trials = np.full_like(pendant_length, 20_000)
     p = (
         gain_rate * pendant_length
-        if selection == 0
-        else gain_rate * np.expm1(selection * pendant_length) / selection
+        if selection_coef == 0
+        else gain_rate
+        * np.expm1(selection_coef * pendant_length)
+        / selection_coef
     )
     return num_trials, rng.binomial(num_trials.astype(int), p), pendant_length
 
@@ -22,12 +24,12 @@ def _fit(n, k, x, **kwargs):
 
 
 @pytest.mark.parametrize("gain_rate", [1e-3, 2e-3])
-@pytest.mark.parametrize("selection", [0.0, -0.05, -0.1])
-def test_recovers_parameters(gain_rate: float, selection: float):
-    gain, sel, lrt = _fit(*_sample(gain_rate, selection, seed=1))
+@pytest.mark.parametrize("selection_coef", [0.0, -0.05, -0.1])
+def test_recovers_parameters(gain_rate: float, selection_coef: float):
+    gain, sel, lrt = _fit(*_sample(gain_rate, selection_coef, seed=1))
     assert gain == pytest.approx(gain_rate, rel=0.1)
-    assert sel == pytest.approx(selection, abs=0.01)
-    if selection == 0:
+    assert sel == pytest.approx(selection_coef, abs=0.01)
+    if selection_coef == 0:
         assert lrt < 10
     else:
         assert lrt > 25
@@ -57,19 +59,27 @@ def test_empty_bins_ignored():
 def test_result_fields():
     res = _fit(*_sample(1e-3, -0.05, seed=5))
     gain, sel, lrt = res
-    assert (res.gain_rate, res.selection, res.selection_lrt_naive) == (
+    assert (
+        res.gain_rate,
+        res.selection_coef,
+        res.selection_coef_lrt_naive,
+    ) == (
         gain,
         sel,
         lrt,
     )
 
 
-@pytest.mark.parametrize("selection_starts", [(0.0,), (-1.8,), (-0.3, 0.0)])
-def test_selection_starts(selection_starts):
+@pytest.mark.parametrize(
+    "selection_coef_starts", [(0.0,), (-1.8,), (-0.3, 0.0)]
+)
+def test_selection_starts(selection_coef_starts):
     data = _sample(1e-3, -0.05, seed=6)
     expected = _fit(*data)
-    res = _fit(*data, selection_starts=selection_starts)
-    assert res.selection == pytest.approx(expected.selection, rel=1e-3)
+    res = _fit(*data, selection_coef_starts=selection_coef_starts)
+    assert res.selection_coef == pytest.approx(
+        expected.selection_coef, rel=1e-3
+    )
     assert res.gain_rate == pytest.approx(expected.gain_rate, rel=1e-3)
 
 
@@ -108,7 +118,9 @@ def test_no_successes_skips_fit_without_warning():
             calc_nll=None,
             partitions=partitions,
             loss_rate=0.0,
-            selection_starts=(0.0,),
+            selection_coef_starts=(0.0,),
         )
     assert res.gain_rate == 0.0
-    assert np.isnan(res.selection) and np.isnan(res.selection_lrt_naive)
+    assert np.isnan(res.selection_coef) and np.isnan(
+        res.selection_coef_lrt_naive
+    )

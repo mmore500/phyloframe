@@ -27,9 +27,9 @@ def tgs_build_estimates_df(
             point_estimate_df[
                 [
                     "gain_rate",
-                    "selection",
+                    "selection_coef",
                     "gain_ratio",
-                    "selection_lrt_naive",
+                    "selection_coef_lrt_naive",
                     "gain_ratio_lrt_naive",
                 ]
             ],
