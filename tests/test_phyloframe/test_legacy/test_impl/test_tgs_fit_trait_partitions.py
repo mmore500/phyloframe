@@ -9,8 +9,8 @@ from phyloframe.legacy._impl import (
     tgs_merge_episodes,
 )
 from phyloframe.legacy._impl._tgs_minimize_nll import (
-    tgs_calc_neutral_log_gain_rate,
-    tgs_calc_selection_scale,
+    tgs_choose_log_gain_rate_start,
+    tgs_choose_selection_scale,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -50,8 +50,8 @@ def test_calc_scales(fixture):
     n, k, x = (
         partitions[c] for c in ("num_trials", "num_successes", "length")
     )
-    selection_scale = tgs_calc_selection_scale(partitions)
-    log_gain_start = tgs_calc_neutral_log_gain_rate(partitions)
+    selection_scale = tgs_choose_selection_scale(partitions)
+    log_gain_start = tgs_choose_log_gain_rate_start(partitions)
     assert selection_scale == pytest.approx(n.sum() / (n * x).sum())
     assert log_gain_start == pytest.approx(np.log(k.sum() / (n * x).sum()))
 
