@@ -5,7 +5,7 @@ import numpy as np
 import polars as pl
 
 from ._tgs_calc_nll import tgs_calc_nll
-from ._tgs_minimize_nll import tgs_choose_selection_scale, tgs_minimize_nll
+from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_scale
 
 
 def _tgs_calc_trait_gain_ratio_lrt(
@@ -26,7 +26,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
     """
     if not np.isfinite(gain_ratio) or not gain_rate > 0:
         return np.nan
-    selection_scale = tgs_choose_selection_scale(nll_kwargs["partitions"])
+    selection_scale = tgs_pick_selection_scale(nll_kwargs["partitions"])
     free_nll, __, __ = tgs_calc_nll(
         **nll_kwargs,
         log_gain_rate=np.log(gain_rate),

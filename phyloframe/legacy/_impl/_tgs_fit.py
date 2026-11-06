@@ -7,9 +7,9 @@ import polars as pl
 
 from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrt
 from ._tgs_minimize_nll import (
-    tgs_choose_log_gain_rate_start,
-    tgs_choose_selection_scale,
     tgs_minimize_nll,
+    tgs_pick_log_gain_rate_start,
+    tgs_pick_selection_scale,
 )
 
 
@@ -57,8 +57,8 @@ def tgs_fit_trait(
     if not partitions["num_successes"].to_numpy().any():
         return dict(gain_rate=0.0, selection_coef=np.nan)
 
-    selection_scale = tgs_choose_selection_scale(partitions)
-    log_gain_start = tgs_choose_log_gain_rate_start(partitions)
+    selection_scale = tgs_pick_selection_scale(partitions)
+    log_gain_start = tgs_pick_log_gain_rate_start(partitions)
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
         starts=[(log_gain_start, start) for start in selection_coef_starts],

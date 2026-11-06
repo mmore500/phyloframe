@@ -16,22 +16,22 @@ def _tgs_calc_exposure(partitions: pl.DataFrame) -> float:
     return (partitions["num_trials"] * partitions["length"]).sum()
 
 
-def tgs_choose_selection_scale(partitions: pl.DataFrame) -> float:
+def tgs_pick_selection_scale(partitions: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
-    Chooses the scale by which to optimize the selection coefficient (see
+    Picks the scale by which to optimize the selection coefficient (see
     `tgs_minimize_nll`): 1 / mean branch length of `partitions`' episodes,
     a typical rate.
     """
     return partitions["num_trials"].sum() / _tgs_calc_exposure(partitions)
 
 
-def tgs_choose_log_gain_rate_start(partitions: pl.DataFrame) -> float:
+def tgs_pick_log_gain_rate_start(partitions: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
-    Chooses the starting point for fitting the log gain rate:
+    Picks the starting point for fitting the log gain rate:
     log(gains per unit branch length) of `partitions`, the log gain rate
     under no selection.
     """
