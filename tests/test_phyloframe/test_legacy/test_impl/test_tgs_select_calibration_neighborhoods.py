@@ -31,7 +31,7 @@ def test_select(caplog):
                 bins, np.column_stack(coordinates), num_groups=num_bins
             ),
             neighborhood_fractions=(0.25, 1.0),
-            counts=tgs_count_traits(
+            trait_bin_counts_df=tgs_count_traits(
                 exposure_df=exposure_df,
                 bins=bins,
                 num_bins=num_bins,

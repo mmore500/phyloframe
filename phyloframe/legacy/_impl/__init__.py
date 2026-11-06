@@ -10,13 +10,13 @@ from ._tgs_calc_heldout_nll import tgs_calc_heldout_nll
 from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_calc_trait_gain_ratio_lrts import tgs_calc_trait_gain_ratio_lrts
 from ._tgs_calc_trait_selection_lrts import (
-    tgs_calc_selection_lrt,
+    tgs_calc_trait_selection_lrt,
     tgs_calc_trait_selection_lrts,
 )
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_extract_trait_masks import tgs_extract_trait_masks
-from ._tgs_fit import TgsFitResult, tgs_fit, tgs_fit_partitions
+from ._tgs_fit import TgsFitResult, tgs_fit, tgs_fit_trait
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_impl import tgs_impl
@@ -41,7 +41,7 @@ __all__ = [
     "tgs_calc_calibration_factors",
     "tgs_calc_exposure_df",
     "tgs_calc_trait_gain_ratio_lrts",
-    "tgs_calc_selection_lrt",
+    "tgs_calc_trait_selection_lrt",
     "tgs_calc_trait_selection_lrts",
     "tgs_calc_heldout_nll",
     "tgs_calc_nll",
@@ -49,7 +49,7 @@ __all__ = [
     "tgs_count_traits",
     "tgs_extract_trait_masks",
     "tgs_fit",
-    "tgs_fit_partitions",
+    "tgs_fit_trait",
     "tgs_fit_trait_partitions",
     "tgs_fit_traits",
     "tgs_impl",

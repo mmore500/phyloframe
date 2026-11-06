@@ -44,9 +44,10 @@ def tgs_summarize_bootstrap(
             reason=reason,
         )
 
-    # bootstrap standard errors (se), i.e., standard deviations across
-    # replicates, per trait; nan with fewer than two non-excluded replicates
-    per_trait = (
+    # per trait, bootstrap standard errors (se), i.e., standard deviations
+    # across non-excluded replicates (nan with fewer than two), and the
+    # number of degenerate replicates
+    trait_bootstrap_stats_df = (
         pl.DataFrame(
             {
                 "trait_index": trait_index,
@@ -69,8 +70,12 @@ def tgs_summarize_bootstrap(
         )
         .sort("trait_index")
     )
-    selection_coef_se = per_trait["selection_coef_se"].to_numpy()
-    log_gain_ratio_se = per_trait["log_gain_ratio_se"].to_numpy()
+    selection_coef_se = trait_bootstrap_stats_df[
+        "selection_coef_se"
+    ].to_numpy()
+    log_gain_ratio_se = trait_bootstrap_stats_df[
+        "log_gain_ratio_se"
+    ].to_numpy()
     selection_coef_z = (
         point_estimate_df["selection_coef"].to_numpy() / selection_coef_se
     )
@@ -85,6 +90,8 @@ def tgs_summarize_bootstrap(
             "log_gain_ratio_se": log_gain_ratio_se,
             "gain_ratio_z": gain_ratio_z,
             "gain_ratio_p": calc_two_sided_normal_p(gain_ratio_z),
-            "num_bootstrap_degenerate": per_trait["num_bootstrap_degenerate"],
+            "num_bootstrap_degenerate": trait_bootstrap_stats_df[
+                "num_bootstrap_degenerate"
+            ],
         },
     )

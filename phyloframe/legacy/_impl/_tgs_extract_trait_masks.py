@@ -2,6 +2,7 @@ import typing
 
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 
 
 def tgs_extract_trait_masks(
@@ -16,17 +17,11 @@ def tgs_extract_trait_masks(
     trait, whether the branch started without the trait, and whether it
     gained it.
     """
-    num_traits = sum(
-        column.endswith("_starts_absent") for column in exposure_df.columns
+    starts_absent_df = exposure_df.select(
+        cs.matches(r"^trait\d+_starts_absent$")
     )
-    traits = range(num_traits)
-    return (
-        exposure_df.select(f"trait{i}_starts_absent" for i in traits)
-        .to_numpy()
-        .astype(bool)
-        .reshape(len(exposure_df), num_traits),
-        exposure_df.select(f"trait{i}_gain" for i in traits)
-        .to_numpy()
-        .astype(bool)
-        .reshape(len(exposure_df), num_traits),
+    gains_df = exposure_df.select(cs.matches(r"^trait\d+_gain$"))
+    return tuple(
+        df.to_numpy().astype(bool).reshape(len(exposure_df), df.width)
+        for df in (starts_absent_df, gains_df)
     )

@@ -107,14 +107,14 @@ def test_keyword_only():
 def test_no_successes_skips_fit_without_warning():
     import warnings
 
-    from phyloframe.legacy._impl import tgs_fit_partitions
+    from phyloframe.legacy._impl import tgs_fit_trait
 
     partitions = pl.DataFrame(
         {"num_trials": [10.0], "num_successes": [0.0], "length": [1.0]}
     )
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        res = tgs_fit_partitions(
+        res = tgs_fit_trait(
             nll_kwargs=dict(partitions=partitions),
             loss_rate=0.0,
             selection_coef_starts=(0.0,),

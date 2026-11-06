@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import polars as pl
 
-from ._tgs_calc_trait_selection_lrts import tgs_calc_selection_lrt
+from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrt
 from ._tgs_minimize_nll import _tgs_calc_scales, tgs_minimize_nll
 
 
@@ -32,7 +32,7 @@ class TgsFitResult(typing.NamedTuple):
     selection_coef_lrt_naive: float
 
 
-def tgs_fit_partitions(
+def tgs_fit_trait(
     *,
     nll_kwargs: typing.Dict[str, typing.Any],
     loss_rate: float,
@@ -180,14 +180,14 @@ def tgs_fit(
         ),
         growth_exponent_bound=growth_exponent_bound,
     )
-    fit = tgs_fit_partitions(
+    fit = tgs_fit_trait(
         nll_kwargs=nll_kwargs,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
     )
     return TgsFitResult(
         **fit,
-        selection_coef_lrt_naive=tgs_calc_selection_lrt(
+        selection_coef_lrt_naive=tgs_calc_trait_selection_lrt(
             nll_kwargs=nll_kwargs, loss_rate=loss_rate, **fit
         ),
     )

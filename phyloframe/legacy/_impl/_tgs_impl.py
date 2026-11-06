@@ -17,13 +17,17 @@ from ._tgs_select_calibration_neighborhoods import (
 )
 
 
-def _slice_bins(counts: pl.DataFrame, begin: int, end: int) -> pl.DataFrame:
+def _slice_bins(
+    trait_bin_counts_df: pl.DataFrame, begin: int, end: int
+) -> pl.DataFrame:
     """Implementation detail for `tgs_impl`.
 
-    Returns `counts` (see `tgs_count_traits`) of bins `begin` up to `end`,
-    renumbered from 0.
+    Returns the rows of `trait_bin_counts_df`, per-trait exposure counts in
+    each calibration bin (see `tgs_count_traits`), for one partition's
+    bins, `begin` up to `end`, with bins renumbered from 0 to match that
+    partition's own bin coordinates.
     """
-    return counts.filter(
+    return trait_bin_counts_df.filter(
         pl.col("bin").is_between(begin, end - 1)
     ).with_columns(pl.col("bin") - begin)
 
@@ -64,14 +68,13 @@ def tgs_impl(
 
     # number (partition, bin) pairs consecutively, partition-major, so that
     # each partition's bins are contiguous; without columns, all are one
-    zeros = np.zeros(num_episodes, dtype=np.int64)
     pairs, bins = np.unique(
         np.column_stack(
             [
                 (
                     exposure_df[column].to_numpy()
                     if column in exposure_df.columns
-                    else zeros
+                    else np.zeros(num_episodes, dtype=np.int64)
                 )
                 for column in ("calibration_partition", "calibration_bin")
             ],
@@ -82,19 +85,21 @@ def tgs_impl(
     bins = bins.ravel()
     num_bins = len(pairs)
     if num_bins > 1:
-        coordinates = [
+        compare_by_values = [
             exposure_df[column].to_numpy()
             for column in exposure_df.columns
             if column.startswith("calibration_compare_by_")
         ]
-        # bins' mean ranks; constant coordinates carry no distance
-        ranks = calc_tiebroken_ranks(
-            [x for x in coordinates if np.ptp(x) > 0] or coordinates[:1]
+        # each episode's rank by each compare-by column, averaged per bin;
+        # constant columns carry no distance
+        episode_ranks = calc_tiebroken_ranks(
+            [x for x in compare_by_values if np.ptp(x) > 0]
+            or compare_by_values[:1]
         )
         bin_coords = calc_group_means(
-            bins, ranks / num_episodes, num_groups=num_bins
+            bins, episode_ranks / num_episodes, num_groups=num_bins
         )
-        counts = tgs_count_traits(
+        trait_bin_counts_df = tgs_count_traits(
             exposure_df=exposure_df,
             bins=bins,
             num_bins=num_bins,
@@ -109,7 +114,9 @@ def tgs_impl(
                 tgs_select_calibration_neighborhoods(
                     bin_coords=bin_coords[begin:end],
                     neighborhood_fractions=calibrate_neighborhood_fractions,
-                    counts=_slice_bins(counts, begin, end),
+                    trait_bin_counts_df=_slice_bins(
+                        trait_bin_counts_df, begin, end
+                    ),
                     neutral_traits=neutral_traits,
                     trait_names=trait_names,
                     max_rate_ratio=calibrate_max_rate_ratio,

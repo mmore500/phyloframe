@@ -37,20 +37,20 @@ def tgs_fit_traits(
     rate and selection coefficient (see `tgs_fit_trait_partitions`).
     Returns one row per trait.
     """
-    counts = tgs_count_traits(
+    trait_bin_counts_df = tgs_count_traits(
         exposure_df=exposure_df,
         bins=bins,
         num_bins=num_bins,
         weights=weights,
     )
-    num_traits = counts["trait"].n_unique()
+    num_traits = trait_bin_counts_df["trait"].n_unique()
     partition_df, survival_shares = tgs_merge_episodes(
         exposure_df=exposure_df,
         bins=bins,
         calibration_factors=np.stack(
             [
                 tgs_calc_calibration_factors(
-                    counts=counts,
+                    trait_bin_counts_df=trait_bin_counts_df,
                     trait=trait,
                     neutral_traits=neutral_traits,
                     calibration_neighborhoods=calibration_neighborhoods,

@@ -23,7 +23,7 @@ def test_rate_ratios_of_other_neutral_traits():
     # neutral traits 1 and 2 gain twice as often per unit length in bin 1
     counts = _counts([[5, 5], [10, 20], [10, 20]])
     kwargs = dict(
-        counts=counts,
+        trait_bin_counts_df=counts,
         neutral_traits=[1, 2],
         calibration_neighborhoods=sparse.identity(2, format="csr"),
         max_rate_ratio=np.inf,
@@ -36,7 +36,7 @@ def test_rate_ratios_of_other_neutral_traits():
 def test_one_neighborhood_is_uncalibrated():
     counts = _counts([[5, 5], [10, 20], [10, 20]])
     res = tgs_calc_calibration_factors(
-        counts=counts,
+        trait_bin_counts_df=counts,
         trait=0,
         neutral_traits=[1, 2],
         calibration_neighborhoods=sparse.csr_matrix(np.ones((2, 2))),
@@ -48,7 +48,7 @@ def test_one_neighborhood_is_uncalibrated():
 def test_max_rate_ratio_caps():
     counts = _counts([[5, 5], [1, 99], [1, 99]])
     res = tgs_calc_calibration_factors(
-        counts=counts,
+        trait_bin_counts_df=counts,
         trait=0,
         neutral_traits=[1, 2],
         calibration_neighborhoods=sparse.identity(2, format="csr"),

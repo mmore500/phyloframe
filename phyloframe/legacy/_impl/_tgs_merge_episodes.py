@@ -82,7 +82,7 @@ def tgs_merge_episodes(
         row=pl.struct("trait", "length_cell", "survival_cell").rank("dense")
         - 1,
     )
-    sums = (
+    row_sums_df = (
         episode_df.group_by("row")
         .agg(
             pl.col("trait").first(),
@@ -99,14 +99,14 @@ def tgs_merge_episodes(
     survival_shares = sklearn_preprocessing.normalize(
         scipy_sparse.csr_matrix(
             (episode_weights, (rows, survival_duration_indices[episodes])),
-            shape=(len(sums), num_survival_durations),
+            shape=(len(row_sums_df), num_survival_durations),
         ),
         norm="l1",
     )
     # drop rows whose episodes all have zero weight (e.g., in a bootstrap
     # replicate)
-    has_episodes = sums["num_trials"].to_numpy() > 0
-    partition_df = sums.filter(has_episodes).select(
+    has_episodes = row_sums_df["num_trials"].to_numpy() > 0
+    partition_df = row_sums_df.filter(has_episodes).select(
         "trait",
         "num_trials",
         "num_successes",

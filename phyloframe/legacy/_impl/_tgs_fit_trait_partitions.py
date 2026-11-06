@@ -6,7 +6,7 @@ from scipy import sparse
 
 from ._tgs_calc_trait_gain_ratio_lrts import tgs_calc_trait_gain_ratio_lrts
 from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrts
-from ._tgs_fit import tgs_fit_partitions
+from ._tgs_fit import tgs_fit_trait
 from ._tgs_normalize_gain_rates_to_neutral import (
     tgs_normalize_gain_rates_to_neutral,
 )
@@ -54,7 +54,7 @@ def tgs_fit_trait_partitions(
     ]
     fits_df = pl.DataFrame(
         [
-            tgs_fit_partitions(
+            tgs_fit_trait(
                 nll_kwargs=nll_kwargs,
                 loss_rate=loss_rate,
                 selection_coef_starts=selection_coef_starts,

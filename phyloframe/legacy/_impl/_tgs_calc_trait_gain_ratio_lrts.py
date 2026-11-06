@@ -8,7 +8,7 @@ from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_minimize_nll import _tgs_calc_scales, tgs_minimize_nll
 
 
-def _tgs_calc_gain_ratio_lrt(
+def _tgs_calc_trait_gain_ratio_lrt(
     *,
     nll_kwargs: typing.Dict[str, typing.Any],
     gain_rate: float,
@@ -86,7 +86,7 @@ def tgs_calc_trait_gain_ratio_lrts(
         [
             {
                 "trait": trait,
-                "gain_ratio_lrt_naive": _tgs_calc_gain_ratio_lrt(
+                "gain_ratio_lrt_naive": _tgs_calc_trait_gain_ratio_lrt(
                     nll_kwargs=nll_kwargs,
                     gain_rate=fit["gain_rate"],
                     selection_coef=fit["selection_coef"],

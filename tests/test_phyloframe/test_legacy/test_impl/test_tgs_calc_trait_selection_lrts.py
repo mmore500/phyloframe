@@ -3,7 +3,7 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy._impl import (
-    tgs_calc_selection_lrt,
+    tgs_calc_trait_selection_lrt,
     tgs_calc_trait_selection_lrts,
     tgs_fit,
 )
@@ -67,7 +67,7 @@ def test_trait_selection_lrts():
 
 
 def test_no_gains_is_nan():
-    lrt = tgs_calc_selection_lrt(
+    lrt = tgs_calc_trait_selection_lrt(
         nll_kwargs=dict(partitions=_partitions(0.0, 0.0, 1)),
         gain_rate=0.0,
         selection_coef=np.nan,

@@ -31,7 +31,7 @@ def tgs_minimize_nll(
     selection_scale: float,
     loss_rate: float,
 ) -> optimize.OptimizeResult:
-    """Implementation detail for `tgs_fit_partitions`,
+    """Implementation detail for `tgs_fit_trait`,
     `tgs_calc_trait_selection_lrts`, and `tgs_calc_trait_gain_ratio_lrts`.
     Acronym tgs stands for trait gain/selection.
 
