@@ -62,14 +62,13 @@ def tgs_merge_episodes(
         Their weighted mean calibrated branch length.
     """
     weights = np.asarray(weights, dtype=np.float64)
-    # zero-weight episodes (e.g., branches a bootstrap replicate did not
-    # draw) contribute nothing, so drop them up front
+    # optimization: drop zero-weight episodes
     episodes_df = tgs_unpivot_exposure_episodes(exposure_df)
     episodes_df = episodes_df.filter(
-        weights[episodes_df["branch"].to_numpy()] > 0
+        weights[episodes_df["exposure_row"].to_numpy()] > 0
     )
     episode_traits = episodes_df["trait"].to_numpy()
-    episodes = episodes_df["branch"].to_numpy()
+    episodes = episodes_df["exposure_row"].to_numpy()
     lengths = (
         exposure_df["branch_length"].to_numpy()[episodes]
         * calibration_factors[episode_traits, bins[episodes]]

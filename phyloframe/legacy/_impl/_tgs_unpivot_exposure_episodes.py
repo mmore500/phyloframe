@@ -26,19 +26,21 @@ def tgs_unpivot_exposure_episodes(exposure_df: pl.DataFrame) -> pl.DataFrame:
     -------------
     'trait' : integer
         Trait index.
-    'branch' : integer
-        Row index of the branch in `exposure_df`.
+    'exposure_row' : integer
+        Row index of the episode's branch in `exposure_df`.
     'gain' : boolean
         Whether the branch gained the trait.
     """
-    schema = {"trait": pl.Int64, "branch": pl.Int64, "gain": pl.Boolean}
+    schema = {"trait": pl.Int64, "exposure_row": pl.Int64, "gain": pl.Boolean}
     return pl.concat(
         [
             pl.DataFrame(schema=schema),  # in case there are no traits
             *(
                 exposure_df.select(
                     pl.lit(trait, dtype=pl.Int64).alias("trait"),
-                    pl.int_range(pl.len(), dtype=pl.Int64).alias("branch"),
+                    pl.int_range(pl.len(), dtype=pl.Int64).alias(
+                        "exposure_row"
+                    ),
                     pl.col(f"trait{trait}_gain").alias("gain"),
                 ).filter(exposure_df[f"trait{trait}_starts_absent"])
                 for trait in range(tgs_count_exposure_traits(exposure_df))

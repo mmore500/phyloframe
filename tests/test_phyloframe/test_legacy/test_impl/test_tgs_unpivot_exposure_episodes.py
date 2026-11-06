@@ -19,7 +19,7 @@ def test_episodes():
     assert tgs_count_exposure_traits(exposure_df) == 2
     res = tgs_unpivot_exposure_episodes(exposure_df)
     assert res.schema == pl.Schema(
-        {"trait": pl.Int64, "branch": pl.Int64, "gain": pl.Boolean}
+        {"trait": pl.Int64, "exposure_row": pl.Int64, "gain": pl.Boolean}
     )
     # trait-major, branches starting without each trait only
     assert res.rows() == [
@@ -41,5 +41,5 @@ def test_empty():
 
 def test_no_traits():
     res = tgs_unpivot_exposure_episodes(pl.DataFrame({"clade_size": [1, 2]}))
-    assert res.columns == ["trait", "branch", "gain"]
+    assert res.columns == ["trait", "exposure_row", "gain"]
     assert res.is_empty()

@@ -33,7 +33,7 @@ def tgs_count_episodes(
         Of those, the number that gained the trait.
     """
     episode_df = tgs_unpivot_exposure_episodes(exposure_df)
-    is_leaf = exposure_df["clade_size"].gather(episode_df["branch"]) == 1
+    is_leaf = exposure_df["clade_size"].gather(episode_df["exposure_row"]) == 1
     counts_df = (
         episode_df.with_columns(is_leaf=is_leaf)
         .group_by("trait")

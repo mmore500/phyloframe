@@ -39,16 +39,15 @@ def tgs_count_traits(
     """
     weights = np.asarray(weights, dtype=np.float64)
     episode_df = tgs_unpivot_exposure_episodes(exposure_df)
-    # zero-weight episodes (e.g., branches a bootstrap replicate did not
-    # draw) contribute nothing, so drop them up front
+    # optimization: drop zero-weight episodes
     episode_df = episode_df.filter(
-        weights[episode_df["branch"].to_numpy()] > 0
+        weights[episode_df["exposure_row"].to_numpy()] > 0
     )
-    branches = episode_df["branch"].to_numpy()
+    exposure_rows = episode_df["exposure_row"].to_numpy()
     episode_df = episode_df.with_columns(
-        bin=np.asarray(bins, dtype=np.int64)[branches],
-        weight=weights[branches],
-        length=exposure_df["branch_length"].to_numpy()[branches],
+        bin=np.asarray(bins, dtype=np.int64)[exposure_rows],
+        weight=weights[exposure_rows],
+        length=exposure_df["branch_length"].to_numpy()[exposure_rows],
     )
     # every (trait, bin) pair, including those without episodes
     all_pairs_df = pl.DataFrame(
@@ -72,6 +71,6 @@ def tgs_count_traits(
             how="left",
         )
         # zero counts for (trait, bin) pairs without exposure episodes, e.g.,
-        # a bin whose branches all carry the trait
+        # a bin whose exposure_rows all carry the trait
         .with_columns(cs.float().fill_null(0.0)).sort("trait", "bin")
     )
