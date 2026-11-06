@@ -46,8 +46,7 @@ def run_seeded_replicates(
     replicate_seeds = np.random.SeedSequence(seed).generate_state(
         num_replicates
     )
-    # a list, not a generator, so progress_wrap (e.g., tqdm) knows its
-    # length, which joblib also queries
+    # eager list for tqdm/joblib compat
     jobs = [
         joblib.delayed(func)(seed=int(replicate_seed))
         for replicate_seed in replicate_seeds
