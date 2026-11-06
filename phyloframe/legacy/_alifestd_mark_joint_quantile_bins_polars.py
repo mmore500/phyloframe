@@ -157,15 +157,11 @@ def alifestd_mark_joint_quantile_bins_polars(
             "null or nan bin_by or partition_by values not supported",
         )
     marks = np.empty(len(selected), dtype=np.int64)
-    # keep row order within partitions, which breaks full ties
-    groups = selected.partition_by(
-        "partition", as_dict=True, maintain_order=True
-    )
-
     offset = 0  # bins are numbered consecutively across partitions
-    for (partition,), group in sorted(
-        groups.items(), key=lambda item: item[0]
-    ):
+    # stable sort keeps row order within partitions, which breaks full ties
+    for (partition,), group in selected.sort(
+        "partition", maintain_order=True
+    ).group_by("partition", maintain_order=True):
         coordinates = [
             group[f"bin_by{i}"].to_numpy() for i in range(len(bin_by))
         ]

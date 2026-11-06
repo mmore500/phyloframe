@@ -20,7 +20,7 @@ def test_select(caplog):
         exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")
     ]
     bins = alifestd_mark_joint_quantile_bins_polars(
-        pl.from_pandas(exposure_df[["branch_length", "origin_time"]]),
+        pl.from_pandas(exposure_df),
         bin_by=["branch_length", "origin_time"],
         max_bins=64,
     )["joint_quantile_bin"].to_numpy()

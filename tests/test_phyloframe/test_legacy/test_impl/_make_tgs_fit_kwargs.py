@@ -18,9 +18,10 @@ def make_tgs_fit_kwargs(
     """
     num_traits = sum(c.endswith("_starts_absent") for c in exposure_df)
     if calibrate:
-        bin_by = ["branch_length", "origin_time"]
         bins = alifestd_mark_joint_quantile_bins_polars(
-            pl.from_pandas(exposure_df[bin_by]), bin_by=bin_by, max_bins=64
+            pl.from_pandas(exposure_df),
+            bin_by=["branch_length", "origin_time"],
+            max_bins=64,
         )["joint_quantile_bin"].to_numpy()
         num_bins = bins.max() + 1
     else:

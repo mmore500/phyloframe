@@ -44,9 +44,10 @@ def _impl(exposure_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
 def _binned_exposure_df() -> pd.DataFrame:
     exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
-    bin_by = ["branch_length", "origin_time"]
     bins = alifestd_mark_joint_quantile_bins_polars(
-        pl.from_pandas(exposure_df[bin_by]), bin_by=bin_by, max_bins=16
+        pl.from_pandas(exposure_df),
+        bin_by=["branch_length", "origin_time"],
+        max_bins=16,
     )["joint_quantile_bin"].to_numpy()
     return exposure_df.assign(
         calibration_partition=(exposure_df["clade_size"] > 1).astype(int),
