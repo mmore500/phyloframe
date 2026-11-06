@@ -153,8 +153,12 @@ def tgs_impl(
         f"- tgs: fitting {len(trait_names)} traits to {num_episodes} "
         "exposure episodes...",
     )
+    # progress over traits for the point estimate; over replicates, not
+    # each replicate's traits, for the bootstrap
     point_estimate_df = tgs_fit_traits(
-        weights=np.ones(num_episodes), **fit_kwargs
+        weights=np.ones(num_episodes),
+        progress_wrap=progress_wrap,
+        **fit_kwargs,
     )
     bootstrap_fits_df = None
     if num_bootstrap:

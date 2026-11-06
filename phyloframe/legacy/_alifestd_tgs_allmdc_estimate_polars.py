@@ -163,7 +163,8 @@ def alifestd_tgs_allmdc_estimate_polars(
         joblib backend to run bootstrap replicates in parallel, e.g., "loky"
         (processes) or "threading"; if None, runs them sequentially.
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display bootstrap progress.
+        Pass tqdm or equivalent to display progress over traits, for the
+        point estimate, and over bootstrap replicates.
 
     Returns
     -------

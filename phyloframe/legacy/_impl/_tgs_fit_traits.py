@@ -4,10 +4,12 @@ import numpy as np
 import polars as pl
 from scipy import sparse
 
+from ..._auxlib._identity import identity
 from ._tgs_calc_calibration_factors import tgs_calc_calibration_factors
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_merge_episodes import tgs_merge_episodes
+from ._tgs_select_trait_episodes import tgs_count_exposure_traits
 
 
 def tgs_fit_traits(
@@ -25,6 +27,7 @@ def tgs_fit_traits(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
+    progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -35,7 +38,9 @@ def tgs_fit_traits(
     calibration bin (see `tgs_calc_calibration_factors`), merges episodes of
     similar calibrated length (see `tgs_merge_episodes`), and fits gain
     rate and selection coefficient (see `tgs_fit_trait_partitions`).
-    Returns one row per trait.
+    Merges one trait at a time, wrapped in `progress_wrap` (e.g., tqdm), so
+    that memory scales with branches, not branches times traits. Returns
+    one row per trait.
     """
     trait_bin_counts_df = tgs_count_traits(
         exposure_df=exposure_df,
@@ -43,34 +48,35 @@ def tgs_fit_traits(
         num_bins=num_bins,
         weights=weights,
     )
-    num_traits = trait_bin_counts_df["trait"].n_unique()
-    partition_df, survival_shares = tgs_merge_episodes(
-        exposure_df=exposure_df,
-        bins=bins,
-        calibration_factors=np.stack(
-            [
-                tgs_calc_calibration_factors(
-                    trait_bin_counts_df=trait_bin_counts_df,
-                    trait=trait,
-                    neutral_traits=neutral_traits,
-                    calibration_neighborhoods=calibration_neighborhoods,
-                    max_rate_ratio=calibrate_max_rate_ratio,
-                )
-                for trait in range(num_traits)
-            ],
-        ),
-        weights=weights,
-        length_rtol=length_rtol,
-        survival_duration_indices=survival_duration_indices,
-        num_survival_durations=len(distinct_survival_durations),
-    )
+    trait_nll_kwargs = []  # each trait's, but the rate parameters
+    for trait in progress_wrap(range(tgs_count_exposure_traits(exposure_df))):
+        partitions, survival_shares = tgs_merge_episodes(
+            exposure_df=exposure_df,
+            trait=trait,
+            bins=bins,
+            calibration_factors=tgs_calc_calibration_factors(
+                trait_bin_counts_df=trait_bin_counts_df,
+                trait=trait,
+                neutral_traits=neutral_traits,
+                calibration_neighborhoods=calibration_neighborhoods,
+                max_rate_ratio=calibrate_max_rate_ratio,
+            ),
+            weights=weights,
+            length_rtol=length_rtol,
+            survival_duration_indices=survival_duration_indices,
+            num_survival_durations=len(distinct_survival_durations),
+        )
+        trait_nll_kwargs.append(
+            dict(
+                partitions=partitions,
+                growth_exponent_bound=growth_exponent_bound,
+                survival_shares=survival_shares,
+                distinct_survival_durations=distinct_survival_durations,
+            ),
+        )
     return tgs_fit_trait_partitions(
-        partition_df=partition_df,
-        num_traits=num_traits,
+        trait_nll_kwargs=trait_nll_kwargs,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
-        growth_exponent_bound=growth_exponent_bound,
-        survival_shares=survival_shares,
-        distinct_survival_durations=distinct_survival_durations,
     )

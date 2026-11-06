@@ -171,7 +171,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         (processes) or "threading". Replicate fits are mostly GIL-bound
         Python (scipy's optimizer loop), so "loky" is typically faster.
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display bootstrap progress.
+        Pass tqdm or equivalent to display progress over traits, for the
+        point estimate, and over bootstrap replicates.
 
     Returns
     -------

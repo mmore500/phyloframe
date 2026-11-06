@@ -1,8 +1,6 @@
 import typing
 
-import numpy as np
 import polars as pl
-from scipy import sparse
 
 from ._tgs_calc_trait_gain_ratio_lrts import tgs_calc_trait_gain_ratio_lrts
 from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrts
@@ -14,24 +12,19 @@ from ._tgs_normalize_gain_rates_to_neutral import (
 
 def tgs_fit_trait_partitions(
     *,
-    partition_df: pl.DataFrame,
-    num_traits: int,
+    trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
     neutral_traits: typing.Sequence[int],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
-    growth_exponent_bound: float,
-    survival_shares: typing.Optional[sparse.csr_matrix] = None,
-    distinct_survival_durations: typing.Optional[np.ndarray] = None,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Fits each of `num_traits` traits' gain rate and selection coefficient to
-    its partitions, the rows of `partition_df` with its `trait` (see
-    `tgs_merge_episodes`), and, if given, their `survival_shares` over
-    `distinct_survival_durations` (see `tgs_calc_nll`). Returns one row per
-    trait, in trait index order; see Output Schema.
+    Fits each trait's gain rate and selection coefficient, given each
+    trait's `tgs_calc_nll` arguments but the rate parameters,
+    `trait_nll_kwargs`, e.g., its partitions from `tgs_merge_episodes`.
+    Returns one row per trait, in trait index order; see Output Schema.
 
     Output Schema
     -------------
@@ -49,22 +42,6 @@ def tgs_fit_trait_partitions(
         Likelihood-ratio statistic for gain ratio = 1; see
         `tgs_calc_trait_gain_ratio_lrts`.
     """
-    traits = partition_df["trait"].to_numpy()
-    trait_rows = [
-        np.flatnonzero(traits == trait) for trait in range(num_traits)
-    ]
-    # each trait's `tgs_calc_nll` arguments, but the rate parameters
-    trait_nll_kwargs = [
-        dict(
-            partitions=partition_df[rows],
-            growth_exponent_bound=growth_exponent_bound,
-            survival_shares=(
-                None if survival_shares is None else survival_shares[rows]
-            ),
-            distinct_survival_durations=distinct_survival_durations,
-        )
-        for rows in trait_rows
-    ]
     fits_df = pl.DataFrame(
         [
             tgs_fit_trait(

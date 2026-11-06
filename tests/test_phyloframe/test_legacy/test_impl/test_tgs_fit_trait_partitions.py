@@ -22,27 +22,32 @@ def fixture():
     distinct_survival_durations, survival_duration_indices = np.unique(
         exposure_df["survival_duration"].to_numpy(), return_inverse=True
     )
-    data, shares = tgs_merge_episodes(
-        exposure_df=exposure_df,
-        bins=np.zeros(len(exposure_df), dtype=np.int64),
-        calibration_factors=np.ones((3, 1)),
-        weights=np.ones(len(exposure_df)),
-        length_rtol=1e-2,
-        survival_duration_indices=survival_duration_indices,
-        num_survival_durations=len(distinct_survival_durations),
-    )
-    return data, shares, distinct_survival_durations
+    # each trait's `tgs_calc_nll` arguments, but the rate parameters
+    trait_nll_kwargs = []
+    for trait in range(3):
+        partitions, shares = tgs_merge_episodes(
+            exposure_df=exposure_df,
+            trait=trait,
+            bins=np.zeros(len(exposure_df), dtype=np.int64),
+            calibration_factors=np.ones(1),
+            weights=np.ones(len(exposure_df)),
+            length_rtol=1e-2,
+            survival_duration_indices=survival_duration_indices,
+            num_survival_durations=len(distinct_survival_durations),
+        )
+        trait_nll_kwargs.append(
+            dict(
+                partitions=partitions,
+                growth_exponent_bound=600.0,
+                survival_shares=shares,
+                distinct_survival_durations=distinct_survival_durations,
+            ),
+        )
+    return trait_nll_kwargs
 
 
 def _nll_kwargs(fixture, trait: int):
-    data, shares, times = fixture
-    rows = np.flatnonzero(data["trait"].to_numpy() == trait)
-    return dict(
-        partitions=data[rows],
-        growth_exponent_bound=600.0,
-        survival_shares=shares[rows],
-        distinct_survival_durations=times,
-    )
+    return fixture[trait]
 
 
 def test_calc_scales(fixture):
@@ -112,16 +117,11 @@ def test_loss_rate_shifts_selection(fixture):
 
 
 def test_fit_trait_partitions(fixture):
-    data, shares, times = fixture
     res = tgs_fit_trait_partitions(
-        partition_df=data,
-        num_traits=3,
+        trait_nll_kwargs=fixture,
         neutral_traits=[1, 2],
         loss_rate=0.0,
         selection_coef_starts=(0.0, -0.3),
-        growth_exponent_bound=600.0,
-        survival_shares=shares,
-        distinct_survival_durations=times,
     )
     assert res.columns == [
         "gain_rate",
