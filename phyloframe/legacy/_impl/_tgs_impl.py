@@ -83,7 +83,30 @@ def tgs_impl(
 
     Output Schema
     -------------
-    As for `tgs_build_estimates_df`.
+    `counts_df` columns
+        Trait name, 'trait', then per-trait counts.
+    'gain_rate' : float
+        Fitted gain rate, per unit branch length; 0 without gains.
+    'selection_coef' : float
+        Fitted selection coefficient; nan without gains.
+    'selection_coef_lrt_naive' : float
+        Likelihood-ratio statistic for selection coefficient = 0.
+    'gain_ratio' : float
+        Gain rate relative to the mean gain rate of the trait's neutral
+        reference.
+    'gain_ratio_lrt_naive' : float
+        Likelihood-ratio statistic for gain ratio = 1.
+    'selection_coef_se', 'log_gain_ratio_se' : float, with `num_bootstrap`
+        Bootstrap standard errors of the selection coefficient and log gain
+        ratio.
+    'selection_coef_z', 'gain_ratio_z' : float, with `num_bootstrap`
+        Selection coefficient and log gain ratio over their standard
+        errors.
+    'selection_coef_p', 'gain_ratio_p' : float, with `num_bootstrap`
+        Two-sided normal p-values of those z-scores.
+    'num_bootstrap_degenerate' : integer, with `num_bootstrap`
+        Replicates excluded for an undefined selection coefficient or gain
+        ratio.
     """
     num_episodes = len(exposure_df)
     if not num_episodes:

@@ -8,6 +8,7 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
+from tqdm import tqdm
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
@@ -533,6 +534,9 @@ if __name__ == "__main__":
                     selection_coef_starts=args.selection_coef_starts,
                     growth_exponent_bound=args.growth_exponent_bound,
                     parallel_backend=args.parallel_backend,
+                    progress_wrap=functools.partial(
+                        tqdm, desc="alifestd_tgs_allmdc_estimate_polars"
+                    ),
                 ),
             )
     except NotImplementedError as e:

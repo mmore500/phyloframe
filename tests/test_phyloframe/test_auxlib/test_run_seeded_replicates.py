@@ -54,3 +54,20 @@ def test_partial_and_progress_wrap():
 
 def test_zero_replicates():
     assert run_seeded_replicates(_draw, num_replicates=0, seed=1) == []
+
+
+@pytest.mark.parametrize("parallel_backend", [None, "threading"])
+def test_tqdm_progress_wrap(parallel_backend):
+    # tqdm needs a sized iterable, which joblib also queries for its length
+    import tqdm
+
+    res = run_seeded_replicates(
+        lambda seed: seed,
+        num_replicates=3,
+        seed=1,
+        parallel_backend=parallel_backend,
+        progress_wrap=functools.partial(tqdm.tqdm, desc="test"),
+    )
+    assert res == run_seeded_replicates(
+        lambda seed: seed, num_replicates=3, seed=1
+    )

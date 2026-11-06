@@ -46,9 +46,11 @@ def run_seeded_replicates(
     replicate_seeds = np.random.SeedSequence(seed).generate_state(
         num_replicates
     )
-    jobs = (
+    # a list, not a generator, so progress_wrap (e.g., tqdm) knows its
+    # length, which joblib also queries
+    jobs = [
         joblib.delayed(func)(seed=int(replicate_seed))
         for replicate_seed in replicate_seeds
-    )
+    ]
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
         return joblib.Parallel()(progress_wrap(jobs))

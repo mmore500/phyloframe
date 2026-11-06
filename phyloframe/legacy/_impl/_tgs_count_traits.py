@@ -22,8 +22,14 @@ def _tgs_count_trait_bins(
 
     Output Schema
     -------------
-    As for `tgs_count_traits`, but without 'trait', and only for bins with
-    the trait's exposure episodes.
+    'bin' : integer
+        Calibration bin index; only bins with the trait's exposure episodes.
+    'num_trials' : float
+        Weighted count of the trait's exposure episodes in the bin.
+    'num_successes' : float
+        Of those, the weighted count that gained the trait.
+    'length_sum' : float
+        Weighted sum of those episodes' branch lengths.
     """
     return (
         tgs_select_trait_episodes(exposure_df, trait=trait, weights=weights)

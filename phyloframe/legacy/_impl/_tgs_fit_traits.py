@@ -48,14 +48,37 @@ def tgs_fit_traits(
 
     Input Schema
     ------------
-    `exposure_df` columns
-        As for `tgs_calc_exposure_df`.
-    `trait_bin_counts_df` columns, optional
-        As for `tgs_count_traits`.
+    `exposure_df` columns:
+
+    'branch_length' : float
+        Branch length.
+    'survival_duration' : float
+        Time from the branch's end node to the latest leaf below it.
+    'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
+        Whether the branch started without, and whether it gained, the
+        trait.
+
+    `trait_bin_counts_df` columns, optional:
+
+    'trait', 'bin' : integer
+        Trait and calibration bin indices, one row per pair, trait-major.
+    'num_trials', 'num_successes', 'length_sum' : float
+        (Weighted) count of the trait's exposure episodes in the bin, of
+        those that gained it, and their summed branch length.
 
     Output Schema
     -------------
-    As for `tgs_fit_trait_partitions`.
+    'gain_rate' : float
+        Fitted gain rate, per unit branch length; 0 without gains.
+    'selection_coef' : float
+        Fitted selection coefficient; nan without gains.
+    'selection_coef_lrt_naive' : float
+        Likelihood-ratio statistic for selection coefficient = 0.
+    'gain_ratio' : float
+        Gain rate relative to the mean gain rate of the trait's neutral
+        reference.
+    'gain_ratio_lrt_naive' : float
+        Likelihood-ratio statistic for gain ratio = 1.
     """
     if trait_bin_counts_df is None:
         trait_bin_counts_df = tgs_count_traits(
