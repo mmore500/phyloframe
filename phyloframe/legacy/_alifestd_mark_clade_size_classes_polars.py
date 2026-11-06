@@ -55,9 +55,9 @@ def _alifestd_mark_clade_size_classes_fast_path(
     cap = max(light[0], min_num_classes - 1) if len(light) else num_classes
     if cap < num_classes - 1:
         logging.info(
-            "- alifestd_mark_clade_size_classes_polars: clade size "
-            f"classes above {cap} weigh less than {min_class_weight}, so "
-            f"join class {cap}",
+            "- alifestd_mark_clade_size_classes_polars: clade size class "
+            f"{light[0] + 1} weighs less than {min_class_weight}, so "
+            f"classes above {cap} join class {cap}",
         )
         classes = np.minimum(classes, cap)
         num_classes = cap + 1

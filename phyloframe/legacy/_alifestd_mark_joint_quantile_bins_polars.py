@@ -73,8 +73,8 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     Columns constant within a partition are skipped there: their ranks,
     tiebroken by the other columns, would only repeat those columns'
-    splits. Rows with null (or nan) values, e.g., roots' branch lengths, are
-    marked -1.
+    splits. Rows with null (or nan) `bin_by` values, e.g., roots' branch
+    lengths, or null `partition_by` values are marked -1.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -148,15 +148,17 @@ def alifestd_mark_joint_quantile_bins_polars(
             ).alias("partition"),
         )
         .with_row_index("row")
-        .filter(~pl.any_horizontal(pl.all().is_null()))
-        .sort("partition")
         .collect()
     )
+    marks = np.full(len(selected), -1, dtype=np.int64)
+    # keep row order within partitions, which breaks full ties
+    groups = selected.filter(
+        ~pl.any_horizontal(pl.all().is_null()),
+    ).partition_by("partition", as_dict=True, maintain_order=True)
 
-    marks = np.full(phylogeny_df.lazy().select(pl.len()).collect().item(), -1)
     offset = 0  # bins are numbered consecutively across partitions
-    for (partition,), group in selected.group_by(
-        "partition", maintain_order=True
+    for (partition,), group in sorted(
+        groups.items(), key=lambda item: item[0]
     ):
         coordinates = [
             group[f"bin_by{i}"].to_numpy() for i in range(len(bin_by))
