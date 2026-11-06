@@ -152,6 +152,7 @@ def alifestd_mark_joint_quantile_bins_polars(
         .with_row_index("row")
         .collect()
     )
+    # bin_by nans were filled with null above, so this catches them too
     if selected.select(pl.any_horizontal(pl.all().is_null()).any()).item():
         raise NotImplementedError(
             "null or nan bin_by or partition_by values not supported",
