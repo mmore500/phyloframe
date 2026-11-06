@@ -7,7 +7,6 @@ def tgs_validate_args(
     *,
     trait_transitions: typing.Sequence[str],
     neutral_traits: typing.Sequence[str],
-    calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
     calibrate_max_rate_ratio: float,
@@ -52,8 +51,11 @@ def tgs_validate_args(
         .astype(int)
         .tolist()
     )
-    if calibrate and len(neutral_traits) < 2:
-        raise ValueError("calibration requires at least two neutral traits")
+    if len(neutral_traits) < 2:
+        raise NotImplementedError(
+            "at least two distinct neutral traits are required, to calibrate "
+            "lengths and as the reference for gain ratios",
+        )
     if not calibrate_neighborhood_fractions or not all(
         0 < fraction <= 1 for fraction in calibrate_neighborhood_fractions
     ):

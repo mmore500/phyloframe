@@ -22,12 +22,12 @@ def test_block_diagonal():
     trait_units, trait_gains = tgs_find_trait_exposures(exposure_df)
     res = tgs_allmdc_select_calibration_neighborhoods(
         counts=tgs_count_traits(
-            leaf_partitions=partitions,
+            partitions=partitions,
             num_partitions=partitions.max() + 1,
-            pendant_lengths=exposure_df["branch_length"].to_numpy(),
-            leaf_weights=np.ones(len(exposure_df)),
-            trait_leaves=trait_units,
-            trait_carriers=trait_gains,
+            lengths=exposure_df["branch_length"].to_numpy(),
+            weights=np.ones(len(exposure_df)),
+            trait_episodes=trait_units,
+            trait_gains=trait_gains,
         ),
         blocks=blocks,
         neighborhood_fractions=(0.25, 1.0),

@@ -3,10 +3,10 @@ import typing
 import warnings
 
 import numpy as np
+import pandas as pd
 from scipy import sparse
 
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
-from ._TgsCounts import TgsCounts
 from ._tgs_calc_heldout_nll import tgs_calc_heldout_nll
 
 
@@ -14,7 +14,7 @@ def tgs_select_calibration_neighborhoods(
     *,
     partition_coords: np.ndarray,
     neighborhood_fractions: typing.Sequence[float],
-    counts: TgsCounts,
+    counts: typing.Sequence[pd.DataFrame],
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
@@ -57,7 +57,9 @@ def tgs_select_calibration_neighborhoods(
             best_nll, best_neighborhoods = nll, calibration_neighborhoods
             best_fraction = fraction
 
-    neutral_gains = counts.num_carriers[neutral_traits].sum(axis=0)
+    neutral_gains = sum(
+        counts[trait]["num_successes"].to_numpy() for trait in neutral_traits
+    )
     num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
     logging.info(
         "- alifestd_tgs_pendantmdc_estimate_polars: selected calibration "

@@ -22,7 +22,6 @@ def tgs_pendantmdc_fit_and_bootstrap(
     trait_carriers: typing.Sequence[np.ndarray],
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
-    calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
     calibrate_max_rate_ratio: float,
@@ -51,36 +50,32 @@ def tgs_pendantmdc_fit_and_bootstrap(
     )
     num_leaves = len(leaf_partitions)
     fit_kwargs = dict(
-        leaf_partitions=leaf_partitions,
+        partitions=leaf_partitions,
         num_partitions=num_partitions,
-        pendant_lengths=pendant_lengths,
-        trait_leaves=trait_leaves,
-        trait_carriers=trait_carriers,
+        lengths=pendant_lengths,
+        trait_episodes=trait_leaves,
+        trait_gains=trait_carriers,
         neutral_traits=neutral_traits,
-        calibration_neighborhoods=None,
-        max_rate_ratio=calibrate_max_rate_ratio,
-        loss_rate=loss_rate,
-        selection_coef_starts=selection_coef_starts,
-        growth_exponent_bound=growth_exponent_bound,
-    )
-    if calibrate:
-        fit_kwargs[
-            "calibration_neighborhoods"
-        ] = tgs_pendantmdc_select_calibration(
+        calibration_neighborhoods=tgs_pendantmdc_select_calibration(
             counts=tgs_count_traits(
-                leaf_partitions=leaf_partitions,
+                partitions=leaf_partitions,
                 num_partitions=num_partitions,
-                pendant_lengths=pendant_lengths,
-                leaf_weights=np.ones(num_leaves),
-                trait_leaves=trait_leaves,
-                trait_carriers=trait_carriers,
+                lengths=pendant_lengths,
+                weights=np.ones(num_leaves),
+                trait_episodes=trait_leaves,
+                trait_gains=trait_carriers,
             ),
             partition_coords=partition_coords,
             neighborhood_fractions=calibrate_neighborhood_fractions,
             neutral_traits=neutral_traits,
             trait_names=trait_names,
             max_rate_ratio=calibrate_max_rate_ratio,
-        )
+        ),
+        max_rate_ratio=calibrate_max_rate_ratio,
+        loss_rate=loss_rate,
+        selection_coef_starts=selection_coef_starts,
+        growth_exponent_bound=growth_exponent_bound,
+    )
 
     logging.info(
         "- alifestd_tgs_pendantmdc_estimate_polars: "

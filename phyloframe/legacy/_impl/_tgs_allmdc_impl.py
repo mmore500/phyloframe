@@ -8,7 +8,6 @@ import pandas as pd
 from ._tgs_allmdc_count_episodes import tgs_allmdc_count_episodes
 from ._tgs_allmdc_fit_traits import tgs_allmdc_fit_traits
 from ._tgs_allmdc_partition_episodes import tgs_allmdc_partition_episodes
-from ._tgs_allmdc_validate_args import tgs_allmdc_validate_args
 from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 
@@ -18,12 +17,9 @@ def tgs_allmdc_impl(
     *,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
-    calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
     calibrate_max_rate_ratio: float,
-    calibrate_size_partition_ratio: float,
-    calibrate_size_partition_min_neutral_gains: int,
     num_bootstrap: int,
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
@@ -39,12 +35,6 @@ def tgs_allmdc_impl(
     in `alifestd_tgs_allmdc_estimate_polars`, with `neutral_traits` as indices
     and `trait_names` as labels (see `tgs_validate_args`).
     """
-    tgs_allmdc_validate_args(
-        calibrate_size_partition_ratio=calibrate_size_partition_ratio,
-        calibrate_size_partition_min_neutral_gains=(
-            calibrate_size_partition_min_neutral_gains
-        ),
-    )
     num_episodes = len(exposure_df)
     if not num_episodes:
         raise ValueError(
@@ -56,17 +46,11 @@ def tgs_allmdc_impl(
             exposure_df=exposure_df,
             neutral_traits=neutral_traits,
             trait_names=trait_names,
-            calibrate=calibrate,
             calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
             calibrate_num_partitions=calibrate_num_partitions,
             calibrate_max_rate_ratio=calibrate_max_rate_ratio,
-            calibrate_size_partition_ratio=calibrate_size_partition_ratio,
-            calibrate_size_partition_min_neutral_gains=(
-                calibrate_size_partition_min_neutral_gains
-            ),
         ),
         neutral_traits=neutral_traits,
-        calibrate=calibrate,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,

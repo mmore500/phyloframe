@@ -1,43 +1,41 @@
 import typing
 
 import numpy as np
-
-from ._TgsCounts import TgsCounts
+import pandas as pd
 
 
 def tgs_count_traits(
     *,
-    leaf_partitions: np.ndarray,
+    partitions: np.ndarray,
     num_partitions: int,
-    pendant_lengths: np.ndarray,
-    leaf_weights: np.ndarray,
-    trait_leaves: typing.Sequence[np.ndarray],
-    trait_carriers: typing.Sequence[np.ndarray],
-) -> TgsCounts:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
-    Acronym tgs stands for trait gain/selection.
+    lengths: np.ndarray,
+    weights: np.ndarray,
+    trait_episodes: typing.Sequence[np.ndarray],
+    trait_gains: typing.Sequence[np.ndarray],
+) -> typing.List[pd.DataFrame]:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
 
-    Returns, per trait, (weighted) counts of leaves and of trait carriers,
-    and summed pendant length, in each partition.
+    Returns, per trait, a DataFrame with a row per partition and columns
+    `num_trials`, the (weighted) count of the trait's exposure episodes
+    there (positions `trait_episodes`, into `partitions`), `num_successes`,
+    the count of its gains (positions `trait_gains`), and `length_sum`, the
+    episodes' (weighted) summed length.
     """
-    shape = (len(trait_leaves), num_partitions)
 
-    def count(leaf_sets: typing.Sequence[np.ndarray], weights: np.ndarray):
-        return np.array(
-            [
-                np.bincount(
-                    leaf_partitions[leaves],
-                    weights[leaves],
-                    minlength=num_partitions,
-                )
-                for leaves in leaf_sets
-            ],
-        ).reshape(shape)
+    def count(positions: np.ndarray, values: np.ndarray) -> np.ndarray:
+        return np.bincount(
+            partitions[positions], values[positions], minlength=num_partitions
+        )
 
-    return TgsCounts(
-        num_leaves=count(trait_leaves, leaf_weights),
-        num_carriers=count(trait_carriers, leaf_weights),
-        pendant_length_sums=count(
-            trait_leaves, leaf_weights * pendant_lengths
-        ),
-    )
+    return [
+        pd.DataFrame(
+            {
+                "num_trials": count(episodes, weights),
+                "num_successes": count(gains, weights),
+                "length_sum": count(episodes, weights * lengths),
+            },
+        )
+        for episodes, gains in zip(trait_episodes, trait_gains)
+    ]

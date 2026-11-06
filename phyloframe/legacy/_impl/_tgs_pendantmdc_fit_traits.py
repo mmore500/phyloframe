@@ -35,12 +35,12 @@ def tgs_pendantmdc_fit_traits(
     `max_rate_ratio`.
     """
     counts = tgs_count_traits(
-        leaf_partitions=leaf_partitions,
+        partitions=leaf_partitions,
         num_partitions=num_partitions,
-        pendant_lengths=pendant_lengths,
-        leaf_weights=weights,
-        trait_leaves=trait_leaves,
-        trait_carriers=trait_carriers,
+        lengths=pendant_lengths,
+        weights=weights,
+        trait_episodes=trait_leaves,
+        trait_gains=trait_carriers,
     )
     partition_df = tgs_tabulate_partitions(
         counts=counts,

@@ -27,8 +27,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str] = (),
-    calibrate: bool = False,
+    neutral_traits: typing.Sequence[str],
     calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
@@ -45,7 +44,6 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     growth_exponent_bound: float = 600.0,
-    min_leaf_origin_time: float = -np.inf,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
@@ -92,45 +90,29 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     Parameters
     ----------
     phylogeny_df : polars.DataFrame or polars.LazyFrame
-        The phylogeny as a dataframe in alife standard format, with column
-        `origin_time`.
-
-        Must represent an asexual phylogeny with contiguous,
-        topologically sorted ids.
+        The phylogeny as a dataframe in alife standard format; see Input
+        Schema.
     trait_transitions : Sequence[str]
         Names of integer columns, one per trait, giving each node's trait
-        state transition on the branch from its parent: +1 for a gain, -1
-        for a loss, 0 for none (and, at a root, its initial state). Make
-        them from trait states at every node with
-        `alifestd_mark_lineage_delta_polars`, with `basal_value=False`
-        to give each root's initial state. For leaf data, under parsimony
-        without loss, a node has the trait if and only if every leaf of its
-        clade does, so gains fall on the stems of mutationally defined
-        clades (see `alifestd_mask_trait_mdcs_strict_polars`). Loss events,
-        i.e., -1 values, are not yet supported. Output rows are labeled by
-        these column names.
-    neutral_traits : Sequence[str], default ()
-        Names, among `trait_transitions`, of traits known to be neutral.
-        Used to calibrate pendant lengths (with `calibrate`), which requires
-        at least two, and as the reference for gain ratios (relative to
-        their mean gain rate, leaving the focal trait out).
-        Without neutral traits, `gain_ratio` and its statistics are nan;
-        gain rate and selection coefficient are still estimated.
-    calibrate : bool, default False
-        If True, rescale each leaf's pendant length by the ratio of observed
-        to expected `neutral_traits` gains among its nearest leaves in
-        pendant length and origin time (each ranked), so that distortion of
-        branch lengths shared with neutral traits (e.g., from tree
-        reconstruction) cancels. The neighborhood size is chosen, among
-        `calibrate_neighborhood_fractions`, as the one that best predicts
-        each held-out neutral trait's carriers when calibrating against the
-        others. Assumes loss is negligible over a pendant branch.
+        state transition on the branch from its parent (see Input Schema).
+        Output rows are labeled by these column names.
+    neutral_traits : Sequence[str]
+        Names, among `trait_transitions`, of traits known to be neutral. At
+        least two are required: they calibrate pendant lengths against one
+        another, and their mean gain rate, leaving the focal trait out, is
+        the reference for gain ratios.
     calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of leaves.
-        With `calibrate`, the candidate whose calibration best predicts
-        held-out neutral traits is used. Larger neighborhoods smooth more;
-        smaller ones resolve finer distortion but are noisier. A fraction of
-        1.0 makes one neighborhood of all leaves, i.e., no calibration.
+        Calibration rescales each leaf's pendant length by how often neutral
+        traits were gained among leaves of similar pendant length and origin
+        time, relative to all leaves, removing distortion of branch lengths
+        that neutral traits share (e.g., from tree reconstruction). The
+        candidate used is the one whose calibration best predicts where
+        each neutral trait was gained, when calibrating against only the
+        other neutral traits. Larger neighborhoods smooth more; smaller ones
+        resolve finer distortion but are noisier. Pass (1.0,), one
+        neighborhood of all leaves, to disable calibration. Assumes loss is
+        negligible over a pendant branch.
     calibrate_num_partitions : int, default 4096
         Number of equal-occupancy partitions of leaves, by ranked pendant
         length and origin time, among which calibration neighborhoods are
@@ -143,10 +125,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         with little exposure; uncapped by default. Must be positive.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling leaves with replacement
-        and refitting, for standard errors, z-scores, and p-values. Each
-        replicate recomputes calibration rate ratios from its resample, but
-        holds fixed the calibration neighborhood size chosen on the full
-        data, so standard errors omit uncertainty in that choice.
+        and refitting, for standard errors, z-scores, and p-values.
+        Calibration neighborhood size is held constant.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
@@ -156,8 +136,6 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Bound on carrier growth exponents, the selection coefficient minus
         loss rate, times pendant length, keeping optimizer trial steps
         finite. See `tgs_fit`.
-    min_leaf_origin_time : float, default -inf
-        Leaves originating earlier are excluded.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
@@ -170,66 +148,112 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     Returns
     -------
     polars.DataFrame
-        One row per trait, with columns `trait`, `num_leaves`,
-        `num_trait_present`, `gain_rate`, `selection_coef`, `gain_ratio`,
-        `selection_coef_lrt_naive`, and `gain_ratio_lrt_naive`
-        (likelihood-ratio statistics for selection coefficient = 0 and for gain
-        ratio = 1; see Notes). With bootstrap replicates, also bootstrap
-        standard errors (se), i.e., standard deviations across replicates,
-        `selection_coef_se` and `log_gain_ratio_se`; z-scores,
-        `selection_coef_z` and `gain_ratio_z`; and p-values, `selection_coef_p`
-        and `gain_ratio_p` (two-sided normal approximation; `gain_ratio` tests
-        against 1), as well as `num_bootstrap_degenerate`, the number of
-        replicates excluded for resampling no carriers of the trait, or of its
-        neutral reference.
+        One row per trait; see Output Schema.
 
     Raises
     ------
     ValueError
-        If there are no exposure episodes, i.e., leaf pendant branches to fit,
-        if `calibrate` is set with fewer than two distinct neutral traits, if a
-        `trait_transitions` column is missing or has values other than +1, -1,
-        or 0, or gives states other than 0 and 1, if a `neutral_traits` name is
-        not among `trait_transitions`, if `calibrate_neighborhood_fractions` is
-        empty or has a value outside (0, 1], if `calibrate_num_partitions` is
-        not a power of two, if `calibrate_max_rate_ratio` is not positive, or
-        if a non-root node has zero, negative, or undefined (nan) branch
-        length.
+        If there are no exposure episodes (i.e., leaf pendant branches to fit),
+        if an argument is invalid, or if a `trait_transitions` column is
+        missing or gives states other than 0 and 1.
     NotImplementedError
-        If `phylogeny_df` has no "ancestor_id" column, if ids are
-        non-contiguous or not topologically sorted, or if a
-        `trait_transitions` column is not integer, has null values, or has
-        loss events, i.e., -1 values.
+        If fewer than two neutral traits are given; if `phylogeny_df` is not
+        asexual, or its ids are non-contiguous or not topologically sorted;
+        or if a `trait_transitions` column is not integer, has null values,
+        or has loss events, i.e., -1 values.
+
+    Input Schema
+    ------------
+    'id' : integer
+        Taxon identifier; contiguous and topologically sorted.
+    'ancestor_id' : integer
+        Parent's taxon identifier (or own, for a root).
+    'origin_time' : float
+        Time of each taxon's origin, from which branch lengths are taken.
+    `trait_transitions` columns : integer
+        Each node's trait state transition on the branch from its parent:
+        +1 for a gain, -1 for a loss (not yet supported), 0 for none, and,
+        at a root, its initial state. Make them from trait states at every
+        node with `alifestd_mark_lineage_delta_polars`, with
+        `basal_value=False`. For leaf data, under parsimony without loss, a
+        node has the trait if and only if every leaf of its clade does (see
+        `alifestd_mask_trait_mdcs_strict_polars`).
+
+    Output Schema
+    -------------
+    'trait' : string
+        Trait, named by its `trait_transitions` column.
+    'num_leaves' : integer
+        Leaf pendant branches that started without the trait.
+    'num_trait_present' : integer
+        Of those, the number that gained the trait.
+    'gain_rate' : float
+        Estimated rate of trait gain, per unit pendant length.
+    'selection_coef' : float
+        Estimated selection coefficient, the rate at which a carrier
+        lineage's expected number of sampled descendants changes relative
+        to a non-carrier's (negative for a cost); nan without carriers.
+    'gain_ratio' : float
+        Gain rate relative to the mean gain rate of the other neutral
+        traits.
+    'selection_coef_lrt_naive' : float
+        Likelihood-ratio statistic for selection coefficient = 0 (see
+        Notes).
+    'gain_ratio_lrt_naive' : float
+        Likelihood-ratio statistic for gain ratio = 1 (see Notes).
+
+    With bootstrap replicates, also:
+
+    'selection_coef_se', 'log_gain_ratio_se' : float
+        Bootstrap standard errors (se), i.e., standard deviations across
+        replicates, of the selection coefficient and log gain ratio.
+    'selection_coef_z', 'gain_ratio_z' : float
+        Corresponding z-scores, against 0 and 1, respectively.
+    'selection_coef_p', 'gain_ratio_p' : float
+        Corresponding two-sided p-values, by normal approximation.
+    'num_bootstrap_degenerate' : integer
+        Replicates excluded for resampling no carriers of the trait, or of
+        its neutral reference.
 
     Notes
     -----
     Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`),
     so pendant branches span from leaves to their stem node, the nearest
-    ancestor with at least two children. Root leaves have no pendant branch, so
-    are excluded. Under sparse sampling, the selection coefficient estimates
-    the change rate of a reconstructed carrier lineage's weight, roughly the
-    difference in per-lineage net growth; magnitudes may be biased, but signs
-    and rankings are informative. With few carriers, cost and loss are
-    confounded, so `loss_rate` is fixed rather than fit. Bootstrap replicates
-    resample leaves independently, ignoring correlation through shared
-    ancestry.
+    ancestor with at least two children. Root leaves have no pendant branch,
+    so are excluded.
+
+    To exclude some leaves, e.g., those originating before a given time,
+    prune them first: mark the leaves to keep in a boolean column, and pass
+    it as `criterion` to `alifestd_prune_extinct_lineages_polars`. Pruning a
+    leaf lengthens its sister's pendant branch if the sister is then an only
+    child.
+
+    Under sparse sampling, the selection coefficient estimates the change
+    rate of a reconstructed carrier lineage's weight, roughly the
+    difference in per-lineage net growth; magnitudes may be biased, but
+    signs and rankings are informative. With few carriers, cost and loss
+    are confounded, so `loss_rate` is fixed rather than fit.
+
+    Bootstrap replicates resample leaves independently, ignoring
+    correlation through shared ancestry.
 
     `gain_ratio_lrt_naive` refits the selection coefficient with the trait's
-    gain rate held at its neutral reference's mean (nan without neutral
-    traits). Both likelihood-ratio statistics treat leaves as independent, and
-    the gain ratio's treats the reference rate as known, so both overstate
-    significance; dividing by their mean over neutral traits before a
-    chi-squared test with one degree of freedom is one remedy.
+    gain rate held at its neutral reference's mean. Both likelihood-ratio
+    statistics treat leaves as independent, and the gain ratio's treats the
+    reference rate as known, so both overstate significance. Dividing each
+    by its mean over neutral traits before a chi-squared test with one
+    degree of freedom is one remedy.
 
     See Also
     --------
     alifestd_mask_trait_singletons_polars :
         Marks leaves dropped for each trait.
+    alifestd_tgs_allmdc_estimate_polars :
+        MDCs of every size, not only leaf pendant branches.
     """
     trait_names, neutral_traits = tgs_validate_args(
         trait_transitions=trait_transitions,
         neutral_traits=neutral_traits,
-        calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
@@ -248,7 +272,6 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         exposure_df,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
-        calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
@@ -256,7 +279,6 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
-        min_leaf_origin_time=min_leaf_origin_time,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
@@ -271,21 +293,53 @@ _raw_description = f"""\
 Estimate per-trait gain rate and selection coefficient from how often leaves
 carry each trait as a function of pendant branch length.
 
-Output is one row per trait, with columns `trait`, `num_leaves`,
-`num_trait_present`, `gain_rate`, `selection_coef`, `gain_ratio`,
-`selection_coef_lrt_naive`, and `gain_ratio_lrt_naive`; with `--num-bootstrap`,
-also `selection_coef_se`, `selection_coef_z`, `selection_coef_p`,
-`log_gain_ratio_se`, `gain_ratio_z`, `gain_ratio_p`, and
-`num_bootstrap_degenerate`.
-
-Data is assumed to be in alife standard format, with column `origin_time`.
+Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
+
+
+Input Schema: Required Columns
+==============================
+'id' : integer
+    Taxon identifier; contiguous and topologically sorted.
+
+'ancestor_id' : integer
+    Parent's taxon identifier (or own, for a root).
+
+'origin_time' : float
+    Time of each taxon's origin, from which branch lengths are taken.
+
+`--trait-transitions` columns : integer
+    Each node's trait state transition on the branch from its parent: +1
+    for a gain, 0 for none, and, at a root, its initial state.
+
+
+Output Schema
+=============
+One row per trait, not a phylogeny.
+
+'trait' : string
+    Trait, named by its transition column.
+
+'num_leaves', 'num_trait_present' : integer
+    Leaf pendant branches that started without the trait, and of those, the
+    number that gained it.
+
+'gain_rate', 'selection_coef', 'gain_ratio' : float
+    Estimated gain rate, selection coefficient, and gain rate relative to
+    the other neutral traits'.
+
+'selection_coef_lrt_naive', 'gain_ratio_lrt_naive' : float
+    Naive likelihood-ratio statistics for selection coefficient = 0 and for
+    gain ratio = 1.
+
+With `--num-bootstrap`, also 'selection_coef_se', 'selection_coef_z',
+'selection_coef_p', 'log_gain_ratio_se', 'gain_ratio_z', 'gain_ratio_p', and
+'num_bootstrap_degenerate'; see the Python docstring.
+
 
 Additional Notes
 ================
 - Requires contiguous, topologically sorted ids.
-
-- Output is a per-trait summary table, not a phylogeny.
 
 - This CLI entrypoint is experimental and may be subject to change.
 
@@ -329,11 +383,6 @@ def _create_parser() -> argparse.ArgumentParser:
             "Names of trait transition columns of traits known to be neutral "
             "(default: none)."
         ),
-    )
-    parser.add_argument(
-        "--calibrate",
-        action="store_true",
-        help="Measure pendant length by neutral trait gains.",
     )
     parser.add_argument(
         "--calibrate-neighborhood-fractions",
@@ -398,12 +447,6 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Bound on carrier growth exponents (default: 600.0).",
     )
     parser.add_argument(
-        "--min-leaf-origin-time",
-        default=-np.inf,
-        type=float,
-        help="Exclude leaves originating earlier (default: -inf).",
-    )
-    parser.add_argument(
         "--parallel-backend",
         default=None,
         type=str,
@@ -429,7 +472,6 @@ if __name__ == "__main__":
                     alifestd_tgs_pendantmdc_estimate_polars,
                     trait_transitions=args.trait_transitions,
                     neutral_traits=args.neutral_traits,
-                    calibrate=args.calibrate,
                     calibrate_neighborhood_fractions=(
                         args.calibrate_neighborhood_fractions
                     ),
@@ -440,7 +482,6 @@ if __name__ == "__main__":
                     loss_rate=args.loss_rate,
                     selection_coef_starts=args.selection_coef_starts,
                     growth_exponent_bound=args.growth_exponent_bound,
-                    min_leaf_origin_time=args.min_leaf_origin_time,
                     parallel_backend=args.parallel_backend,
                 ),
             )

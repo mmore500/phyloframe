@@ -4,15 +4,12 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from ._TgsCounts import TgsCounts
-from ._tgs_calc_calibrated_pendant_lengths import (
-    tgs_calc_calibrated_pendant_lengths,
-)
+from ._tgs_calc_calibrated_lengths import tgs_calc_calibrated_lengths
 
 
 def tgs_tabulate_partitions(
     *,
-    counts: TgsCounts,
+    counts: typing.Sequence[pd.DataFrame],
     neutral_traits: typing.Sequence[int],
     calibration_neighborhoods: typing.Optional[sparse.spmatrix],
     max_rate_ratio: float,
@@ -21,35 +18,32 @@ def tgs_tabulate_partitions(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns one row per trait and partition, trait-major, with columns
-    `trait` (index, categorical over all traits), the (weighted) counts of
-    branches starting without the trait, `num_trials`, and of gains,
-    `num_successes`, and their mean `length` (zero without branches),
-    calibrated against neutral traits if `calibration_neighborhoods` is
-    given, with rate ratios capped at `max_rate_ratio` (see
-    `tgs_calc_calibrated_pendant_lengths`).
+    Returns one row per trait and partition, trait-major, from per-trait
+    `counts` (see `tgs_count_traits`), with columns `trait` (index,
+    categorical over all traits), `num_trials`, `num_successes`, and the
+    exposure episodes' mean `length` (zero without episodes), calibrated
+    against neutral traits if `calibration_neighborhoods` is given, with
+    rate ratios capped at `max_rate_ratio` (see
+    `tgs_calc_calibrated_lengths`).
     """
-    num_traits, num_partitions = counts.num_leaves.shape
-    lengths = np.stack(
+    num_traits = len(counts)
+    partition_df = pd.concat(
         [
-            tgs_calc_calibrated_pendant_lengths(
-                counts=counts,
-                trait=trait,
-                neutral_traits=neutral_traits,
-                calibration_neighborhoods=calibration_neighborhoods,
-                max_rate_ratio=max_rate_ratio,
-            )[0]
-            for trait in range(num_traits)
+            trait_counts[["num_trials", "num_successes"]].assign(
+                length=tgs_calc_calibrated_lengths(
+                    counts=counts,
+                    trait=trait,
+                    neutral_traits=neutral_traits,
+                    calibration_neighborhoods=calibration_neighborhoods,
+                    max_rate_ratio=max_rate_ratio,
+                )[0],
+            )
+            for trait, trait_counts in enumerate(counts)
         ],
+        keys=range(num_traits),
+        names=["trait", None],
+    ).reset_index(level=0)
+    partition_df["trait"] = pd.Categorical(
+        partition_df["trait"], categories=range(num_traits)
     )
-    return pd.DataFrame(
-        {
-            "trait": pd.Categorical(
-                np.repeat(np.arange(num_traits), num_partitions),
-                categories=range(num_traits),
-            ),
-            "num_trials": counts.num_leaves.ravel(),
-            "num_successes": counts.num_carriers.ravel(),
-            "length": lengths.ravel(),
-        },
-    )
+    return partition_df.reset_index(drop=True)

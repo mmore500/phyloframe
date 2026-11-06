@@ -13,7 +13,6 @@ def tgs_pendantmdc_impl(
     *,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
-    calibrate: bool,
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_num_partitions: int,
     calibrate_max_rate_ratio: float,
@@ -21,7 +20,6 @@ def tgs_pendantmdc_impl(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
-    min_leaf_origin_time: float,
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
@@ -30,13 +28,9 @@ def tgs_pendantmdc_impl(
     Acronym tgs stands for trait gain/selection.
 
     Takes `exposure_df` from `tgs_calc_exposure_df` and validated arguments
-    (see `tgs_validate_args`), and fits leaf pendant branches originating at or
-    after `min_leaf_origin_time`.
+    (see `tgs_validate_args`), and fits leaf pendant branches.
     """
-    leaf_exposure_df = exposure_df[
-        (exposure_df["clade_size"] == 1)
-        & (exposure_df["origin_time"] >= min_leaf_origin_time)
-    ]
+    leaf_exposure_df = exposure_df[exposure_df["clade_size"] == 1]
     if leaf_exposure_df.empty:
         raise ValueError(
             "phylogeny_df has no exposure episodes, i.e., leaf pendant "
@@ -58,7 +52,6 @@ def tgs_pendantmdc_impl(
         trait_carriers=trait_carriers,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
-        calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,

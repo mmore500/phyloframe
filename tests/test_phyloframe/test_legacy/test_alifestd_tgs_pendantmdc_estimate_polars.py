@@ -569,17 +569,17 @@ def test_heldout_neutral_without_carriers_warns():
         )
 
 
-def test_tgs_calc_calibrated_pendant_lengths():
+def test_tgs_calc_calibrated_lengths():
     from scipy import sparse
 
-    from phyloframe.legacy._impl import tgs_calc_calibrated_pendant_lengths
+    from phyloframe.legacy._impl import tgs_calc_calibrated_lengths
 
     counts = TgsCounts(
         num_leaves=np.array([[2.0, 0.0], [4.0, 4.0], [4.0, 4.0]]),
         num_carriers=np.array([[1.0, 0.0], [2.0, 1.0], [2.0, 1.0]]),
         pendant_length_sums=np.array([[6.0, 0.0], [8.0, 8.0], [8.0, 8.0]]),
     )
-    lengths, factors = tgs_calc_calibrated_pendant_lengths(
+    lengths, factors = tgs_calc_calibrated_lengths(
         counts=counts,
         trait=0,
         neutral_traits=[1, 2],
@@ -589,7 +589,7 @@ def test_tgs_calc_calibrated_pendant_lengths():
     np.testing.assert_array_equal(lengths, [3.0, 0.0])  # zero if no leaves
     assert factors is None
 
-    lengths, factors = tgs_calc_calibrated_pendant_lengths(
+    lengths, factors = tgs_calc_calibrated_lengths(
         counts=counts,
         trait=0,
         neutral_traits=[1, 2],

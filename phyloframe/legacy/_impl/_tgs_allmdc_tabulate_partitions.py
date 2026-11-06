@@ -16,7 +16,6 @@ def tgs_allmdc_tabulate_partitions(
     partitioning: typing.Dict[str, typing.Any],
     weights: np.ndarray,
     neutral_traits: typing.Sequence[int],
-    calibrate: bool,
     calibrate_max_rate_ratio: float,
 ) -> typing.Tuple[pd.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
@@ -28,7 +27,7 @@ def tgs_allmdc_tabulate_partitions(
     starting without the trait, with columns `trait` (index, categorical
     over all traits), the (weighted) counts of those branches,
     `num_trials`, and of gains, `num_successes`, and their mean `length`
-    (calibrated against neutral traits if `calibrate`). Also returns
+    (calibrated against neutral traits). Also returns
     `survival_shares`, a sparse matrix with a row per `partition_df` row and
     a column per distinct survival time, giving the share of the row's
     branches in each bin.
@@ -38,20 +37,18 @@ def tgs_allmdc_tabulate_partitions(
     trait_units, trait_gains = tgs_find_trait_exposures(exposure_df)
     num_traits = len(trait_units)
     counts = tgs_count_traits(
-        leaf_partitions=partitions,
+        partitions=partitions,
         num_partitions=num_partitions,
-        pendant_lengths=exposure_df["branch_length"].to_numpy(),
-        leaf_weights=weights,
-        trait_leaves=trait_units,
-        trait_carriers=trait_gains,
+        lengths=exposure_df["branch_length"].to_numpy(),
+        weights=weights,
+        trait_episodes=trait_units,
+        trait_gains=trait_gains,
     )
     # one row per trait and partition, before dropping rows without branches
     all_partition_df = tgs_tabulate_partitions(
         counts=counts,
         neutral_traits=neutral_traits,
-        calibration_neighborhoods=(
-            partitioning["calibration_neighborhoods"] if calibrate else None
-        ),
+        calibration_neighborhoods=partitioning["calibration_neighborhoods"],
         max_rate_ratio=calibrate_max_rate_ratio,
     )
     # sparse, as partitions span few of many distinct survival times; each

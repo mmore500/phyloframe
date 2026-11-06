@@ -24,12 +24,12 @@ def test_select(caplog):
     with caplog.at_level(logging.INFO):
         res = tgs_pendantmdc_select_calibration(
             counts=tgs_count_traits(
-                leaf_partitions=partitions,
+                partitions=partitions,
                 num_partitions=num_partitions,
-                pendant_lengths=lengths,
-                leaf_weights=np.ones(num_leaves),
-                trait_leaves=[np.arange(num_leaves)] * 3,
-                trait_carriers=trait_carriers,
+                lengths=lengths,
+                weights=np.ones(num_leaves),
+                trait_episodes=[np.arange(num_leaves)] * 3,
+                trait_gains=trait_carriers,
             ),
             partition_coords=coords,
             neighborhood_fractions=(0.25, 1.0),

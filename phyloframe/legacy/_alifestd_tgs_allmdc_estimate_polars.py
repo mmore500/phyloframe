@@ -27,8 +27,8 @@ def alifestd_tgs_allmdc_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str] = (),
-    calibrate: bool = False,
+    neutral_traits: typing.Sequence[str],
+    size_partitions: typing.Optional[str] = None,
     calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
@@ -41,8 +41,6 @@ def alifestd_tgs_allmdc_estimate_polars(
     ),
     calibrate_num_partitions: int = 4096,
     calibrate_max_rate_ratio: float = np.inf,
-    calibrate_size_partition_ratio: float = 2.0,
-    calibrate_size_partition_min_neutral_gains: int = 20,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -61,116 +59,77 @@ def alifestd_tgs_allmdc_estimate_polars(
 
     Here, an MDC is a mutationally defined clade: a maximal clade whose
     leaves all carry the trait, which, under parsimony without loss, gained
-    it on its stem branch. Each branch whose parent lacks the trait started
-    without it, so its length is an exposure window; the branch gained the
-    trait if its end node carries it. Every such branch, pendant or inner,
-    is fit to
+    it on its stem branch. Each branch whose parent lacks the trait is an
+    exposure episode: it started without the trait, so its length is an
+    exposure window, and it gained the trait if its end node carries it.
+    Every exposure episode, pendant or inner, is fit to
 
         p = gain_rate * (exp(c * length) - 1) / c * exp(c * survival),
         c = selection_coef - loss_rate
 
-    where `survival` is the branch's survival time, measured on the tree
-    from its end node to the latest sampled leaf below it (zero for a
-    leaf): after a gain on the branch, its carrier lineage must persist
-    that much longer to be seen at every leaf of the clade, which a cost
-    makes less likely. Equivalently, writing `eff(t) = (exp(c * t) - 1) /
-    c` for the effective exposure of a window of length `t`, `p =
-    gain_rate * (eff(length + survival) - eff(survival))`: the exposure of
-    the window from the branch's start to the clade's latest leaf, minus
-    that of the window from the branch's end.
-
-    Notes on interpretation:
-
-    - survival time takes the tree's branch lengths at face value, so
-      distortion of inner branch lengths (e.g., from reconstruction) also
-      distorts the survival term, which neutral calibration does not
-      correct; the pendant estimator, which uses no inner branch lengths,
-      is unaffected, so disagreement between the two may suggest such
-      distortion; and
-    - nested branches share leaves, so their outcomes are not independent, but
-      the likelihood treats them as independent (a composite likelihood). So,
-      `selection_coef_lrt_naive` and `gain_ratio_lrt_naive` are not calibrated
-      as chi-squared statistics, and every bootstrap statistic (standard
-      errors, z-scores, and p-values), as replicates resample branches
-      independently, is likely overconfident. No bootstrap that accounts for
-      nesting (e.g., resampling whole clades) is yet provided.
+    where `survival` is the episode's survival duration, measured on the
+    tree from its end node to the latest sampled leaf below it (zero for a
+    leaf): after a gain, its carrier lineage must persist that much longer
+    to be seen at every leaf of the clade, which a cost makes less likely.
+    Equivalently, writing `eff(t) = (exp(c * t) - 1) / c` for the effective
+    exposure of a window of length `t`, `p = gain_rate * (eff(length +
+    survival) - eff(survival))`: the exposure of the window from the
+    branch's start to the clade's latest leaf, minus that of the window
+    from the branch's end.
 
     Only supports asexual phylogenies.
 
     Parameters
     ----------
     phylogeny_df : polars.DataFrame or polars.LazyFrame
-        The phylogeny as a dataframe in alife standard format, with column
-        `origin_time`.
-
-        Must represent an asexual phylogeny with contiguous,
-        topologically sorted ids.
+        The phylogeny as a dataframe in alife standard format; see Input
+        Schema.
     trait_transitions : Sequence[str]
         Names of integer columns, one per trait, giving each node's trait
-        state transition on the branch from its parent: +1 for a gain, -1
-        for a loss, 0 for none (and, at a root, its initial state). Make
-        them from trait states at every node with
-        `alifestd_mark_lineage_delta_polars`, with `basal_value=False`
-        to give each root's initial state. For leaf data, under parsimony
-        without loss, a node has the trait if and only if every leaf of its
-        clade does, so gains fall on the stems of mutationally defined
-        clades (see `alifestd_mask_trait_mdcs_strict_polars`). Loss events,
-        i.e., -1 values, are not yet supported. Output rows are labeled by
-        these column names.
-    neutral_traits : Sequence[str], default ()
-        Names, among `trait_transitions`, of traits known to be neutral.
-        Used to calibrate branch lengths (with `calibrate`), which requires
-        at least two, and as the reference for gain ratios.
-    calibrate : bool, default False
-        If True, rescale branch lengths by neutral trait gains, as in the
-        pendant estimator, within neighborhoods of branches of the same
-        size partition (see `calibrate_size_partition_ratio`) similar in
-        length and origin time. So, distortion of branch
-        lengths shared with neutral traits, including any difference
-        between inner and pendant branches, cancels.
+        state transition on the branch from its parent (see Input Schema).
+        Output rows are labeled by these column names.
+    neutral_traits : Sequence[str]
+        Names, among `trait_transitions`, of traits known to be neutral. At
+        least two are required: they calibrate branch lengths against one
+        another, and their mean gain rate, leaving the focal trait out, is
+        the reference for gain ratios.
+    size_partitions : str, optional
+        Name of an integer column giving each node's clade size partition
+        (see Input Schema), e.g., from
+        `alifestd_tgs_mark_clade_size_partitions_polars`. Branch lengths are
+        calibrated within each size partition, as neutral gains per unit
+        length may differ with clade size (e.g., between leaves and inner
+        nodes). If not given, all nodes form one size partition, i.e., no
+        calibration across clade sizes.
     calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of each size
-        partition's branches; see the pendant estimator.
+        partition's exposure episodes, similar in branch length and origin
+        time; see `alifestd_tgs_pendantmdc_estimate_polars`. Pass (1.0,),
+        one neighborhood of each size partition's episodes, to disable
+        calibration within size partitions.
     calibrate_num_partitions : int, default 4096
         Maximum number of equal-occupancy partitions of each size
-        partition's branches, by ranked length and origin time, for
-        calibration and fitting; a power of two.
+        partition's exposure episodes, by ranked branch length and origin
+        time, for calibration and fitting; a power of two.
     calibrate_max_rate_ratio : float, default np.inf
         Cap on the neutral gain rate ratios that rescale branch lengths in
-        calibration; see the pendant estimator.
-    calibrate_size_partition_ratio : float, default 2.0
-        Ratio between successive size partitions, which group branches by
-        clade size for calibration: a branch subtending `n` leaves falls in
-        size partition ceil(log(n) / log(ratio)), so the default gives size
-        partitions of 1, 2, 3-4, 5-8, 9-16, ... leaves. Branches are
-        partitioned and calibrated within their size partition, as neutral
-        gains per unit length may differ with clade size; the model itself
-        is the same for every size partition. Larger ratios give fewer,
-        larger size partitions.
-    calibrate_size_partition_min_neutral_gains : int, default 20
-        With `calibrate`, inner size partitions go up the log scale only
-        while each holds at least this many neutral trait gains; the first
-        with fewer and all larger clades join the one below (or, if the
-        first inner size partition has too few, all inner branches form
-        one), so no inner size partition is left without neutral gains to
-        calibrate against. Leaves always keep their own size partition, and
-        clade sizes absent from the tree leave no empty size partitions.
+        calibration; see `alifestd_tgs_pendantmdc_estimate_polars`.
     num_bootstrap : int, default 0
-        Number of bootstrap replicates, resampling branches with
-        replacement and refitting, for standard errors,
-        z-scores, and p-values. Calibration neighborhood sizes are held
-        fixed across replicates. More than about 200 replicates are
-        rarely needed for standard errors; see Efron and Tibshirani (1993), An
-        Introduction to the Bootstrap (Chapman & Hall).
+        Number of bootstrap replicates, resampling exposure episodes with
+        replacement and refitting, for standard errors, z-scores, and
+        p-values. Calibration neighborhood size is held constant. More than
+        about 200 replicates are rarely needed for standard errors; see
+        Efron and Tibshirani (1993), An Introduction to the Bootstrap
+        (Chapman & Hall).
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Starting values for the selection coefficient, in units of 1 / mean
         branch length; the best of the resulting fits is kept. See `tgs_fit`.
     growth_exponent_bound : float, default 600.0
-        Bound on carrier growth exponents, such as (selection coefficient -
-        loss rate) * branch length, keeping optimizer trial steps finite. See
-        `tgs_fit`.
+        Bound on carrier growth exponents, such as the selection coefficient
+        minus loss rate, times branch length, keeping optimizer trial steps
+        finite. See `tgs_fit`.
     seed : int, default None
         Seed for bootstrap resampling; if None, drawn from numpy's global
         random state.
@@ -183,45 +142,80 @@ def alifestd_tgs_allmdc_estimate_polars(
     Returns
     -------
     polars.DataFrame
-        One row per trait, with columns `trait`, `num_leaves` and
-        `num_trait_present` (leaf branches that started without the trait, and
-        those that gained it), `num_clades` and `num_clade_gains` (the same for
-        inner branches), `gain_rate`, `selection_coef`, `gain_ratio` (gain rate
-        relative to the mean of neutral traits', leaving the focal trait out),
-        `selection_coef_lrt_naive`, and `gain_ratio_lrt_naive`
-        (likelihood-ratio statistics for selection coefficient = 0 and for gain
-        ratio = 1; see the pendant estimator). With bootstrap replicates, also
-        the pendant estimator's bootstrap columns.
+        One row per trait; see Output Schema.
 
     Raises
     ------
     ValueError
-        If there are no exposure episodes, i.e., branches to fit, if arguments
-        are invalid, e.g., `calibrate` with fewer than two neutral traits, or a
-        `trait_transitions` column is missing or gives states other than 0 and
-        1, or if a non-root node has zero, negative, or undefined (nan) branch
-        length.
+        If there are no exposure episodes (i.e., branches to fit), if an
+        argument is invalid, or if a `trait_transitions` or
+        `size_partitions` column is missing, or a `trait_transitions` column
+        gives states other than 0 and 1.
     NotImplementedError
-        If `phylogeny_df` has no "ancestor_id" column, if ids are
-        non-contiguous or not topologically sorted, or if a
-        `trait_transitions` column is not integer, has null values, or has
-        loss events, i.e., -1 values.
+        If fewer than two neutral traits are given; if `phylogeny_df` is not
+        asexual, or its ids are non-contiguous or not topologically sorted;
+        if a `trait_transitions` column is not integer, has null values, or
+        has loss events, i.e., -1 values; or if the `size_partitions` column
+        is not integer or has null values.
+
+    Input Schema
+    ------------
+    'id' : integer
+        Taxon identifier; contiguous and topologically sorted.
+    'ancestor_id' : integer
+        Parent's taxon identifier (or own, for a root).
+    'origin_time' : float
+        Time of each taxon's origin, from which branch lengths and survival
+        durations are taken.
+    `trait_transitions` columns : integer
+        Each node's trait state transition on the branch from its parent; see
+        `alifestd_tgs_pendantmdc_estimate_polars`.
+    `size_partitions` column : integer, optional
+        Each node's clade size partition, for calibration.
+
+    Output Schema
+    -------------
+    As for `alifestd_tgs_pendantmdc_estimate_polars`, with also:
+
+    'num_clades' : integer
+        Inner exposure episodes, i.e., inner branches that started without
+        the trait.
+    'num_clade_gains' : integer
+        Of those, the number that gained the trait.
+
+    Here, 'num_leaves' and 'num_trait_present' count leaf exposure
+    episodes, and 'gain_rate' is per unit branch length.
 
     Notes
     -----
     Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`).
-    Bootstrap replicates resample branches independently, ignoring
-    correlation through shared ancestry.
+
+    Survival durations take the tree's branch lengths at face value, so
+    distortion of inner branch lengths (e.g., from reconstruction) also
+    distorts the survival term, which neutral calibration does not correct.
+    The pendant estimator, which uses no inner branch lengths, is
+    unaffected, so disagreement between the two may suggest such
+    distortion.
+
+    Nested exposure episodes share leaves, so their outcomes are not
+    independent, but the likelihood treats them as independent (a composite
+    likelihood). So, `selection_coef_lrt_naive` and `gain_ratio_lrt_naive`
+    are not calibrated as chi-squared statistics, and every bootstrap
+    statistic (standard errors, z-scores, and p-values), as replicates
+    resample episodes independently, is likely overconfident. No bootstrap
+    that accounts for nesting (e.g., resampling whole clades) is yet
+    provided.
 
     See Also
     --------
+    alifestd_tgs_mark_clade_size_partitions_polars :
+        Marks clade size partitions, for `size_partitions`.
     alifestd_tgs_pendantmdc_estimate_polars :
         Leaf pendant branches only.
     """
     trait_names, neutral_traits = tgs_validate_args(
         trait_transitions=trait_transitions,
         neutral_traits=neutral_traits,
-        calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
@@ -230,6 +224,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         phylogeny_df,
         trait_transitions=trait_transitions,
         caller="alifestd_tgs_allmdc_estimate_polars",
+        size_partitions=size_partitions,
     )
 
     logging.info(
@@ -240,14 +235,9 @@ def alifestd_tgs_allmdc_estimate_polars(
         exposure_df,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
-        calibrate=calibrate,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
-        calibrate_size_partition_ratio=calibrate_size_partition_ratio,
-        calibrate_size_partition_min_neutral_gains=(
-            calibrate_size_partition_min_neutral_gains
-        ),
         num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
@@ -264,25 +254,47 @@ _raw_description = f"""\
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
 Estimate per-trait gain rate and selection coefficient from how often each
-branch's clade carries each trait as a function of branch length and survival
-time (from the branch's end to its latest sampled leaf), using pendant and
-inner branches.
+exposure episode (branch starting without a trait) gains it, as a function
+of branch length and survival duration (from the branch's end to its latest
+sampled leaf), using pendant and inner branches.
 
-Output is one row per trait, with columns `trait`, `num_leaves`,
-`num_trait_present`, `num_clades`, `num_clade_gains`, `gain_rate`,
-`selection_coef`, `gain_ratio`, `selection_coef_lrt_naive`, and
-`gain_ratio_lrt_naive`; with `--num-bootstrap`, also `selection_coef_se`,
-`selection_coef_z`, `selection_coef_p`, `log_gain_ratio_se`, `gain_ratio_z`,
-`gain_ratio_p`, and `num_bootstrap_degenerate`.
-
-Data is assumed to be in alife standard format, with column `origin_time`.
+Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
+
+
+Input Schema: Required Columns
+==============================
+'id' : integer
+    Taxon identifier; contiguous and topologically sorted.
+
+'ancestor_id' : integer
+    Parent's taxon identifier (or own, for a root).
+
+'origin_time' : float
+    Time of each taxon's origin.
+
+`--trait-transitions` columns : integer
+    Each node's trait state transition on the branch from its parent: +1
+    for a gain, 0 for none, and, at a root, its initial state.
+
+
+Input Schema: Optional Columns
+==============================
+`--size-partitions` column : integer
+    Each node's clade size partition, for calibration (see
+    phyloframe.legacy._alifestd_tgs_mark_clade_size_partitions_polars).
+
+
+Output Schema
+=============
+As for phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars, with also
+'num_clades' and 'num_clade_gains' : integer, the inner exposure episodes and
+how many gained the trait.
+
 
 Additional Notes
 ================
 - Requires contiguous, topologically sorted ids.
-
-- Output is a per-trait summary table, not a phylogeny.
 
 - This CLI entrypoint is experimental and may be subject to change.
 
@@ -328,9 +340,13 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--calibrate",
-        action="store_true",
-        help="Measure branch length by neutral trait gains.",
+        "--size-partitions",
+        default=None,
+        type=str,
+        help=(
+            "Name of integer column of clade size partitions, within which "
+            "to calibrate (default: none, i.e., one partition)."
+        ),
     )
     parser.add_argument(
         "--calibrate-neighborhood-fractions",
@@ -358,25 +374,6 @@ def _create_parser() -> argparse.ArgumentParser:
         help=(
             "Cap on calibration's neutral gain rate ratios "
             "(default: uncapped)."
-        ),
-    )
-    parser.add_argument(
-        "--calibrate-size-partition-ratio",
-        default=2.0,
-        type=float,
-        help=(
-            "Ratio between successive size partitions, which group branches "
-            "by clade size for calibration, e.g., 2 for 1, 2, 3-4, 5-8, ... "
-            "leaves (default: 2.0)."
-        ),
-    )
-    parser.add_argument(
-        "--calibrate-size-partition-min-neutral-gains",
-        default=20,
-        type=int,
-        help=(
-            "Minimum neutral trait gains per size partition; larger clades "
-            "join the size partition below (default: 20)."
         ),
     )
     parser.add_argument(
@@ -439,18 +436,12 @@ if __name__ == "__main__":
                     alifestd_tgs_allmdc_estimate_polars,
                     trait_transitions=args.trait_transitions,
                     neutral_traits=args.neutral_traits,
-                    calibrate=args.calibrate,
                     calibrate_neighborhood_fractions=(
                         args.calibrate_neighborhood_fractions
                     ),
                     calibrate_num_partitions=args.calibrate_num_partitions,
                     calibrate_max_rate_ratio=args.calibrate_max_rate_ratio,
-                    calibrate_size_partition_ratio=(
-                        args.calibrate_size_partition_ratio
-                    ),
-                    calibrate_size_partition_min_neutral_gains=(
-                        args.calibrate_size_partition_min_neutral_gains
-                    ),
+                    size_partitions=args.size_partitions,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,

@@ -2,11 +2,11 @@ import logging
 import typing
 
 import numpy as np
+import pandas as pd
 from scipy import sparse
 
-from ._TgsCounts import TgsCounts
-from ._tgs_calc_calibrated_pendant_lengths import (
-    tgs_calc_calibrated_pendant_lengths,
+from ._tgs_calc_calibrated_lengths import (
+    tgs_calc_calibrated_lengths,
 )
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
@@ -15,7 +15,7 @@ from ._tgs_select_calibration_neighborhoods import (
 
 def tgs_pendantmdc_select_calibration(
     *,
-    counts: TgsCounts,
+    counts: typing.Sequence[pd.DataFrame],
     partition_coords: np.ndarray,
     neighborhood_fractions: typing.Sequence[float],
     neutral_traits: typing.Sequence[int],
@@ -41,14 +41,14 @@ def tgs_pendantmdc_select_calibration(
     if not logging.getLogger().isEnabledFor(logging.INFO):
         return neighborhoods  # factors are computed only to log them
     for trait, name in enumerate(trait_names):
-        __, factors = tgs_calc_calibrated_pendant_lengths(
+        __, factors = tgs_calc_calibrated_lengths(
             counts=counts,
             trait=trait,
             neutral_traits=neutral_traits,
             calibration_neighborhoods=neighborhoods,
             max_rate_ratio=max_rate_ratio,
         )
-        factors = factors[counts.num_leaves[trait] > 0]
+        factors = factors[counts[trait]["num_trials"].to_numpy() > 0]
         if len(factors):
             logging.info(
                 "- alifestd_tgs_pendantmdc_estimate_polars: calibrated "

@@ -28,6 +28,7 @@ def tgs_build_exposure_df_polars(
     *,
     trait_transitions: typing.Sequence[str],
     caller: str,
+    size_partitions: typing.Optional[str] = None,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -35,8 +36,10 @@ def tgs_build_exposure_df_polars(
 
     Sums each trait's transitions into node states (see
     `tgs_calc_trait_states`), collapses unifurcations, and returns the
-    phylogeny's branches (see `tgs_calc_exposure_df`). `caller` names the
-    calling function in error messages.
+    phylogeny's branches (see `tgs_calc_exposure_df`). With
+    `size_partitions`, the name of an integer column, also gives each
+    branch's value there, at its end node, as column `size_partition`.
+    `caller` names the calling function in error messages.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -44,7 +47,8 @@ def tgs_build_exposure_df_polars(
         raise NotImplementedError(
             f"{caller} only supports asexual phylogenies.",
         )
-    for column in trait_transitions:
+    extra_columns = [] if size_partitions is None else [size_partitions]
+    for column in [*trait_transitions, *extra_columns]:
         if column not in schema_names:
             raise ValueError(f"phylogeny_df has no column {column}")
 
@@ -55,7 +59,13 @@ def tgs_build_exposure_df_polars(
     with pl.Config(engine_affinity="in-memory"):
         selected = (
             phylogeny_df.lazy()
-            .select("id", "ancestor_id", "origin_time", *trait_transitions)
+            .select(
+                "id",
+                "ancestor_id",
+                "origin_time",
+                *trait_transitions,
+                *extra_columns,
+            )
             .collect()
         )
         if selected.is_empty():
@@ -89,7 +99,7 @@ def tgs_build_exposure_df_polars(
             alifestd_assign_contiguous_ids_polars(
                 alifestd_collapse_unifurcations_polars(
                     selected.select(
-                        "id", "ancestor_id", "origin_time"
+                        "id", "ancestor_id", "origin_time", *extra_columns
                     ).with_columns(
                         pl.Series(f"__alifestd_tgs_state{i}", s)
                         for i, s in enumerate(states)
@@ -100,11 +110,22 @@ def tgs_build_exposure_df_polars(
             .lazy()
             .collect()
         )
-    return tgs_calc_exposure_df(
-        ancestor_ids=collapsed["ancestor_id"].to_numpy(),
+    ancestor_ids = collapsed["ancestor_id"].to_numpy()
+    exposure_df = tgs_calc_exposure_df(
+        ancestor_ids=ancestor_ids,
         origin_time=collapsed["origin_time"].to_numpy(),
         trait_states=[
             collapsed[f"__alifestd_tgs_state{i}"].to_numpy()
             for i in range(len(trait_transitions))
         ],
     )
+    if size_partitions is not None:
+        values = collapsed[size_partitions]
+        if not values.dtype.is_integer() or values.has_nulls():
+            raise NotImplementedError(
+                f"size_partitions column {size_partitions} must be integer, "
+                "without null values",
+            )
+        is_root = ancestor_ids == np.arange(len(ancestor_ids))
+        exposure_df["size_partition"] = values.to_numpy()[~is_root]
+    return exposure_df

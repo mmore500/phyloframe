@@ -1,19 +1,20 @@
 import typing
 import warnings
 
+import pandas as pd
+
 from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ._TgsCounts import TgsCounts
-from ._tgs_calc_calibrated_pendant_lengths import (
-    tgs_calc_calibrated_pendant_lengths,
+from ._tgs_calc_calibrated_lengths import (
+    tgs_calc_calibrated_lengths,
 )
 
 
 def tgs_calc_heldout_nll(
     *,
     calibration_neighborhoods: sparse.spmatrix,
-    counts: TgsCounts,
+    counts: typing.Sequence[pd.DataFrame],
     trait: int,
     trait_name: str,
     neutral_traits: typing.Sequence[int],
@@ -27,9 +28,9 @@ def tgs_calc_heldout_nll(
     the other neutral traits only; 0 if it has no carriers or no calibrated
     exposure, so scores the same for every neighborhood size.
     """
-    n = counts.num_leaves[trait]
-    k = counts.num_carriers[trait]
-    pendant_length, __ = tgs_calc_calibrated_pendant_lengths(
+    n = counts[trait]["num_trials"].to_numpy()
+    k = counts[trait]["num_successes"].to_numpy()
+    pendant_length, __ = tgs_calc_calibrated_lengths(
         counts=counts,
         trait=trait,
         neutral_traits=neutral_traits,

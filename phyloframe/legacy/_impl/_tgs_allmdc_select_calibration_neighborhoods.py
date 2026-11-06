@@ -1,9 +1,9 @@
 import typing
 
 import numpy as np
+import pandas as pd
 from scipy import sparse
 
-from ._TgsCounts import TgsCounts
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
@@ -11,7 +11,7 @@ from ._tgs_select_calibration_neighborhoods import (
 
 def tgs_allmdc_select_calibration_neighborhoods(
     *,
-    counts: TgsCounts,
+    counts: typing.Sequence[pd.DataFrame],
     blocks: typing.Sequence[typing.Tuple[int, int, np.ndarray]],
     neighborhood_fractions: typing.Sequence[float],
     neutral_traits: typing.Sequence[int],
@@ -33,9 +33,12 @@ def tgs_allmdc_select_calibration_neighborhoods(
             tgs_select_calibration_neighborhoods(
                 partition_coords=coords,
                 neighborhood_fractions=neighborhood_fractions,
-                counts=TgsCounts(
-                    *(x[:, offset : offset + num] for x in counts)
-                ),
+                counts=[
+                    trait_counts.iloc[offset : offset + num].reset_index(
+                        drop=True
+                    )
+                    for trait_counts in counts
+                ],
                 neutral_traits=neutral_traits,
                 trait_names=trait_names,
                 max_rate_ratio=max_rate_ratio,
