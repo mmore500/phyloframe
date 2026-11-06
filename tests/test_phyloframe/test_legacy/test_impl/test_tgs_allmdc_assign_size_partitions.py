@@ -1,12 +1,12 @@
 import numpy as np
 
-from phyloframe.legacy._impl import tgs_calc_size_partitions
+from phyloframe.legacy._impl import tgs_allmdc_assign_size_partitions
 
 _SIZES = np.array([1, 1, 2, 3, 4, 5, 8, 9, 16])
 
 
 def _calc(neutral_gain_positions, calibrate, min_neutral_gains=1):
-    return tgs_calc_size_partitions(
+    return tgs_allmdc_assign_size_partitions(
         clade_sizes=_SIZES,
         neutral_gain_positions=np.asarray(neutral_gain_positions, dtype=int),
         calibrate=calibrate,
@@ -41,7 +41,7 @@ def test_first_inner_sparse_keeps_leaves_apart():
 
 def test_empty_bins_dropped():
     # ratio 1.5 leaves bin (1, 1.5] empty, which must not count as sparse
-    res = tgs_calc_size_partitions(
+    res = tgs_allmdc_assign_size_partitions(
         clade_sizes=np.array([1, 1, 2, 2, 3, 3]),
         neutral_gain_positions=np.arange(6),
         calibrate=True,

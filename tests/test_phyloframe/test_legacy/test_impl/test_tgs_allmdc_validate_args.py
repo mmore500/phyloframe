@@ -1,6 +1,6 @@
 import pytest
 
-from phyloframe.legacy._impl import tgs_validate_allmdc_args
+from phyloframe.legacy._impl import tgs_allmdc_validate_args
 
 _VALID = dict(
     calibrate_size_partition_ratio=2.0,
@@ -9,7 +9,7 @@ _VALID = dict(
 
 
 def test_valid():
-    tgs_validate_allmdc_args(**_VALID)
+    tgs_allmdc_validate_args(**_VALID)
 
 
 @pytest.mark.parametrize(
@@ -21,4 +21,4 @@ def test_valid():
 )
 def test_invalid(kwargs: dict):
     with pytest.raises(ValueError):
-        tgs_validate_allmdc_args(**{**_VALID, **kwargs})
+        tgs_allmdc_validate_args(**{**_VALID, **kwargs})

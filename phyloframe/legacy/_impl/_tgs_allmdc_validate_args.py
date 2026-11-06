@@ -1,4 +1,4 @@
-def tgs_validate_allmdc_args(
+def tgs_allmdc_validate_args(
     *,
     calibrate_size_partition_ratio: float,
     calibrate_size_partition_min_neutral_gains: int,

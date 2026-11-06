@@ -7,7 +7,6 @@ from ..._auxlib._calc_neighborhood_rate_ratios import (
     calc_neighborhood_rate_ratios,
 )
 from ._TgsCounts import TgsCounts
-from ._tgs_find_reference_traits import tgs_find_reference_traits
 
 
 def tgs_calc_calibrated_pendant_lengths(
@@ -38,9 +37,8 @@ def tgs_calc_calibrated_pendant_lengths(
     if calibration_neighborhoods is None:
         return pendant_lengths, None
 
-    refs = tgs_find_reference_traits(
-        neutral_traits=neutral_traits, trait=trait
-    )
+    # a neutral trait is not calibrated against itself
+    refs = [ref for ref in neutral_traits if ref != trait]
     factors = calc_neighborhood_rate_ratios(
         neighborhoods=calibration_neighborhoods,
         num_events=counts.num_carriers[refs].sum(axis=0),

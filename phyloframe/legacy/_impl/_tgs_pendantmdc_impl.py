@@ -3,12 +3,12 @@ import typing
 import pandas as pd
 
 from ._tgs_build_estimates_df import tgs_build_estimates_df
-from ._tgs_calc_trait_masks import tgs_calc_trait_masks
+from ._tgs_extract_trait_masks import tgs_extract_trait_masks
 from ._tgs_find_trait_exposures import tgs_find_trait_exposures
-from ._tgs_fit_and_bootstrap import tgs_fit_and_bootstrap
+from ._tgs_pendantmdc_fit_and_bootstrap import tgs_pendantmdc_fit_and_bootstrap
 
 
-def tgs_impl(
+def tgs_pendantmdc_impl(
     exposure_df: pd.DataFrame,
     *,
     trait_names: typing.Sequence[str],
@@ -37,8 +37,13 @@ def tgs_impl(
         (exposure_df["clade_size"] == 1)
         & (exposure_df["origin_time"] >= min_leaf_origin_time)
     ]
+    if leaf_exposure_df.empty:
+        raise ValueError(
+            "phylogeny_df has no exposure episodes, i.e., leaf pendant "
+            "branches to fit",
+        )
     trait_leaves, trait_carriers = tgs_find_trait_exposures(leaf_exposure_df)
-    starts_absent, gains = tgs_calc_trait_masks(leaf_exposure_df)
+    starts_absent, gains = tgs_extract_trait_masks(leaf_exposure_df)
     counts_df = pd.DataFrame(
         {
             "trait": list(trait_names),
@@ -46,30 +51,28 @@ def tgs_impl(
             "num_trait_present": gains.sum(axis=0),
         },
     )
-    point_df, replicate_fits_df = None, None
-    if len(leaf_exposure_df):
-        point_df, replicate_fits_df = tgs_fit_and_bootstrap(
-            pendant_lengths=leaf_exposure_df["branch_length"].to_numpy(),
-            origin_times=leaf_exposure_df["origin_time"].to_numpy(),
-            trait_leaves=trait_leaves,
-            trait_carriers=trait_carriers,
-            trait_names=trait_names,
-            neutral_traits=neutral_traits,
-            calibrate=calibrate,
-            calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
-            calibrate_num_partitions=calibrate_num_partitions,
-            calibrate_max_rate_ratio=calibrate_max_rate_ratio,
-            num_bootstrap=num_bootstrap,
-            loss_rate=loss_rate,
-            selection_starts=selection_starts,
-            growth_exponent_bound=growth_exponent_bound,
-            seed=seed,
-            parallel_backend=parallel_backend,
-            progress_wrap=progress_wrap,
-        )
+    point_estimate_df, bootstrap_fits_df = tgs_pendantmdc_fit_and_bootstrap(
+        pendant_lengths=leaf_exposure_df["branch_length"].to_numpy(),
+        origin_times=leaf_exposure_df["origin_time"].to_numpy(),
+        trait_leaves=trait_leaves,
+        trait_carriers=trait_carriers,
+        trait_names=trait_names,
+        neutral_traits=neutral_traits,
+        calibrate=calibrate,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        num_bootstrap=num_bootstrap,
+        loss_rate=loss_rate,
+        selection_starts=selection_starts,
+        growth_exponent_bound=growth_exponent_bound,
+        seed=seed,
+        parallel_backend=parallel_backend,
+        progress_wrap=progress_wrap,
+    )
     return tgs_build_estimates_df(
         counts_df,
-        point_df=point_df,
-        replicate_fits_df=replicate_fits_df,
+        point_estimate_df=point_estimate_df,
+        bootstrap_fits_df=bootstrap_fits_df,
         num_bootstrap=num_bootstrap,
     )

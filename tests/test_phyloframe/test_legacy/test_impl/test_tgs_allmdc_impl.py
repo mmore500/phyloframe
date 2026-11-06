@@ -7,8 +7,8 @@ from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_tgs_allmdc_estimate_polars
 from phyloframe.legacy._impl import (
     tgs_allmdc_impl,
+    tgs_build_exposure_df_polars,
     tgs_calc_exposure_df,
-    tgs_prepare_polars,
 )
 
 from .._impl import add_trait_transitions
@@ -37,7 +37,7 @@ def test_matches_public():
     phylogeny_df, traits = _make_cherries(2_000)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     df_pl = pl.from_pandas(phylogeny_df)
-    exposure_df = tgs_prepare_polars(
+    exposure_df = tgs_build_exposure_df_polars(
         df_pl, trait_transitions=names, caller="test"
     )
     res = tgs_allmdc_impl(
@@ -65,16 +65,15 @@ def _no_branches() -> pd.DataFrame:
     )
 
 
-def test_no_branches():
-    res = tgs_allmdc_impl(
-        _no_branches(),
-        trait_names=["t"],
-        neutral_traits=[],
-        **_IMPL_KWARGS,
-        **{**_KWARGS, "calibrate": False},
-    )
-    assert res["num_leaves"].tolist() == [0]
-    assert "selection_p" in res.columns
+def test_no_branches_raises():
+    with pytest.raises(ValueError, match="no exposure episodes"):
+        tgs_allmdc_impl(
+            _no_branches(),
+            trait_names=["t"],
+            neutral_traits=[],
+            **_IMPL_KWARGS,
+            **{**_KWARGS, "calibrate": False},
+        )
 
 
 @pytest.mark.parametrize(

@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from phyloframe.legacy._impl import (
-    tgs_calc_allmdc_data,
-    tgs_partition_allmdc_exposures,
+    tgs_allmdc_partition_episodes,
+    tgs_allmdc_tabulate_partitions,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -24,7 +24,7 @@ _COLUMNS = ("num_trials", "num_successes", "length")
 
 
 def _partition(exposure_df, calibrate):
-    return tgs_partition_allmdc_exposures(
+    return tgs_allmdc_partition_episodes(
         exposure_df=exposure_df,
         neutral_traits=[1, 2],
         trait_names=["focal", "n1", "n2"],
@@ -42,7 +42,7 @@ def test_data(calibrate: bool):
     exposure_df = simulate_allmdc_exposure_df(4_000)
     partitioning = _partition(exposure_df, calibrate)
     data = _by_trait(
-        *tgs_calc_allmdc_data(
+        *tgs_allmdc_tabulate_partitions(
             exposure_df=exposure_df,
             partitioning=partitioning,
             weights=np.ones(4_000),
@@ -74,7 +74,7 @@ def test_weights():
     weights = np.zeros(4_000)
     weights[:100] = 2.0
     (n, __, __, shares), *__ = _by_trait(
-        *tgs_calc_allmdc_data(
+        *tgs_allmdc_tabulate_partitions(
             exposure_df=exposure_df,
             partitioning=partitioning,
             weights=weights,
@@ -95,7 +95,7 @@ def test_trait_without_units():
         trait0_starts_absent=False, trait0_gain=False
     )
     (n, k, lengths, shares), *__ = _by_trait(
-        *tgs_calc_allmdc_data(
+        *tgs_allmdc_tabulate_partitions(
             exposure_df=exposure_df,
             partitioning=_partition(exposure_df, False),
             weights=np.ones(1_000),
@@ -111,7 +111,7 @@ def test_trait_without_units():
 def test_survival_shares_exact(rate: float):
     exposure_df = simulate_allmdc_exposure_df(4_000)
     partitioning = _partition(exposure_df, False)
-    data, shares = tgs_calc_allmdc_data(
+    data, shares = tgs_allmdc_tabulate_partitions(
         exposure_df=exposure_df,
         partitioning=partitioning,
         weights=np.ones(len(exposure_df)),

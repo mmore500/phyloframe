@@ -3,6 +3,9 @@ import typing
 import numpy as np
 import pandas as pd
 
+from .._alifestd_mark_lineage_delta_asexual import (
+    _alifestd_mark_lineage_delta_asexual_fast_path,
+)
 from .._alifestd_mark_max_descendant_origin_time_asexual import (
     _alifestd_mark_max_descendant_origin_time_asexual_fast_path,
 )
@@ -40,7 +43,9 @@ def tgs_calc_exposure_df(
     """
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     origin_time = np.asarray(origin_time, dtype=np.float64)
-    branch_length = origin_time - origin_time[ancestor_ids]
+    branch_length = _alifestd_mark_lineage_delta_asexual_fast_path(
+        ancestor_ids, origin_time
+    )
     keep = ancestor_ids != np.arange(len(ancestor_ids))  # excludes roots
     (bad_ids,) = np.nonzero(keep & ~(branch_length > 0))  # nan is bad
     if len(bad_ids):
@@ -62,7 +67,10 @@ def tgs_calc_exposure_df(
         )[keep],
     }
     for i, states in enumerate(trait_states):
-        starts_absent = states[ancestor_ids] == 0
-        columns[f"trait{i}_starts_absent"] = starts_absent[keep]
-        columns[f"trait{i}_gain"] = (starts_absent & (states == 1))[keep]
+        deltas = _alifestd_mark_lineage_delta_asexual_fast_path(
+            ancestor_ids, states
+        )
+        # a node's parent's state is its state minus its delta
+        columns[f"trait{i}_starts_absent"] = (states - deltas == 0)[keep]
+        columns[f"trait{i}_gain"] = (deltas == 1)[keep]
     return pd.DataFrame(columns)

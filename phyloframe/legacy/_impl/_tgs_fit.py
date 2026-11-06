@@ -52,7 +52,8 @@ def tgs_minimize_nll(
     *,
     calc_nll: typing.Callable[..., typing.Tuple[float, float, float]],
     starts: typing.Sequence[typing.Tuple[float, float]],
-    is_free: typing.Tuple[bool, bool],
+    fit_gain: bool,
+    fit_selection: bool,
     selection_scale: float,
     loss_rate: float,
 ) -> optimize.OptimizeResult:
@@ -60,8 +61,8 @@ def tgs_minimize_nll(
     `tgs_calc_gain_ratio_lrts`. Acronym tgs stands for trait gain/selection.
 
     Minimizes `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`)
-    by L-BFGS-B over the `is_free` ones of (log gain rate, selection),
-    holding the others at their `starts` values. Starts from each of
+    by L-BFGS-B over log gain rate if `fit_gain` and selection if
+    `fit_selection`, holding the others at their `starts` values. Starts from each of
     `starts` and returns the best fit, preferring converged ones, with
     both parameters in `.x` and the number of converged fits in
     `.num_converged`.
@@ -71,7 +72,7 @@ def tgs_minimize_nll(
     that both parameters are of order one; otherwise, with long lengths,
     L-BFGS-B stops early on the tiny selection parameter.
     """
-    is_free = np.asarray(is_free)
+    is_free = np.array([fit_gain, fit_selection])
 
     def nll(
         free_params: np.ndarray, start: np.ndarray
@@ -137,10 +138,13 @@ def tgs_fit_partitions(
     )
     best = minimize(
         starts=[(log_gain_start, start) for start in selection_starts],
-        is_free=(True, True),
+        fit_gain=True,
+        fit_selection=True,
     )
     # under the null hypothesis of no selection, for the likelihood-ratio test
-    null = minimize(starts=[(best.x[0], 0.0)], is_free=(True, False))
+    null = minimize(
+        starts=[(best.x[0], 0.0)], fit_gain=True, fit_selection=False
+    )
     if not best.num_converged:
         warnings.warn(
             "tgs fit optimizer did not converge from any starting point "

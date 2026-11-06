@@ -5,7 +5,7 @@ import numpy as np
 from ..._auxlib._calc_geometric_bins import calc_geometric_bins
 
 
-def tgs_calc_size_partitions(
+def tgs_allmdc_assign_size_partitions(
     *,
     clade_sizes: np.ndarray,
     neutral_gain_positions: np.ndarray,

@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from phyloframe.legacy._impl import (
-    tgs_fit_allmdc_traits,
-    tgs_partition_allmdc_exposures,
+    tgs_allmdc_fit_traits,
+    tgs_allmdc_partition_episodes,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -12,7 +12,7 @@ from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 def _fit(exposure_df, calibrate=False, weights=None):
     num_traits = sum(c.endswith("_starts_absent") for c in exposure_df)
     neutral = list(range(1, num_traits))
-    partitioning = tgs_partition_allmdc_exposures(
+    partitioning = tgs_allmdc_partition_episodes(
         exposure_df=exposure_df,
         neutral_traits=neutral,
         trait_names=list(map(str, range(num_traits))),
@@ -23,7 +23,7 @@ def _fit(exposure_df, calibrate=False, weights=None):
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
     )
-    return tgs_fit_allmdc_traits(
+    return tgs_allmdc_fit_traits(
         exposure_df=exposure_df,
         partitioning=partitioning,
         weights=(np.ones(len(exposure_df)) if weights is None else weights),

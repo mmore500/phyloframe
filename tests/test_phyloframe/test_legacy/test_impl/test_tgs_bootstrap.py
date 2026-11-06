@@ -5,9 +5,9 @@ import pandas as pd
 
 from phyloframe._auxlib import identity
 from phyloframe.legacy._impl import (
+    tgs_allmdc_fit_traits,
+    tgs_allmdc_partition_episodes,
     tgs_bootstrap,
-    tgs_fit_allmdc_traits,
-    tgs_partition_allmdc_exposures,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -17,7 +17,7 @@ def test_replicate():
     exposure_df = simulate_allmdc_exposure_df(4_000)
     fit_kwargs = dict(
         exposure_df=exposure_df,
-        partitioning=tgs_partition_allmdc_exposures(
+        partitioning=tgs_allmdc_partition_episodes(
             exposure_df=exposure_df,
             neutral_traits=[1, 2],
             trait_names=["focal", "n1", "n2"],
@@ -36,7 +36,7 @@ def test_replicate():
         growth_exponent_bound=600.0,
     )
     kwargs = dict(
-        fit=functools.partial(tgs_fit_allmdc_traits, **fit_kwargs),
+        fit=functools.partial(tgs_allmdc_fit_traits, **fit_kwargs),
         num_items=len(exposure_df),
         num_bootstrap=2,
         parallel_backend=None,

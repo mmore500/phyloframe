@@ -2,7 +2,7 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl import tgs_prepare_polars
+from phyloframe.legacy._impl import tgs_build_exposure_df_polars
 
 
 def _make_tree() -> pl.DataFrame:
@@ -23,7 +23,7 @@ def _make_tree() -> pl.DataFrame:
 @pytest.mark.parametrize("lazy", [False, True])
 def test_prepare(lazy: bool):
     df_pl = _make_tree()
-    res = tgs_prepare_polars(
+    res = tgs_build_exposure_df_polars(
         df_pl.lazy() if lazy else df_pl, trait_transitions=["t"], caller="x"
     )
     # unifurcation 1 is bypassed, so leaf 3 hangs from root 0, and the
@@ -40,7 +40,7 @@ def test_prepare(lazy: bool):
 
 
 def test_traits_numbered_in_order():
-    res = tgs_prepare_polars(
+    res = tgs_build_exposure_df_polars(
         _make_tree().with_columns(u=pl.Series([1, 0, 0, 0])),
         trait_transitions=["t", "u"],
         caller="x",
@@ -59,7 +59,9 @@ def test_empty():
             "t": pl.Series([], dtype=pl.Int8),
         },
     )
-    res = tgs_prepare_polars(df_pl, trait_transitions=["t"], caller="test")
+    res = tgs_build_exposure_df_polars(
+        df_pl, trait_transitions=["t"], caller="test"
+    )
     assert isinstance(res, pd.DataFrame)
     assert res.empty
     assert {"branch_length", "trait0_starts_absent", "trait0_gain"} <= set(res)
@@ -70,11 +72,13 @@ def test_null_transitions_raise():
         t=pl.Series([None, 1, 0, 0], dtype=pl.Int8)
     )
     with pytest.raises(NotImplementedError):
-        tgs_prepare_polars(df_pl, trait_transitions=["t"], caller="test")
+        tgs_build_exposure_df_polars(
+            df_pl, trait_transitions=["t"], caller="test"
+        )
 
 
 def test_missing_column_raises():
     with pytest.raises(ValueError):
-        tgs_prepare_polars(
+        tgs_build_exposure_df_polars(
             _make_tree(), trait_transitions=["x"], caller="test"
         )

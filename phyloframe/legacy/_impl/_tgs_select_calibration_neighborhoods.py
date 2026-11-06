@@ -36,12 +36,17 @@ def tgs_select_calibration_neighborhoods(
             partition_coords,
             num_neighbors=int(np.ceil(fraction * len(partition_coords))),
         )
-        nll = tgs_calc_heldout_nll(
-            calibration_neighborhoods=calibration_neighborhoods,
-            counts=counts,
-            neutral_traits=neutral_traits,
-            trait_names=trait_names,
-            max_rate_ratio=max_rate_ratio,
+        # holding out each neutral trait in turn
+        nll = sum(
+            tgs_calc_heldout_nll(
+                calibration_neighborhoods=calibration_neighborhoods,
+                counts=counts,
+                trait=trait,
+                trait_name=trait_names[trait],
+                neutral_traits=neutral_traits,
+                max_rate_ratio=max_rate_ratio,
+            )
+            for trait in neutral_traits
         )
         logging.info(
             "- alifestd_tgs_pendantmdc_estimate_polars: "

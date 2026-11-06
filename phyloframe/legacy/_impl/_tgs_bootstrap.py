@@ -20,7 +20,7 @@ def tgs_bootstrap(
 
     Returns fits to bootstrap resamples of `num_items` leaves (or
     branches), indexed by replicate and trait index, from `fit` (e.g., a
-    `functools.partial` of `tgs_fit_traits`), called with each replicate's
+    `functools.partial` of `tgs_pendantmdc_fit_traits`), called with each replicate's
     `weights`; see `run_weighted_bootstrap`.
     """
     return pd.concat(
@@ -32,6 +32,6 @@ def tgs_bootstrap(
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         ),
-        keys=range(num_bootstrap),
+        keys=range(num_bootstrap),  # outer multiindex
         names=["replicate", "trait_index"],
     )

@@ -10,7 +10,7 @@ from ._tgs_find_trait_exposures import tgs_find_trait_exposures
 from ._tgs_tabulate_partitions import tgs_tabulate_partitions
 
 
-def tgs_calc_allmdc_data(
+def tgs_allmdc_tabulate_partitions(
     *,
     exposure_df: pd.DataFrame,
     partitioning: typing.Dict[str, typing.Any],
@@ -23,7 +23,7 @@ def tgs_calc_allmdc_data(
     tgs stands for trait gain/selection.
 
     Summarizes `exposure_df` (see `tgs_calc_exposure_df`) by its
-    `partitioning` (see `tgs_partition_allmdc_exposures`). Returns
+    `partitioning` (see `tgs_allmdc_partition_episodes`). Returns
     `partition_df`, with one row per trait and partition with branches
     starting without the trait, with columns `trait` (index, categorical
     over all traits), the (weighted) counts of those branches,
@@ -31,8 +31,7 @@ def tgs_calc_allmdc_data(
     (calibrated against neutral traits if `calibrate`). Also returns
     `survival_shares`, a sparse matrix with a row per `partition_df` row and
     a column per distinct survival time, giving the share of the row's
-    branches
-    in each bin.
+    branches in each bin.
     """
     partitions = partitioning["partitions"]
     num_partitions = partitions.max() + 1

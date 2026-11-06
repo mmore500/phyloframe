@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from phyloframe.legacy._impl import tgs_partition_allmdc_exposures
+from phyloframe.legacy._impl import tgs_allmdc_partition_episodes
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
@@ -18,7 +18,7 @@ _KWARGS = dict(
 
 def test_partition():
     exposure_df = simulate_allmdc_exposure_df(4_000)
-    res = tgs_partition_allmdc_exposures(
+    res = tgs_allmdc_partition_episodes(
         exposure_df=exposure_df,
         calibrate=False,
         **_KWARGS,
@@ -47,7 +47,7 @@ def test_partition():
 
 def test_calibrate():
     exposure_df = simulate_allmdc_exposure_df(4_000)
-    res = tgs_partition_allmdc_exposures(
+    res = tgs_allmdc_partition_episodes(
         exposure_df=exposure_df,
         calibrate=True,
         **_KWARGS,
@@ -75,7 +75,7 @@ def test_calibrate():
 def test_blocks(ratio: float, sizes):
     exposure_df = simulate_allmdc_exposure_df(4_000)
     clade_sizes = np.resize(sizes, 4_000)
-    res = tgs_partition_allmdc_exposures(
+    res = tgs_allmdc_partition_episodes(
         exposure_df=exposure_df.assign(clade_size=clade_sizes),
         calibrate=False,
         **{**_KWARGS, "calibrate_size_partition_ratio": ratio},
@@ -96,7 +96,7 @@ def test_blocks(ratio: float, sizes):
 def test_constant_survival_time():
     exposure_df = simulate_allmdc_exposure_df(1_000)
     leaves = exposure_df.assign(survival_time=0.0)
-    res = tgs_partition_allmdc_exposures(
+    res = tgs_allmdc_partition_episodes(
         exposure_df=leaves,
         calibrate=False,
         **_KWARGS,
@@ -126,7 +126,7 @@ def test_sparse_blocks_join_block_below():
         "calibrate_size_partition_ratio": 2.0,
         "calibrate_size_partition_min_neutral_gains": threshold,
     }
-    res = tgs_partition_allmdc_exposures(
+    res = tgs_allmdc_partition_episodes(
         exposure_df=exposure_df,
         calibrate=True,
         **kwargs,
@@ -139,7 +139,7 @@ def test_sparse_blocks_join_block_below():
         res["partitions"][blocks == 3]
     )
     # without calibration, blocks are not capped
-    uncapped = tgs_partition_allmdc_exposures(
+    uncapped = tgs_allmdc_partition_episodes(
         exposure_df=exposure_df,
         calibrate=False,
         **kwargs,

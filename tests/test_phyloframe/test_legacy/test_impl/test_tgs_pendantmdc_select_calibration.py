@@ -3,9 +3,9 @@ import logging
 import numpy as np
 
 from phyloframe.legacy._impl import (
-    tgs_calc_rank_partitions,
     tgs_count_traits,
-    tgs_select_pendant_calibration,
+    tgs_partition_by_rank,
+    tgs_pendantmdc_select_calibration,
 )
 
 
@@ -14,7 +14,7 @@ def test_select(caplog):
     num_leaves = 4_000
     lengths = rng.uniform(0.5, 60, num_leaves)
     origin_times = rng.uniform(0, 20, num_leaves)
-    partitions, num_partitions, coords = tgs_calc_rank_partitions(
+    partitions, num_partitions, coords = tgs_partition_by_rank(
         coordinates=[lengths, origin_times], max_partitions=64
     )
     trait_carriers = [
@@ -22,7 +22,7 @@ def test_select(caplog):
         for __ in range(3)
     ]
     with caplog.at_level(logging.INFO):
-        res = tgs_select_pendant_calibration(
+        res = tgs_pendantmdc_select_calibration(
             counts=tgs_count_traits(
                 leaf_partitions=partitions,
                 num_partitions=num_partitions,

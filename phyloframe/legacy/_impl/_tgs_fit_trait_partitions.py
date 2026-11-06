@@ -6,14 +6,16 @@ import pandas as pd
 from scipy import sparse
 
 from ._tgs_calc_gain_ratio_lrts import tgs_calc_gain_ratio_lrts
-from ._tgs_calc_gain_ratios import tgs_calc_gain_ratios
 from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_fit import TgsFitResult, tgs_fit_partitions
+from ._tgs_normalize_gain_rates_to_neutral import (
+    tgs_normalize_gain_rates_to_neutral,
+)
 
 
 def tgs_fit_trait_partitions(
     *,
-    data: pd.DataFrame,
+    partition_df: pd.DataFrame,
     neutral_traits: typing.Sequence[int],
     loss_rate: float,
     selection_starts: typing.Sequence[float],
@@ -26,7 +28,7 @@ def tgs_fit_trait_partitions(
     gain/selection.
 
     Fits each trait's gain rate and selection to its partitions, the rows
-    of `data` with its `trait` (see `tgs_tabulate_partitions`), and, if
+    of `partition_df` with its `trait` (see `tgs_tabulate_partitions`), and, if
     given, their `survival_shares` over `distinct_survival_times` (see
     `tgs_calc_nll`). Returns one row per trait, with columns of
     `TgsFitResult` (see `tgs_fit_partitions`) plus `gain_ratio`, the gain
@@ -34,7 +36,8 @@ def tgs_fit_trait_partitions(
     `tgs_calc_gain_ratio_lrts`).
     """
     trait_partitions = [
-        partitions for __, partitions in data.groupby("trait", observed=False)
+        partitions
+        for __, partitions in partition_df.groupby("trait", observed=False)
     ]
     calc_nlls = [
         functools.partial(
@@ -64,7 +67,7 @@ def tgs_fit_trait_partitions(
     )
     # normalize each gain rate by the mean gain rate of its neutral reference;
     # undefined without neutral reference traits, or if none gained the trait
-    res["gain_ratio"] = tgs_calc_gain_ratios(
+    res["gain_ratio"] = tgs_normalize_gain_rates_to_neutral(
         gain_rates=res["gain_rate"].to_numpy(),
         neutral_traits=neutral_traits,
     )
@@ -72,7 +75,6 @@ def tgs_fit_trait_partitions(
         fits=res,
         trait_partitions=trait_partitions,
         calc_nlls=calc_nlls,
-        neutral_traits=neutral_traits,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
     )

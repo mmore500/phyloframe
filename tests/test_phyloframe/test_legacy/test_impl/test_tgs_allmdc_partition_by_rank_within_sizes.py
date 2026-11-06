@@ -1,12 +1,12 @@
 import numpy as np
 
-from phyloframe.legacy._impl import tgs_partition_size_partitions
+from phyloframe.legacy._impl import tgs_allmdc_partition_by_rank_within_sizes
 
 
 def test_partitions_never_mix_size_partitions():
     rng = np.random.default_rng(1)
     size_partitions = rng.integers(0, 3, 3_000)
-    partitions, blocks = tgs_partition_size_partitions(
+    partitions, blocks = tgs_allmdc_partition_by_rank_within_sizes(
         size_partitions=size_partitions,
         branch_lengths=rng.random(3_000),
         origin_times=rng.random(3_000),
@@ -25,7 +25,9 @@ def test_partitions_never_mix_size_partitions():
 
 def test_constant_coordinate_skipped():
     rng = np.random.default_rng(1)
-    partitions, [(__, num, coords)] = tgs_partition_size_partitions(
+    partitions, [
+        (__, num, coords)
+    ] = tgs_allmdc_partition_by_rank_within_sizes(
         size_partitions=np.zeros(256, dtype=int),
         branch_lengths=rng.random(256),
         origin_times=np.zeros(256),

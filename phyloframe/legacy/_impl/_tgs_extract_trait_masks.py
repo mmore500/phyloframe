@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 
-def tgs_calc_trait_masks(
+def tgs_extract_trait_masks(
     exposure_df: pd.DataFrame,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and

@@ -3,10 +3,10 @@ import typing
 import numpy as np
 import pandas as pd
 
-from ._tgs_calc_trait_masks import tgs_calc_trait_masks
+from ._tgs_extract_trait_masks import tgs_extract_trait_masks
 
 
-def tgs_count_allmdc_branches(
+def tgs_allmdc_count_episodes(
     *,
     trait_names: typing.Sequence[str],
     exposure_df: pd.DataFrame,
@@ -20,7 +20,7 @@ def tgs_count_allmdc_branches(
     `num_trait_present`, and the same for inner branches, `num_clades` and
     `num_clade_gains`.
     """
-    starts_absent, gains = tgs_calc_trait_masks(exposure_df)
+    starts_absent, gains = tgs_extract_trait_masks(exposure_df)
     is_leaf = np.expand_dims((exposure_df["clade_size"] == 1).to_numpy(), 1)
     return pd.DataFrame(
         {

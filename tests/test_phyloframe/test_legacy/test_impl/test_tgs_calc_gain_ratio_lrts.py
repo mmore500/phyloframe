@@ -7,6 +7,7 @@ from phyloframe.legacy._impl import (
     tgs_calc_gain_ratio_lrts,
     tgs_calc_nll,
     tgs_fit,
+    tgs_normalize_gain_rates_to_neutral,
 )
 
 
@@ -47,7 +48,13 @@ def _fit_traits(gain_rates):
     return fits, trait_partitions, calc_nlls
 
 
-def _lrts(fits, trait_partitions, calc_nlls, **kwargs):
+def _lrts(fits, trait_partitions, calc_nlls, *, neutral_traits, **kwargs):
+    fits = fits.assign(
+        gain_ratio=tgs_normalize_gain_rates_to_neutral(
+            gain_rates=fits["gain_rate"].to_numpy(),
+            neutral_traits=neutral_traits,
+        ),
+    )
     return tgs_calc_gain_ratio_lrts(
         fits=fits,
         trait_partitions=trait_partitions,
@@ -93,10 +100,10 @@ def test_undefined_without_reference_or_gains():
         selection_starts=(0.0,),
     )
     assert np.isnan(lrts).all()
-    no_gains = trait_partitions[0].assign(num_successes=0.0)
+    # without gains, a trait's fitted gain rate is 0
     lrts = _lrts(
-        fits,
-        [no_gains, trait_partitions[1]],
+        fits.assign(gain_rate=[0.0, fits.loc[1, "gain_rate"]]),
+        trait_partitions,
         calc_nlls,
         neutral_traits=[1],
         selection_starts=(0.0,),

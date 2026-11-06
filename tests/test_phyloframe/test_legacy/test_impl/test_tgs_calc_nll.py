@@ -135,7 +135,7 @@ def test_finite_for_extreme_rate():
 @pytest.mark.parametrize("growth_exponent_bound", [710.0, np.inf])
 def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
     data, times = _data()
-    with pytest.raises(ValueError, match="growth_exponent_bound"):
+    with pytest.raises(ValueError, match="growth exponent bound"):
         tgs_calc_nll(
             log_gain_rate=np.log(1e-3),
             rate=-0.05,

@@ -3,16 +3,20 @@ import typing
 import numpy as np
 import pandas as pd
 
-from ._tgs_calc_size_partitions import tgs_calc_size_partitions
+from ._tgs_allmdc_assign_size_partitions import (
+    tgs_allmdc_assign_size_partitions,
+)
+from ._tgs_allmdc_partition_by_rank_within_sizes import (
+    tgs_allmdc_partition_by_rank_within_sizes,
+)
+from ._tgs_allmdc_select_calibration_neighborhoods import (
+    tgs_allmdc_select_calibration_neighborhoods,
+)
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_find_trait_exposures import tgs_find_trait_exposures
-from ._tgs_partition_size_partitions import tgs_partition_size_partitions
-from ._tgs_select_allmdc_calibration_neighborhoods import (
-    tgs_select_allmdc_calibration_neighborhoods,
-)
 
 
-def tgs_partition_allmdc_exposures(
+def tgs_allmdc_partition_episodes(
     *,
     exposure_df: pd.DataFrame,
     neutral_traits: typing.Sequence[int],
@@ -28,10 +32,10 @@ def tgs_partition_allmdc_exposures(
     tgs stands for trait gain/selection.
 
     Splits `exposure_df` (see `tgs_calc_exposure_df`) into size partitions by
-    clade size (see `tgs_calc_size_partitions`), then each into
-    equal-occupancy partitions (see `tgs_partition_size_partitions`), and,
+    clade size (see `tgs_allmdc_assign_size_partitions`), then each into
+    equal-occupancy partitions (see `tgs_allmdc_partition_by_rank_within_sizes`), and,
     with `calibrate`, selects calibration neighborhoods within each size
-    partition (see `tgs_select_allmdc_calibration_neighborhoods`). Also bins
+    partition (see `tgs_allmdc_select_calibration_neighborhoods`). Also bins
     branches by survival time, exactly, as trees typically have few distinct
     survival times (e.g., from integer generations).
 
@@ -46,7 +50,7 @@ def tgs_partition_allmdc_exposures(
     neutral_gain_positions = np.concatenate(
         [trait_gains[r] for r in neutral_traits] or [np.empty(0, dtype=int)]
     )
-    size_partitions = tgs_calc_size_partitions(
+    size_partitions = tgs_allmdc_assign_size_partitions(
         clade_sizes=exposure_df["clade_size"].to_numpy(),
         neutral_gain_positions=neutral_gain_positions,
         calibrate=calibrate,
@@ -55,7 +59,7 @@ def tgs_partition_allmdc_exposures(
             calibrate_size_partition_min_neutral_gains
         ),
     )
-    partitions, blocks = tgs_partition_size_partitions(
+    partitions, blocks = tgs_allmdc_partition_by_rank_within_sizes(
         size_partitions=size_partitions,
         branch_lengths=branch_lengths,
         origin_times=exposure_df["origin_time"].to_numpy(),
@@ -69,7 +73,7 @@ def tgs_partition_allmdc_exposures(
         "survival_time_indices": survival_time_indices,
         "distinct_survival_times": distinct_survival_times,
         "calibration_neighborhoods": (
-            tgs_select_allmdc_calibration_neighborhoods(
+            tgs_allmdc_select_calibration_neighborhoods(
                 counts=tgs_count_traits(
                     leaf_partitions=partitions,
                     num_partitions=partitions.max() + 1,

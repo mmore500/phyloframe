@@ -4,11 +4,11 @@ from ._RngStateContext import RngStateContext
 from ._add_bool_arg import add_bool_arg
 from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
+from ._assign_kdtree_partitions import assign_kdtree_partitions
 from ._begin_prod_logging import begin_prod_logging
 from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ._calc_geometric_bins import calc_geometric_bins
 from ._calc_group_means import calc_group_means
-from ._calc_kdtree_partitions import calc_kdtree_partitions
 from ._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._calc_tiebroken_ranks import calc_tiebroken_ranks
@@ -75,7 +75,7 @@ __all__ = [
     "calc_tiebroken_ranks",
     "run_weighted_bootstrap",
     "calc_geometric_bins",
-    "calc_kdtree_partitions",
+    "assign_kdtree_partitions",
     "calc_knn_neighborhoods",
     "calc_neighborhood_rate_ratios",
     "calc_two_sided_normal_p",

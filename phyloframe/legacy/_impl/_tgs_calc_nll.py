@@ -6,9 +6,6 @@ from scipy import sparse, special
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 
-# float64 exp overflows above this
-_MAX_EXPONENT = np.log(np.finfo(np.float64).max)
-
 
 def _tgs_calc_effective_length(
     *, length: np.ndarray, rate: float, growth_exponent_bound: float
@@ -78,11 +75,8 @@ def tgs_calc_nll(
     `survival_shares`. Without `survival_shares`, `u` is 0, as for leaf
     pendant branches. Exponents are capped at `growth_exponent_bound`.
     """
-    if not growth_exponent_bound < _MAX_EXPONENT:
-        raise ValueError(
-            f"growth_exponent_bound must be below {_MAX_EXPONENT:.2f}, "
-            "where float64 exp overflows",
-        )
+    if not growth_exponent_bound < np.log(np.finfo(np.float64).max):
+        raise ValueError("growth exponent bound overflows float64")
     num_trials = partitions["num_trials"].to_numpy()
     num_successes = partitions["num_successes"].to_numpy()
     lengths = partitions["length"].to_numpy()

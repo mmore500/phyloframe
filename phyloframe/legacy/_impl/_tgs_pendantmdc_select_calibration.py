@@ -13,7 +13,7 @@ from ._tgs_select_calibration_neighborhoods import (
 )
 
 
-def tgs_select_pendant_calibration(
+def tgs_pendantmdc_select_calibration(
     *,
     counts: TgsCounts,
     partition_coords: np.ndarray,

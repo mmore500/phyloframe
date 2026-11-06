@@ -4,7 +4,7 @@ from scipy import spatial
 from ._iter_kdtree_nodes import iter_kdtree_nodes
 
 
-def calc_kdtree_partitions(points: np.ndarray, leafsize: int) -> np.ndarray:
+def assign_kdtree_partitions(points: np.ndarray, leafsize: int) -> np.ndarray:
     """Assign points to the leaves of a balanced k-d tree.
 
     Splitting at the median until each node holds at most `leafsize` points

@@ -23,7 +23,7 @@ from ._tgs_calc_exposure_df import tgs_calc_exposure_df
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 
 
-def tgs_prepare_polars(
+def tgs_build_exposure_df_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions: typing.Sequence[str],

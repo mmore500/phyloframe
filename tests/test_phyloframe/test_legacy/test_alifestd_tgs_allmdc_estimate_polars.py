@@ -355,13 +355,10 @@ def test_empty(apply: typing.Callable):
             }
         ),
     )
-    res = alifestd_tgs_allmdc_estimate_polars(
-        df_pl, trait_transitions=["trait"], num_bootstrap=2
-    )
-    assert res["trait"].to_list() == ["trait"]
-    assert res["num_leaves"].to_list() == [0]
-    assert res["num_clades"].to_list() == [0]
-    assert "selection_p" in res.columns
+    with pytest.raises(ValueError, match="no exposure episodes"):
+        alifestd_tgs_allmdc_estimate_polars(
+            df_pl, trait_transitions=["trait"], num_bootstrap=2
+        )
 
 
 def test_expression_transitions_raise():

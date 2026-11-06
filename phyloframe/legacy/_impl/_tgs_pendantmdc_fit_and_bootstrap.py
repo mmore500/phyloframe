@@ -6,13 +6,15 @@ import numpy as np
 import pandas as pd
 
 from ._tgs_bootstrap import tgs_bootstrap
-from ._tgs_calc_rank_partitions import tgs_calc_rank_partitions
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_fit_traits import tgs_fit_traits
-from ._tgs_select_pendant_calibration import tgs_select_pendant_calibration
+from ._tgs_partition_by_rank import tgs_partition_by_rank
+from ._tgs_pendantmdc_fit_traits import tgs_pendantmdc_fit_traits
+from ._tgs_pendantmdc_select_calibration import (
+    tgs_pendantmdc_select_calibration,
+)
 
 
-def tgs_fit_and_bootstrap(
+def tgs_pendantmdc_fit_and_bootstrap(
     *,
     pendant_lengths: np.ndarray,
     origin_times: np.ndarray,
@@ -43,7 +45,7 @@ def tgs_fit_and_bootstrap(
         leaf_partitions,
         num_partitions,
         partition_coords,
-    ) = tgs_calc_rank_partitions(
+    ) = tgs_partition_by_rank(
         coordinates=[pendant_lengths, origin_times],
         max_partitions=calibrate_num_partitions,
     )
@@ -64,7 +66,7 @@ def tgs_fit_and_bootstrap(
     if calibrate:
         fit_kwargs[
             "calibration_neighborhoods"
-        ] = tgs_select_pendant_calibration(
+        ] = tgs_pendantmdc_select_calibration(
             counts=tgs_count_traits(
                 leaf_partitions=leaf_partitions,
                 num_partitions=num_partitions,
@@ -84,16 +86,18 @@ def tgs_fit_and_bootstrap(
         "- alifestd_tgs_pendantmdc_estimate_polars: "
         f"fitting {len(trait_leaves)} traits to {num_leaves} leaves...",
     )
-    point_df = tgs_fit_traits(weights=np.ones(num_leaves), **fit_kwargs)
+    point_estimate_df = tgs_pendantmdc_fit_traits(
+        weights=np.ones(num_leaves), **fit_kwargs
+    )
     if not num_bootstrap:
-        return point_df, None
+        return point_estimate_df, None
 
     logging.info(
         "- alifestd_tgs_pendantmdc_estimate_polars: "
         f"fitting {num_bootstrap} bootstrap replicates...",
     )
-    return point_df, tgs_bootstrap(
-        fit=functools.partial(tgs_fit_traits, **fit_kwargs),
+    return point_estimate_df, tgs_bootstrap(
+        fit=functools.partial(tgs_pendantmdc_fit_traits, **fit_kwargs),
         num_items=num_leaves,
         num_bootstrap=num_bootstrap,
         seed=seed,

@@ -15,7 +15,11 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
-from ._impl import tgs_allmdc_impl, tgs_prepare_polars, tgs_validate_args
+from ._impl import (
+    tgs_allmdc_impl,
+    tgs_build_exposure_df_polars,
+    tgs_validate_args,
+)
 
 
 @warn_experimental
@@ -191,10 +195,11 @@ def alifestd_tgs_allmdc_estimate_polars(
     Raises
     ------
     ValueError
-        If arguments are invalid, e.g., `calibrate` with fewer than two
-        neutral traits, or a `trait_transitions` column is missing or gives
-        states other than 0 and 1, or if a non-root node has zero,
-        negative, or undefined (nan) branch length.
+        If there are no exposure episodes, i.e., branches to fit, if arguments
+        are invalid, e.g., `calibrate` with fewer than two neutral traits, or a
+        `trait_transitions` column is missing or gives states other than 0 and
+        1, or if a non-root node has zero, negative, or undefined (nan) branch
+        length.
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
         non-contiguous or not topologically sorted, or if a
@@ -220,7 +225,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
     )
-    exposure_df = tgs_prepare_polars(
+    exposure_df = tgs_build_exposure_df_polars(
         phylogeny_df,
         trait_transitions=trait_transitions,
         caller="alifestd_tgs_allmdc_estimate_polars",

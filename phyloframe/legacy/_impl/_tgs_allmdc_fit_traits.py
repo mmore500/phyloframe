@@ -3,11 +3,11 @@ import typing
 import numpy as np
 import pandas as pd
 
-from ._tgs_calc_allmdc_data import tgs_calc_allmdc_data
+from ._tgs_allmdc_tabulate_partitions import tgs_allmdc_tabulate_partitions
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 
 
-def tgs_fit_allmdc_traits(
+def tgs_allmdc_fit_traits(
     *,
     exposure_df: pd.DataFrame,
     partitioning: typing.Dict[str, typing.Any],
@@ -26,7 +26,7 @@ def tgs_fit_allmdc_traits(
     bootstrap draw counts), returning one row per trait (see
     `tgs_fit_trait_partitions`); see `tgs_calc_nll` for the model.
     """
-    data, survival_shares = tgs_calc_allmdc_data(
+    partition_df, survival_shares = tgs_allmdc_tabulate_partitions(
         exposure_df=exposure_df,
         partitioning=partitioning,
         weights=weights,
@@ -35,7 +35,7 @@ def tgs_fit_allmdc_traits(
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
     )
     return tgs_fit_trait_partitions(
-        data=data,
+        partition_df=partition_df,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
         selection_starts=selection_starts,

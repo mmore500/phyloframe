@@ -3,13 +3,13 @@ import typing
 
 import numpy as np
 
+from ..._auxlib._assign_kdtree_partitions import assign_kdtree_partitions
 from ..._auxlib._calc_group_means import calc_group_means
-from ..._auxlib._calc_kdtree_partitions import calc_kdtree_partitions
 from ..._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ..._auxlib._ceil_div import ceil_div
 
 
-def tgs_calc_rank_partitions(
+def tgs_partition_by_rank(
     *,
     coordinates: typing.Sequence[np.ndarray],
     max_partitions: int,
@@ -37,10 +37,10 @@ def tgs_calc_rank_partitions(
     # hold at most this many branches and nodes above, with at least 4 per
     # partition, hold more
     partition_size = ceil_div(num_branches, num_partitions)
-    partitions = calc_kdtree_partitions(ranks, partition_size)
+    partitions = assign_kdtree_partitions(ranks, partition_size)
     partition_sizes = np.bincount(partitions, minlength=num_partitions)
     logging.info(
-        "- tgs_calc_rank_partitions: "
+        "- tgs_partition_by_rank: "
         f"partitioned {num_branches} branches into {num_partitions} "
         f"partitions ({num_levels} levels of splits), of sizes "
         f"{np.unique(partition_sizes).tolist()}",

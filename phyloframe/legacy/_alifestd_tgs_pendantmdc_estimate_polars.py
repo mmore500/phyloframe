@@ -15,7 +15,11 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
-from ._impl import tgs_impl, tgs_prepare_polars, tgs_validate_args
+from ._impl import (
+    tgs_build_exposure_df_polars,
+    tgs_pendantmdc_impl,
+    tgs_validate_args,
+)
 
 
 @warn_experimental
@@ -179,14 +183,14 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     Raises
     ------
     ValueError
-        If `calibrate` is set with fewer than two distinct neutral traits,
-        if a `trait_transitions` column is missing or has values other than
-        +1, -1, or 0, or gives states other than 0 and 1, if a
-        `neutral_traits` name is not among `trait_transitions`, if
-        `calibrate_neighborhood_fractions` is empty or has a value outside
-        (0, 1], if `calibrate_num_partitions` is not a power of two, if
-        `calibrate_max_rate_ratio` is not positive, or if
-        a non-root node has zero, negative, or undefined (nan) branch
+        If there are no exposure episodes, i.e., leaf pendant branches to fit,
+        if `calibrate` is set with fewer than two distinct neutral traits, if a
+        `trait_transitions` column is missing or has values other than +1, -1,
+        or 0, or gives states other than 0 and 1, if a `neutral_traits` name is
+        not among `trait_transitions`, if `calibrate_neighborhood_fractions` is
+        empty or has a value outside (0, 1], if `calibrate_num_partitions` is
+        not a power of two, if `calibrate_max_rate_ratio` is not positive, or
+        if a non-root node has zero, negative, or undefined (nan) branch
         length.
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
@@ -226,7 +230,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         calibrate_num_partitions=calibrate_num_partitions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
     )
-    exposure_df = tgs_prepare_polars(
+    exposure_df = tgs_build_exposure_df_polars(
         phylogeny_df,
         trait_transitions=trait_transitions,
         caller="alifestd_tgs_pendantmdc_estimate_polars",
@@ -236,7 +240,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         "- alifestd_tgs_pendantmdc_estimate_polars: "
         "fitting gain and selection...",
     )
-    res = tgs_impl(
+    res = tgs_pendantmdc_impl(
         exposure_df,
         trait_names=trait_names,
         neutral_traits=neutral_traits,

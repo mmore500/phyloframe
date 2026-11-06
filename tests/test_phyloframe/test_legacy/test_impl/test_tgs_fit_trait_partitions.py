@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 
 from phyloframe.legacy._impl import (
-    tgs_calc_allmdc_data,
+    tgs_allmdc_partition_episodes,
+    tgs_allmdc_tabulate_partitions,
     tgs_calc_nll,
     tgs_fit_partitions,
     tgs_fit_trait_partitions,
-    tgs_partition_allmdc_exposures,
 )
 from phyloframe.legacy._impl._tgs_fit import _tgs_calc_scales
 
@@ -18,7 +18,7 @@ from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 @pytest.fixture(scope="module")
 def fixture():
     exposure_df = simulate_allmdc_exposure_df()
-    partitioning = tgs_partition_allmdc_exposures(
+    partitioning = tgs_allmdc_partition_episodes(
         exposure_df=exposure_df,
         neutral_traits=[1, 2],
         trait_names=["focal", "n1", "n2"],
@@ -29,7 +29,7 @@ def fixture():
         calibrate_size_partition_ratio=4.0,
         calibrate_size_partition_min_neutral_gains=1,
     )
-    data, shares = tgs_calc_allmdc_data(
+    data, shares = tgs_allmdc_tabulate_partitions(
         exposure_df=exposure_df,
         partitioning=partitioning,
         weights=np.ones(len(exposure_df)),
@@ -101,7 +101,7 @@ def test_loss_rate_shifts_selection(fixture):
 def test_fit_trait_partitions(fixture):
     data, shares, times = fixture
     res = tgs_fit_trait_partitions(
-        data=data,
+        partition_df=data,
         neutral_traits=[1, 2],
         loss_rate=0.0,
         selection_starts=(0.0, -0.3),

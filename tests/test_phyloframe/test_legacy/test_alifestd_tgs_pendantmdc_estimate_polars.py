@@ -568,16 +568,6 @@ def test_heldout_neutral_without_carriers_warns():
         )
 
 
-def test_tgs_find_reference_traits():
-    from phyloframe.legacy._impl import tgs_find_reference_traits
-
-    assert tgs_find_reference_traits(neutral_traits=[3, 1, 2], trait=2) == [
-        1,
-        3,
-    ]
-    assert tgs_find_reference_traits(neutral_traits=[1, 2], trait=0) == [1, 2]
-
-
 def test_tgs_calc_calibrated_pendant_lengths():
     from scipy import sparse
 
@@ -641,12 +631,10 @@ def test_empty(apply: typing.Callable):
             }
         ),
     )
-    res = alifestd_tgs_pendantmdc_estimate_polars(
-        df_pl, trait_transitions=["trait"], num_bootstrap=2
-    )
-    assert res["trait"].to_list() == ["trait"]
-    assert res["num_leaves"].to_list() == [0]
-    assert "selection_p" in res.columns
+    with pytest.raises(ValueError, match="no exposure episodes"):
+        alifestd_tgs_pendantmdc_estimate_polars(
+            df_pl, trait_transitions=["trait"], num_bootstrap=2
+        )
 
 
 def test_expression_transitions_raise():

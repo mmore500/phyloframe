@@ -9,7 +9,7 @@ from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_tabulate_partitions import tgs_tabulate_partitions
 
 
-def tgs_fit_traits(
+def tgs_pendantmdc_fit_traits(
     *,
     leaf_partitions: np.ndarray,
     num_partitions: int,
@@ -42,14 +42,14 @@ def tgs_fit_traits(
         trait_leaves=trait_leaves,
         trait_carriers=trait_carriers,
     )
-    data = tgs_tabulate_partitions(
+    partition_df = tgs_tabulate_partitions(
         counts=counts,
         neutral_traits=neutral_traits,
         calibration_neighborhoods=calibration_neighborhoods,
         max_rate_ratio=max_rate_ratio,
     )
     return tgs_fit_trait_partitions(
-        data=data,
+        partition_df=partition_df,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
         selection_starts=selection_starts,
