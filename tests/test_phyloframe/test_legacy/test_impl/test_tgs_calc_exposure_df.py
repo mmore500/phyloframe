@@ -24,7 +24,7 @@ def test_branches():
     assert res["origin_time"].tolist() == [1.0, 2.0, 4.0, 5.0, 3.0, 2.0]
     assert res["branch_length"].tolist() == [1.0, 1.0, 2.0, 3.0, 2.0, 2.0]
     # to the latest leaf below: node 4 (time 5) for nodes 1 and 2
-    assert res["survival_time"].tolist() == [4.0, 3.0, 0.0, 0.0, 0.0, 0.0]
+    assert res["survival_duration"].tolist() == [4.0, 3.0, 0.0, 0.0, 0.0, 0.0]
     assert res["clade_size"].tolist() == [3, 2, 1, 1, 1, 1]
     assert res["trait0_starts_absent"].tolist() == [1, 1, 0, 0, 1, 1]
     assert res["trait0_gain"].tolist() == [0, 1, 0, 0, 0, 0]

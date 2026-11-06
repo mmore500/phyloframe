@@ -8,24 +8,34 @@ import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
 from phyloframe.legacy import (
+    alifestd_tgs_mark_calibration_compare_bins_polars,
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
 )
-from phyloframe.legacy._impl import (
-    TgsCounts,
-    tgs_select_calibration_neighborhoods,
-)
+from phyloframe.legacy._impl import tgs_select_calibration_neighborhoods
 
 from ._impl import add_trait_transitions
 
 
 def _estimate_pendantmdc(
-    phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    calibrate: bool = False,
+    calibrate_max_bins: int = 4096,
+    **kwargs,
 ) -> pd.DataFrame:
-    """Run the polars estimator on a pandas phylogeny, returning pandas."""
-    return alifestd_tgs_pendantmdc_estimate_polars(
-        pl.from_pandas(alifestd_to_working_format(phylogeny_df)), **kwargs
-    ).to_pandas()
+    """Run the polars estimator on a pandas phylogeny, returning pandas. If
+    `calibrate`, calibrates by bins from
+    `alifestd_tgs_mark_calibration_compare_bins_polars`."""
+    df_pl = pl.from_pandas(alifestd_to_working_format(phylogeny_df))
+    if calibrate:
+        df_pl = alifestd_tgs_mark_calibration_compare_bins_polars(
+            df_pl,
+            neutral_traits=kwargs["neutral_traits"],
+            max_bins=calibrate_max_bins,
+        )
+        kwargs["calibration_compare_by_bins"] = "tgs_calibration_compare_bin"
+    return alifestd_tgs_pendantmdc_estimate_polars(df_pl, **kwargs).to_pandas()
 
 
 def _estimate_from_masks(
@@ -34,7 +44,7 @@ def _estimate_from_masks(
     *,
     trait_masks: typing.Sequence[np.ndarray],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
-    neutral_traits: typing.Sequence[int] = (),
+    neutral_traits: typing.Sequence[int] = (1, 2, 3, 4),
     **kwargs,
 ) -> pd.DataFrame:
     """Run the estimator on transitions reconstructed from trait masks,
@@ -147,31 +157,26 @@ def test_drops_inherited_and_rootward():
     )
     res = _estimate_from_masks(
         phylogeny_df,
-        trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
-        min_leaf_origin_time=0.0,
+        trait_masks=np.array(
+            [[0, 0, 1, 1], [0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+            dtype=bool,
+        ),
+        neutral_traits=[2, 3],
     )
     # both leaves carry trait 0 from above their parent, so both drop
-    assert res["num_leaves"].tolist() == [0, 2]
-    assert res["num_trait_present"].tolist() == [0, 1]
+    assert res["num_leaves"].tolist() == [0, 2, 2, 2]
+    assert res["num_trait_present"].tolist() == [0, 1, 0, 0]
     assert np.isnan(res.loc[0, "selection_coef"])
+    # the neutral traits never gain, so gain ratios are undefined
     assert np.isnan(res["gain_ratio"]).all()
 
-    res = _estimate_from_masks(
-        phylogeny_df,
-        trait_masks=np.array([[0, 0, 1, 1], [0, 0, 1, 0]], dtype=bool),
-        min_leaf_origin_time=3.0,
-    )
-    assert res["num_leaves"].tolist() == [0, 1]
 
-
-def test_calibrate_requires_neutral():
+@pytest.mark.parametrize("neutral_traits", [[], [1], [1, 1]])
+def test_too_few_neutral_traits_raise(neutral_traits):
     phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError, match="at least two"):
         _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            calibrate=True,
-            neutral_traits=[1],
+            phylogeny_df, trait_masks=traits, neutral_traits=neutral_traits
         )
 
 
@@ -185,9 +190,6 @@ def test_neutral_traits_normalized():
         phylogeny_df, neutral_traits=[4, 3, 2, 1, 4], **kwargs
     )
     pd.testing.assert_frame_equal(res, expected)
-
-    with pytest.raises(ValueError):
-        _estimate_from_masks(phylogeny_df, neutral_traits=[1, 1], **kwargs)
 
 
 def test_unifurcations_bypassed():
@@ -248,56 +250,80 @@ def test_input_not_mutated():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     original_df = phylogeny_df.copy()
-    _estimate_pendantmdc(phylogeny_df, trait_transitions=names)
+    _estimate_pendantmdc(
+        phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+    )
     pd.testing.assert_frame_equal(phylogeny_df, original_df)
 
 
+def _make_cherries_with_transitions(num_cherries: int = 100):
+    phylogeny_df, traits = _make_cherries(num_cherries)
+    return add_trait_transitions(phylogeny_df, traits)
+
+
 def test_missing_transitions_column_raises():
-    phylogeny_df, __ = _make_cherries(100)
-    with pytest.raises(ValueError):
-        _estimate_pendantmdc(phylogeny_df, trait_transitions=["absent"])
+    phylogeny_df, names = _make_cherries_with_transitions()
+    with pytest.raises(ValueError, match="no column absent"):
+        _estimate_pendantmdc(
+            phylogeny_df,
+            trait_transitions=["absent", *names[1:]],
+            neutral_traits=names[1:],
+        )
 
 
 def test_float_transitions_raise():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
     with pytest.raises(NotImplementedError):
-        _estimate_pendantmdc(phylogeny_df, trait_transitions=names)
+        _estimate_pendantmdc(
+            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+        )
 
 
 @pytest.mark.parametrize("value", [2, -2])
 def test_invalid_transitions_raise(value: int):
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df.loc[5, names[0]] = value
     with pytest.raises(ValueError):
-        _estimate_pendantmdc(phylogeny_df, trait_transitions=names)
+        _estimate_pendantmdc(
+            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+        )
 
 
 def test_repeated_gain_raises():
-    phylogeny_df, __ = _make_cherries(100)
+    phylogeny_df, names = _make_cherries_with_transitions()
     # gains on cherry 1's stem and on one of its leaves give state 2 there
     phylogeny_df["trait"] = 0
     phylogeny_df.loc[[1, 2], "trait"] = 1
     with pytest.raises(ValueError):
-        _estimate_pendantmdc(phylogeny_df, trait_transitions=["trait"])
+        _estimate_pendantmdc(
+            phylogeny_df,
+            trait_transitions=["trait", *names[1:]],
+            neutral_traits=names[1:],
+        )
 
 
 def test_losses_not_supported():
-    phylogeny_df, __ = _make_cherries(100)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df["trait"] = 0
     phylogeny_df.loc[1, "trait"] = 1
     phylogeny_df.loc[2, "trait"] = -1
-    with pytest.raises(NotImplementedError):
-        _estimate_pendantmdc(phylogeny_df, trait_transitions=["trait"])
+    with pytest.raises(NotImplementedError, match="loss"):
+        _estimate_pendantmdc(
+            phylogeny_df,
+            trait_transitions=["trait", *names[1:]],
+            neutral_traits=names[1:],
+        )
 
 
 def test_trait_named_by_columns():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
-    res = _estimate_pendantmdc(phylogeny_df, trait_transitions=list("abcde"))
+    res = _estimate_pendantmdc(
+        phylogeny_df,
+        trait_transitions=list("abcde"),
+        neutral_traits=["b", "c"],
+    )
     assert res["trait"].tolist() == list("abcde")
 
 
@@ -337,7 +363,7 @@ def test_seed_reproducible():
     assert not res1["selection_coef_se"].equals(res3["selection_coef_se"])
 
 
-def test_bootstrap_without_neutral_traits():
+def test_bootstrap_without_degenerate_replicates():
     phylogeny_df, traits = _make_cherries(2_000)
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # no degenerate-replicate warning
@@ -348,10 +374,7 @@ def test_bootstrap_without_neutral_traits():
             num_bootstrap=4,
             seed=1,
         )
-    # gain ratio is undefined, but the selection coefficient still gets
-    # standard errors
-    assert np.isnan(res["gain_ratio"]).all()
-    assert np.isnan(res["log_gain_ratio_se"]).all()
+    assert np.isfinite(res["log_gain_ratio_se"]).all()
     assert np.isfinite(res["selection_coef_se"]).all()
     assert (res["num_bootstrap_degenerate"] == 0).all()
 
@@ -396,15 +419,19 @@ def test_calibration_warns_without_neutral_gains():
 
 def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
-    partition_coords = rng.random((256, 2))
-    n = np.full(256, 100.0)
-    counts = TgsCounts(
-        num_leaves=np.tile(n, (3, 1)),
-        num_carriers=rng.binomial(100, 0.01, (3, 256)).astype(float),
-        pendant_length_sums=np.tile(10 * n, (3, 1)),
+    bin_coords = rng.random((256, 2))
+    counts = pd.DataFrame(
+        {
+            "num_trials": 100.0,
+            "num_successes": rng.binomial(100, 0.01, 3 * 256).astype(float),
+            "length_sum": 1000.0,
+        },
+        index=pd.MultiIndex.from_product(
+            [range(3), range(256)], names=["trait", "bin"]
+        ),
     )
     res = tgs_select_calibration_neighborhoods(
-        partition_coords=partition_coords,
+        bin_coords=bin_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
         counts=counts,
         neutral_traits=[0, 1, 2],
@@ -498,38 +525,86 @@ def test_neutral_trait_index_raises():
         )
 
 
-@pytest.mark.parametrize("calibrate_num_partitions", [0, 3, 1000])
-def test_calibrate_num_partitions_not_power_of_two_raises(
-    calibrate_num_partitions: int,
-):
-    phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError):
-        _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            calibrate_num_partitions=calibrate_num_partitions,
-        )
-
-
-@pytest.mark.parametrize("calibrate_num_partitions", [1, 64, 2**20])
-def test_calibrate_num_partitions(calibrate_num_partitions: int):
-    # more partitions than leaves allow are capped, keeping 4 leaves each
+@pytest.mark.parametrize("calibrate_max_bins", [1, 64, 2**20])
+def test_calibrate_max_bins(calibrate_max_bins: int):
+    # more bins than leaves allow are capped, keeping 4 leaves each
     phylogeny_df, traits = _make_cherries(2_000)
     res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
-        neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        calibrate_num_partitions=calibrate_num_partitions,
+        calibrate_max_bins=calibrate_max_bins,
     )
     assert np.isfinite(res["selection_coef"]).all()
+
+
+def test_calibration_compare_by_vals():
+    phylogeny_df, traits = _make_cherries(2_000)
+    kwargs = dict(trait_masks=traits, calibrate=True)
+    default = _estimate_from_masks(phylogeny_df, **kwargs)
+    explicit = _estimate_from_masks(
+        phylogeny_df,
+        calibration_compare_by_vals=["branch_length", "origin_time"],
+        **kwargs,
+    )
+    pd.testing.assert_frame_equal(explicit, default)
+    # a phylogeny column, here a copy of origin time, compares like one
+    by_column = _estimate_from_masks(
+        phylogeny_df.assign(t=phylogeny_df["origin_time"]),
+        calibration_compare_by_vals=["branch_length", "t"],
+        **kwargs,
+    )
+    pd.testing.assert_frame_equal(by_column, default)
+    by_length = _estimate_from_masks(
+        phylogeny_df, calibration_compare_by_vals=["branch_length"], **kwargs
+    )
+    assert not by_length.equals(default)
+
+
+def test_calibration_partition_by():
+    phylogeny_df, traits = _make_cherries(2_000)
+    kwargs = dict(trait_masks=traits, calibrate=True)
+    default = _estimate_from_masks(phylogeny_df, **kwargs)
+    # one partition, as default
+    one = _estimate_from_masks(
+        phylogeny_df.assign(p=3), calibration_partition_by="p", **kwargs
+    )
+    pd.testing.assert_frame_equal(one, default)
+    # partitions by cherry origin time
+    by_time = _estimate_from_masks(
+        phylogeny_df.assign(p=(phylogeny_df["origin_time"] > 30).astype(int)),
+        calibration_partition_by="p",
+        **kwargs,
+    )
+    assert not by_time.equals(default)
+    assert np.isfinite(by_time["selection_coef"]).all()
+
+
+@pytest.mark.parametrize("length_rtol", [0.0, 1e-2])
+def test_length_rtol(length_rtol: float):
+    phylogeny_df, traits = _make_cherries(4_000)
+    kwargs = dict(trait_masks=traits, calibrate=True)
+    default = _estimate_from_masks(phylogeny_df, **kwargs)
+    res = _estimate_from_masks(phylogeny_df, length_rtol=length_rtol, **kwargs)
+    np.testing.assert_allclose(res["gain_ratio"], default["gain_ratio"], 1e-2)
+    np.testing.assert_allclose(
+        res["selection_coef"], default["selection_coef"], atol=1e-4
+    )
+
+
+@pytest.mark.parametrize("length_rtol", [-1e-3, np.nan])
+def test_invalid_length_rtol_raises(length_rtol: float):
+    phylogeny_df, traits = _make_cherries(100)
+    with pytest.raises(ValueError, match="length_rtol"):
+        _estimate_from_masks(
+            phylogeny_df, trait_masks=traits, length_rtol=length_rtol
+        )
 
 
 def test_calibrate_max_rate_ratio():
     phylogeny_df, traits = _make_cherries(4_000)
     kwargs = dict(
         trait_masks=traits,
-        neutral_traits=[1, 2, 3, 4],
         calibrate=True,
         calibrate_neighborhood_fractions=[0.1],
     )
@@ -569,38 +644,6 @@ def test_heldout_neutral_without_carriers_warns():
         )
 
 
-def test_tgs_calc_calibrated_lengths():
-    from scipy import sparse
-
-    from phyloframe.legacy._impl import tgs_calc_calibrated_lengths
-
-    counts = TgsCounts(
-        num_leaves=np.array([[2.0, 0.0], [4.0, 4.0], [4.0, 4.0]]),
-        num_carriers=np.array([[1.0, 0.0], [2.0, 1.0], [2.0, 1.0]]),
-        pendant_length_sums=np.array([[6.0, 0.0], [8.0, 8.0], [8.0, 8.0]]),
-    )
-    lengths, factors = tgs_calc_calibrated_lengths(
-        counts=counts,
-        trait=0,
-        neutral_traits=[1, 2],
-        calibration_neighborhoods=None,
-        max_rate_ratio=np.inf,
-    )
-    np.testing.assert_array_equal(lengths, [3.0, 0.0])  # zero if no leaves
-    assert factors is None
-
-    lengths, factors = tgs_calc_calibrated_lengths(
-        counts=counts,
-        trait=0,
-        neutral_traits=[1, 2],
-        calibration_neighborhoods=sparse.identity(2, format="csr"),
-        max_rate_ratio=np.inf,
-    )
-    # neutral gains per unit length are 4 / 16 and 2 / 16, vs 6 / 32 overall
-    np.testing.assert_allclose(factors, [4 / 3, 2 / 3])
-    np.testing.assert_allclose(lengths, [4.0, 0.0])
-
-
 apply_params = pytest.mark.parametrize(
     "apply",
     [
@@ -628,13 +671,16 @@ def test_empty(apply: typing.Callable):
                 "id": pl.Series([], dtype=pl.Int64),
                 "ancestor_id": pl.Series([], dtype=pl.Int64),
                 "origin_time": pl.Series([], dtype=pl.Float64),
-                "trait": pl.Series([], dtype=pl.Int8),
+                **{t: pl.Series([], dtype=pl.Int8) for t in ("a", "b", "c")},
             }
         ),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
         alifestd_tgs_pendantmdc_estimate_polars(
-            df_pl, trait_transitions=["trait"], num_bootstrap=2
+            df_pl,
+            trait_transitions=["a", "b", "c"],
+            neutral_traits=["b", "c"],
+            num_bootstrap=2,
         )
 
 
@@ -658,9 +704,11 @@ def test_expression_transitions_raise():
     ],
 )
 def test_unsupported(df_pl: pl.DataFrame):
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(NotImplementedError, match="not supported"):
         alifestd_tgs_pendantmdc_estimate_polars(
-            df_pl.with_columns(trait=pl.lit(0)), trait_transitions=["trait"]
+            df_pl.with_columns(a=pl.lit(0), b=pl.lit(0), c=pl.lit(0)),
+            trait_transitions=["a", "b", "c"],
+            neutral_traits=["b", "c"],
         )
 
 
@@ -668,9 +716,11 @@ def test_null_transitions_raise():
     df_pl = _make_cherries_polars(2_000).with_columns(
         focal=pl.when(pl.col("id") == 5).then(None).otherwise(pl.col("focal"))
     )
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(NotImplementedError, match="null"):
         alifestd_tgs_pendantmdc_estimate_polars(
-            df_pl, trait_transitions=["focal"]
+            df_pl,
+            trait_transitions=["focal", "n1", "n2"],
+            neutral_traits=["n1", "n2"],
         )
 
 
@@ -696,7 +746,7 @@ def test_ancestor_list_column():
 
 def test_unifurcation_transitions_credit_merged_branch():
     phylogeny_df, traits = _make_cherries(2_000)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits[:1])
+    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits[:3])
     # insert a knuckle midway along each pendant branch
     leaves = phylogeny_df.index[
         ~phylogeny_df["id"].isin(phylogeny_df["ancestor_id"])
@@ -707,6 +757,7 @@ def test_unifurcation_transitions_credit_merged_branch():
         knuckles["origin_time"]
         + phylogeny_df.loc[knuckles["ancestor_id"], "origin_time"].to_numpy()
     ) / 2
+    knuckles[names[1:]] = 0  # neutral gains stay below the knuckle
     knuckled = phylogeny_df.copy()
     knuckled.loc[leaves, "ancestor_id"] = knuckles["id"].to_numpy()
     # a gain on each pendant branch, recorded below or above the knuckle
@@ -716,7 +767,7 @@ def test_unifurcation_transitions_credit_merged_branch():
     above = pd.concat(
         [knuckled.assign(**{names[0]: 0}), knuckles], ignore_index=True
     )
-    kwargs = dict(trait_transitions=names)
+    kwargs = dict(trait_transitions=names, neutral_traits=names[1:])
     res_below = alifestd_tgs_pendantmdc_estimate_polars(
         pl.from_pandas(alifestd_to_working_format(below)).drop(
             "ancestor_list", strict=False

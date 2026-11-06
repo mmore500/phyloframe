@@ -31,10 +31,9 @@ def _tgs_calc_effective_length(
     # ~(rate * t)**2 / 4; see
     # https://en.wikipedia.org/wiki/Exponential_function#Power_series
     #
-    # So, use the series below a |rate * t| < 1e-6 cutoff and the exact form
-    # above it. At the cutoff, the exact form's error is ~1e-10 and the
-    # series' ~1e-13. Below it, the exact form degrades (and divides by zero
-    # at rate = 0), while the series improves.
+    # So, use the series below a |rate * t| < 1e-6 cutoff, where it is more
+    # accurate (~1e-13 vs ~1e-10 error at the cutoff, and the exact form
+    # divides by zero at rate = 0).
     is_near_zero_rate = np.abs(cx) < 1e-6
     series_deriv = length * length * (0.5 + cx / 3)
     exact_deriv = np.divide(
@@ -55,7 +54,7 @@ def tgs_calc_nll(
     partitions: pd.DataFrame,
     growth_exponent_bound: float,
     survival_shares: typing.Optional[sparse.csr_matrix] = None,
-    distinct_survival_times: typing.Optional[np.ndarray] = None,
+    distinct_survival_durations: typing.Optional[np.ndarray] = None,
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -69,9 +68,9 @@ def tgs_calc_nll(
 
         gain_rate * (exp(rate * t) - 1) / rate * exp(rate * u)
 
-    where `u` is its survival time, the time until its clade's last leaf
+    where `u` is its survival duration, the time until its clade's last leaf
     is sampled. Each partition averages exp(rate * u) exactly over its
-    branches, whose shares over `distinct_survival_times` are rows of
+    branches, whose shares over `distinct_survival_durations` are rows of
     `survival_shares`. Without `survival_shares`, `u` is 0, as for leaf
     pendant branches. Exponents are capped at `growth_exponent_bound`.
     """
@@ -90,11 +89,13 @@ def tgs_calc_nll(
         # chance a carrier lineage persists until its clade's last leaf is
         # sampled, averaged over each partition's branches
         survival_factors = np.exp(
-            np.minimum(rate * distinct_survival_times, growth_exponent_bound)
+            np.minimum(
+                rate * distinct_survival_durations, growth_exponent_bound
+            )
         )
         survival = survival_shares @ survival_factors
         survival_deriv = survival_shares @ (
-            distinct_survival_times * survival_factors
+            distinct_survival_durations * survival_factors
         )
     p = gain_rate * effective_length * survival
     nll, dnll_dp = calc_binomial_nll_proxy(num_trials, num_successes, p)

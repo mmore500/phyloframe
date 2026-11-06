@@ -10,6 +10,7 @@ def tgs_validate_args(
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
     length_rtol: float,
+    calibration_compare_by_vals: typing.Sequence[str],
 ) -> typing.Tuple[typing.List[str], typing.List[int]]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -70,4 +71,12 @@ def tgs_validate_args(
         )
     if not length_rtol >= 0:
         raise ValueError(f"length_rtol must be nonnegative, got {length_rtol}")
+    if isinstance(calibration_compare_by_vals, str):
+        raise TypeError(
+            "calibration_compare_by_vals must be a sequence of column names, "
+            "not a single string; did you mean "
+            f"[{calibration_compare_by_vals!r}]?",
+        )
+    if not len(calibration_compare_by_vals):
+        raise ValueError("calibration_compare_by_vals must be nonempty")
     return trait_transitions, neutral_traits

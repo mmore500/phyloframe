@@ -26,7 +26,7 @@ def _alifestd_tgs_mark_size_partitions_fast_path(
     min_neutral_gains: int,
 ) -> np.ndarray:
     """Implementation detail for
-    `alifestd_tgs_mark_calibration_partitions_polars`. Acronym tgs stands for
+    `alifestd_tgs_mark_calibration_compare_bins_polars`. Acronym tgs stands for
     trait gain/selection.
 
     Returns each branch's clade size partition, given its clade size
@@ -48,7 +48,7 @@ def _alifestd_tgs_mark_size_partitions_fast_path(
         cap = max(sparse_inner[0], 1)
         if cap < num_partitions - 1:
             logging.info(
-                "- alifestd_tgs_mark_calibration_partitions_polars: clade "
+                "- alifestd_tgs_mark_calibration_compare_bins_polars: clade "
                 f"size partitions above {cap} have fewer than "
                 f"{min_neutral_gains} neutral gains, so join partition {cap}",
             )
@@ -61,47 +61,51 @@ def _alifestd_tgs_mark_size_partitions_fast_path(
     for partition in range(num_partitions):
         sizes = clade_sizes[partitions == partition]
         logging.info(
-            "- alifestd_tgs_mark_calibration_partitions_polars: clade size "
+            "- alifestd_tgs_mark_calibration_compare_bins_polars: clade size "
             f"partition {partition} has clade sizes "
-            f"{sizes.min(initial=0)}-{sizes.max(initial=0)}, {len(sizes)} "
-            f"branches, and {neutral_gains[partition]} neutral trait gains",
+            f"{sizes.min()}-{sizes.max()}, {len(sizes)} branches, and "
+            f"{neutral_gains[partition]} neutral trait gains",
         )
     return partitions
 
 
-def alifestd_tgs_mark_calibration_partitions_polars(
+def alifestd_tgs_mark_calibration_compare_bins_polars(
     phylogeny_df: pl.DataFrame,
     *,
     neutral_traits: typing.Sequence[str],
-    max_partitions: int = 4096,
+    max_bins: int = 4096,
     size_ratio: float = 2.0,
     min_neutral_gains: int = 20,
-    mark_as: str = "tgs_calibration_partition",
+    mark_partition_as: str = "tgs_calibration_partition",
+    mark_bin_as: str = "tgs_calibration_compare_bin",
 ) -> pl.DataFrame:
-    """Mark each node's calibration partition, for the
-    `calibration_partitions` of `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`, grouping branches by clade size,
-    then by branch length and origin time.
+    """Mark each node's calibration partition, by clade size, and its
+    calibration bin within it, by branch length and origin time, for the
+    `calibration_partition_by` and `calibration_compare_by_bins` of
+    `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`.
 
-    Partitions are computed on the phylogeny with unifurcations collapsed,
-    as the estimators fit it, and are marked at each branch's end node.
-    Roots and collapsed unifurcations, which end no branch, are marked -1.
+    Partitions and bins are computed on the phylogeny with unifurcations
+    collapsed, as the estimators fit it, and are marked at each branch's end
+    node. Roots and collapsed unifurcations, which end no branch, are marked
+    -1.
 
-    First, branches are grouped by clade size, the number of leaves below,
-    on a log scale: a branch above `n` leaves falls in bin ceil(log(n) /
-    log(`size_ratio`)), so the default ratio of 2 gives bins of 1, 2, 3-4,
-    5-8, 9-16, ... leaves. Bins absent from the tree are skipped, so leaf
-    branches are always size group 0. So that every size group has
-    neutral trait gains to calibrate against, groups are then merged from
-    the largest clades down: the first group above the leaves' with fewer
-    than `min_neutral_gains` gains of `neutral_traits`, and every group of
-    larger clades, joins the group below it. If even the first inner group
-    has too few gains, all inner branches form one group. Leaf branches
-    always keep their own group.
+    First, branches are partitioned by clade size, the number of leaves
+    below, on a log scale: a branch above `n` leaves falls in size class
+    ceil(log(n) / log(`size_ratio`)), so the default ratio of 2 gives size
+    classes of 1, 2, 3-4, 5-8, 9-16, ... leaves. Size classes absent from
+    the tree are skipped, so leaf branches are always partition 0. So that every partition has neutral
+    trait gains to calibrate against, partitions are then merged from the
+    largest clades down: the first partition above the leaves' with fewer
+    than `min_neutral_gains` gains of `neutral_traits`, and every partition
+    of larger clades, joins the partition below it. If even the first inner
+    partition has too few gains, all inner branches form one partition.
+    Leaf branches always keep their own partition.
 
-    Then, each size group's branches are split into up to `max_partitions`
-    equal-occupancy partitions by ranked branch length and origin time,
-    keeping at least 4 branches in each.
+    Then, each partition's branches are split into up to `max_bins`
+    equal-occupancy bins by ranked branch length and origin time, keeping
+    at least 4 branches in each. Bins are numbered consecutively across
+    partitions.
 
     Parameters
     ----------
@@ -115,22 +119,24 @@ def alifestd_tgs_mark_calibration_partitions_polars(
         Names of integer columns giving each neutral trait's state
         transition on each node's branch, as for the estimators'
         `trait_transitions`.
-    max_partitions : int, default 4096
-        Maximum number of partitions per size group; a power of two.
+    max_bins : int, default 4096
+        Maximum number of bins per partition; a power of two.
     size_ratio : float, default 2.0
-        Ratio between successive size groups' clade size bounds; must
-        exceed 1. Larger ratios give fewer, larger groups.
+        Ratio between successive partitions' clade size bounds; must exceed
+        1. Larger ratios give fewer, larger partitions.
     min_neutral_gains : int, default 20
-        Fewest neutral trait gains a size group of inner branches may hold
+        Fewest neutral trait gains a partition of inner branches may hold
         before merging; 0 disables merging.
-    mark_as : str, default "tgs_calibration_partition"
-        Output column name.
+    mark_partition_as : str, default "tgs_calibration_partition"
+        Output column name for partitions.
+    mark_bin_as : str, default "tgs_calibration_compare_bin"
+        Output column name for bins.
 
     Returns
     -------
     polars.DataFrame
-        The phylogeny with an added integer column of calibration
-        partitions.
+        The phylogeny with added integer columns of calibration partitions
+        and bins.
 
     Raises
     ------
@@ -139,20 +145,18 @@ def alifestd_tgs_mark_calibration_partitions_polars(
         not topologically sorted.
     ValueError
         If a `neutral_traits` column is missing or gives states other than 0
-        and 1, if `max_partitions` is not a power of two, if `size_ratio`
+        and 1, if `max_bins` is not a power of two, if `size_ratio`
         does not exceed 1, or if `min_neutral_gains` is negative.
 
     See Also
     --------
     alifestd_tgs_pendantmdc_estimate_polars :
-        Calibrates leaf pendant branch lengths within these partitions.
+        Calibrates leaf pendant branch lengths by these bins.
     alifestd_tgs_allmdc_estimate_polars :
-        Calibrates branch lengths within these partitions.
+        Calibrates branch lengths by these bins.
     """
-    if int(max_partitions).bit_count() != 1 or max_partitions < 1:
-        raise ValueError(
-            f"max_partitions must be a power of two, got {max_partitions}",
-        )
+    if int(max_bins).bit_count() != 1 or max_bins < 1:
+        raise ValueError(f"max_bins must be a power of two, got {max_bins}")
     if not size_ratio > 1:
         raise ValueError(f"size_ratio must exceed 1, got {size_ratio}")
     if min_neutral_gains < 0:
@@ -165,19 +169,26 @@ def alifestd_tgs_mark_calibration_partitions_polars(
             f"single string; did you mean [{neutral_traits!r}]?",
         )
 
+    neutral_traits = list(dict.fromkeys(neutral_traits))  # distinct, in order
     exposure_df = tgs_build_exposure_df_polars(
         phylogeny_df,
         trait_transitions=neutral_traits,
-        caller="alifestd_tgs_mark_calibration_partitions_polars",
+        caller="alifestd_tgs_mark_calibration_compare_bins_polars",
     )
     num_nodes = phylogeny_df.lazy().select(pl.len()).collect().item()
-    marks = np.full(num_nodes, -1, dtype=np.int64)
-    if exposure_df.empty:
+    partition_marks = np.full(num_nodes, -1, dtype=np.int64)
+    bin_marks = partition_marks.copy()
+
+    def mark() -> pl.DataFrame:
         return phylogeny_df.with_columns(
-            pl.Series(name=mark_as, values=marks, dtype=pl.Int64),
+            pl.Series(name=mark_partition_as, values=partition_marks),
+            pl.Series(name=mark_bin_as, values=bin_marks),
         )
 
-    size_groups = _alifestd_tgs_mark_size_partitions_fast_path(
+    if exposure_df.empty:
+        return mark()
+
+    partitions = _alifestd_tgs_mark_size_partitions_fast_path(
         clade_sizes=exposure_df["clade_size"].to_numpy(),
         neutral_gain_positions=np.concatenate(
             [np.zeros(0, dtype=np.int64)]
@@ -189,10 +200,10 @@ def alifestd_tgs_mark_calibration_partitions_polars(
         ratio=size_ratio,
         min_neutral_gains=min_neutral_gains,
     )
-    partitions = np.empty(len(exposure_df), dtype=np.int64)
+    bins = np.empty(len(exposure_df), dtype=np.int64)
     offset = 0
-    for size_group in np.unique(size_groups):
-        (members,) = np.nonzero(size_groups == size_group)
+    for partition in np.unique(partitions):
+        (members,) = np.nonzero(partitions == partition)
         # not survival duration, which the allmdc model accounts for:
         # calibrating along it would absorb its effect on neutral gains
         # (e.g., from loss) into branch length, then count it again
@@ -200,32 +211,32 @@ def alifestd_tgs_mark_calibration_partitions_polars(
             exposure_df[column].to_numpy()[members]
             for column in ("branch_length", "origin_time")
         ]
-        member_partitions, num, __ = tgs_partition_by_rank(
+        member_bins, num, __ = tgs_partition_by_rank(
             # constant coordinates would only split on ties
             coordinates=[x for x in coordinates if np.ptp(x) > 0]
             or coordinates,
-            max_partitions=max_partitions,
+            max_partitions=max_bins,
         )
-        partitions[members] = member_partitions + offset
+        bins[members] = member_bins + offset
         offset += num
         logging.info(
-            "- alifestd_tgs_mark_calibration_partitions_polars: size group "
-            f"{size_group} has {len(members)} branches in {num} partitions",
+            "- alifestd_tgs_mark_calibration_compare_bins_polars: partition "
+            f"{partition} has {len(members)} branches in {num} bins",
         )
-    marks[exposure_df["node_id"].to_numpy()] = partitions
-    return phylogeny_df.with_columns(
-        pl.Series(name=mark_as, values=marks, dtype=pl.Int64),
-    )
+    node_ids = exposure_df["node_id"].to_numpy()
+    partition_marks[node_ids] = partitions
+    bin_marks[node_ids] = bins
+    return mark()
 
 
 _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Mark each node's calibration partition, grouping branches by clade size on a
-log scale (merging groups with too few neutral trait gains), then into
-equal-occupancy partitions by ranked branch length and origin time, for
-`--calibration-partitions` of
+Mark each node's calibration partition, by clade size on a log scale (merging
+partitions with too few neutral trait gains), and its calibration bin within
+it, by ranked branch length and origin time, for `--calibration-partition-by`
+and `--calibration-compare-by-bins` of
 `phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars` and
 `phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars`.
 
@@ -237,6 +248,9 @@ Additional Notes
 - Requires contiguous, topologically sorted ids.
 
 - Roots and collapsed unifurcations are marked -1.
+
+- Output columns are tgs_calibration_partition and
+  tgs_calibration_compare_bin, unless renamed.
 
 - Use `--eager-read` if modifying data file inplace.
 
@@ -254,7 +268,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_tgs_mark_calibration_partitions_polars"
+            "phyloframe.legacy._alifestd_tgs_mark_calibration_compare_bins_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -266,11 +280,11 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Names of neutral trait transition columns.",
     )
     parser.add_argument(
-        "--max-partitions",
+        "--max-bins",
         default=4096,
         type=int,
         help=(
-            "Maximum number of partitions per size group, a power of two "
+            "Maximum number of bins per partition, a power of two "
             "(default: 4096)."
         ),
     )
@@ -278,22 +292,36 @@ def _create_parser() -> argparse.ArgumentParser:
         "--size-ratio",
         default=2.0,
         type=float,
-        help="Ratio between successive clade size groups (default: 2.0).",
+        help=(
+            "Ratio between successive clade size partitions (default: 2.0)."
+        ),
     )
     parser.add_argument(
         "--min-neutral-gains",
         default=20,
         type=int,
         help=(
-            "Fewest neutral trait gains an inner size group may hold before "
+            "Fewest neutral trait gains an inner partition may hold before "
             "merging; 0 disables merging (default: 20)."
         ),
     )
     parser.add_argument(
-        "--mark-as",
+        "--mark-partition-as",
         default="tgs_calibration_partition",
         type=str,
-        help="Output column name (default: tgs_calibration_partition).",
+        help=(
+            "Output column name for partitions (default: "
+            "tgs_calibration_partition)."
+        ),
+    )
+    parser.add_argument(
+        "--mark-bin-as",
+        default="tgs_calibration_compare_bin",
+        type=str,
+        help=(
+            "Output column name for bins (default: "
+            "tgs_calibration_compare_bin)."
+        ),
     )
     return parser
 
@@ -306,18 +334,19 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_tgs_mark_calibration_partitions_polars",
+            "phyloframe.legacy._alifestd_tgs_mark_calibration_compare_bins_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_tgs_mark_calibration_partitions_polars,
+                    alifestd_tgs_mark_calibration_compare_bins_polars,
                     neutral_traits=args.neutral_traits,
-                    max_partitions=args.max_partitions,
+                    max_bins=args.max_bins,
                     size_ratio=args.size_ratio,
                     min_neutral_gains=args.min_neutral_gains,
-                    mark_as=args.mark_as,
+                    mark_partition_as=args.mark_partition_as,
+                    mark_bin_as=args.mark_bin_as,
                 ),
             )
     except NotImplementedError as e:

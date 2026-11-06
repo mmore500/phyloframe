@@ -29,7 +29,12 @@ def alifestd_tgs_allmdc_estimate_polars(
     *,
     trait_transitions: typing.Sequence[str],
     neutral_traits: typing.Sequence[str],
-    calibration_partitions: typing.Optional[str] = None,
+    calibration_partition_by: typing.Optional[str] = None,
+    calibration_compare_by_bins: typing.Optional[str] = None,
+    calibration_compare_by_vals: typing.Sequence[str] = (
+        "branch_length",
+        "origin_time",
+    ),
     calibrate_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
@@ -94,27 +99,46 @@ def alifestd_tgs_allmdc_estimate_polars(
         least two are required: they calibrate branch lengths against one
         another, and their mean gain rate, leaving the focal trait out, is
         the reference for gain ratios.
-    size_partitions : str, optional
-        Name of an integer column giving each node's clade size partition
-        (see Input Schema), e.g., from
-        `alifestd_tgs_mark_clade_size_partitions_polars`. Branch lengths are
-        calibrated within each size partition, as neutral gains per unit
-        length may differ with clade size (e.g., between leaves and inner
-        nodes). If not given, all nodes form one size partition, i.e., no
-        calibration across clade sizes.
+    calibration_partition_by : str, optional
+        Name of an integer column (see Input Schema) partitioning
+        calibration bins: bins are compared only with bins of the same
+        partition, never across partitions, with neighborhood size selected
+        separately within each, e.g., by clade size, as neutral gains per
+        unit length may differ between leaves and inner nodes. If not given,
+        all bins are compared with one another.
+    calibration_compare_by_bins : str, optional
+        Name of an integer column (see Input Schema) assigning branches, by
+        their end nodes, to calibration bins, e.g., from
+        `alifestd_tgs_mark_calibration_compare_bins_polars`. Calibration
+        rescales each branch's length by how often neutral traits were
+        gained in its bin's neighborhood, relative to all branches, removing
+        distortion of branch lengths that neutral traits share (e.g., from
+        tree reconstruction). Assumes loss is negligible over a branch. If
+        not given, each partition's branches form one bin; so, without
+        `calibration_partition_by` either, there is no calibration.
+    calibration_compare_by_vals : Sequence[str], default ("branch_length", "origin_time")
+        Columns by which bins are compared: a bin's neighborhood is its
+        nearest bins in its partition by mean rank of these columns.
+        Exposure episode columns take precedence: `branch_length`;
+        `origin_time`, of the branch's end node; `clade_size`, its number of
+        leaves; and `survival_duration`, from its end node to its latest
+        leaf. Other names are numeric columns of `phylogeny_df`, at each
+        branch's end node.
     calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
-        Candidate calibration neighborhood sizes, as fractions of each size
-        partition's exposure episodes, similar in branch length and origin
-        time; see `alifestd_tgs_pendantmdc_estimate_polars`. Pass (1.0,),
-        one neighborhood of each size partition's episodes, to disable
-        calibration within size partitions.
-    calibrate_num_partitions : int, default 4096
-        Maximum number of equal-occupancy partitions of each size
-        partition's exposure episodes, by ranked branch length and origin
-        time, for calibration and fitting; a power of two.
+        Candidate calibration neighborhood sizes, as fractions of a
+        partition's bins. The candidate used is the one whose calibration
+        best predicts where each neutral trait was gained, when calibrating
+        against only the other neutral traits. Larger neighborhoods smooth
+        more; smaller ones resolve finer distortion but are noisier. Pass
+        (1.0,), one neighborhood of each partition's bins, to disable
+        calibration within partitions.
     calibrate_max_rate_ratio : float, default np.inf
         Cap on the neutral gain rate ratios that rescale branch lengths in
         calibration; see `alifestd_tgs_pendantmdc_estimate_polars`.
+    length_rtol : float, default 1e-3
+        Relative tolerance within which exposure episodes' calibrated branch
+        lengths and survival durations must both agree for them to be
+        merged for fitting, bounding fit cost; 0 for no merging.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling exposure episodes with
         replacement and refitting, for standard errors, z-scores, and
@@ -149,15 +173,12 @@ def alifestd_tgs_allmdc_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes (i.e., branches to fit), if an
-        argument is invalid, or if a `trait_transitions` or
-        `size_partitions` column is missing, or a `trait_transitions` column
-        gives states other than 0 and 1.
+        argument is invalid, or if a column is missing or has invalid
+        values.
     NotImplementedError
-        If fewer than two neutral traits are given; if `phylogeny_df` is not
-        asexual, or its ids are non-contiguous or not topologically sorted;
-        if a `trait_transitions` column is not integer, has null values, or
-        has loss events, i.e., -1 values; or if the `size_partitions` column
-        is not integer or has null values.
+        If fewer than two neutral traits are given, or for unsupported input
+        (see Input Schema), e.g., a non-asexual phylogeny, null values, or
+        trait losses.
 
     Input Schema
     ------------
@@ -171,8 +192,11 @@ def alifestd_tgs_allmdc_estimate_polars(
     `trait_transitions` columns : integer
         Each node's trait state transition on the branch from its parent; see
         `alifestd_tgs_pendantmdc_estimate_polars`.
-    `size_partitions` column : integer, optional
-        Each node's clade size partition, for calibration.
+    `calibration_partition_by`, `calibration_compare_by_bins` columns : integer, optional
+        Each node's calibration partition and bin, for the branch from its
+        parent; see Parameters.
+    `calibration_compare_by_vals` columns : numeric, optional
+        Values by which calibration bins are compared; see Parameters.
 
     Output Schema
     -------------
@@ -209,8 +233,8 @@ def alifestd_tgs_allmdc_estimate_polars(
 
     See Also
     --------
-    alifestd_tgs_mark_clade_size_partitions_polars :
-        Marks clade size partitions, for `size_partitions`.
+    alifestd_tgs_mark_calibration_compare_bins_polars :
+        Marks calibration partitions by clade size, and bins within them.
     alifestd_tgs_pendantmdc_estimate_polars :
         Leaf pendant branches only.
     """
@@ -220,12 +244,15 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,
+        calibration_compare_by_vals=calibration_compare_by_vals,
     )
     exposure_df = tgs_build_exposure_df_polars(
         phylogeny_df,
         trait_transitions=trait_transitions,
         caller="alifestd_tgs_allmdc_estimate_polars",
-        calibration_partitions=calibration_partitions,
+        calibration_partition_by=calibration_partition_by,
+        calibration_compare_by_bins=calibration_compare_by_bins,
+        calibration_compare_by_vals=calibration_compare_by_vals,
     )
     res = tgs_impl(
         exposure_df,
@@ -279,9 +306,13 @@ Input Schema: Required Columns
 
 Input Schema: Optional Columns
 ==============================
-`--size-partitions` column : integer
-    Each node's clade size partition, for calibration (see
-    phyloframe.legacy._alifestd_tgs_mark_clade_size_partitions_polars).
+`--calibration-partition-by`, `--calibration-compare-by-bins` columns : integer
+    Each node's calibration partition and bin (see
+    phyloframe.legacy._alifestd_tgs_mark_calibration_compare_bins_polars).
+
+`--calibration-compare-by-vals` columns : numeric
+    Values by which calibration bins are compared, if not exposure episode
+    columns (e.g., branch_length).
 
 
 Output Schema
@@ -339,12 +370,41 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--size-partitions",
+        "--calibration-partition-by",
         default=None,
         type=str,
         help=(
-            "Name of integer column of clade size partitions, within which "
-            "to calibrate (default: none, i.e., one partition)."
+            "Name of integer column of calibration partitions; bins are "
+            "compared only within a partition (default: none, i.e., one "
+            "partition)."
+        ),
+    )
+    parser.add_argument(
+        "--calibration-compare-by-bins",
+        default=None,
+        type=str,
+        help=(
+            "Name of integer column of calibration bins (default: none, "
+            "i.e., one bin per partition)."
+        ),
+    )
+    parser.add_argument(
+        "--calibration-compare-by-vals",
+        default=("branch_length", "origin_time"),
+        nargs="+",
+        type=str,
+        help=(
+            "Columns by which calibration bins are compared (default: "
+            "branch_length origin_time)."
+        ),
+    )
+    parser.add_argument(
+        "--length-rtol",
+        default=1e-3,
+        type=float,
+        help=(
+            "Relative tolerance for merging calibrated branch lengths for "
+            "fitting (default: 1e-3)."
         ),
     )
     parser.add_argument(
@@ -353,17 +413,9 @@ def _create_parser() -> argparse.ArgumentParser:
         nargs="+",
         type=float,
         help=(
-            "Candidate calibration neighborhood sizes, as fractions of "
-            "branches (default: 0.005 0.01 0.025 0.05 0.1 0.25 0.5 1.0)."
-        ),
-    )
-    parser.add_argument(
-        "--calibrate-num-partitions",
-        default=4096,
-        type=int,
-        help=(
-            "Maximum number of branch partitions per size partition, a "
-            "power of two (default: 4096)."
+            "Candidate calibration neighborhood sizes, as fractions of a "
+            "partition's bins (default: 0.005 0.01 0.025 0.05 0.1 0.25 0.5 "
+            "1.0)."
         ),
     )
     parser.add_argument(
@@ -438,9 +490,15 @@ if __name__ == "__main__":
                     calibrate_neighborhood_fractions=(
                         args.calibrate_neighborhood_fractions
                     ),
-                    calibrate_num_partitions=args.calibrate_num_partitions,
+                    calibration_partition_by=args.calibration_partition_by,
+                    calibration_compare_by_bins=(
+                        args.calibration_compare_by_bins
+                    ),
+                    calibration_compare_by_vals=(
+                        args.calibration_compare_by_vals
+                    ),
+                    length_rtol=args.length_rtol,
                     calibrate_max_rate_ratio=args.calibrate_max_rate_ratio,
-                    size_partitions=args.size_partitions,
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     loss_rate=args.loss_rate,

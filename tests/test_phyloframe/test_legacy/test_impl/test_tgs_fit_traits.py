@@ -1,38 +1,18 @@
 import numpy as np
+import pandas as pd
 import pytest
 
-from phyloframe.legacy._impl import (
-    tgs_allmdc_fit_traits,
-    tgs_allmdc_partition_episodes,
-)
+from phyloframe.legacy._impl import tgs_fit_traits
 
+from ._make_tgs_fit_kwargs import make_tgs_fit_kwargs
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 
-def _fit(exposure_df, calibrate=False, weights=None):
-    num_traits = sum(c.endswith("_starts_absent") for c in exposure_df)
-    neutral = list(range(1, num_traits))
-    partitioning = tgs_allmdc_partition_episodes(
-        exposure_df=exposure_df,
-        neutral_traits=neutral,
-        trait_names=list(map(str, range(num_traits))),
-        calibrate=calibrate,
-        calibrate_neighborhood_fractions=(0.5, 1.0),
-        calibrate_num_partitions=256,
-        calibrate_max_rate_ratio=np.inf,
-        calibrate_size_partition_ratio=4.0,
-        calibrate_size_partition_min_neutral_gains=1,
-    )
-    return tgs_allmdc_fit_traits(
-        exposure_df=exposure_df,
-        partitioning=partitioning,
-        weights=(np.ones(len(exposure_df)) if weights is None else weights),
-        neutral_traits=neutral,
-        calibrate=calibrate,
-        calibrate_max_rate_ratio=np.inf,
-        loss_rate=0.0,
-        selection_coef_starts=(0.0, -0.3, -1.8),
-        growth_exponent_bound=600.0,
+def _fit(exposure_df, weights=None, **kwargs):
+    if weights is None:
+        weights = np.ones(len(exposure_df))
+    return tgs_fit_traits(
+        weights=weights, **make_tgs_fit_kwargs(exposure_df, **kwargs)
     )
 
 
@@ -54,12 +34,19 @@ def test_recovers(calibrate: bool):
     assert (res["gain_ratio_lrt_naive"] > -1e-6).all()
     assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.2)
     assert res.loc[0, "selection_coef"] == pytest.approx(-0.05, abs=0.015)
-    # each neutral trait's ~1,200 gains, with the selection coefficient free to
-    # trade off against gain rate, leave its gain ratio uncertain by ~10%
+    # each neutral trait's ~1,200 gains, with the selection coefficient free
+    # to trade off against gain rate, leave its gain ratio uncertain by ~10%
     assert res.loc[1:, "gain_ratio"].tolist() == pytest.approx(
         [1.0] * 4, rel=0.3
     )
     assert (res.loc[1:, "selection_coef"].abs() < 0.01).all()
+
+
+def test_length_rtol_approximates_exact():
+    exposure_df = simulate_allmdc_exposure_df(8_000)
+    exact = _fit(exposure_df, calibrate=True, length_rtol=0.0)
+    merged = _fit(exposure_df, calibrate=True, length_rtol=1e-3)
+    pd.testing.assert_frame_equal(merged, exact, rtol=1e-3)
 
 
 def test_trait_without_gains():
@@ -76,6 +63,10 @@ def test_weights_match_duplication():
     weights = np.ones(4_000)
     weights[::3] = 2.0
     weighted = _fit(exposure_df, weights=weights)
+    duplicated = _fit(
+        pd.concat([exposure_df, exposure_df.iloc[::3]], ignore_index=True)
+    )
+    pd.testing.assert_frame_equal(weighted, duplicated, rtol=1e-4)
     assert not np.allclose(
         weighted["gain_rate"], _fit(exposure_df)["gain_rate"]
     )

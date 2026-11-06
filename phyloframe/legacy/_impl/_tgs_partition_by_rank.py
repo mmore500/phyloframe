@@ -25,7 +25,7 @@ def tgs_partition_by_rank(
     but keeps at least 4 branches in each.
     """
     num_branches = len(coordinates[0])
-    # tie-breaking (e.g., leaves' survival times, all 0) by the other
+    # tie-breaking (e.g., leaves' survival durations, all 0) by the other
     # coordinates keeps partitions independent of row order
     # scaled to (0, 1]
     ranks = calc_tiebroken_ranks(coordinates) / num_branches

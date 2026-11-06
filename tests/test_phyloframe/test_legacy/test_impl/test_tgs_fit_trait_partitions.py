@@ -4,11 +4,10 @@ import numpy as np
 import pytest
 
 from phyloframe.legacy._impl import (
-    tgs_allmdc_partition_episodes,
-    tgs_allmdc_tabulate_partitions,
     tgs_calc_nll,
     tgs_fit_partitions,
     tgs_fit_trait_partitions,
+    tgs_merge_episodes,
 )
 from phyloframe.legacy._impl._tgs_fit import _tgs_calc_scales
 
@@ -18,26 +17,19 @@ from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 @pytest.fixture(scope="module")
 def fixture():
     exposure_df = simulate_allmdc_exposure_df()
-    partitioning = tgs_allmdc_partition_episodes(
-        exposure_df=exposure_df,
-        neutral_traits=[1, 2],
-        trait_names=["focal", "n1", "n2"],
-        calibrate=False,
-        calibrate_neighborhood_fractions=(1.0,),
-        calibrate_num_partitions=256,
-        calibrate_max_rate_ratio=np.inf,
-        calibrate_size_partition_ratio=4.0,
-        calibrate_size_partition_min_neutral_gains=1,
+    distinct_survival_durations, survival_duration_indices = np.unique(
+        exposure_df["survival_duration"].to_numpy(), return_inverse=True
     )
-    data, shares = tgs_allmdc_tabulate_partitions(
+    data, shares = tgs_merge_episodes(
         exposure_df=exposure_df,
-        partitioning=partitioning,
+        bins=np.zeros(len(exposure_df), dtype=np.int64),
+        calibration_factors=np.ones((3, 1)),
         weights=np.ones(len(exposure_df)),
-        neutral_traits=[1, 2],
-        calibrate=False,
-        calibrate_max_rate_ratio=np.inf,
+        length_rtol=1e-2,
+        survival_duration_indices=survival_duration_indices,
+        num_survival_durations=len(distinct_survival_durations),
     )
-    return data, shares, partitioning["distinct_survival_times"]
+    return data, shares, distinct_survival_durations
 
 
 def _trait_kwargs(fixture, trait: int):
@@ -48,7 +40,7 @@ def _trait_kwargs(fixture, trait: int):
         partitions=partitions,
         growth_exponent_bound=600.0,
         survival_shares=shares[partitions.index],
-        distinct_survival_times=times,
+        distinct_survival_durations=times,
     )
     return dict(calc_nll=calc_nll, partitions=partitions)
 
@@ -113,7 +105,7 @@ def test_fit_trait_partitions(fixture):
         selection_coef_starts=(0.0, -0.3),
         growth_exponent_bound=600.0,
         survival_shares=shares,
-        distinct_survival_times=times,
+        distinct_survival_durations=times,
     )
     assert list(res.columns) == [
         "gain_rate",

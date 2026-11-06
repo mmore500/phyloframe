@@ -22,7 +22,7 @@ def tgs_calc_heldout_nll(
     Acronym tgs stands for trait gain/selection.
 
     Returns the negative log likelihood of held-out neutral `trait`'s gains
-    under no selection, with each partition's mean branch length calibrated
+    under no selection, with each bin's mean branch length calibrated
     against the other neutral traits only; 0 if it has no gains or no
     calibrated exposure, so scores the same for every neighborhood size.
     """

@@ -56,7 +56,7 @@ def _tgs_calc_gain_ratio_lrt(
 
 def tgs_calc_gain_ratio_lrts(
     *,
-    fits: pd.DataFrame,
+    fits_df: pd.DataFrame,
     trait_partitions: typing.Sequence[pd.DataFrame],
     calc_nlls: typing.Sequence[typing.Callable],
     loss_rate: float,
@@ -70,14 +70,14 @@ def tgs_calc_gain_ratio_lrts(
     ratio = 1, a profile likelihood test: twice the increase in negative
     log likelihood from holding the trait's gain rate at the mean fitted
     gain rate of its neutral reference, i.e., `gain_rate / gain_ratio`, and
-    refitting the selection coefficient alone. `fits` holds each trait's fitted
-    `gain_rate`, `selection_coef`, and `gain_ratio`; `trait_partitions`, each
-    trait's
-    partitions (see `tgs_fit_partitions`); and `calc_nlls`, their
-    `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`).
+    refitting the selection coefficient alone. `fits_df` holds each trait's
+    fitted `gain_rate`, `selection_coef`, and `gain_ratio`;
+    `trait_partitions`, each trait's partitions (see `tgs_fit_partitions`);
+    and `calc_nlls`, their `calc_nll(log_gain_rate=..., rate=...)` (see
+    `tgs_calc_nll`).
 
     The statistic naively treats the reference gain rate as known, and
-    branches (or bins) as independent, so overstates significance. It is
+    exposure episodes (or merged rows of them) as independent, so overstates significance. It is
     nan wherever the gain ratio is undefined, or the trait has no gains.
     """
     return np.array(
@@ -92,7 +92,7 @@ def tgs_calc_gain_ratio_lrts(
                 selection_coef_starts=selection_coef_starts,
             )
             for partitions, calc_nll, fit in zip(
-                trait_partitions, calc_nlls, fits.itertuples()
+                trait_partitions, calc_nlls, fits_df.itertuples()
             )
         ],
         dtype=np.float64,

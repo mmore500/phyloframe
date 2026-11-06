@@ -12,7 +12,7 @@ from ._tgs_calc_heldout_nll import tgs_calc_heldout_nll
 
 def tgs_select_calibration_neighborhoods(
     *,
-    partition_coords: np.ndarray,
+    bin_coords: np.ndarray,
     neighborhood_fractions: typing.Sequence[float],
     counts: pd.DataFrame,
     neutral_traits: typing.Sequence[int],
@@ -23,21 +23,21 @@ def tgs_select_calibration_neighborhoods(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns the partition-by-partition membership matrix of calibration
-    neighborhoods: each partition's nearest partitions by
-    `partition_coords`, of the size, among `neighborhood_fractions`, that
-    best predicts each held-out neutral trait's gains when calibrating
-    against the other neutral traits (see `tgs_calc_heldout_nll`), given
-    (`trait`, `partition`)-indexed `counts` (see `tgs_count_traits`).
-    Warns about any neighborhoods without neutral gains.
+    Returns the bin-by-bin membership matrix of calibration neighborhoods,
+    the bins whose neutral trait gains calibrate each bin's branch lengths
+    (see `tgs_calc_calibration_factors`): each bin's nearest bins by
+    `bin_coords`, of the size, among `neighborhood_fractions`, that best
+    predicts each held-out neutral trait's gains when calibrating against
+    the other neutral traits (see `tgs_calc_heldout_nll`), given (`trait`, `bin`)-indexed `counts` (see
+    `tgs_count_traits`). Warns about any neighborhoods without neutral gains.
     """
     best_nll, best_neighborhoods, best_fraction = np.inf, None, np.nan
     for fraction in neighborhood_fractions:
-        # each partition's nearest partitions, itself included, together
-        # holding about `fraction` of partitions
+        # each bin's nearest bins, itself included, together
+        # holding about `fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
-            partition_coords,
-            num_neighbors=int(np.ceil(fraction * len(partition_coords))),
+            bin_coords,
+            num_neighbors=int(np.ceil(fraction * len(bin_coords))),
         )
         # holding out each neutral trait in turn
         nll = sum(
@@ -53,7 +53,7 @@ def tgs_select_calibration_neighborhoods(
         )
         logging.info(
             "- tgs: calibration neighborhoods of "
-            f"{fraction:.1%} of partitions give "
+            f"{fraction:.1%} of bins give "
             f"held-out neutral negative log likelihood {nll:.1f}",
         )
         if nll < best_nll:
@@ -62,19 +62,19 @@ def tgs_select_calibration_neighborhoods(
 
     neutral_gains = (
         counts.loc[list(neutral_traits), "num_successes"]
-        .groupby(level="partition")
+        .groupby(level="bin")
         .sum()
         .to_numpy()
     )
     num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
     logging.info(
         "- tgs: selected calibration "
-        f"neighborhoods of {best_fraction:.1%} of {len(partition_coords)} "
-        f"partitions, {num_empty} without neutral trait gains",
+        f"neighborhoods of {best_fraction:.1%} of {len(bin_coords)} "
+        f"bins, {num_empty} without neutral trait gains",
     )
     if num_empty:
         warnings.warn(
-            f"{num_empty} of {len(partition_coords)} calibration "
+            f"{num_empty} of {len(bin_coords)} calibration "
             "neighborhoods contain no neutral trait gains, so branches "
             "there get zero effective length; more neutral traits or "
             "leaves would help.",

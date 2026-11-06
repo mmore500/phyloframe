@@ -4,6 +4,10 @@ import pandas as pd
 import polars as pl
 import pytest
 
+from phyloframe.legacy import (
+    alifestd_tgs_allmdc_estimate_polars,
+    alifestd_tgs_mark_calibration_compare_bins_polars,
+)
 from phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars import (
     _create_parser,
 )
@@ -11,13 +15,16 @@ from phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars import (
 from .test_alifestd_tgs_allmdc_estimate_polars import _make_cherries_polars
 
 MODULE = "phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars"
+NEUTRAL_TRAITS = ["n1", "n2", "n3", "n4"]
 
 
 @pytest.fixture
 def input_pqt(tmp_path):
-    """Create a parquet phylogeny with trait columns."""
+    """Create a parquet phylogeny with trait and calibration columns."""
     path = tmp_path / "input.pqt"
-    _make_cherries_polars(5_000).write_parquet(path)
+    alifestd_tgs_mark_calibration_compare_bins_polars(
+        _make_cherries_polars(5_000), neutral_traits=NEUTRAL_TRAITS
+    ).write_parquet(path)
     return str(path)
 
 
@@ -50,18 +57,15 @@ def test_cli(input_pqt, ext, tmp_path):
             MODULE,
             "--trait-transitions",
             "focal",
-            "n1",
-            "n2",
-            "n3",
-            "n4",
+            *NEUTRAL_TRAITS,
             "--neutral-traits",
-            "n1",
-            "n2",
-            "n3",
-            "n4",
-            "--calibrate",
+            *NEUTRAL_TRAITS,
+            "--calibration-partition-by",
+            "tgs_calibration_partition",
+            "--calibration-compare-by-bins",
+            "tgs_calibration_compare_bin",
             "--num-bootstrap",
-            "3",
+            "5",
             "--bootstrap-seed",
             "1",
             "--eager-write",
@@ -75,14 +79,12 @@ def test_cli(input_pqt, ext, tmp_path):
         if ext == ".csv"
         else pd.read_parquet(output_file)
     )
-    assert result_df["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
+    assert result_df["trait"].tolist() == ["focal", *NEUTRAL_TRAITS]
     assert "selection_coef_p" in result_df.columns
     assert result_df.loc[0, "gain_ratio"] > 1.0
 
 
 def test_cli_matches_function(input_pqt, tmp_path):
-    from phyloframe.legacy import alifestd_tgs_allmdc_estimate_polars
-
     output_file = str(tmp_path / "output.pqt")
     subprocess.run(  # nosec B603
         [
@@ -92,12 +94,28 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "--trait-transitions",
             "focal",
             "n1",
+            "n2",
+            "--neutral-traits",
+            "n1",
+            "n2",
+            "--calibration-compare-by-bins",
+            "tgs_calibration_compare_bin",
+            "--calibration-compare-by-vals",
+            "origin_time",
+            "--calibrate-neighborhood-fractions",
+            "0.1",
+            "1.0",
+            "--calibrate-max-rate-ratio",
+            "4.0",
+            "--length-rtol",
+            "1e-2",
             "--loss-rate",
             "0.001",
-            "--calibrate-size-partition-ratio",
-            "4",
-            "--calibrate-size-partition-min-neutral-gains",
-            "5",
+            "--selection-coef-starts",
+            "0.0",
+            "-0.5",
+            "--growth-exponent-bound",
+            "300.0",
             "--eager-write",
             output_file,
         ],
@@ -106,10 +124,16 @@ def test_cli_matches_function(input_pqt, tmp_path):
     )
     expected = alifestd_tgs_allmdc_estimate_polars(
         pl.read_parquet(input_pqt),
-        trait_transitions=["focal", "n1"],
+        trait_transitions=["focal", "n1", "n2"],
+        neutral_traits=["n1", "n2"],
+        calibration_compare_by_bins="tgs_calibration_compare_bin",
+        calibration_compare_by_vals=["origin_time"],
+        calibrate_neighborhood_fractions=(0.1, 1.0),
+        calibrate_max_rate_ratio=4.0,
+        length_rtol=1e-2,
         loss_rate=0.001,
-        calibrate_size_partition_ratio=4.0,
-        calibrate_size_partition_min_neutral_gains=5,
+        selection_coef_starts=(0.0, -0.5),
+        growth_exponent_bound=300.0,
     )
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False

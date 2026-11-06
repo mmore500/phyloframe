@@ -12,10 +12,12 @@ from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_extract_trait_masks import tgs_extract_trait_masks
-from ._tgs_fit import TgsFitResult
-from ._tgs_fit import tgs_minimize_nll
-from ._tgs_fit import tgs_fit_partitions
-from ._tgs_fit import tgs_fit
+from ._tgs_fit import (
+    TgsFitResult,
+    tgs_fit,
+    tgs_fit_partitions,
+    tgs_minimize_nll,
+)
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_impl import tgs_impl

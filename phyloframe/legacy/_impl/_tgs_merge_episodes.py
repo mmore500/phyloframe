@@ -8,10 +8,22 @@ import sklearn.preprocessing as sklearn_preprocessing
 from ._tgs_extract_trait_masks import tgs_extract_trait_masks
 
 
+def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
+    """Implementation detail for `tgs_merge_episodes`.
+
+    Returns each nonnegative value's cell of a log-scale grid with ratio 1 +
+    `rtol`; zero values get a cell of their own.
+    """
+    cells = np.full(len(values), np.iinfo(np.int64).min)
+    is_positive = values > 0
+    cells[is_positive] = np.round(np.log(values[is_positive]) / np.log1p(rtol))
+    return cells
+
+
 def tgs_merge_episodes(
     *,
     exposure_df: pd.DataFrame,
-    partitions: np.ndarray,
+    bins: np.ndarray,
     calibration_factors: np.ndarray,
     weights: np.ndarray,
     length_rtol: float,
@@ -24,12 +36,14 @@ def tgs_merge_episodes(
 
     Merges each trait's exposure episodes (rows of `exposure_df` starting
     without the trait; see `tgs_calc_exposure_df`) whose calibrated branch
-    lengths agree within relative tolerance `length_rtol`, i.e., fall in
-    the same bin of a log-scale grid with ratio 1 + `length_rtol` (0 for
-    no merging). Each episode's length is calibrated by its partition's
-    factor, `calibration_factors[trait, partition]`.
+    lengths and survival durations both agree within relative tolerance
+    `length_rtol`, i.e., fall in the same cell of a log-scale grid with
+    ratio 1 + `length_rtol` (0 for no merging), so that merged episodes
+    have nearly the same chance of gain, and merging loses little
+    information about which episodes gained the trait. Each episode's length is calibrated by its calibration bin's
+    factor, `calibration_factors[trait, bin]`.
 
-    Returns `partition_df`, one row per trait and merged bin with
+    Returns `partition_df`, one row per trait and merged length cell with
     episodes, trait-major, with columns `trait` (index, categorical over
     all traits), the (weighted, by `weights`) counts of episodes,
     `num_trials`, and of gains, `num_successes`, and their mean calibrated
@@ -43,28 +57,28 @@ def tgs_merge_episodes(
     episode_traits, episodes = np.nonzero(starts_absent.T)  # trait-major
     lengths = (
         exposure_df["branch_length"].to_numpy()[episodes]
-        * calibration_factors[episode_traits, partitions[episodes]]
+        * calibration_factors[episode_traits, bins[episodes]]
     )
+    survival_durations = exposure_df["survival_duration"].to_numpy()[episodes]
     if length_rtol > 0:
-        # log-scale grid; zero lengths (from zero calibration factors) get
-        # a bin of their own
-        bins = np.full(len(lengths), np.iinfo(np.int64).min)
-        is_positive = lengths > 0
-        bins[is_positive] = np.round(
-            np.log(lengths[is_positive]) / np.log1p(length_rtol)
+        length_cells = _calc_log_grid_cells(lengths, rtol=length_rtol)
+        survival_cells = _calc_log_grid_cells(
+            survival_durations, rtol=length_rtol
         )
     else:
-        bins = np.arange(len(lengths))
+        length_cells = np.arange(len(lengths))
+        survival_cells = np.zeros(len(lengths), dtype=np.int64)
     episode_weights = np.asarray(weights, dtype=np.float64)[episodes]
     grouped = pd.DataFrame(
         {
             "trait": episode_traits,
-            "bin": bins,
+            "length_cell": length_cells,
+            "survival_cell": survival_cells,
             "num_trials": episode_weights,
             "num_successes": episode_weights * gains[episodes, episode_traits],
             "length": episode_weights * lengths,
         },
-    ).groupby(["trait", "bin"], sort=True)
+    ).groupby(["trait", "length_cell", "survival_cell"], sort=True)
     sums = grouped[["num_trials", "num_successes", "length"]].sum()
     rows = grouped.ngroup().to_numpy()  # each episode's merged row
 

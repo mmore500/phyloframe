@@ -5,7 +5,7 @@ import pandas as pd
 def simulate_allmdc_exposure_df(
     num_branches: int = 40_000, seed: int = 1, num_neutral: int = 2
 ) -> pd.DataFrame:
-    """Branches, as from `tgs_calc_exposure_df`: half leaves (survival time
+    """Branches, as from `tgs_calc_exposure_df`: half leaves (survival duration
     0), half inner branches of clades of 2 to 9 leaves, every branch at
     risk of each trait and gaining it under the allmdc model.
 
@@ -19,7 +19,7 @@ def simulate_allmdc_exposure_df(
     columns = {
         "origin_time": lengths + survival + rng.uniform(0, 10, num_branches),
         "branch_length": lengths,
-        "survival_time": survival,
+        "survival_duration": survival,
         "clade_size": np.where(is_leaf, 1, rng.integers(2, 10, num_branches)),
     }
     for i, (gain, selection) in enumerate(

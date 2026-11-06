@@ -21,16 +21,16 @@ def tgs_calc_calibration_factors(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns, for each partition, the factor rescaling `trait`'s branch
+    Returns, for each calibration bin, the factor rescaling `trait`'s branch
     lengths there: the rate ratio of gains of `trait`'s neutral reference
-    (the other neutral traits) within the partition's calibration
+    (the other neutral traits) within the bin's calibration
     neighborhood, capped at `max_rate_ratio`, given (`trait`,
-    `partition`)-indexed `counts` (see `tgs_count_traits`).
+    `bin`)-indexed `counts` (see `tgs_count_traits`).
     """
     # a neutral trait is not calibrated against itself
     references = (
         counts.loc[[ref for ref in neutral_traits if ref != trait]]
-        .groupby(level="partition")
+        .groupby(level="bin")
         .sum()
     )
     return calc_neighborhood_rate_ratios(

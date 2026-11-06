@@ -13,8 +13,8 @@ from ._tgs_merge_episodes import tgs_merge_episodes
 def tgs_fit_traits(
     *,
     exposure_df: pd.DataFrame,
-    partitions: np.ndarray,
-    num_partitions: int,
+    bins: np.ndarray,
+    num_bins: int,
     calibration_neighborhoods: sparse.spmatrix,
     distinct_survival_durations: np.ndarray,
     survival_duration_indices: np.ndarray,
@@ -32,21 +32,21 @@ def tgs_fit_traits(
 
     Fits each trait to `exposure_df`'s exposure episodes, each weighted by
     `weights` (e.g., bootstrap draw counts): calibrates branch lengths by
-    partition (see `tgs_calc_calibration_factors`), merges episodes of
+    calibration bin (see `tgs_calc_calibration_factors`), merges episodes of
     similar calibrated length (see `tgs_merge_episodes`), and fits gain
     rate and selection coefficient (see `tgs_fit_trait_partitions`).
     Returns one row per trait.
     """
     counts = tgs_count_traits(
         exposure_df=exposure_df,
-        partitions=partitions,
-        num_partitions=num_partitions,
+        bins=bins,
+        num_bins=num_bins,
         weights=weights,
     )
     num_traits = len(counts.index.levels[0])
     partition_df, survival_shares = tgs_merge_episodes(
         exposure_df=exposure_df,
-        partitions=partitions,
+        bins=bins,
         calibration_factors=np.stack(
             [
                 tgs_calc_calibration_factors(
@@ -71,5 +71,5 @@ def tgs_fit_traits(
         selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
         survival_shares=survival_shares,
-        distinct_survival_times=distinct_survival_durations,
+        distinct_survival_durations=distinct_survival_durations,
     )

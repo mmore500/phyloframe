@@ -7,6 +7,7 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_tgs_allmdc_estimate_polars,
+    alifestd_tgs_mark_calibration_compare_bins_polars,
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
 )
@@ -14,22 +15,42 @@ from phyloframe.legacy import (
 from ._impl import add_trait_transitions
 
 
+def _estimate(
+    estimator: typing.Callable,
+    phylogeny_df: pd.DataFrame,
+    calibrate: bool = False,
+    calibrate_size_ratio: float = 2.0,
+    **kwargs,
+) -> pd.DataFrame:
+    """Run a polars estimator on a pandas phylogeny, returning pandas. If
+    `calibrate`, calibrates by partitions and bins from
+    `alifestd_tgs_mark_calibration_compare_bins_polars`."""
+    df_pl = pl.from_pandas(alifestd_to_working_format(phylogeny_df))
+    if calibrate:
+        df_pl = alifestd_tgs_mark_calibration_compare_bins_polars(
+            df_pl,
+            neutral_traits=kwargs["neutral_traits"],
+            size_ratio=calibrate_size_ratio,
+        )
+        kwargs["calibration_partition_by"] = "tgs_calibration_partition"
+        kwargs["calibration_compare_by_bins"] = "tgs_calibration_compare_bin"
+    return estimator(df_pl, **kwargs).to_pandas()
+
+
 def _estimate_allmdc(
     phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
 ) -> pd.DataFrame:
-    """Run the polars estimator on a pandas phylogeny, returning pandas."""
-    return alifestd_tgs_allmdc_estimate_polars(
-        pl.from_pandas(alifestd_to_working_format(phylogeny_df)), **kwargs
-    ).to_pandas()
+    return _estimate(
+        alifestd_tgs_allmdc_estimate_polars, phylogeny_df, **kwargs
+    )
 
 
 def _estimate_pendantmdc(
     phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
 ) -> pd.DataFrame:
-    """Run the polars estimator on a pandas phylogeny, returning pandas."""
-    return alifestd_tgs_pendantmdc_estimate_polars(
-        pl.from_pandas(alifestd_to_working_format(phylogeny_df)), **kwargs
-    ).to_pandas()
+    return _estimate(
+        alifestd_tgs_pendantmdc_estimate_polars, phylogeny_df, **kwargs
+    )
 
 
 def _estimate_from_masks(
@@ -38,7 +59,7 @@ def _estimate_from_masks(
     *,
     trait_masks: typing.Sequence[np.ndarray],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
-    neutral_traits: typing.Sequence[int] = (),
+    neutral_traits: typing.Sequence[int] = (1, 2, 3, 4),
     **kwargs,
 ) -> pd.DataFrame:
     """Run the estimator on transitions reconstructed from trait masks,
@@ -180,9 +201,11 @@ def test_counts():
     res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=np.array(
-            [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0], [0, 0, 1, 1, 1]],
+            [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0], [0, 0, 1, 1, 1]]
+            + [[0, 0, 0, 0, 0]] * 2,
             dtype=bool,
         ),
+        neutral_traits=[3, 4],
     )
     # trait 0: gained on branch 1, whose clade carries it at both leaves,
     # so leaves 2 and 3 started with it; leaf 4 started without it
@@ -212,49 +235,38 @@ def test_row_order_invariant():
     pd.testing.assert_frame_equal(res, expected, rtol=1e-4)
 
 
-@pytest.mark.parametrize("ratio", [1.0, 0.5, -2.0, float("nan")])
-def test_calibrate_size_partition_ratio_validated(ratio: float):
-    phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError):
-        _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            calibrate_size_partition_ratio=ratio,
-        )
-
-
-def test_calibrate_size_partition_min_neutral_gains_validated():
-    phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError):
-        _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            calibrate_size_partition_min_neutral_gains=0,
-        )
-
-
 @pytest.mark.parametrize("ratio", [1.5, 2.0, 1e9])
-def test_calibrate_size_partition_ratio(ratio: float):
+def test_calibrate_size_ratio(ratio: float):
     phylogeny_df, traits = _make_cherries(10_000)
     res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
-        neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        calibrate_size_partition_ratio=ratio,
+        calibrate_size_ratio=ratio,
     )
     assert res.loc[0, "selection_coef"] < 0
     assert np.isfinite(res["gain_ratio"]).all()
 
 
-def test_calibrate_requires_neutral():
+def test_calibration_compare_by_vals_clade_size():
+    phylogeny_df, traits = _make_cherries(10_000)
+    kwargs = dict(trait_masks=traits, calibrate=True)
+    default = _estimate_from_masks(phylogeny_df, **kwargs)
+    res = _estimate_from_masks(
+        phylogeny_df,
+        calibration_compare_by_vals=["branch_length", "clade_size"],
+        **kwargs,
+    )
+    assert not res.equals(default)
+    assert np.isfinite(res["gain_ratio"]).all()
+
+
+@pytest.mark.parametrize("neutral_traits", [[], [1], [1, 1]])
+def test_too_few_neutral_traits_raise(neutral_traits):
     phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError, match="at least two"):
         _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            calibrate=True,
-            neutral_traits=[1],
+            phylogeny_df, trait_masks=traits, neutral_traits=neutral_traits
         )
 
 
@@ -271,56 +283,91 @@ def test_input_not_mutated():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     original_df = phylogeny_df.copy()
-    _estimate_allmdc(phylogeny_df, trait_transitions=names)
+    _estimate_allmdc(
+        phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+    )
     pd.testing.assert_frame_equal(phylogeny_df, original_df)
 
 
+def _make_cherries_with_transitions(num_cherries: int = 100):
+    phylogeny_df, traits = _make_cherries(num_cherries)
+    return add_trait_transitions(phylogeny_df, traits)
+
+
 def test_missing_transitions_column_raises():
-    phylogeny_df, __ = _make_cherries(100)
-    with pytest.raises(ValueError):
-        _estimate_allmdc(phylogeny_df, trait_transitions=["absent"])
+    phylogeny_df, names = _make_cherries_with_transitions()
+    with pytest.raises(ValueError, match="no column absent"):
+        _estimate_allmdc(
+            phylogeny_df,
+            trait_transitions=["absent", *names[1:]],
+            neutral_traits=names[1:],
+        )
+
+
+def test_missing_calibration_column_raises():
+    phylogeny_df, names = _make_cherries_with_transitions()
+    with pytest.raises(ValueError, match="no column absent"):
+        _estimate_allmdc(
+            phylogeny_df,
+            trait_transitions=names,
+            neutral_traits=names[1:],
+            calibration_partition_by="absent",
+        )
 
 
 def test_float_transitions_raise():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
     with pytest.raises(NotImplementedError):
-        _estimate_allmdc(phylogeny_df, trait_transitions=names)
+        _estimate_allmdc(
+            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+        )
 
 
 @pytest.mark.parametrize("value", [2, -2])
 def test_invalid_transitions_raise(value: int):
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df.loc[5, names[0]] = value
     with pytest.raises(ValueError):
-        _estimate_allmdc(phylogeny_df, trait_transitions=names)
+        _estimate_allmdc(
+            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+        )
 
 
 def test_repeated_gain_raises():
-    phylogeny_df, __ = _make_cherries(100)
+    phylogeny_df, names = _make_cherries_with_transitions()
     # gains on cherry 1's stem and on one of its leaves give state 2 there
     phylogeny_df["trait"] = 0
     phylogeny_df.loc[[1, 2], "trait"] = 1
     with pytest.raises(ValueError):
-        _estimate_allmdc(phylogeny_df, trait_transitions=["trait"])
+        _estimate_allmdc(
+            phylogeny_df,
+            trait_transitions=["trait", *names[1:]],
+            neutral_traits=names[1:],
+        )
 
 
 def test_losses_not_supported():
-    phylogeny_df, __ = _make_cherries(100)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df["trait"] = 0
     phylogeny_df.loc[1, "trait"] = 1
     phylogeny_df.loc[2, "trait"] = -1
-    with pytest.raises(NotImplementedError):
-        _estimate_allmdc(phylogeny_df, trait_transitions=["trait"])
+    with pytest.raises(NotImplementedError, match="loss"):
+        _estimate_allmdc(
+            phylogeny_df,
+            trait_transitions=["trait", *names[1:]],
+            neutral_traits=names[1:],
+        )
 
 
 def test_trait_named_by_columns():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
+    phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
-    res = _estimate_allmdc(phylogeny_df, trait_transitions=list("abcde"))
+    res = _estimate_allmdc(
+        phylogeny_df,
+        trait_transitions=list("abcde"),
+        neutral_traits=["b", "c"],
+    )
     assert res["trait"].tolist() == list("abcde")
 
 
@@ -351,13 +398,16 @@ def test_empty(apply: typing.Callable):
                 "id": pl.Series([], dtype=pl.Int64),
                 "ancestor_id": pl.Series([], dtype=pl.Int64),
                 "origin_time": pl.Series([], dtype=pl.Float64),
-                "trait": pl.Series([], dtype=pl.Int8),
+                **{t: pl.Series([], dtype=pl.Int8) for t in ("a", "b", "c")},
             }
         ),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
         alifestd_tgs_allmdc_estimate_polars(
-            df_pl, trait_transitions=["trait"], num_bootstrap=2
+            df_pl,
+            trait_transitions=["a", "b", "c"],
+            neutral_traits=["b", "c"],
+            num_bootstrap=2,
         )
 
 
@@ -375,8 +425,12 @@ def test_not_asexual():
             "id": [0, 1],
             "ancestor_list": ["[none]", "[0]"],
             "origin_time": [0.0, 1.0],
-            "trait": [0, 1],
+            "a": [0, 1],
+            "b": [0, 0],
+            "c": [0, 0],
         },
     ).with_columns(ancestor_list=pl.lit("[0, 1]"))
-    with pytest.raises(NotImplementedError):
-        alifestd_tgs_allmdc_estimate_polars(df_pl, trait_transitions=["trait"])
+    with pytest.raises(NotImplementedError, match="asexual"):
+        alifestd_tgs_allmdc_estimate_polars(
+            df_pl, trait_transitions=["a", "b", "c"], neutral_traits=["b", "c"]
+        )

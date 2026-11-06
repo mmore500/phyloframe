@@ -15,10 +15,10 @@ def tgs_allmdc_count_episodes(
     tgs stands for trait gain/selection.
 
     Returns one row per trait, with column `trait` and counts, from
-    `exposure_df` (see `tgs_calc_exposure_df`), of leaf branches starting
-    without the trait, `num_leaves`, and of their gains,
-    `num_trait_present`, and the same for inner branches, `num_clades` and
-    `num_clade_gains`.
+    `exposure_df` (see `tgs_calc_exposure_df`), of leaf exposure episodes,
+    i.e., leaf branches starting without the trait, `num_leaves`, and of
+    their gains, `num_trait_present`, and the same for inner exposure
+    episodes, `num_clades` and `num_clade_gains`.
     """
     starts_absent, gains = tgs_extract_trait_masks(exposure_df)
     is_leaf = np.expand_dims((exposure_df["clade_size"] == 1).to_numpy(), 1)

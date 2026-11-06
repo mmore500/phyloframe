@@ -51,14 +51,14 @@ def _pendant_nll(partitions, log_gain_rate, rate):
     )
 
 
-def test_matches_pendant_without_survival_time():
+def test_matches_pendant_without_survival_duration():
     data, __ = _data()
     data["survival_shares"] = np.ones((6, 1))
     res = tgs_calc_nll(
         log_gain_rate=np.log(1e-3),
         rate=-0.05,
         **data,
-        distinct_survival_times=np.array([0.0]),
+        distinct_survival_durations=np.array([0.0]),
         growth_exponent_bound=600.0,
     )
     expected = _pendant_nll(data["partitions"], np.log(1e-3), -0.05)
@@ -76,7 +76,7 @@ def test_survival_discounts():
         log_gain_rate=np.log(1e-3),
         rate=rate,
         **data,
-        distinct_survival_times=times,
+        distinct_survival_durations=times,
         growth_exponent_bound=600.0,
     )
     gain = 1e-3 * np.expm1(rate * lengths) / rate * factor
@@ -93,7 +93,7 @@ def test_gradient(rate: float):
             log_gain_rate=params[0],
             rate=params[1],
             **data,
-            distinct_survival_times=times,
+            distinct_survival_durations=times,
             growth_exponent_bound=600.0,
         )
 

@@ -8,7 +8,7 @@ def test_count():
         {
             "origin_time": 0.0,
             "branch_length": 1.0,
-            "survival_time": 0.0,
+            "survival_duration": 0.0,
             "clade_size": [1, 1, 2, 1, 5],
             "trait0_starts_absent": True,
             "trait0_gain": [False, True, True, False, False],

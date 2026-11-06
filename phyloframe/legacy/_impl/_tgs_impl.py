@@ -17,6 +17,20 @@ from ._tgs_select_calibration_neighborhoods import (
 )
 
 
+def _slice_bins(counts: pd.DataFrame, begin: int, end: int) -> pd.DataFrame:
+    """Implementation detail for `tgs_impl`.
+
+    Returns `counts` (see `tgs_count_traits`) of bins `begin` up to `end`,
+    renumbered from 0.
+    """
+    res = counts.loc[(slice(None), slice(begin, end - 1)), :].copy()
+    res.index = pd.MultiIndex.from_product(
+        [counts.index.levels[0], range(end - begin)],
+        names=counts.index.names,
+    )
+    return res
+
+
 def tgs_impl(
     exposure_df: pd.DataFrame,
     *,
@@ -39,48 +53,69 @@ def tgs_impl(
     gain/selection.
 
     Fits each trait to the exposure episodes of `exposure_df` (see
-    `tgs_calc_exposure_df`), calibrating within its `calibration_partition`
-    column, if any, and returns per-trait estimates following `counts_df`'s
-    per-trait counts (see `tgs_build_estimates_df`). Takes validated
-    arguments, with `neutral_traits` as indices and `trait_names` as labels
-    (see `tgs_validate_args`).
+    `tgs_calc_exposure_df`), calibrating by its `calibration_bin` column,
+    if any, comparing bins by their mean ranks in its
+    `calibration_compare_by_*` columns, only within the same
+    `calibration_partition`, and returns per-trait estimates following
+    `counts_df`'s per-trait counts (see `tgs_build_estimates_df`). Takes
+    validated arguments, with `neutral_traits` as indices and `trait_names`
+    as labels (see `tgs_validate_args`).
     """
     num_episodes = len(exposure_df)
     if not num_episodes:
         raise ValueError("phylogeny_df has no exposure episodes to fit")
 
-    # number calibration partitions consecutively; without them, all are one
-    __, partitions = np.unique(
-        exposure_df.get(
-            "calibration_partition", np.zeros(num_episodes, dtype=np.int64)
+    # number (partition, bin) pairs consecutively, partition-major, so that
+    # each partition's bins are contiguous; without columns, all are one
+    zeros = np.zeros(num_episodes, dtype=np.int64)
+    pairs, bins = np.unique(
+        np.column_stack(
+            [
+                exposure_df.get(column, zeros)
+                for column in ("calibration_partition", "calibration_bin")
+            ],
         ),
+        axis=0,
         return_inverse=True,
     )
-    num_partitions = partitions.max() + 1
-    if num_partitions > 1:
-        # neighborhoods are nearest partitions by their episodes' mean ranks;
-        # constant coordinates (e.g., leaves' clade sizes) carry no distance
+    bins = bins.ravel()
+    num_bins = len(pairs)
+    if num_bins > 1:
         coordinates = [
             exposure_df[column].to_numpy()
-            for column in ("branch_length", "origin_time", "clade_size")
+            for column in exposure_df.columns
+            if column.startswith("calibration_compare_by_")
         ]
+        # bins' mean ranks; constant coordinates carry no distance
         ranks = calc_tiebroken_ranks(
             [x for x in coordinates if np.ptp(x) > 0] or coordinates[:1]
         )
-        calibration_neighborhoods = tgs_select_calibration_neighborhoods(
-            partition_coords=calc_group_means(
-                partitions, ranks / num_episodes, num_groups=num_partitions
-            ),
-            neighborhood_fractions=calibrate_neighborhood_fractions,
-            counts=tgs_count_traits(
-                exposure_df=exposure_df,
-                partitions=partitions,
-                num_partitions=num_partitions,
-                weights=np.ones(num_episodes),
-            ),
-            neutral_traits=neutral_traits,
-            trait_names=trait_names,
-            max_rate_ratio=calibrate_max_rate_ratio,
+        bin_coords = calc_group_means(
+            bins, ranks / num_episodes, num_groups=num_bins
+        )
+        counts = tgs_count_traits(
+            exposure_df=exposure_df,
+            bins=bins,
+            num_bins=num_bins,
+            weights=np.ones(num_episodes),
+        )
+        # neighborhoods never span partitions, selected separately within
+        # each
+        __, partition_starts = np.unique(pairs[:, 0], return_index=True)
+        partition_bounds = [*partition_starts, num_bins]
+        calibration_neighborhoods = sparse.block_diag(
+            [
+                tgs_select_calibration_neighborhoods(
+                    bin_coords=bin_coords[begin:end],
+                    neighborhood_fractions=calibrate_neighborhood_fractions,
+                    counts=_slice_bins(counts, begin, end),
+                    neutral_traits=neutral_traits,
+                    trait_names=trait_names,
+                    max_rate_ratio=calibrate_max_rate_ratio,
+                )
+                for begin, end in zip(partition_bounds, partition_bounds[1:])
+            ],
+            format="csr",
         )
     else:  # one neighborhood of all episodes, i.e., no calibration
         calibration_neighborhoods = sparse.identity(1, format="csr")
@@ -90,8 +125,8 @@ def tgs_impl(
     )
     fit_kwargs = dict(
         exposure_df=exposure_df,
-        partitions=partitions,
-        num_partitions=num_partitions,
+        bins=bins,
+        num_bins=num_bins,
         calibration_neighborhoods=calibration_neighborhoods,
         distinct_survival_durations=distinct_survival_durations,
         survival_duration_indices=survival_duration_indices,

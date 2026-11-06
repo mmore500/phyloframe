@@ -7,19 +7,19 @@ from ._tgs_extract_trait_masks import tgs_extract_trait_masks
 def tgs_count_traits(
     *,
     exposure_df: pd.DataFrame,
-    partitions: np.ndarray,
-    num_partitions: int,
+    bins: np.ndarray,
+    num_bins: int,
     weights: np.ndarray,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns, indexed by (`trait`, `partition`), each trait's (weighted)
-    count of exposure episodes in each partition, `num_trials`, of their
-    gains, `num_successes`, and their summed branch length, `length_sum`,
-    given each row of `exposure_df` (see `tgs_calc_exposure_df`), its
-    `partitions` index, and its `weights` (e.g., bootstrap draw counts).
+    Returns, indexed by (`trait`, `bin`), each trait's (weighted) count of
+    exposure episodes in each calibration bin, `num_trials`, of their gains,
+    `num_successes`, and their summed branch length, `length_sum`, given
+    each row of `exposure_df` (see `tgs_calc_exposure_df`), its `bins`
+    index, and its `weights` (e.g., bootstrap draw counts).
     """
     starts_absent, gains = tgs_extract_trait_masks(exposure_df)
     weights = np.expand_dims(np.asarray(weights, dtype=np.float64), 1)
@@ -29,7 +29,7 @@ def tgs_count_traits(
         # trait-major, to match the index
         return np.ravel(
             [
-                np.bincount(partitions, column, minlength=num_partitions)
+                np.bincount(bins, column, minlength=num_bins)
                 for column in values.T
             ],
         )
@@ -41,7 +41,7 @@ def tgs_count_traits(
             "length_sum": count(starts_absent * weights * lengths),
         },
         index=pd.MultiIndex.from_product(
-            [range(starts_absent.shape[1]), range(num_partitions)],
-            names=["trait", "partition"],
+            [range(starts_absent.shape[1]), range(num_bins)],
+            names=["trait", "bin"],
         ),
     )

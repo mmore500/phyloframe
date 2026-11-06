@@ -727,8 +727,8 @@ from ._alifestd_test_leaves_isomorphic_polars import (
 from ._alifestd_tgs_allmdc_estimate_polars import (
     alifestd_tgs_allmdc_estimate_polars,
 )
-from ._alifestd_tgs_mark_calibration_partitions_polars import (
-    alifestd_tgs_mark_calibration_partitions_polars,
+from ._alifestd_tgs_mark_calibration_compare_bins_polars import (
+    alifestd_tgs_mark_calibration_compare_bins_polars,
 )
 from ._alifestd_tgs_pendantmdc_estimate_polars import (
     alifestd_tgs_pendantmdc_estimate_polars,
@@ -951,7 +951,7 @@ __all__ = [
     "alifestd_mask_trait_mdcs_strict_asexual",
     "alifestd_mask_trait_mdcs_strict_polars",
     "alifestd_tgs_allmdc_estimate_polars",
-    "alifestd_tgs_mark_calibration_partitions_polars",
+    "alifestd_tgs_mark_calibration_compare_bins_polars",
     "alifestd_tgs_pendantmdc_estimate_polars",
     "alifestd_to_iplotx_pandas",
     "alifestd_to_iplotx_polars",

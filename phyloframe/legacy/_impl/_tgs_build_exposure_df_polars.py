@@ -28,7 +28,9 @@ def tgs_build_exposure_df_polars(
     *,
     trait_transitions: typing.Sequence[str],
     caller: str,
-    calibration_partitions: typing.Optional[str] = None,
+    calibration_partition_by: typing.Optional[str] = None,
+    calibration_compare_by_bins: typing.Optional[str] = None,
+    calibration_compare_by_vals: typing.Sequence[str] = (),
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -37,11 +39,15 @@ def tgs_build_exposure_df_polars(
     Sums each trait's transitions into node states (see
     `tgs_calc_trait_states`), collapses unifurcations, and returns the
     phylogeny's branches (see `tgs_calc_exposure_df`), with column
-    `node_id`, each branch's end node's id in `phylogeny_df`. With
-    `calibration_partitions`, the name of an integer column, also gives
-    each branch's value there, at its end node, as column
-    `calibration_partition`.
-    `caller` names the calling function in error messages.
+    `node_id`, each branch's end node's id in `phylogeny_df`. Also gives
+    each branch's value, at its end node, in integer columns
+    `calibration_partition_by` and `calibration_compare_by_bins`, if given,
+    as columns `calibration_partition` and `calibration_bin`, and in each
+    column of `calibration_compare_by_vals`, as column
+    `calibration_compare_by_{name}`; there, the exposure table's own
+    columns (e.g., `branch_length`, `clade_size`) take precedence over
+    `phylogeny_df`'s. `caller` names the calling function in error
+    messages.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -49,8 +55,26 @@ def tgs_build_exposure_df_polars(
         raise NotImplementedError(
             f"{caller} only supports asexual phylogenies.",
         )
-    extra_columns = (
-        [] if calibration_partitions is None else [calibration_partitions]
+    integer_columns = {
+        name: column
+        for name, column in (
+            ("calibration_partition", calibration_partition_by),
+            ("calibration_bin", calibration_compare_by_bins),
+        )
+        if column is not None
+    }
+    exposure_columns = tgs_calc_exposure_df(
+        ancestor_ids=np.zeros(0, dtype=np.int64),
+        origin_time=np.zeros(0),
+        trait_states=[],
+    ).columns
+    compare_columns = [
+        column
+        for column in calibration_compare_by_vals
+        if column not in exposure_columns
+    ]
+    extra_columns = list(
+        dict.fromkeys([*integer_columns.values(), *compare_columns])
     )
     for column in [*trait_transitions, *extra_columns]:
         if column not in schema_names:
@@ -130,12 +154,24 @@ def tgs_build_exposure_df_polars(
     exposure_df["node_id"] = collapsed["__alifestd_tgs_node_id"].to_numpy()[
         ~is_root
     ]
-    if calibration_partitions is not None:
-        values = collapsed[calibration_partitions]
+    for name, column in integer_columns.items():
+        values = collapsed[column]
         if not values.dtype.is_integer() or values.has_nulls():
             raise NotImplementedError(
-                f"calibration_partitions column {calibration_partitions} must "
-                "be integer, without null values",
+                f"calibration column {column} must be integer, without null "
+                "values",
             )
-        exposure_df["calibration_partition"] = values.to_numpy()[~is_root]
+        exposure_df[name] = values.to_numpy()[~is_root]
+    for column in calibration_compare_by_vals:
+        if column in exposure_columns:
+            values = exposure_df[column].to_numpy()
+        else:
+            values = collapsed[column]
+            if not values.dtype.is_numeric() or values.has_nulls():
+                raise NotImplementedError(
+                    f"calibration column {column} must be numeric, without "
+                    "null values",
+                )
+            values = values.to_numpy()[~is_root]
+        exposure_df[f"calibration_compare_by_{column}"] = values
     return exposure_df

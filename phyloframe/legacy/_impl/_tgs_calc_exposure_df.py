@@ -30,7 +30,7 @@ def tgs_calc_exposure_df(
 
     - `origin_time`, of the branch's end node;
     - `branch_length`;
-    - `survival_time`, from the end node to the latest leaf below it (0 for
+    - `survival_duration`, from the end node to the latest leaf below it (0 for
       a leaf), for which a trait gained on the branch must persist to be
       seen at every leaf of its clade;
     - `clade_size`, the number of leaves below (1 for a leaf); and
@@ -61,7 +61,7 @@ def tgs_calc_exposure_df(
     columns = {
         "origin_time": origin_time[keep],
         "branch_length": branch_length[keep],
-        "survival_time": (latest - origin_time)[keep],
+        "survival_duration": (latest - origin_time)[keep],
         "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
             ancestor_ids
         )[keep],

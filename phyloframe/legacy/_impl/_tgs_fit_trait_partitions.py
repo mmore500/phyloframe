@@ -21,19 +21,18 @@ def tgs_fit_trait_partitions(
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
     survival_shares: typing.Optional[sparse.csr_matrix] = None,
-    distinct_survival_times: typing.Optional[np.ndarray] = None,
+    distinct_survival_durations: typing.Optional[np.ndarray] = None,
 ) -> pd.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
     Fits each trait's gain rate and selection coefficient to its partitions,
-    the rows of `partition_df` with its `trait` (see
-    `tgs_tabulate_partitions`), and, if given, their `survival_shares` over
-    `distinct_survival_times` (see `tgs_calc_nll`). Returns one row per trait,
-    with columns of `TgsFitResult` (see `tgs_fit_partitions`) plus
-    `gain_ratio`, the gain rate relative to neutral traits, and
-    `gain_ratio_lrt_naive` (see `tgs_calc_gain_ratio_lrts`).
+    the rows of `partition_df` with its `trait` (see `tgs_merge_episodes`),
+    and, if given, their `survival_shares` over `distinct_survival_durations`
+    (see `tgs_calc_nll`). Returns one row per trait, with columns of
+    `TgsFitResult` (see `tgs_fit_partitions`) plus `gain_ratio`, the gain
+    rate relative to neutral traits, and `gain_ratio_lrt_naive` (see `tgs_calc_gain_ratio_lrts`).
     """
     trait_partitions = [
         partitions
@@ -49,7 +48,7 @@ def tgs_fit_trait_partitions(
                 if survival_shares is None
                 else survival_shares[partitions.index]
             ),
-            distinct_survival_times=distinct_survival_times,
+            distinct_survival_durations=distinct_survival_durations,
         )
         for partitions in trait_partitions
     ]
@@ -72,7 +71,7 @@ def tgs_fit_trait_partitions(
         neutral_traits=neutral_traits,
     )
     res["gain_ratio_lrt_naive"] = tgs_calc_gain_ratio_lrts(
-        fits=res,
+        fits_df=res,
         trait_partitions=trait_partitions,
         calc_nlls=calc_nlls,
         loss_rate=loss_rate,

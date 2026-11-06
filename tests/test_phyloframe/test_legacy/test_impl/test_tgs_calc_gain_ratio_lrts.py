@@ -56,7 +56,7 @@ def _lrts(fits, trait_partitions, calc_nlls, *, neutral_traits, **kwargs):
         ),
     )
     return tgs_calc_gain_ratio_lrts(
-        fits=fits,
+        fits_df=fits,
         trait_partitions=trait_partitions,
         calc_nlls=calc_nlls,
         loss_rate=0.0,
