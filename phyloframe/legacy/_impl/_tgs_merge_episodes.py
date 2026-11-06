@@ -40,13 +40,14 @@ def tgs_merge_episodes(
     `length_rtol`, i.e., fall in the same cell of a log-scale grid with
     ratio 1 + `length_rtol` (0 for no merging), so that merged episodes
     have nearly the same chance of gain, and merging loses little
-    information about which episodes gained the trait. Each episode's length is calibrated by its calibration bin's
-    factor, `calibration_factors[trait, bin]`.
+    information about which episodes gained the trait. Each episode's
+    length is calibrated by its calibration bin's factor,
+    `calibration_factors[trait, bin]`.
 
     Returns `partition_df`, one row per trait and merged length cell with
-    episodes, trait-major, with columns `trait` (index), the (weighted, by `weights`) counts of episodes,
-    `num_trials`, and of gains, `num_successes`, and their mean calibrated
-    `length`. Also returns `survival_shares`, a sparse matrix with a row
+    episodes, trait-major, with columns `trait` (index), the (weighted, by
+    `weights`) counts of episodes, `num_trials`, and of gains,
+    `num_successes`, and their mean calibrated `length`. Also returns `survival_shares`, a sparse matrix with a row
     per `partition_df` row and a column per distinct survival duration
     (episodes' `survival_duration_indices`), giving the share of the row's
     episodes with each.
@@ -67,29 +68,31 @@ def tgs_merge_episodes(
         length_cells = np.arange(len(lengths))
         survival_cells = np.zeros(len(lengths), dtype=np.int64)
     episode_weights = np.asarray(weights, dtype=np.float64)[episodes]
-    # each episode's merged row, numbering (trait, cells) keys in sorted order
-    keys, rows = np.unique(
-        np.column_stack([episode_traits, length_cells, survival_cells]),
-        axis=0,
-        return_inverse=True,
-    )
-    rows = rows.ravel()
-    sums = pl.DataFrame(
+    episode_df = pl.DataFrame(
         {
-            "trait": keys[:, 0],
-            **{
-                name: np.bincount(rows, values, minlength=len(keys))
-                for name, values in (
-                    ("num_trials", episode_weights),
-                    (
-                        "num_successes",
-                        episode_weights * gains[episodes, episode_traits],
-                    ),
-                    ("length", episode_weights * lengths),
-                )
-            },
+            "trait": episode_traits,
+            "length_cell": length_cells,
+            "survival_cell": survival_cells,
+            "weight": episode_weights,
+            "gain": gains[episodes, episode_traits],
+            "length": lengths,
         },
+    ).with_columns(
+        # each episode's merged row, numbering keys in sorted order
+        row=pl.struct("trait", "length_cell", "survival_cell").rank("dense")
+        - 1,
     )
+    sums = (
+        episode_df.group_by("row")
+        .agg(
+            pl.col("trait").first(),
+            num_trials=pl.col("weight").sum(),
+            num_successes=pl.col("weight").filter(pl.col("gain")).sum(),
+            length=(pl.col("weight") * pl.col("length")).sum(),
+        )
+        .sort("row")
+    )
+    rows = episode_df["row"].to_numpy()
 
     # each row's distribution of episode weight over survival durations;
     # l1 normalization scales each row to sum to 1
@@ -103,7 +106,10 @@ def tgs_merge_episodes(
     # drop rows whose episodes all have zero weight (e.g., in a bootstrap
     # replicate)
     has_episodes = sums["num_trials"].to_numpy() > 0
-    partition_df = sums.filter(has_episodes).with_columns(
+    partition_df = sums.filter(has_episodes).select(
+        "trait",
+        "num_trials",
+        "num_successes",
         pl.col("length") / pl.col("num_trials"),
     )
     return partition_df, survival_shares[has_episodes]

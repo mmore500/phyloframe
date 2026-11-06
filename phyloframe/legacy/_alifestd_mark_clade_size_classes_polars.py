@@ -64,11 +64,12 @@ def _alifestd_mark_clade_size_classes_fast_path(
         num_classes = cap + 1
         class_weights = np.bincount(classes, weights, minlength=num_classes)
 
-    (still_light,) = np.nonzero(class_weights[1:] < min_class_weight)
-    if len(still_light):
+    if (class_weights[1:] < min_class_weight).any():
         warnings.warn(
-            f"clade size classes {(still_light + 1).tolist()} weigh less "
-            f"than min_class_weight={min_class_weight}, but are kept, as "
+            "clade size classes "
+            f"{np.flatnonzero(class_weights[1:] < min_class_weight) + 1} "
+            f"weigh less than min_class_weight={min_class_weight}, but are "
+            "kept, as "
             f"min_num_classes={min_num_classes}",
         )
 

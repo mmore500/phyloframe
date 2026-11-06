@@ -173,6 +173,4 @@ def tgs_build_exposure_df_polars(
                 )
             values = values.to_numpy()[~is_root]
         columns[f"calibration_compare_by_{column}"] = values
-    return exposure_df.with_columns(
-        pl.Series(name, values) for name, values in columns.items()
-    )
+    return exposure_df.with_columns(**columns)

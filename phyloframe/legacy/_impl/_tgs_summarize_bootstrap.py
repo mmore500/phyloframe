@@ -64,8 +64,8 @@ def tgs_summarize_bootstrap(
             selection_coef_se=pl.col("selection_coef").drop_nans().std(),
             log_gain_ratio_se=pl.col("log_gain_ratio").drop_nans().std(),
             num_bootstrap_degenerate=pl.col("is_gain_ratio_degenerate")
-            .sum()
-            .cast(pl.Int64),
+            .cast(pl.Int64)
+            .sum(),
         )
         .sort("trait_index")
     )

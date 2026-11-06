@@ -30,9 +30,7 @@ def tgs_calc_calibration_factors(
     # a neutral trait is not calibrated against itself
     references = (
         counts.filter(
-            pl.col("trait").is_in(
-                [ref for ref in neutral_traits if ref != trait]
-            )
+            pl.col("trait").is_in(list(set(neutral_traits) - {trait}))
         )
         .group_by("bin")
         .agg(pl.col("num_successes", "length_sum").sum())

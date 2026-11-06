@@ -1,11 +1,8 @@
-import functools
-
 import numpy as np
 import polars as pl
 
 from phyloframe.legacy._impl import (
-    tgs_calc_gain_ratio_lrts,
-    tgs_calc_nll,
+    tgs_calc_trait_gain_ratio_lrts,
     tgs_fit,
     tgs_normalize_gain_rates_to_neutral,
 )
@@ -39,29 +36,28 @@ def _fit_traits(gain_rates):
             for partitions in trait_partitions
         ],
     )
-    calc_nlls = [
-        functools.partial(
-            tgs_calc_nll, partitions=partitions, growth_exponent_bound=600.0
-        )
+    trait_nll_kwargs = [
+        dict(partitions=partitions, growth_exponent_bound=600.0)
         for partitions in trait_partitions
     ]
-    return fits, trait_partitions, calc_nlls
+    return fits, trait_nll_kwargs
 
 
-def _lrts(fits, trait_partitions, calc_nlls, *, neutral_traits, **kwargs):
+def _lrts(fits, trait_nll_kwargs, *, neutral_traits, **kwargs):
     fits = fits.with_columns(
         gain_ratio=tgs_normalize_gain_rates_to_neutral(
             gain_rates=fits["gain_rate"].to_numpy(),
             neutral_traits=neutral_traits,
         ),
     )
-    return tgs_calc_gain_ratio_lrts(
+    res = tgs_calc_trait_gain_ratio_lrts(
         fits_df=fits,
-        trait_partitions=trait_partitions,
-        calc_nlls=calc_nlls,
+        trait_nll_kwargs=trait_nll_kwargs,
         loss_rate=0.0,
         **kwargs,
     )
+    assert res["trait"].to_list() == list(range(len(fits)))
+    return res["gain_ratio_lrt_naive"].to_numpy()
 
 
 def test_gain_ratio_lrts():
@@ -77,7 +73,7 @@ def test_gain_ratio_lrts():
 
 
 def test_matches_free_fit_at_reference_rate():
-    fits, trait_partitions, calc_nlls = _fit_traits([1e-4, 1e-4, 1e-4])
+    fits, trait_nll_kwargs = _fit_traits([1e-4, 1e-4, 1e-4])
     # make trait 0's fitted gain rate exactly its reference's mean
     fits = fits.with_columns(
         gain_rate=pl.Series(
@@ -86,8 +82,7 @@ def test_matches_free_fit_at_reference_rate():
     )
     lrts = _lrts(
         fits,
-        trait_partitions,
-        calc_nlls,
+        trait_nll_kwargs,
         neutral_traits=[1, 2],
         selection_coef_starts=(0.0,),
     )
@@ -97,11 +92,10 @@ def test_matches_free_fit_at_reference_rate():
 
 
 def test_undefined_without_reference_or_gains():
-    fits, trait_partitions, calc_nlls = _fit_traits([1e-4, 1e-4])
+    fits, trait_nll_kwargs = _fit_traits([1e-4, 1e-4])
     lrts = _lrts(
         fits,
-        trait_partitions,
-        calc_nlls,
+        trait_nll_kwargs,
         neutral_traits=[],
         selection_coef_starts=(0.0,),
     )
@@ -109,8 +103,7 @@ def test_undefined_without_reference_or_gains():
     # without gains, a trait's fitted gain rate is 0
     lrts = _lrts(
         fits.with_columns(gain_rate=pl.Series([0.0, fits["gain_rate"][1]])),
-        trait_partitions,
-        calc_nlls,
+        trait_nll_kwargs,
         neutral_traits=[1],
         selection_coef_starts=(0.0,),
     )

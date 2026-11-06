@@ -92,7 +92,7 @@ def test_no_convergence_warns(monkeypatch):
         return res
 
     monkeypatch.setattr(
-        "phyloframe.legacy._impl._tgs_fit.optimize",
+        "phyloframe.legacy._impl._tgs_minimize_nll.optimize",
         type("shim", (), {"minimize": staticmethod(fail)}),
     )
     with pytest.warns(UserWarning, match="did not converge"):
@@ -115,12 +115,9 @@ def test_no_successes_skips_fit_without_warning():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         res = tgs_fit_partitions(
-            calc_nll=None,
-            partitions=partitions,
+            nll_kwargs=dict(partitions=partitions),
             loss_rate=0.0,
             selection_coef_starts=(0.0,),
         )
-    assert res.gain_rate == 0.0
-    assert np.isnan(res.selection_coef) and np.isnan(
-        res.selection_coef_lrt_naive
-    )
+    assert res["gain_rate"] == 0.0
+    assert np.isnan(res["selection_coef"])
