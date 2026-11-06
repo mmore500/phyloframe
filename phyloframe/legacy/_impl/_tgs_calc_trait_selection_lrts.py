@@ -73,6 +73,15 @@ def tgs_calc_trait_selection_lrts(
     The statistic naively treats exposure episodes (or merged rows of
     them) as independent, so overstates significance.
 
+    Input Schema
+    ------------
+    `fits_df` columns, one row per trait, e.g., from `tgs_fit_trait`:
+
+    'gain_rate' : float
+        Fitted gain rate.
+    'selection_coef' : float
+        Fitted selection coefficient.
+
     Output Schema
     -------------
     'trait' : integer

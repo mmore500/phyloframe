@@ -46,9 +46,9 @@ def run_seeded_replicates(
     replicate_seeds = np.random.SeedSequence(seed).generate_state(
         num_replicates
     )
-    jobs = (
+    jobs = [  # eager list for tqdm/joblib compat
         joblib.delayed(func)(seed=int(replicate_seed))
         for replicate_seed in replicate_seeds
-    )
+    ]
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
         return joblib.Parallel()(progress_wrap(jobs))

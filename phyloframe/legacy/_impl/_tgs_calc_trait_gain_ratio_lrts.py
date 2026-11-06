@@ -81,6 +81,17 @@ def tgs_calc_trait_gain_ratio_lrts(
     exposure episodes (or merged rows of them) as independent, so
     overstates significance.
 
+    Input Schema
+    ------------
+    `fits_df` columns, one row per trait, e.g., from `tgs_fit_trait`:
+
+    'gain_rate' : float
+        Fitted gain rate.
+    'selection_coef' : float
+        Fitted selection coefficient.
+    'gain_ratio' : float
+        Gain rate relative to the trait's neutral reference.
+
     Output Schema
     -------------
     'trait' : integer

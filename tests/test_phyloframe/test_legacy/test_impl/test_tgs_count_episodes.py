@@ -25,3 +25,11 @@ def test_count():
     assert res["num_trait_present"].to_list() == [1, 0]
     assert res["num_inner_branches"].to_list() == [2, 1]
     assert res["num_inner_gains"].to_list() == [1, 0]
+
+
+def test_no_traits():
+    res = tgs_count_episodes(
+        trait_names=[], exposure_df=pl.DataFrame({"clade_size": [1, 2]})
+    )
+    assert res.columns[0] == "trait"
+    assert res.is_empty()

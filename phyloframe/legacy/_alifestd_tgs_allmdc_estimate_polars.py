@@ -8,6 +8,7 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
+from tqdm import tqdm
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
@@ -46,7 +47,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         1.0,
     ),
     calibrate_max_rate_ratio: float = np.inf,
-    length_rtol: float = 1e-3,
+    length_rtol: float = 1e-2,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -136,7 +137,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     calibrate_max_rate_ratio : float, default np.inf
         Cap on the neutral gain rate ratios that rescale branch lengths in
         calibration; see `alifestd_tgs_pendantmdc_estimate_polars`.
-    length_rtol : float, default 1e-3
+    length_rtol : float, default 1e-2
         Relative tolerance within which exposure episodes' calibrated branch
         lengths and survival durations must both agree for them to be
         merged for fitting, bounding fit cost; 0 for no merging.
@@ -163,7 +164,8 @@ def alifestd_tgs_allmdc_estimate_polars(
         joblib backend to run bootstrap replicates in parallel, e.g., "loky"
         (processes) or "threading"; if None, runs them sequentially.
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display bootstrap progress.
+        Pass tqdm or equivalent to display progress over traits, for the
+        point estimate, and over bootstrap replicates.
 
     Returns
     -------
@@ -427,11 +429,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--length-rtol",
-        default=1e-3,
+        default=1e-2,
         type=float,
         help=(
             "Relative tolerance for merging calibrated branch lengths for "
-            "fitting (default: 1e-3)."
+            "fitting (default: 1e-2)."
         ),
     )
     parser.add_argument(
@@ -532,6 +534,9 @@ if __name__ == "__main__":
                     selection_coef_starts=args.selection_coef_starts,
                     growth_exponent_bound=args.growth_exponent_bound,
                     parallel_backend=args.parallel_backend,
+                    progress_wrap=functools.partial(
+                        tqdm, desc="alifestd_tgs_allmdc_estimate_polars"
+                    ),
                 ),
             )
     except NotImplementedError as e:

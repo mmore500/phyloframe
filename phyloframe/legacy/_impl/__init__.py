@@ -27,11 +27,11 @@ from ._tgs_normalize_gain_rates_to_neutral import (
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
-from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
-from ._tgs_unpivot_exposure_episodes import (
+from ._tgs_select_trait_episodes import (
     tgs_count_exposure_traits,
-    tgs_unpivot_exposure_episodes,
+    tgs_select_trait_episodes,
 )
+from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 from ._tgs_validate_args import tgs_validate_args
 from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
 
@@ -61,7 +61,7 @@ __all__ = [
     "tgs_select_calibration_neighborhoods",
     "tgs_summarize_bootstrap",
     "tgs_count_exposure_traits",
-    "tgs_unpivot_exposure_episodes",
+    "tgs_select_trait_episodes",
     "tgs_validate_args",
     "tgs_warn_excluded_replicates",
 ]

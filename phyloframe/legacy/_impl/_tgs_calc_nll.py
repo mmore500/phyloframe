@@ -61,8 +61,8 @@ def tgs_calc_nll(
     gain/selection.
 
     Returns negative log likelihood (up to a constant) of one trait's
-    `partitions` (with columns `num_trials`, `num_successes`, and mean branch
-    `length`), and its derivatives with respect to log gain rate and to `rate`
+    `partitions` (see Input Schema), and its derivatives with respect to log
+    gain rate and to `rate`
     (selection coefficient minus loss rate). A branch of length `t` gains the
     trait with probability
 
@@ -73,6 +73,17 @@ def tgs_calc_nll(
     branches, whose shares over `distinct_survival_durations` are rows of
     `survival_shares`. Without `survival_shares`, `u` is 0, as for leaf
     pendant branches. Exponents are capped at `growth_exponent_bound`.
+
+    Input Schema
+    ------------
+    `partitions` columns, e.g., from `tgs_merge_episodes`:
+
+    'num_trials' : float
+        (Weighted) count of the partition's exposure episodes.
+    'num_successes' : float
+        Of those, the (weighted) count that gained the trait.
+    'length' : float
+        Their mean branch length.
     """
     if not growth_exponent_bound < np.log(np.finfo(np.float64).max):
         raise ValueError("growth exponent bound overflows float64")

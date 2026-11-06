@@ -1,4 +1,5 @@
 import functools
+import gc
 import logging
 import typing
 
@@ -9,6 +10,7 @@ from scipy import sparse
 
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
+from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_count_traits import tgs_count_traits
@@ -61,7 +63,52 @@ def tgs_impl(
     `calibration_partition`, and returns per-trait estimates following
     `counts_df`'s per-trait counts (see `tgs_build_estimates_df`). Takes
     validated arguments, with `neutral_traits` as indices and `trait_names`
-    as labels (see `tgs_validate_args`).
+    as labels (see `tgs_validate_args`); see Input and Output Schema.
+
+    Input Schema
+    ------------
+    'branch_length' : float
+        Branch length of each exposure table row (see
+        `tgs_calc_exposure_df`).
+    'survival_duration' : float
+        Time from the branch's end node to the latest leaf below it.
+    'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
+        Whether the branch started without, and whether it gained, the
+        trait.
+    'calibration_partition', 'calibration_bin' : integer, optional
+        The branch's calibration partition and bin.
+    'calibration_compare_by_{name}' : numeric, optional
+        Values by which calibration bins are compared.
+    `counts_df` columns
+        Trait name, 'trait', then per-trait counts, e.g., as for
+        `tgs_count_episodes`.
+
+    Output Schema
+    -------------
+    `counts_df` columns
+        Trait name, 'trait', then per-trait counts.
+    'gain_rate' : float
+        Fitted gain rate, per unit branch length; 0 without gains.
+    'selection_coef' : float
+        Fitted selection coefficient; nan without gains.
+    'selection_coef_lrt_naive' : float
+        Likelihood-ratio statistic for selection coefficient = 0.
+    'gain_ratio' : float
+        Gain rate relative to the mean gain rate of the trait's neutral
+        reference.
+    'gain_ratio_lrt_naive' : float
+        Likelihood-ratio statistic for gain ratio = 1.
+    'selection_coef_se', 'log_gain_ratio_se' : float, with `num_bootstrap`
+        Bootstrap standard errors of the selection coefficient and log gain
+        ratio.
+    'selection_coef_z', 'gain_ratio_z' : float, with `num_bootstrap`
+        Selection coefficient and log gain ratio over their standard
+        errors.
+    'selection_coef_p', 'gain_ratio_p' : float, with `num_bootstrap`
+        Two-sided normal p-values of those z-scores.
+    'num_bootstrap_degenerate' : integer, with `num_bootstrap`
+        Replicates excluded for an undefined selection coefficient or gain
+        ratio.
     """
     num_episodes = len(exposure_df)
     if not num_episodes:
@@ -86,6 +133,7 @@ def tgs_impl(
     )
     bins = bins.ravel()
     num_bins = len(pairs)
+    trait_bin_counts_df = None  # reused by the point estimate, if computed
     if num_bins > 1:
         compare_by_df = exposure_df.select(
             cs.starts_with("calibration_compare_by_")
@@ -103,6 +151,7 @@ def tgs_impl(
         bin_coords = calc_group_means(
             bins, episode_ranks / num_episodes, num_groups=num_bins
         )
+        del compare_by_df, episode_ranks
         trait_bin_counts_df = tgs_count_traits(
             exposure_df=exposure_df,
             bins=bins,
@@ -129,6 +178,8 @@ def tgs_impl(
             ],
             format="csr",
         )
+        gc.collect()
+        log_memory_usage(logging.info)
     else:  # one neighborhood of all episodes, i.e., no calibration
         calibration_neighborhoods = sparse.identity(1, format="csr")
 
@@ -153,9 +204,17 @@ def tgs_impl(
         f"- tgs: fitting {len(trait_names)} traits to {num_episodes} "
         "exposure episodes...",
     )
+    # progress over traits for the point estimate; over replicates, not
+    # each replicate's traits, for the bootstrap
     point_estimate_df = tgs_fit_traits(
-        weights=np.ones(num_episodes), **fit_kwargs
+        weights=np.ones(num_episodes),
+        progress_wrap=progress_wrap,
+        trait_bin_counts_df=trait_bin_counts_df,
+        **fit_kwargs,
     )
+    del trait_bin_counts_df  # replicates count with their own weights
+    gc.collect()
+    log_memory_usage(logging.info)
     bootstrap_fits_df = None
     if num_bootstrap:
         logging.info(f"- tgs: fitting {num_bootstrap} bootstrap replicates...")
@@ -167,6 +226,8 @@ def tgs_impl(
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         )
+        gc.collect()
+        log_memory_usage(logging.info)
     return tgs_build_estimates_df(
         counts_df,
         point_estimate_df=point_estimate_df,
