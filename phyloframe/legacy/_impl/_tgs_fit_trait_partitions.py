@@ -25,7 +25,8 @@ def tgs_fit_trait_partitions(
 
     Fits each trait's gain rate and selection coefficient, given each
     trait's `tgs_calc_nll` arguments but the rate parameters,
-    `trait_nll_kwargs`, e.g., its partitions from `tgs_merge_episodes`.
+    `trait_nll_kwargs`, e.g., its partitions from `tgs_merge_episodes` (see
+    Input Schema of `tgs_calc_nll`).
     Fits one trait at a time, wrapped in `progress_wrap` (e.g., tqdm).
     Returns one row per trait, in trait index order; see Output Schema.
 

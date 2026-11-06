@@ -44,7 +44,18 @@ def tgs_fit_traits(
     times traits; every trait's merged partitions, far fewer with merging
     (`length_rtol` > 0), are kept for fitting. Pass `trait_bin_counts_df`
     (see `tgs_count_traits`) if already computed for these `weights`.
-    Returns one row per trait.
+    Returns one row per trait; see Input and Output Schema.
+
+    Input Schema
+    ------------
+    `exposure_df` columns
+        As for `tgs_calc_exposure_df`.
+    `trait_bin_counts_df` columns, optional
+        As for `tgs_count_traits`.
+
+    Output Schema
+    -------------
+    As for `tgs_fit_trait_partitions`.
     """
     if trait_bin_counts_df is None:
         trait_bin_counts_df = tgs_count_traits(

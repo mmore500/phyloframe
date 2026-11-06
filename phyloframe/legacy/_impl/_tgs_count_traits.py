@@ -26,8 +26,12 @@ def _tgs_count_trait_bins(
     """Implementation detail for `tgs_count_traits`.
 
     Returns `trait`'s (weighted) exposure counts per calibration bin with
-    episodes, with columns `bin`, `num_trials`, `num_successes`, and
-    `length_sum` (see `tgs_count_traits`).
+    episodes; see Output Schema.
+
+    Output Schema
+    -------------
+    As for `tgs_count_traits`, but without 'trait', and only for bins with
+    the trait's exposure episodes.
     """
     return (
         tgs_select_trait_episodes(exposure_df, trait=trait, weights=weights)

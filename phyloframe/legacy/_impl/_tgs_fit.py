@@ -46,8 +46,8 @@ def tgs_fit_trait(
     Acronym tgs stands for trait gain/selection.
 
     Fits one trait's gain rate and selection coefficient to its partitions,
-    `nll_kwargs["partitions"]` (with columns `num_trials`, `num_successes`,
-    and mean branch `length`), minimizing `tgs_calc_nll(**nll_kwargs, ...)`
+    `nll_kwargs["partitions"]` (see Input Schema of `tgs_calc_nll`),
+    minimizing `tgs_calc_nll(**nll_kwargs, ...)`
     from each of `selection_coef_starts` (in units of 1 / mean branch length)
     and keeping the best fit. Without gains, skips fitting, giving zero gain
     rate and undefined selection coefficient. Returns `gain_rate` and

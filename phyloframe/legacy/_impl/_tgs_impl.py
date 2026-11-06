@@ -61,7 +61,20 @@ def tgs_impl(
     `calibration_partition`, and returns per-trait estimates following
     `counts_df`'s per-trait counts (see `tgs_build_estimates_df`). Takes
     validated arguments, with `neutral_traits` as indices and `trait_names`
-    as labels (see `tgs_validate_args`).
+    as labels (see `tgs_validate_args`); see Input and Output Schema.
+
+    Input Schema
+    ------------
+    `exposure_df` columns
+        As for `tgs_build_exposure_df_polars`; calibration columns are
+        optional.
+    `counts_df` columns
+        Trait name, 'trait', then per-trait counts, e.g., as for
+        `tgs_count_episodes`.
+
+    Output Schema
+    -------------
+    As for `tgs_build_estimates_df`.
     """
     num_episodes = len(exposure_df)
     if not num_episodes:

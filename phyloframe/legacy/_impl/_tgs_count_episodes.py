@@ -9,7 +9,11 @@ def _tgs_count_trait_episodes(
     """Implementation detail for `tgs_count_episodes`.
 
     Returns `trait`'s leaf and inner exposure episode and gain counts, as one
-    row (see `tgs_count_episodes`).
+    row; see Output Schema.
+
+    Output Schema
+    -------------
+    As for `tgs_count_episodes`, but without 'trait'.
     """
     starts_absent = pl.col(f"trait{trait}_starts_absent")
     gain = starts_absent & pl.col(f"trait{trait}_gain")
