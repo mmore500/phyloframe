@@ -2,10 +2,43 @@ import numpy as np
 import polars as pl
 import polars.selectors as cs
 
-from ._tgs_unpivot_exposure_episodes import (
+from ._tgs_select_trait_episodes import (
     tgs_count_exposure_traits,
-    tgs_unpivot_exposure_episodes,
+    tgs_select_trait_episodes,
 )
+
+
+def _tgs_count_trait_bins(
+    *,
+    exposure_df: pl.DataFrame,
+    trait: int,
+    bins: np.ndarray,
+    weights: np.ndarray,
+) -> pl.DataFrame:
+    """Implementation detail for `tgs_count_traits`.
+
+    Returns `trait`'s (weighted) exposure counts per calibration bin with
+    episodes, with columns `bin`, `num_trials`, `num_successes`, and
+    `length_sum` (see `tgs_count_traits`).
+    """
+    return (
+        tgs_select_trait_episodes(exposure_df, trait=trait)
+        .with_columns(
+            bin=pl.lit(pl.Series(bins, dtype=pl.Int64)).gather("exposure_row"),
+            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
+                "exposure_row"
+            ),
+            length=pl.lit(exposure_df["branch_length"]).gather("exposure_row"),
+        )
+        # optimization: drop zero-weight episodes
+        .filter(pl.col("weight") > 0)
+        .group_by("bin")
+        .agg(
+            num_trials=pl.col("weight").sum(),
+            num_successes=pl.col("weight").filter(pl.col("gain")).sum(),
+            length_sum=(pl.col("weight") * pl.col("length")).sum(),
+        )
+    )
 
 
 def tgs_count_traits(
@@ -37,39 +70,25 @@ def tgs_count_traits(
     'length_sum' : float
         Weighted sum of those episodes' branch lengths.
     """
-    episode_df = (
-        tgs_unpivot_exposure_episodes(exposure_df).with_columns(
-            bin=pl.lit(pl.Series(bins, dtype=pl.Int64)).gather("exposure_row"),
-            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
-                "exposure_row"
-            ),
-            length=pl.lit(exposure_df["branch_length"]).gather("exposure_row"),
-        )
-        # optimization: drop zero-weight episodes
-        .filter(pl.col("weight") > 0)
-    )
-    # every (trait, bin) pair, including those without episodes
-    all_pairs_df = pl.DataFrame(
-        {
-            "trait": np.arange(
-                tgs_count_exposure_traits(exposure_df), dtype=np.int64
+    bin_df = pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)})
+    return pl.concat(
+        [
+            # one trait at a time, bounding memory to its episodes
+            bin_df.join(
+                _tgs_count_trait_bins(
+                    exposure_df=exposure_df,
+                    trait=trait,
+                    bins=bins,
+                    weights=weights,
+                ),
+                on="bin",
+                how="left",
             )
-        }
-    ).join(
-        pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)}),
-        how="cross",
-    )
-    return (
-        all_pairs_df.join(
-            episode_df.group_by("trait", "bin").agg(
-                num_trials=pl.col("weight").sum(),
-                num_successes=pl.col("weight").filter(pl.col("gain")).sum(),
-                length_sum=(pl.col("weight") * pl.col("length")).sum(),
-            ),
-            on=["trait", "bin"],
-            how="left",
-        )
-        # zero counts for (trait, bin) pairs without exposure episodes, e.g.,
-        # a bin whose exposure_rows all carry the trait
-        .with_columns(cs.float().fill_null(0.0)).sort("trait", "bin")
-    )
+            # zero counts for bins without the trait's exposure episodes,
+            # e.g., a bin whose branches all carry the trait
+            .with_columns(cs.float().fill_null(0.0)).select(
+                pl.lit(trait, dtype=pl.Int64).alias("trait"), pl.all()
+            )
+            for trait in range(tgs_count_exposure_traits(exposure_df))
+        ],
+    ).sort("trait", "bin")

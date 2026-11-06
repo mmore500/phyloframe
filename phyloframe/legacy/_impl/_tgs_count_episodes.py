@@ -2,8 +2,6 @@ import typing
 
 import polars as pl
 
-from ._tgs_unpivot_exposure_episodes import tgs_unpivot_exposure_episodes
-
 
 def tgs_count_episodes(
     *,
@@ -32,38 +30,26 @@ def tgs_count_episodes(
     'num_inner_gains' : integer
         Of those, the number that gained the trait.
     """
-    episode_df = tgs_unpivot_exposure_episodes(exposure_df)
-    is_leaf = exposure_df["clade_size"].gather(episode_df["exposure_row"]) == 1
-    counts_df = (
-        episode_df.with_columns(is_leaf=is_leaf)
-        .group_by("trait")
-        .agg(
-            num_leaves=pl.col("is_leaf").cast(pl.Int64).sum(),
-            num_trait_present=(pl.col("gain") & pl.col("is_leaf"))
-            .cast(pl.Int64)
-            .sum(),
-            num_inner_branches=(~pl.col("is_leaf")).cast(pl.Int64).sum(),
-            num_inner_gains=(pl.col("gain") & ~pl.col("is_leaf"))
-            .cast(pl.Int64)
-            .sum(),
-        )
-    )
-    # every trait, with zero counts for those without exposure episodes
-    # (e.g., carried from the root by every leaf), as group_by omits them
-    return (
-        pl.DataFrame(
-            {
-                "trait": list(trait_names),
-                "trait_index": range(len(trait_names)),
-            },
-            schema_overrides={"trait_index": pl.Int64},
-        )
-        .join(
-            counts_df.rename({"trait": "trait_index"}),
-            on="trait_index",
-            how="left",
-            maintain_order="left",
-        )
-        .drop("trait_index")
-        .fill_null(0)
+    is_leaf = pl.col("clade_size") == 1
+    return pl.concat(
+        [
+            # one trait at a time, straight from the exposure table
+            exposure_df.select(
+                (starts_absent & is_leaf).sum().alias("num_leaves"),
+                (gain & is_leaf).sum().alias("num_trait_present"),
+                (starts_absent & ~is_leaf).sum().alias("num_inner_branches"),
+                (gain & ~is_leaf).sum().alias("num_inner_gains"),
+            )
+            for starts_absent, gain in (
+                (
+                    pl.col(f"trait{trait}_starts_absent"),
+                    pl.col(f"trait{trait}_starts_absent")
+                    & pl.col(f"trait{trait}_gain"),
+                )
+                for trait in range(len(trait_names))
+            )
+        ],
+    ).select(
+        pl.Series("trait", list(trait_names), dtype=pl.String),
+        pl.all().cast(pl.Int64),
     )
