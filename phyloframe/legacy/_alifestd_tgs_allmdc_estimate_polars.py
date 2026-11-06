@@ -47,7 +47,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         1.0,
     ),
     calibrate_max_rate_ratio: float = np.inf,
-    length_rtol: float = 1e-3,
+    length_rtol: float = 1e-2,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -137,10 +137,13 @@ def alifestd_tgs_allmdc_estimate_polars(
     calibrate_max_rate_ratio : float, default np.inf
         Cap on the neutral gain rate ratios that rescale branch lengths in
         calibration; see `alifestd_tgs_pendantmdc_estimate_polars`.
-    length_rtol : float, default 1e-3
+    length_rtol : float, default 1e-2
         Relative tolerance within which exposure episodes' calibrated branch
         lengths and survival durations must both agree for them to be
-        merged for fitting, bounding fit cost; 0 for no merging.
+        merged for fitting, bounding fit cost; 0 for no merging. On a 7.8M
+        node test phylogeny, 1e-2 roughly halved runtime relative to 1e-3,
+        moving gain rates and ratios by ~1e-4 (relative) and selection
+        coefficients by far less than their bootstrap standard errors.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling exposure episodes with
         replacement and refitting, for standard errors, z-scores, and
@@ -429,11 +432,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--length-rtol",
-        default=1e-3,
+        default=1e-2,
         type=float,
         help=(
             "Relative tolerance for merging calibrated branch lengths for "
-            "fitting (default: 1e-3)."
+            "fitting (default: 1e-2)."
         ),
     )
     parser.add_argument(

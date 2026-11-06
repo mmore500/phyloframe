@@ -47,7 +47,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         1.0,
     ),
     calibrate_max_rate_ratio: float = np.inf,
-    length_rtol: float = 1e-3,
+    length_rtol: float = 1e-2,
     num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -148,7 +148,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Cap on the neutral gain rate ratios that rescale pendant lengths in
         calibration, bounding the inflation of lengths in neighborhoods
         with little exposure; uncapped by default. Must be positive.
-    length_rtol : float, default 1e-3
+    length_rtol : float, default 1e-2
         Relative tolerance within which leaves' calibrated pendant lengths
         must agree for them to be merged for fitting, bounding fit cost; 0
         for no merging.
@@ -486,11 +486,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--length-rtol",
-        default=1e-3,
+        default=1e-2,
         type=float,
         help=(
             "Relative tolerance for merging calibrated branch lengths for "
-            "fitting (default: 1e-3)."
+            "fitting (default: 1e-2)."
         ),
     )
     parser.add_argument(
