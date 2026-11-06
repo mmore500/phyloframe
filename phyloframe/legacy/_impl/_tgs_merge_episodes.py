@@ -59,14 +59,8 @@ def tgs_merge_episodes(
     'length' : float
         Their weighted mean calibrated branch length.
     """
-    episodes_df = (
-        tgs_select_trait_episodes(exposure_df, trait=trait).with_columns(
-            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
-                "exposure_row"
-            ),
-        )
-        # optimization: drop zero-weight episodes
-        .filter(pl.col("weight") > 0)
+    episodes_df = tgs_select_trait_episodes(
+        exposure_df, trait=trait, weights=pl.Series(weights, dtype=pl.Float64)
     )
     episodes = episodes_df["exposure_row"].to_numpy()
     lengths = (

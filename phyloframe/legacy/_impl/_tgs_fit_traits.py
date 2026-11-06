@@ -28,6 +28,7 @@ def tgs_fit_traits(
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
     progress_wrap: typing.Callable = identity,
+    trait_bin_counts_df: typing.Optional[pl.DataFrame] = None,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -38,16 +39,20 @@ def tgs_fit_traits(
     calibration bin (see `tgs_calc_calibration_factors`), merges episodes of
     similar calibrated length (see `tgs_merge_episodes`), and fits gain
     rate and selection coefficient (see `tgs_fit_trait_partitions`).
-    Merges one trait at a time, wrapped in `progress_wrap` (e.g., tqdm), so
-    that memory scales with branches, not branches times traits. Returns
-    one row per trait.
+    Merges, then fits, one trait at a time, each wrapped in `progress_wrap`
+    (e.g., tqdm), so that episode tables scale with branches, not branches
+    times traits; every trait's merged partitions, far fewer with merging
+    (`length_rtol` > 0), are kept for fitting. Pass `trait_bin_counts_df`
+    (see `tgs_count_traits`) if already computed for these `weights`.
+    Returns one row per trait.
     """
-    trait_bin_counts_df = tgs_count_traits(
-        exposure_df=exposure_df,
-        bins=bins,
-        num_bins=num_bins,
-        weights=weights,
-    )
+    if trait_bin_counts_df is None:
+        trait_bin_counts_df = tgs_count_traits(
+            exposure_df=exposure_df,
+            bins=bins,
+            num_bins=num_bins,
+            weights=weights,
+        )
     trait_nll_kwargs = []  # each trait's, but the rate parameters
     for trait in progress_wrap(range(tgs_count_exposure_traits(exposure_df))):
         partitions, survival_shares = tgs_merge_episodes(
@@ -79,4 +84,5 @@ def tgs_fit_traits(
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
+        progress_wrap=progress_wrap,
     )

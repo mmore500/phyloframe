@@ -7,13 +7,21 @@ from ._tgs_select_trait_episodes import (
     tgs_select_trait_episodes,
 )
 
+_SCHEMA = {
+    "trait": pl.Int64,
+    "bin": pl.Int64,
+    "num_trials": pl.Float64,
+    "num_successes": pl.Float64,
+    "length_sum": pl.Float64,
+}
+
 
 def _tgs_count_trait_bins(
     *,
     exposure_df: pl.DataFrame,
     trait: int,
-    bins: np.ndarray,
-    weights: np.ndarray,
+    bins: pl.Series,
+    weights: pl.Series,
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_count_traits`.
 
@@ -22,16 +30,11 @@ def _tgs_count_trait_bins(
     `length_sum` (see `tgs_count_traits`).
     """
     return (
-        tgs_select_trait_episodes(exposure_df, trait=trait)
+        tgs_select_trait_episodes(exposure_df, trait=trait, weights=weights)
         .with_columns(
-            bin=pl.lit(pl.Series(bins, dtype=pl.Int64)).gather("exposure_row"),
-            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
-                "exposure_row"
-            ),
+            bin=pl.lit(bins).gather("exposure_row"),
             length=pl.lit(exposure_df["branch_length"]).gather("exposure_row"),
         )
-        # optimization: drop zero-weight episodes
-        .filter(pl.col("weight") > 0)
         .group_by("bin")
         .agg(
             num_trials=pl.col("weight").sum(),
@@ -71,24 +74,27 @@ def tgs_count_traits(
         Weighted sum of those episodes' branch lengths.
     """
     bin_df = pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)})
+    trait_bin_kwargs = dict(  # converted once, shared by every trait
+        exposure_df=exposure_df,
+        bins=pl.Series(bins, dtype=pl.Int64),
+        weights=pl.Series(weights, dtype=pl.Float64),
+    )
     return pl.concat(
         [
-            # one trait at a time, bounding memory to its episodes
-            bin_df.join(
-                _tgs_count_trait_bins(
-                    exposure_df=exposure_df,
-                    trait=trait,
-                    bins=bins,
-                    weights=weights,
-                ),
-                on="bin",
-                how="left",
-            )
-            # zero counts for bins without the trait's exposure episodes,
-            # e.g., a bin whose branches all carry the trait
-            .with_columns(cs.float().fill_null(0.0)).select(
-                pl.lit(trait, dtype=pl.Int64).alias("trait"), pl.all()
-            )
-            for trait in range(tgs_count_exposure_traits(exposure_df))
+            pl.DataFrame(schema=_SCHEMA),  # in case there are no traits
+            *(
+                # one trait at a time, bounding memory to its episodes
+                bin_df.join(
+                    _tgs_count_trait_bins(trait=trait, **trait_bin_kwargs),
+                    on="bin",
+                    how="left",
+                )
+                # zero counts for bins without the trait's exposure
+                # episodes, e.g., a bin whose branches all carry the trait
+                .with_columns(cs.float().fill_null(0.0)).select(
+                    pl.lit(trait, dtype=pl.Int64).alias("trait"), pl.all()
+                )
+                for trait in range(tgs_count_exposure_traits(exposure_df))
+            ),
         ],
     ).sort("trait", "bin")

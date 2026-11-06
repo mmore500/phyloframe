@@ -86,6 +86,7 @@ def tgs_impl(
     )
     bins = bins.ravel()
     num_bins = len(pairs)
+    trait_bin_counts_df = None  # reused by the point estimate, if computed
     if num_bins > 1:
         compare_by_df = exposure_df.select(
             cs.starts_with("calibration_compare_by_")
@@ -158,6 +159,7 @@ def tgs_impl(
     point_estimate_df = tgs_fit_traits(
         weights=np.ones(num_episodes),
         progress_wrap=progress_wrap,
+        trait_bin_counts_df=trait_bin_counts_df,
         **fit_kwargs,
     )
     bootstrap_fits_df = None

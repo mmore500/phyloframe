@@ -24,18 +24,28 @@ def test_count_exposure_traits():
 
 
 def test_episodes():
-    res = tgs_select_trait_episodes(_exposure_df(), trait=0)
+    weights = pl.Series([1.0, 2.0, 1.0])
+    res = tgs_select_trait_episodes(_exposure_df(), trait=0, weights=weights)
     assert res.schema == pl.Schema(
-        {"exposure_row": pl.Int64, "gain": pl.Boolean}
+        {"exposure_row": pl.Int64, "gain": pl.Boolean, "weight": pl.Float64}
     )
     # branches starting without the trait only
-    assert res.rows() == [(0, True), (2, False)]
-    res = tgs_select_trait_episodes(_exposure_df(), trait=1)
-    assert res.rows() == [(0, False), (1, False), (2, True)]
+    assert res.rows() == [(0, True, 1.0), (2, False, 1.0)]
+    res = tgs_select_trait_episodes(_exposure_df(), trait=1, weights=weights)
+    assert res.rows() == [(0, False, 1.0), (1, False, 2.0), (2, True, 1.0)]
+
+
+def test_zero_weight_dropped():
+    res = tgs_select_trait_episodes(
+        _exposure_df(), trait=1, weights=pl.Series([1.0, 0.0, 3.0])
+    )
+    assert res["exposure_row"].to_list() == [0, 2]
 
 
 def test_empty():
     exposure_df = pl.DataFrame(
         schema={"trait0_starts_absent": pl.Boolean, "trait0_gain": pl.Boolean},
     )
-    assert tgs_select_trait_episodes(exposure_df, trait=0).is_empty()
+    assert tgs_select_trait_episodes(
+        exposure_df, trait=0, weights=pl.Series([], dtype=pl.Float64)
+    ).is_empty()

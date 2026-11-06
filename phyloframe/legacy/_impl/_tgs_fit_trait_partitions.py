@@ -2,6 +2,7 @@ import typing
 
 import polars as pl
 
+from ..._auxlib._identity import identity
 from ._tgs_calc_trait_gain_ratio_lrts import tgs_calc_trait_gain_ratio_lrts
 from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrts
 from ._tgs_fit import tgs_fit_trait
@@ -16,6 +17,7 @@ def tgs_fit_trait_partitions(
     neutral_traits: typing.Sequence[int],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
+    progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -24,6 +26,7 @@ def tgs_fit_trait_partitions(
     Fits each trait's gain rate and selection coefficient, given each
     trait's `tgs_calc_nll` arguments but the rate parameters,
     `trait_nll_kwargs`, e.g., its partitions from `tgs_merge_episodes`.
+    Fits one trait at a time, wrapped in `progress_wrap` (e.g., tqdm).
     Returns one row per trait, in trait index order; see Output Schema.
 
     Output Schema
@@ -49,7 +52,7 @@ def tgs_fit_trait_partitions(
                 loss_rate=loss_rate,
                 selection_coef_starts=selection_coef_starts,
             )
-            for nll_kwargs in trait_nll_kwargs
+            for nll_kwargs in progress_wrap(trait_nll_kwargs)
         ],
         schema={"gain_rate": pl.Float64, "selection_coef": pl.Float64},
     )
