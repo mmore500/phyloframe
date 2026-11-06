@@ -73,8 +73,7 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     Columns constant within a partition are skipped there: their ranks,
     tiebroken by the other columns, would only repeat those columns'
-    splits. Rows with null (or nan) `bin_by` values, e.g., roots' branch
-    lengths, or null `partition_by` values are marked -1.
+    splits.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -103,6 +102,9 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     Raises
     ------
+    NotImplementedError
+        If a `bin_by` value is null or nan, or a `partition_by` value is
+        null.
     ValueError
         If a column is missing, if `bin_by` is empty, if `max_bins` is not a
         power of two, or if `min_bin_size` is less than 1.
@@ -150,11 +152,15 @@ def alifestd_mark_joint_quantile_bins_polars(
         .with_row_index("row")
         .collect()
     )
-    marks = np.full(len(selected), -1, dtype=np.int64)
+    if selected.select(pl.any_horizontal(pl.all().is_null()).any()).item():
+        raise NotImplementedError(
+            "null or nan bin_by or partition_by values not supported",
+        )
+    marks = np.empty(len(selected), dtype=np.int64)
     # keep row order within partitions, which breaks full ties
-    groups = selected.filter(
-        ~pl.any_horizontal(pl.all().is_null()),
-    ).partition_by("partition", as_dict=True, maintain_order=True)
+    groups = selected.partition_by(
+        "partition", as_dict=True, maintain_order=True
+    )
 
     offset = 0  # bins are numbered consecutively across partitions
     for (partition,), group in sorted(

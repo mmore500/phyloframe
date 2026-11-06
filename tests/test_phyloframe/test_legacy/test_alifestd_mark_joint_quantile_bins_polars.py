@@ -98,20 +98,12 @@ def test_invalid(kwargs, error):
 
 
 @pytest.mark.parametrize("missing", [None, float("nan")])
-def test_missing_values_marked_negative(missing):
+def test_missing_bin_by_raises(missing):
     df = _make_df().with_columns(
         x=pl.when(pl.col("id") == 2).then(missing).otherwise(pl.col("x"))
     )
-    res = alifestd_mark_joint_quantile_bins_polars(
-        df, bin_by=["x"], max_bins=8
-    )
-    assert res["joint_quantile_bin"][2] == -1
-    expected = alifestd_mark_joint_quantile_bins_polars(
-        df.filter(pl.col("id") != 2), bin_by=["x"], max_bins=8
-    )
-    assert res.filter(pl.col("id") != 2)["joint_quantile_bin"].equals(
-        expected["joint_quantile_bin"]
-    )
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_joint_quantile_bins_polars(df, bin_by=["x"])
 
 
 def test_full_ties_follow_row_order():
@@ -129,12 +121,11 @@ def test_full_ties_follow_row_order():
         assert bins.n_unique() == 4
 
 
-def test_null_partition_marked():
+def test_null_partition_raises():
     df = _make_df().with_columns(
         p=pl.when(pl.col("id") == 3).then(None).otherwise(pl.col("p")),
     )
-    res = alifestd_mark_joint_quantile_bins_polars(
-        df, bin_by=["x"], partition_by="p"
-    )
-    assert res["joint_quantile_bin"][3] == -1
-    assert (res.filter(pl.col("id") != 3)["joint_quantile_bin"] >= 0).all()
+    with pytest.raises(NotImplementedError):
+        alifestd_mark_joint_quantile_bins_polars(
+            df, bin_by=["x"], partition_by="p"
+        )

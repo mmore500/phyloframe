@@ -219,7 +219,9 @@ def test_unifurcations_bypassed():
 
 def test_nan_origin_time_ignored():
     phylogeny_df, traits = _make_cherries(2_000)
-    kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
+    # no calibration bins, as alifestd_mark_joint_quantile_bins_polars
+    # rejects nan values
+    kwargs = dict(neutral_traits=[1, 2, 3, 4])
     expected = _estimate_from_masks(phylogeny_df, trait_masks=traits, **kwargs)
 
     # add a disconnected root with unknown origin time
