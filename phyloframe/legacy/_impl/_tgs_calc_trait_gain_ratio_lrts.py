@@ -68,19 +68,26 @@ def tgs_calc_trait_gain_ratio_lrts(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns, per `trait` (index), the likelihood-ratio test (LRT) statistic
-    for gain ratio = 1, `gain_ratio_lrt_naive`, a profile likelihood test:
-    twice the increase in negative log likelihood from holding the trait's
-    gain rate at the mean fitted gain rate of its neutral reference, i.e.,
-    `gain_rate / gain_ratio`, and refitting the selection coefficient
-    alone. `fits_df` holds each trait's fitted `gain_rate`,
-    `selection_coef`, and `gain_ratio`, and `trait_nll_kwargs` each trait's
-    `tgs_calc_nll` arguments but the rate parameters.
+    Returns, per trait, the likelihood-ratio test (LRT) statistic for gain
+    ratio = 1, a profile likelihood test: twice the increase in negative
+    log likelihood from holding the trait's gain rate at the mean fitted
+    gain rate of its neutral reference, i.e., `gain_rate / gain_ratio`,
+    and refitting the selection coefficient alone; see Output Schema.
+    `fits_df` holds each trait's fitted `gain_rate`, `selection_coef`, and
+    `gain_ratio`, and `trait_nll_kwargs` each trait's `tgs_calc_nll`
+    arguments but the rate parameters.
 
     The statistic naively treats the reference gain rate as known, and
     exposure episodes (or merged rows of them) as independent, so
-    overstates significance. It is nan wherever the gain ratio is
-    undefined, or the trait has no gains.
+    overstates significance.
+
+    Output Schema
+    -------------
+    'trait' : integer
+        Trait index.
+    'gain_ratio_lrt_naive' : float
+        The statistic; nan if the gain ratio is undefined, or the trait has
+        no gains.
     """
     return pl.DataFrame(
         [

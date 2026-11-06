@@ -20,8 +20,16 @@ def tgs_unpivot_exposure_episodes(exposure_df: pl.DataFrame) -> pl.DataFrame:
 
     Returns one row per exposure episode, i.e., per trait and branch of
     `exposure_df` (see `tgs_calc_exposure_df`) starting without the trait,
-    trait-major, with columns `trait` (index), `branch` (row index into
-    `exposure_df`), and `gain`, whether the branch gained the trait.
+    trait-major; see Output Schema.
+
+    Output Schema
+    -------------
+    'trait' : integer
+        Trait index.
+    'branch' : integer
+        Row index of the branch in `exposure_df`.
+    'gain' : boolean
+        Whether the branch gained the trait.
     """
     schema = {"trait": pl.Int64, "branch": pl.Int64, "gain": pl.Boolean}
     return pl.concat(

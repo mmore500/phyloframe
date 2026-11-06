@@ -19,9 +19,19 @@ def tgs_bootstrap_trait_fits(
     gain/selection.
 
     Returns per-trait fits to bootstrap resamples of `num_items` exposure
-    episodes, with columns `replicate` and `trait_index`, from `do_fit`
-    (e.g., a `functools.partial` of `tgs_fit_traits`), called with each
-    replicate's episode `weights`; see `run_weighted_bootstrap`.
+    episodes, from `do_fit` (e.g., a `functools.partial` of
+    `tgs_fit_traits`), called with each replicate's episode `weights`; see
+    `run_weighted_bootstrap` and Output Schema.
+
+    Output Schema
+    -------------
+    'replicate' : integer
+        Bootstrap replicate index.
+    'trait_index' : integer
+        Trait index.
+    `do_fit` columns
+        The replicate's fit of the trait, e.g., as for
+        `tgs_fit_trait_partitions`.
     """
     replicate_fits = run_weighted_bootstrap(
         do_fit,

@@ -37,16 +37,24 @@ def tgs_build_exposure_df_polars(
 
     Sums each trait's transitions into node states (see
     `tgs_calc_trait_states`), collapses unifurcations, and returns the
-    phylogeny's branches (see `tgs_calc_exposure_df`), with column
-    `node_id`, each branch's end node's id in `phylogeny_df`. Also gives
-    each branch's value, at its end node, in integer columns
-    `calibration_partition_by` and `calibration_compare_by_bins`, if given,
-    as columns `calibration_partition` and `calibration_bin`, and in each
-    column of `calibration_compare_by_vals`, as column
-    `calibration_compare_by_{name}`; there, the exposure table's own
-    columns (e.g., `branch_length`, `clade_size`) take precedence over
-    `phylogeny_df`'s. `caller` names the calling function in error
-    messages.
+    phylogeny's exposure table (see `tgs_calc_exposure_df`), with the
+    columns below; see Output Schema. `caller` names the calling function
+    in error messages.
+
+    Output Schema
+    -------------
+    As for `tgs_calc_exposure_df`, with also:
+
+    'node_id' : integer
+        Id of the branch's end node in `phylogeny_df`.
+    'calibration_partition' : integer, optional
+        The end node's `calibration_partition_by` value, if given.
+    'calibration_bin' : integer, optional
+        The end node's `calibration_compare_by_bins` value, if given.
+    'calibration_compare_by_{name}' : numeric, per `calibration_compare_by_vals` name
+        The branch's value of that column, taken from the exposure table's
+        own columns (e.g., `branch_length`, `clade_size`) if there, else
+        from `phylogeny_df`'s, at the end node.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()

@@ -45,12 +45,21 @@ def tgs_merge_episodes(
     `calibration_factors[trait, bin]`.
 
     Returns `partition_df`, one row per trait and merged length cell with
-    episodes, trait-major, with columns `trait` (index), the (weighted, by
-    `weights`) counts of episodes, `num_trials`, and of gains,
-    `num_successes`, and their mean calibrated `length`. Also returns
-    `survival_shares`, a sparse matrix with a row per `partition_df` row and a column per distinct survival duration
-    (episodes' `survival_duration_indices`), giving the share of the row's
-    episodes with each.
+    episodes, trait-major (see Output Schema), and `survival_shares`, a
+    sparse matrix with a row per `partition_df` row and a column per
+    distinct survival duration (episodes' `survival_duration_indices`),
+    giving the share of the row's episodes with each.
+
+    Output Schema
+    -------------
+    'trait' : integer
+        Trait index.
+    'num_trials' : float
+        Weighted (by `weights`) count of the row's merged episodes.
+    'num_successes' : float
+        Of those, the weighted count that gained the trait.
+    'length' : float
+        Their weighted mean calibrated branch length.
     """
     episodes_df = tgs_unpivot_exposure_episodes(exposure_df)
     episode_traits = episodes_df["trait"].to_numpy()

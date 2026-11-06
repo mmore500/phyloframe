@@ -26,20 +26,29 @@ def tgs_calc_exposure_df(
 
     Takes a phylogeny with contiguous, topologically sorted ids and no
     unifurcations, and each trait's state (0 or 1) at every node. Returns
-    one row per branch, i.e., per non-root node, with columns
-
-    - `origin_time`, of the branch's end node;
-    - `branch_length`;
-    - `survival_duration`, from the end node to the latest leaf below it (0 for
-      a leaf), for which a trait gained on the branch must persist to be
-      seen at every leaf of its clade;
-    - `clade_size`, the number of leaves below (1 for a leaf); and
-    - per trait `i`, `trait{i}_starts_absent`, whether the branch started
-      without the trait (i.e., its parent lacks it), so could gain it on the
-      branch, and `trait{i}_gain`, whether it gained it.
+    the exposure table, one row per branch, i.e., per non-root node; see
+    Output Schema.
 
     Raises ValueError if a non-root node's branch has zero, negative, or
     undefined (nan) length.
+
+    Output Schema
+    -------------
+    'origin_time' : float
+        Origin time of the branch's end node.
+    'branch_length' : float
+        Branch length.
+    'survival_duration' : float
+        Time from the end node to the latest leaf below it (0 for a leaf),
+        for which a trait gained on the branch must persist to be seen at
+        every leaf of its clade.
+    'clade_size' : integer
+        Number of leaves below the end node (1 for a leaf).
+    'trait{i}_starts_absent' : boolean, per trait `i`
+        Whether the branch started without the trait (i.e., its parent
+        lacks it), so could gain it on the branch.
+    'trait{i}_gain' : boolean, per trait `i`
+        Whether the branch gained the trait.
     """
     ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
     origin_time = np.asarray(origin_time, dtype=np.float64)

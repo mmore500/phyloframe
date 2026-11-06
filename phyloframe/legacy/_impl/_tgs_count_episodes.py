@@ -14,11 +14,23 @@ def tgs_count_episodes(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns one row per trait, with column `trait` (from `trait_names`) and
-    counts, from `exposure_df` (see `tgs_calc_exposure_df`), of leaf
-    exposure episodes, i.e., leaf branches starting without the trait,
-    `num_leaves`, and of their gains, `num_trait_present`, and the same for
-    inner exposure episodes, `num_clades` and `num_clade_gains`.
+    Returns one row per trait, with counts of its exposure episodes in
+    `exposure_df` (see `tgs_calc_exposure_df`); see Output Schema.
+
+    Output Schema
+    -------------
+    'trait' : string
+        Trait name, from `trait_names`.
+    'num_leaves' : integer
+        Leaf exposure episodes, i.e., leaf branches that started without
+        the trait.
+    'num_trait_present' : integer
+        Of those, the number that gained the trait.
+    'num_clades' : integer
+        Inner exposure episodes, i.e., inner branches that started without
+        the trait.
+    'num_clade_gains' : integer
+        Of those, the number that gained the trait.
     """
     episode_df = tgs_unpivot_exposure_episodes(exposure_df)
     is_leaf = exposure_df["clade_size"].gather(episode_df["branch"]) == 1

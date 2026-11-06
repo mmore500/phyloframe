@@ -63,17 +63,22 @@ def tgs_calc_trait_selection_lrts(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns, per `trait` (index), the likelihood-ratio test (LRT) statistic
-    for selection coefficient = 0, `selection_coef_lrt_naive`: twice the
-    increase in negative log likelihood from fixing the selection
-    coefficient at 0 and refitting the gain rate alone. `fits_df` holds
-    each trait's fitted `gain_rate` and `selection_coef`, and
-    `trait_nll_kwargs` each trait's `tgs_calc_nll` arguments but the rate
-    parameters.
+    Returns, per trait, the likelihood-ratio test (LRT) statistic for
+    selection coefficient = 0: twice the increase in negative log
+    likelihood from fixing the selection coefficient at 0 and refitting
+    the gain rate alone; see Output Schema. `fits_df` holds each trait's
+    fitted `gain_rate` and `selection_coef`, and `trait_nll_kwargs` each
+    trait's `tgs_calc_nll` arguments but the rate parameters.
 
     The statistic naively treats exposure episodes (or merged rows of
-    them) as independent, so overstates significance. It is nan wherever
-    the trait has no gains.
+    them) as independent, so overstates significance.
+
+    Output Schema
+    -------------
+    'trait' : integer
+        Trait index.
+    'selection_coef_lrt_naive' : float
+        The statistic; nan if the trait has no gains.
     """
     return pl.DataFrame(
         [

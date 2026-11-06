@@ -16,10 +16,19 @@ def tgs_build_estimates_df(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns one row per trait, with `counts_df` columns (`trait`, then
-    per-trait counts), then point estimates from `point_estimate_df`, then,
-    with `num_bootstrap` replicates, in `bootstrap_fits_df`, their summary
-    columns (see `tgs_summarize_bootstrap`).
+    Returns one row per trait; see Output Schema.
+
+    Output Schema
+    -------------
+    `counts_df` columns
+        Trait name, `trait`, then per-trait counts (e.g., see
+        `tgs_count_episodes`).
+    'gain_rate', 'selection_coef', 'gain_ratio', 'selection_coef_lrt_naive', 'gain_ratio_lrt_naive' : float
+        Point estimates, from `point_estimate_df` (see
+        `tgs_fit_trait_partitions`).
+    summary columns, with `num_bootstrap` replicates
+        Bootstrap summaries of `bootstrap_fits_df`; see
+        `tgs_summarize_bootstrap`.
     """
     estimates_df = pl.concat(
         [

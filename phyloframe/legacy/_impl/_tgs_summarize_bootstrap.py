@@ -13,8 +13,30 @@ def tgs_summarize_bootstrap(
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
     Acronym tgs stands for trait gain/selection.
 
-    Returns bootstrap standard errors, z-scores, and p-values, given point
-    estimates and replicate fits with columns `replicate` and `trait_index`.
+    Returns bootstrap standard errors, z-scores, and p-values, one row per
+    trait, given point estimates and replicate fits (see
+    `tgs_bootstrap_trait_fits`); see Output Schema.
+
+    Output Schema
+    -------------
+    'selection_coef_se' : float
+        Bootstrap standard error of the selection coefficient, over
+        replicates with a defined selection coefficient; nan with fewer
+        than two.
+    'selection_coef_z' : float
+        Selection coefficient over its standard error.
+    'selection_coef_p' : float
+        Two-sided normal p-value of `selection_coef_z`.
+    'log_gain_ratio_se' : float
+        Bootstrap standard error of the log gain ratio, over replicates
+        with a defined gain ratio; nan with fewer than two.
+    'gain_ratio_z' : float
+        Log gain ratio over its standard error.
+    'gain_ratio_p' : float
+        Two-sided normal p-value of `gain_ratio_z`.
+    'num_bootstrap_degenerate' : integer
+        Replicates excluded for an undefined selection coefficient or gain
+        ratio.
     """
     # replicates resampling no carriers of a trait leave its selection
     # coefficient undefined, and those resampling no carriers of its neutral

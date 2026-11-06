@@ -19,12 +19,23 @@ def tgs_count_traits(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns, with columns `trait` and `bin`, trait-major, each trait's
-    (weighted) count of exposure episodes in each calibration bin,
-    `num_trials`, of their gains, `num_successes`, and their summed branch
-    length, `length_sum`, given each row of `exposure_df` (see
+    Returns each trait's exposure counts in each calibration bin, one row
+    per trait and bin, trait-major, given each row of `exposure_df` (see
     `tgs_calc_exposure_df`), its `bins` index, and its `weights` (e.g.,
-    bootstrap draw counts).
+    bootstrap draw counts); see Output Schema.
+
+    Output Schema
+    -------------
+    'trait' : integer
+        Trait index.
+    'bin' : integer
+        Calibration bin index, from 0 to `num_bins` - 1.
+    'num_trials' : float
+        Weighted count of the trait's exposure episodes in the bin.
+    'num_successes' : float
+        Of those, the weighted count that gained the trait.
+    'length_sum' : float
+        Weighted sum of those episodes' branch lengths.
     """
     episode_df = tgs_unpivot_exposure_episodes(exposure_df)
     branches = episode_df["branch"].to_numpy()

@@ -31,10 +31,23 @@ def tgs_fit_trait_partitions(
     its partitions, the rows of `partition_df` with its `trait` (see
     `tgs_merge_episodes`), and, if given, their `survival_shares` over
     `distinct_survival_durations` (see `tgs_calc_nll`). Returns one row per
-    trait, with columns `gain_rate`, `selection_coef`, and
-    `selection_coef_lrt_naive` (see `tgs_calc_trait_selection_lrts`), plus
-    `gain_ratio`, the gain rate relative to neutral traits, and
-    `gain_ratio_lrt_naive` (see `tgs_calc_trait_gain_ratio_lrts`).
+    trait, in trait index order; see Output Schema.
+
+    Output Schema
+    -------------
+    'gain_rate' : float
+        Fitted gain rate, per unit branch length; 0 without gains.
+    'selection_coef' : float
+        Fitted selection coefficient; nan without gains.
+    'selection_coef_lrt_naive' : float
+        Likelihood-ratio statistic for selection coefficient = 0; see
+        `tgs_calc_trait_selection_lrts`.
+    'gain_ratio' : float
+        Gain rate relative to the mean gain rate of the trait's neutral
+        reference; see `tgs_normalize_gain_rates_to_neutral`.
+    'gain_ratio_lrt_naive' : float
+        Likelihood-ratio statistic for gain ratio = 1; see
+        `tgs_calc_trait_gain_ratio_lrts`.
     """
     traits = partition_df["trait"].to_numpy()
     trait_rows = [
