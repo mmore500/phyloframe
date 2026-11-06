@@ -46,7 +46,6 @@ def run_seeded_replicates(
     replicate_seeds = np.random.SeedSequence(seed).generate_state(
         num_replicates
     )
-    # eager list for tqdm/joblib compat
     jobs = [  # eager list for tqdm/joblib compat
         joblib.delayed(func)(seed=int(replicate_seed))
         for replicate_seed in replicate_seeds
