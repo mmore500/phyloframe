@@ -142,7 +142,7 @@ def alifestd_mark_joint_quantile_bins_polars(
         phylogeny_df.lazy()
         .select(
             *(
-                pl.col(c).cast(pl.Float64).fill_nan(None).alias(f"bin_by{i}")
+                pl.col(c).cast(pl.Float64).alias(f"bin_by{i}")
                 for i, c in enumerate(bin_by)
             ),
             (
@@ -152,8 +152,11 @@ def alifestd_mark_joint_quantile_bins_polars(
         .with_row_index("row")
         .collect()
     )
-    # bin_by nans were filled with null above, so this catches them too
-    if selected.select(pl.any_horizontal(pl.all().is_null()).any()).item():
+    if selected.select(
+        pl.any_horizontal(
+            pl.all().is_null(), pl.col("^bin_by.*$").fill_nan(None).is_null()
+        ).any()
+    ).item():
         raise NotImplementedError(
             "null or nan bin_by or partition_by values not supported",
         )
