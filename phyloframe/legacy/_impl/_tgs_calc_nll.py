@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse, special
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
@@ -51,7 +51,7 @@ def tgs_calc_nll(
     *,
     log_gain_rate: float,
     rate: float,
-    partitions: pd.DataFrame,
+    partitions: pl.DataFrame,
     growth_exponent_bound: float,
     survival_shares: typing.Optional[sparse.csr_matrix] = None,
     distinct_survival_durations: typing.Optional[np.ndarray] = None,

@@ -1,13 +1,16 @@
-import functools
 import logging
 import typing
 import warnings
 
 import numpy as np
-import pandas as pd
-from scipy import optimize
+import polars as pl
 
-from ._tgs_calc_nll import tgs_calc_nll
+from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrt
+from ._tgs_minimize_nll import (
+    tgs_minimize_nll,
+    tgs_pick_log_gain_rate_start,
+    tgs_pick_selection_rescale,
+)
 
 
 class TgsFitResult(typing.NamedTuple):
@@ -33,142 +36,50 @@ class TgsFitResult(typing.NamedTuple):
     selection_coef_lrt_naive: float
 
 
-def _tgs_calc_scales(partitions: pd.DataFrame) -> typing.Tuple[float, float]:
-    """Implementation detail for `tgs_fit_partitions` and
-    `tgs_calc_gain_ratio_lrts`. Acronym tgs stands for trait gain/selection.
-
-    Returns the selection scale, 1 / mean branch length, and the neutral
-    log gain rate, log(gains per unit branch length), of `partitions`.
-    """
-    num_trials = partitions["num_trials"].to_numpy()
-    exposure = np.sum(num_trials * partitions["length"].to_numpy())
-    return (
-        num_trials.sum() / exposure,
-        np.log(partitions["num_successes"].sum() / exposure),
-    )
-
-
-def tgs_minimize_nll(
+def tgs_fit_trait(
     *,
-    calc_nll: typing.Callable[..., typing.Tuple[float, float, float]],
-    starts: typing.Sequence[typing.Tuple[float, float]],
-    fit_gain: bool,
-    fit_selection: bool,
-    selection_scale: float,
-    loss_rate: float,
-) -> optimize.OptimizeResult:
-    """Implementation detail for `tgs_fit_partitions` and
-    `tgs_calc_gain_ratio_lrts`. Acronym tgs stands for trait gain/selection.
-
-    Minimizes `calc_nll(log_gain_rate=..., rate=...)` (see `tgs_calc_nll`) by
-    L-BFGS-B over log gain rate if `fit_gain` and selection coefficient if
-    `fit_selection`, holding the others at their `starts` values. Starts from
-    each of `starts` and returns the best fit, preferring converged ones, with
-    both parameters in `.x` and the number of converged fits in
-    `.num_converged`.
-
-    The selection coefficient is optimized, and given in `starts`, as a
-    multiple of `selection_scale`, a typical rate, e.g., 1 / mean branch
-    length, so that both parameters are of order one; otherwise, with long
-    lengths, L-BFGS-B stops early on the tiny selection coefficient.
-    """
-    is_free = np.array([fit_gain, fit_selection])
-
-    def nll(
-        free_params: np.ndarray, start: np.ndarray
-    ) -> typing.Tuple[float, np.ndarray]:
-        params = start.copy()
-        params[is_free] = free_params
-        log_gain_rate, scaled_selection = params
-        res, dlog_gain, drate = calc_nll(
-            log_gain_rate=log_gain_rate,
-            rate=scaled_selection * selection_scale - loss_rate,
-        )
-        return res, np.array([dlog_gain, drate * selection_scale])[is_free]
-
-    fits = []
-    for start in starts:
-        start = np.asarray(start, dtype=np.float64)
-        fit = optimize.minimize(
-            nll,
-            start[is_free],
-            args=(start,),
-            jac=True,  # objective function returns its own gradient
-            method="L-BFGS-B",  # gradient-based, for differentiable functions
-        )
-        params = start.copy()
-        params[is_free] = fit.x
-        fit.x = params
-        fits.append(fit)
-    converged = [fit for fit in fits if fit.success]
-    best = min(converged or fits, key=lambda fit: fit.fun)  # .fun is nll
-    best.num_converged = len(converged)
-    return best
-
-
-def tgs_fit_partitions(
-    *,
-    calc_nll: typing.Callable[..., typing.Tuple[float, float, float]],
-    partitions: pd.DataFrame,
+    nll_kwargs: typing.Dict[str, typing.Any],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
-) -> TgsFitResult:
+) -> typing.Dict[str, float]:
     """Implementation detail for `tgs_fit` and `tgs_fit_trait_partitions`.
     Acronym tgs stands for trait gain/selection.
 
-    Fits one trait's gain rate and selection coefficient coefficient to its
-    `partitions` (with columns `num_trials`, `num_successes`, and mean branch
-    `length`), minimizing `calc_nll(log_gain_rate=..., rate=...)` (see
-    `tgs_calc_nll`) from each of `selection_coef_starts` (in units of 1 / mean
-    branch length) and keeping the best fit, then fitting gain rate alone under
-    no selection for the likelihood-ratio statistic. Without gains, skips
-    fitting, giving zero gain rate and undefined selection coefficient.
+    Fits one trait's gain rate and selection coefficient to its partitions,
+    `nll_kwargs["partitions"]` (with columns `num_trials`, `num_successes`,
+    and mean branch `length`), minimizing `tgs_calc_nll(**nll_kwargs, ...)`
+    from each of `selection_coef_starts` (in units of 1 / mean branch length)
+    and keeping the best fit. Without gains, skips fitting, giving zero gain
+    rate and undefined selection coefficient. Returns `gain_rate` and
+    `selection_coef`.
     """
+    partitions = nll_kwargs["partitions"]
     if not partitions["num_successes"].to_numpy().any():
-        return TgsFitResult(
-            gain_rate=0.0,
-            selection_coef=np.nan,
-            selection_coef_lrt_naive=np.nan,
-        )
+        return dict(gain_rate=0.0, selection_coef=np.nan)
 
-    selection_scale, log_gain_start = _tgs_calc_scales(partitions)
-    minimize = functools.partial(
-        tgs_minimize_nll,
-        calc_nll=calc_nll,
-        selection_scale=selection_scale,
-        loss_rate=loss_rate,
-    )
-    best = minimize(
+    selection_rescale = tgs_pick_selection_rescale(partitions)
+    log_gain_start = tgs_pick_log_gain_rate_start(partitions)
+    best = tgs_minimize_nll(
+        nll_kwargs=nll_kwargs,
         starts=[(log_gain_start, start) for start in selection_coef_starts],
         fit_gain=True,
         fit_selection=True,
-    )
-    # under the null hypothesis of no selection, for the likelihood-ratio test
-    null = minimize(
-        starts=[(best.x[0], 0.0)], fit_gain=True, fit_selection=False
+        selection_rescale=selection_rescale,
+        loss_rate=loss_rate,
     )
     if not best.num_converged:
         warnings.warn(
             "tgs fit optimizer did not converge from any starting point "
             f"({best.message}); estimates may be unreliable.",
         )
-    if not null.success:
-        warnings.warn(
-            "tgs fit optimizer did not converge under the null hypothesis "
-            f"of no selection ({null.message}); likelihood-ratio statistic "
-            "may be unreliable.",
-        )
     logging.debug(
         f"- tgs fit: {best.num_converged} of "
         f"{len(selection_coef_starts)} starts "
-        f"converged; best negative log likelihood {best.fun:.6g}, null "
-        f"{null.fun:.6g}",
+        f"converged; best negative log likelihood {best.fun:.6g}",
     )
-    return TgsFitResult(
+    return dict(
         gain_rate=float(np.exp(best.x[0])),
-        selection_coef=float(best.x[1] * selection_scale),
-        # two-tailed, testing selection coefficient != 0 in either direction
-        selection_coef_lrt_naive=float(2 * (null.fun - best.fun)),
+        selection_coef=float(best.x[1] * selection_rescale),
     )
 
 
@@ -264,20 +175,26 @@ def tgs_fit(
             "tgs_fit got no trait carriers, so gain rate is 0 and the "
             "selection coefficient is undefined.",
         )
-    partitions = pd.DataFrame(
-        {
-            "num_trials": num_trials,
-            "num_successes": num_successes,
-            "length": np.asarray(pendant_length, dtype=np.float64).ravel(),
-        },
-    )
-    return tgs_fit_partitions(
-        calc_nll=functools.partial(
-            tgs_calc_nll,
-            partitions=partitions,
-            growth_exponent_bound=growth_exponent_bound,
+    nll_kwargs = dict(
+        partitions=pl.DataFrame(
+            {
+                "num_trials": num_trials,
+                "num_successes": num_successes,
+                "length": np.asarray(pendant_length, dtype=np.float64).ravel(),
+            },
         ),
-        partitions=partitions,
+        growth_exponent_bound=growth_exponent_bound,
+    )
+    trait_fit = tgs_fit_trait(
+        nll_kwargs=nll_kwargs,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
+    )
+    # no gain ratio or its statistic, which need neutral reference traits,
+    # as this fits one trait alone
+    return TgsFitResult(
+        **trait_fit,
+        selection_coef_lrt_naive=tgs_calc_trait_selection_lrt(
+            nll_kwargs=nll_kwargs, loss_rate=loss_rate, **trait_fit
+        ),
     )

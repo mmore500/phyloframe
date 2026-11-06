@@ -1,10 +1,10 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 def simulate_allmdc_exposure_df(
     num_branches: int = 40_000, seed: int = 1, num_neutral: int = 2
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Branches, as from `tgs_calc_exposure_df`: half leaves (survival duration
     0), half inner branches of clades of 2 to 9 leaves, every branch at
     risk of each trait and gaining it under the allmdc model.
@@ -32,4 +32,4 @@ def simulate_allmdc_exposure_df(
         p = gain * exposure * np.exp(selection * survival)
         columns[f"trait{i}_starts_absent"] = np.ones(num_branches, dtype=bool)
         columns[f"trait{i}_gain"] = rng.random(num_branches) < p
-    return pd.DataFrame(columns)
+    return pl.DataFrame(columns)

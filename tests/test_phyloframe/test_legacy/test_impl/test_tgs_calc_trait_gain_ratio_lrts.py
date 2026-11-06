@@ -1,11 +1,8 @@
-import functools
-
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from phyloframe.legacy._impl import (
-    tgs_calc_gain_ratio_lrts,
-    tgs_calc_nll,
+    tgs_calc_trait_gain_ratio_lrts,
     tgs_fit,
     tgs_normalize_gain_rates_to_neutral,
 )
@@ -16,7 +13,7 @@ def _simulate(gain_rate: float, seed: int):
     lengths = rng.uniform(1, 60, 40)
     num_trials = np.full(40, 20_000.0)
     num_successes = rng.binomial(20_000, gain_rate * lengths).astype(float)
-    return pd.DataFrame(
+    return pl.DataFrame(
         {
             "num_trials": num_trials,
             "num_successes": num_successes,
@@ -29,7 +26,7 @@ def _fit_traits(gain_rates):
     trait_partitions = [
         _simulate(g, seed) for seed, g in enumerate(gain_rates)
     ]
-    fits = pd.DataFrame(
+    fits = pl.DataFrame(
         [
             tgs_fit(
                 num_trials=partitions["num_trials"],
@@ -39,29 +36,28 @@ def _fit_traits(gain_rates):
             for partitions in trait_partitions
         ],
     )
-    calc_nlls = [
-        functools.partial(
-            tgs_calc_nll, partitions=partitions, growth_exponent_bound=600.0
-        )
+    trait_nll_kwargs = [
+        dict(partitions=partitions, growth_exponent_bound=600.0)
         for partitions in trait_partitions
     ]
-    return fits, trait_partitions, calc_nlls
+    return fits, trait_nll_kwargs
 
 
-def _lrts(fits, trait_partitions, calc_nlls, *, neutral_traits, **kwargs):
-    fits = fits.assign(
+def _lrts(fits, trait_nll_kwargs, *, neutral_traits, **kwargs):
+    fits = fits.with_columns(
         gain_ratio=tgs_normalize_gain_rates_to_neutral(
             gain_rates=fits["gain_rate"].to_numpy(),
             neutral_traits=neutral_traits,
         ),
     )
-    return tgs_calc_gain_ratio_lrts(
+    res = tgs_calc_trait_gain_ratio_lrts(
         fits_df=fits,
-        trait_partitions=trait_partitions,
-        calc_nlls=calc_nlls,
+        trait_nll_kwargs=trait_nll_kwargs,
         loss_rate=0.0,
         **kwargs,
     )
+    assert res["trait"].to_list() == list(range(len(fits)))
+    return res["gain_ratio_lrt_naive"].to_numpy()
 
 
 def test_gain_ratio_lrts():
@@ -77,13 +73,16 @@ def test_gain_ratio_lrts():
 
 
 def test_matches_free_fit_at_reference_rate():
-    fits, trait_partitions, calc_nlls = _fit_traits([1e-4, 1e-4, 1e-4])
+    fits, trait_nll_kwargs = _fit_traits([1e-4, 1e-4, 1e-4])
     # make trait 0's fitted gain rate exactly its reference's mean
-    fits.loc[0, "gain_rate"] = fits.loc[[1, 2], "gain_rate"].mean()
+    fits = fits.with_columns(
+        gain_rate=pl.Series(
+            [fits["gain_rate"][1:].mean(), *fits["gain_rate"][1:]]
+        )
+    )
     lrts = _lrts(
         fits,
-        trait_partitions,
-        calc_nlls,
+        trait_nll_kwargs,
         neutral_traits=[1, 2],
         selection_coef_starts=(0.0,),
     )
@@ -93,20 +92,18 @@ def test_matches_free_fit_at_reference_rate():
 
 
 def test_undefined_without_reference_or_gains():
-    fits, trait_partitions, calc_nlls = _fit_traits([1e-4, 1e-4])
+    fits, trait_nll_kwargs = _fit_traits([1e-4, 1e-4])
     lrts = _lrts(
         fits,
-        trait_partitions,
-        calc_nlls,
+        trait_nll_kwargs,
         neutral_traits=[],
         selection_coef_starts=(0.0,),
     )
     assert np.isnan(lrts).all()
     # without gains, a trait's fitted gain rate is 0
     lrts = _lrts(
-        fits.assign(gain_rate=[0.0, fits.loc[1, "gain_rate"]]),
-        trait_partitions,
-        calc_nlls,
+        fits.with_columns(gain_rate=pl.Series([0.0, fits["gain_rate"][1]])),
+        trait_nll_kwargs,
         neutral_traits=[1],
         selection_coef_starts=(0.0,),
     )

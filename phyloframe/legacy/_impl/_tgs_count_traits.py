@@ -1,47 +1,75 @@
 import numpy as np
-import pandas as pd
+import polars as pl
+import polars.selectors as cs
 
-from ._tgs_extract_trait_masks import tgs_extract_trait_masks
+from ._tgs_unpivot_exposure_episodes import (
+    tgs_count_exposure_traits,
+    tgs_unpivot_exposure_episodes,
+)
 
 
 def tgs_count_traits(
     *,
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
     bins: np.ndarray,
     num_bins: int,
     weights: np.ndarray,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns, indexed by (`trait`, `bin`), each trait's (weighted) count of
-    exposure episodes in each calibration bin, `num_trials`, of their gains,
-    `num_successes`, and their summed branch length, `length_sum`, given
-    each row of `exposure_df` (see `tgs_calc_exposure_df`), its `bins`
-    index, and its `weights` (e.g., bootstrap draw counts).
+    Returns each trait's exposure counts in each calibration bin, one row
+    per trait and bin, trait-major, given each row of `exposure_df` (see
+    `tgs_calc_exposure_df`), its `bins` index, and its `weights` (e.g.,
+    bootstrap draw counts); see Output Schema.
+
+    Output Schema
+    -------------
+    'trait' : integer
+        Trait index.
+    'bin' : integer
+        Calibration bin index, from 0 to `num_bins` - 1.
+    'num_trials' : float
+        Weighted count of the trait's exposure episodes in the bin.
+    'num_successes' : float
+        Of those, the weighted count that gained the trait.
+    'length_sum' : float
+        Weighted sum of those episodes' branch lengths.
     """
-    starts_absent, gains = tgs_extract_trait_masks(exposure_df)
-    weights = np.expand_dims(np.asarray(weights, dtype=np.float64), 1)
-    lengths = np.expand_dims(exposure_df["branch_length"].to_numpy(), 1)
-
-    def count(values: np.ndarray) -> np.ndarray:
-        # trait-major, to match the index
-        return np.ravel(
-            [
-                np.bincount(bins, column, minlength=num_bins)
-                for column in values.T
-            ],
+    episode_df = (
+        tgs_unpivot_exposure_episodes(exposure_df).with_columns(
+            bin=pl.lit(pl.Series(bins, dtype=pl.Int64)).gather("exposure_row"),
+            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
+                "exposure_row"
+            ),
+            length=pl.lit(exposure_df["branch_length"]).gather("exposure_row"),
         )
-
-    return pd.DataFrame(
+        # optimization: drop zero-weight episodes
+        .filter(pl.col("weight") > 0)
+    )
+    # every (trait, bin) pair, including those without episodes
+    all_pairs_df = pl.DataFrame(
         {
-            "num_trials": count(starts_absent * weights),
-            "num_successes": count(gains * weights),
-            "length_sum": count(starts_absent * weights * lengths),
-        },
-        index=pd.MultiIndex.from_product(
-            [range(starts_absent.shape[1]), range(num_bins)],
-            names=["trait", "bin"],
-        ),
+            "trait": np.arange(
+                tgs_count_exposure_traits(exposure_df), dtype=np.int64
+            )
+        }
+    ).join(
+        pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)}),
+        how="cross",
+    )
+    return (
+        all_pairs_df.join(
+            episode_df.group_by("trait", "bin").agg(
+                num_trials=pl.col("weight").sum(),
+                num_successes=pl.col("weight").filter(pl.col("gain")).sum(),
+                length_sum=(pl.col("weight") * pl.col("length")).sum(),
+            ),
+            on=["trait", "bin"],
+            how="left",
+        )
+        # zero counts for (trait, bin) pairs without exposure episodes, e.g.,
+        # a bin whose exposure_rows all carry the trait
+        .with_columns(cs.float().fill_null(0.0)).sort("trait", "bin")
     )

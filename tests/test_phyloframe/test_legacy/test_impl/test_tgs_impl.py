@@ -1,14 +1,13 @@
 import numpy as np
-import pandas as pd
+import polars as pl
+import polars.testing as pltest
 import pytest
 
 from phyloframe._auxlib import identity
-from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
-    _alifestd_mark_joint_quantile_bins_fast_path,
-)
+from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
-    tgs_allmdc_count_episodes,
     tgs_calc_exposure_df,
+    tgs_count_episodes,
     tgs_impl,
 )
 
@@ -17,12 +16,12 @@ from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 _TRAIT_NAMES = ["focal", "a", "b", "c"]
 
 
-def _impl(exposure_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
     return tgs_impl(
         exposure_df,
         **{
             **dict(
-                counts_df=tgs_allmdc_count_episodes(
+                counts_df=tgs_count_episodes(
                     trait_names=_TRAIT_NAMES, exposure_df=exposure_df
                 ),
                 trait_names=_TRAIT_NAMES,
@@ -43,36 +42,34 @@ def _impl(exposure_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
     )
 
 
-def _binned_exposure_df() -> pd.DataFrame:
-    exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
-    bins, __ = _alifestd_mark_joint_quantile_bins_fast_path(
-        [exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")],
+def _binned_exposure_df() -> pl.DataFrame:
+    return alifestd_mark_joint_quantile_bins_polars(
+        simulate_allmdc_exposure_df(8_000, num_neutral=3),
+        bin_by=["branch_length", "origin_time"],
         max_bins=16,
-        min_bin_size=4,
-    )
-    return exposure_df.assign(
-        calibration_partition=(exposure_df["clade_size"] > 1).astype(int),
-        calibration_bin=bins,
-        calibration_compare_by_branch_length=exposure_df["branch_length"],
-        calibration_compare_by_origin_time=exposure_df["origin_time"],
+        mark_as="calibration_bin",
+    ).with_columns(
+        calibration_partition=(pl.col("clade_size") > 1).cast(pl.Int64),
+        calibration_compare_by_branch_length=pl.col("branch_length"),
+        calibration_compare_by_origin_time=pl.col("origin_time"),
     )
 
 
 def test_uncalibrated():
     exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
     res = _impl(exposure_df)
-    assert res["trait"].tolist() == _TRAIT_NAMES
-    assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.3)
+    assert res["trait"].to_list() == _TRAIT_NAMES
+    assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)
     # a constant partition column, like none, gives one bin
-    pd.testing.assert_frame_equal(
-        res, _impl(exposure_df.assign(calibration_partition=0))
+    pltest.assert_frame_equal(
+        res, _impl(exposure_df.with_columns(calibration_partition=0))
     )
 
 
 def test_calibrated():
     exposure_df = _binned_exposure_df()
     res = _impl(exposure_df, num_bootstrap=2)
-    assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.3)
+    assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)
     assert "selection_coef_se" in res.columns
 
 
@@ -81,24 +78,22 @@ def test_one_neighborhood_per_partition_ignores_bins():
     # partition were one bin
     exposure_df = _binned_exposure_df()
     whole = _impl(exposure_df, calibrate_neighborhood_fractions=(1.0,))
-    by_partition = _impl(exposure_df.drop(columns="calibration_bin"))
-    pd.testing.assert_frame_equal(whole, by_partition, rtol=1e-4)
+    by_partition = _impl(exposure_df.drop("calibration_bin"))
+    pltest.assert_frame_equal(whole, by_partition, rel_tol=1e-4)
 
 
 def test_partitions_separate_neighborhoods():
     # renumbering partitions so bins are shared across them changes nothing
     exposure_df = _binned_exposure_df()
     res = _impl(exposure_df)
-    shifted = exposure_df.assign(
-        calibration_partition=exposure_df["calibration_partition"] * 5 - 3
+    shifted = exposure_df.with_columns(
+        calibration_partition=pl.col("calibration_partition") * 5 - 3
     )
-    pd.testing.assert_frame_equal(res, _impl(shifted))
+    pltest.assert_frame_equal(res, _impl(shifted))
     # calibrating across partitions differs
     assert not np.allclose(
         res["selection_coef"],
-        _impl(exposure_df.drop(columns="calibration_partition"))[
-            "selection_coef"
-        ],
+        _impl(exposure_df.drop("calibration_partition"))["selection_coef"],
     )
 
 

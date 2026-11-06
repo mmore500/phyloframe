@@ -63,6 +63,18 @@ def test_min_num_classes(min_num_classes: int, expected: list):
     assert res.tolist() == expected
 
 
+def test_warns_if_still_light():
+    # class 1 is light, but min_num_classes keeps it
+    with pytest.warns(UserWarning, match=r"classes \[1\] weigh less"):
+        _calc([0, 1, 4, 5, 7], min_num_classes=3)
+
+
+def test_no_warning_if_heavy(recwarn):
+    _calc(range(len(_SIZES)))
+    _calc([], min_class_weight=0.0)
+    assert not [w for w in recwarn if "weigh less" in str(w.message)]
+
+
 def test_heavy_enough_everywhere():
     res = _calc(range(len(_SIZES)))
     assert res.tolist() == _calc([], min_class_weight=0.0).tolist()
@@ -78,6 +90,14 @@ def test_empty_bins_skipped():
         min_num_classes=2,
     )
     assert res.tolist() == [0, 0, 1, 1, 2, 2]
+
+
+def test_logs_light_class(caplog):
+    # class 1 is light, but min_num_classes keeps it, merging classes 3-4
+    with caplog.at_level(logging.INFO):
+        _calc([0, 1, 4, 5, 7], min_num_classes=3)
+    assert "class 1 weighs less than 1.0" in caplog.text
+    assert "classes above 2 join class 2" in caplog.text
 
 
 def test_logs_clade_sizes_and_weights(caplog):

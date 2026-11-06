@@ -16,8 +16,8 @@ from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
-    tgs_allmdc_count_episodes,
     tgs_build_exposure_df_polars,
+    tgs_count_episodes,
     tgs_impl,
     tgs_validate_args,
 )
@@ -203,10 +203,10 @@ def alifestd_tgs_allmdc_estimate_polars(
     -------------
     As for `alifestd_tgs_pendantmdc_estimate_polars`, with also:
 
-    'num_clades' : integer
+    'num_inner_branches' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
-    'num_clade_gains' : integer
+    'num_inner_gains' : integer
         Of those, the number that gained the trait.
 
     Here, 'num_leaves' and 'num_trait_present' count leaf exposure
@@ -281,9 +281,9 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
-    res = tgs_impl(
+    return tgs_impl(
         exposure_df,
-        counts_df=tgs_allmdc_count_episodes(
+        counts_df=tgs_count_episodes(
             trait_names=trait_names, exposure_df=exposure_df
         ),
         trait_names=trait_names,
@@ -299,7 +299,6 @@ def alifestd_tgs_allmdc_estimate_polars(
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
     )
-    return pl.from_pandas(res)
 
 
 _raw_description = f"""\
@@ -346,8 +345,8 @@ Input Schema: Optional Columns
 Output Schema
 =============
 As for phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars, with also
-'num_clades' and 'num_clade_gains' : integer, the inner exposure episodes and
-how many gained the trait.
+'num_inner_branches' and 'num_inner_gains' : integer, the inner exposure
+episodes and how many gained the trait.
 
 
 Additional Notes

@@ -1,4 +1,3 @@
-import pandas as pd
 import polars as pl
 import pytest
 
@@ -28,15 +27,13 @@ def test_prepare(lazy: bool):
     )
     # unifurcation 1 is bypassed, so leaf 3 hangs from root 0, and the
     # gain into 1 is credited to the merged branch
-    by_time = res.set_index("origin_time")
-    assert sorted(by_time.index) == [2.0, 5.0]
-    assert by_time.loc[5.0, "branch_length"] == 5.0
-    assert by_time.loc[2.0, "branch_length"] == 2.0
-    assert by_time["clade_size"].tolist() == [1, 1]
-    assert by_time["survival_duration"].tolist() == [0.0, 0.0]
+    by_time = res.sort("origin_time")
+    assert by_time["origin_time"].to_list() == [2.0, 5.0]
+    assert by_time["branch_length"].to_list() == [2.0, 5.0]
+    assert by_time["clade_size"].to_list() == [1, 1]
+    assert by_time["survival_duration"].to_list() == [0.0, 0.0]
     assert by_time["trait0_starts_absent"].all()
-    assert by_time.loc[5.0, "trait0_gain"]
-    assert not by_time.loc[2.0, "trait0_gain"]
+    assert by_time["trait0_gain"].to_list() == [False, True]
 
 
 def test_traits_numbered_in_order():
@@ -62,9 +59,11 @@ def test_empty():
     res = tgs_build_exposure_df_polars(
         df_pl, trait_transitions=["t"], caller="test"
     )
-    assert isinstance(res, pd.DataFrame)
-    assert res.empty
-    assert {"branch_length", "trait0_starts_absent", "trait0_gain"} <= set(res)
+    assert isinstance(res, pl.DataFrame)
+    assert res.is_empty()
+    assert {"branch_length", "trait0_starts_absent", "trait0_gain"} <= set(
+        res.columns
+    )
 
 
 def test_null_transitions_raise():
@@ -99,13 +98,13 @@ def test_calibration_columns():
         calibration_compare_by_bins="b",
         calibration_compare_by_vals=["v", "branch_length"],
     )
-    by_time = res.set_index("origin_time")
-    assert by_time["node_id"].tolist() == [2, 3]
-    assert by_time["calibration_partition"].tolist() == [7, 8]
-    assert by_time["calibration_bin"].tolist() == [3, 4]
-    assert by_time["calibration_compare_by_v"].tolist() == [0.5, 1.5]
+    by_time = res.sort("origin_time")
+    assert by_time["node_id"].to_list() == [2, 3]
+    assert by_time["calibration_partition"].to_list() == [7, 8]
+    assert by_time["calibration_bin"].to_list() == [3, 4]
+    assert by_time["calibration_compare_by_v"].to_list() == [0.5, 1.5]
     # the exposure table's own branch lengths take precedence
-    assert by_time["calibration_compare_by_branch_length"].tolist() == [
+    assert by_time["calibration_compare_by_branch_length"].to_list() == [
         2.0,
         5.0,
     ]
@@ -153,5 +152,5 @@ def test_stem_node_branch_lengths_match():
     )
     assert (
         marked["branch_length"].gather(res["node_id"].to_numpy()).to_list()
-        == res["branch_length"].tolist()
+        == res["branch_length"].to_list()
     )

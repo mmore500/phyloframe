@@ -219,7 +219,9 @@ def test_unifurcations_bypassed():
 
 def test_nan_origin_time_ignored():
     phylogeny_df, traits = _make_cherries(2_000)
-    kwargs = dict(neutral_traits=[1, 2, 3, 4], calibrate=True)
+    # no calibration bins, as alifestd_mark_joint_quantile_bins_polars
+    # rejects nan values
+    kwargs = dict(neutral_traits=[1, 2, 3, 4])
     expected = _estimate_from_masks(phylogeny_df, trait_masks=traits, **kwargs)
 
     # add a disconnected root with unknown origin time
@@ -418,20 +420,19 @@ def test_calibration_warns_without_neutral_gains():
 def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     bin_coords = rng.random((256, 2))
-    counts = pd.DataFrame(
+    counts = pl.DataFrame(
         {
+            "trait": np.repeat(np.arange(3), 256),
+            "bin": np.tile(np.arange(256), 3),
             "num_trials": 100.0,
             "num_successes": rng.binomial(100, 0.01, 3 * 256).astype(float),
             "length_sum": 1000.0,
         },
-        index=pd.MultiIndex.from_product(
-            [range(3), range(256)], names=["trait", "bin"]
-        ),
     )
     res = tgs_select_calibration_neighborhoods(
         bin_coords=bin_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
-        counts=counts,
+        trait_bin_counts_df=counts,
         neutral_traits=[0, 1, 2],
         trait_names=["a", "b", "c"],
         max_rate_ratio=np.inf,

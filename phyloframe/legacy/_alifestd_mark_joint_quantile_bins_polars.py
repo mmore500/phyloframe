@@ -8,6 +8,7 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 
 from .._auxlib._assign_kdtree_partitions import assign_kdtree_partitions
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -73,8 +74,7 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     Columns constant within a partition are skipped there: their ranks,
     tiebroken by the other columns, would only repeat those columns'
-    splits. Rows with null (or nan) values, e.g., roots' branch lengths, are
-    marked -1.
+    splits.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -103,6 +103,8 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     Raises
     ------
+    NotImplementedError
+        If a `bin_by` or `partition_by` value is null or nan.
     ValueError
         If a column is missing, if `bin_by` is empty, if `max_bins` is not a
         power of two, or if `min_bin_size` is less than 1.
@@ -140,7 +142,7 @@ def alifestd_mark_joint_quantile_bins_polars(
         phylogeny_df.lazy()
         .select(
             *(
-                pl.col(c).cast(pl.Float64).fill_nan(None).alias(f"bin_by{i}")
+                pl.col(c).cast(pl.Float64).alias(f"bin_by{i}")
                 for i, c in enumerate(bin_by)
             ),
             (
@@ -148,16 +150,20 @@ def alifestd_mark_joint_quantile_bins_polars(
             ).alias("partition"),
         )
         .with_row_index("row")
-        .filter(~pl.any_horizontal(pl.all().is_null()))
-        .sort("partition")
         .collect()
     )
-
-    marks = np.full(phylogeny_df.lazy().select(pl.len()).collect().item(), -1)
+    if selected.select(
+        pl.any_horizontal(pl.all().is_null(), cs.float().is_nan()).any()
+    ).item():
+        raise NotImplementedError(
+            "null or nan bin_by or partition_by values not supported",
+        )
+    marks = np.empty(len(selected), dtype=np.int64)
     offset = 0  # bins are numbered consecutively across partitions
-    for (partition,), group in selected.group_by(
+    # stable sort keeps row order within partitions, which breaks full ties
+    for (partition,), group in selected.sort(
         "partition", maintain_order=True
-    ):
+    ).group_by("partition", maintain_order=True):
         coordinates = [
             group[f"bin_by{i}"].to_numpy() for i in range(len(bin_by))
         ]

@@ -1,11 +1,11 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import scipy.sparse as scipy_sparse
 import sklearn.preprocessing as sklearn_preprocessing
 
-from ._tgs_extract_trait_masks import tgs_extract_trait_masks
+from ._tgs_unpivot_exposure_episodes import tgs_unpivot_exposure_episodes
 
 
 def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
@@ -22,14 +22,14 @@ def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
 
 def tgs_merge_episodes(
     *,
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
     bins: np.ndarray,
     calibration_factors: np.ndarray,
     weights: np.ndarray,
     length_rtol: float,
     survival_duration_indices: np.ndarray,
     num_survival_durations: int,
-) -> typing.Tuple[pd.DataFrame, scipy_sparse.csr_matrix]:
+) -> typing.Tuple[pl.DataFrame, scipy_sparse.csr_matrix]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -40,21 +40,38 @@ def tgs_merge_episodes(
     `length_rtol`, i.e., fall in the same cell of a log-scale grid with
     ratio 1 + `length_rtol` (0 for no merging), so that merged episodes
     have nearly the same chance of gain, and merging loses little
-    information about which episodes gained the trait. Each episode's length is calibrated by its calibration bin's
-    factor, `calibration_factors[trait, bin]`.
+    information about which episodes gained the trait. Each episode's
+    length is calibrated by its calibration bin's factor,
+    `calibration_factors[trait, bin]`.
 
     Returns `partition_df`, one row per trait and merged length cell with
-    episodes, trait-major, with columns `trait` (index, categorical over
-    all traits), the (weighted, by `weights`) counts of episodes,
-    `num_trials`, and of gains, `num_successes`, and their mean calibrated
-    `length`. Also returns `survival_shares`, a sparse matrix with a row
-    per `partition_df` row and a column per distinct survival duration
-    (episodes' `survival_duration_indices`), giving the share of the row's
-    episodes with each.
+    episodes, trait-major (see Output Schema), and `survival_shares`, a
+    sparse matrix with a row per `partition_df` row and a column per
+    distinct survival duration (episodes' `survival_duration_indices`),
+    giving the share of the row's episodes with each.
+
+    Output Schema
+    -------------
+    'trait' : integer
+        Trait index.
+    'num_trials' : float
+        Weighted (by `weights`) count of the row's merged episodes.
+    'num_successes' : float
+        Of those, the weighted count that gained the trait.
+    'length' : float
+        Their weighted mean calibrated branch length.
     """
-    starts_absent, gains = tgs_extract_trait_masks(exposure_df)
-    num_traits = starts_absent.shape[1]
-    episode_traits, episodes = np.nonzero(starts_absent.T)  # trait-major
+    episodes_df = (
+        tgs_unpivot_exposure_episodes(exposure_df).with_columns(
+            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
+                "exposure_row"
+            ),
+        )
+        # optimization: drop zero-weight episodes
+        .filter(pl.col("weight") > 0)
+    )
+    episode_traits = episodes_df["trait"].to_numpy()
+    episodes = episodes_df["exposure_row"].to_numpy()
     lengths = (
         exposure_df["branch_length"].to_numpy()[episodes]
         * calibration_factors[episode_traits, bins[episodes]]
@@ -68,38 +85,49 @@ def tgs_merge_episodes(
     else:
         length_cells = np.arange(len(lengths))
         survival_cells = np.zeros(len(lengths), dtype=np.int64)
-    episode_weights = np.asarray(weights, dtype=np.float64)[episodes]
-    grouped = pd.DataFrame(
+    episode_weights = episodes_df["weight"].to_numpy()
+    episode_df = pl.DataFrame(
         {
             "trait": episode_traits,
             "length_cell": length_cells,
             "survival_cell": survival_cells,
-            "num_trials": episode_weights,
-            "num_successes": episode_weights * gains[episodes, episode_traits],
-            "length": episode_weights * lengths,
+            "weight": episode_weights,
+            "gain": episodes_df["gain"],
+            "length": lengths,
         },
-    ).groupby(["trait", "length_cell", "survival_cell"], sort=True)
-    sums = grouped[["num_trials", "num_successes", "length"]].sum()
-    rows = grouped.ngroup().to_numpy()  # each episode's merged row
+    ).with_columns(
+        # each episode's merged row, numbering keys in sorted order
+        row=pl.struct("trait", "length_cell", "survival_cell").rank("dense")
+        - 1,
+    )
+    row_sums_df = (
+        episode_df.group_by("row")
+        .agg(
+            pl.col("trait").first(),
+            num_trials=pl.col("weight").sum(),
+            num_successes=pl.col("weight").filter(pl.col("gain")).sum(),
+            length=(pl.col("weight") * pl.col("length")).sum(),
+        )
+        .sort("row")
+    )
+    rows = episode_df["row"].to_numpy()
 
     # each row's distribution of episode weight over survival durations;
     # l1 normalization scales each row to sum to 1
     survival_shares = sklearn_preprocessing.normalize(
         scipy_sparse.csr_matrix(
             (episode_weights, (rows, survival_duration_indices[episodes])),
-            shape=(len(sums), num_survival_durations),
+            shape=(len(row_sums_df), num_survival_durations),
         ),
         norm="l1",
     )
     # drop rows whose episodes all have zero weight (e.g., in a bootstrap
     # replicate)
-    has_episodes = sums["num_trials"].to_numpy() > 0
-    partition_df = sums[has_episodes].reset_index()
-    partition_df["length"] /= partition_df["num_trials"]
-    partition_df["trait"] = pd.Categorical(
-        partition_df["trait"], categories=range(num_traits)
+    has_episodes = row_sums_df["num_trials"].to_numpy() > 0
+    partition_df = row_sums_df.filter(has_episodes).select(
+        "trait",
+        "num_trials",
+        "num_successes",
+        pl.col("length") / pl.col("num_trials"),
     )
-    return (
-        partition_df[["trait", "num_trials", "num_successes", "length"]],
-        survival_shares[has_episodes],
-    )
+    return partition_df, survival_shares[has_episodes]

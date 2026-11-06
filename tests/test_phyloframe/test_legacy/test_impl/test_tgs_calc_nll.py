@@ -2,7 +2,7 @@ from fractions import Fraction
 from math import factorial
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 from scipy import optimize
 
@@ -17,7 +17,7 @@ def _data():
     lengths = rng.uniform(1, 20, 6)
     shares = rng.random((6, 3))
     shares /= shares.sum(axis=1, keepdims=True)
-    partitions = pd.DataFrame(
+    partitions = pl.DataFrame(
         {"num_trials": n, "num_successes": k, "length": lengths}
     )
     data = dict(partitions=partitions, survival_shares=shares)
@@ -33,7 +33,7 @@ def _pendant_partitions(gain_rate: float, selection_coef: float, seed: int):
         if selection_coef == 0
         else gain_rate * np.expm1(selection_coef * length) / selection_coef
     )
-    return pd.DataFrame(
+    return pl.DataFrame(
         {
             "num_trials": num_trials,
             "num_successes": rng.binomial(num_trials.astype(int), p),

@@ -3,7 +3,8 @@ import logging
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
+import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._calc_group_means import calc_group_means
@@ -17,24 +18,25 @@ from ._tgs_select_calibration_neighborhoods import (
 )
 
 
-def _slice_bins(counts: pd.DataFrame, begin: int, end: int) -> pd.DataFrame:
+def _slice_bins(
+    trait_bin_counts_df: pl.DataFrame, begin: int, end: int
+) -> pl.DataFrame:
     """Implementation detail for `tgs_impl`.
 
-    Returns `counts` (see `tgs_count_traits`) of bins `begin` up to `end`,
-    renumbered from 0.
+    Returns the rows of `trait_bin_counts_df`, per-trait exposure counts in
+    each calibration bin (see `tgs_count_traits`), for one partition's
+    bins, `begin` up to `end`, with bins renumbered from 0 to match that
+    partition's own bin coordinates.
     """
-    res = counts.loc[(slice(None), slice(begin, end - 1)), :].copy()
-    res.index = pd.MultiIndex.from_product(
-        [counts.index.levels[0], range(end - begin)],
-        names=counts.index.names,
-    )
-    return res
+    return trait_bin_counts_df.filter(
+        pl.col("bin").is_between(begin, end - 1)
+    ).with_columns(pl.col("bin") - begin)
 
 
 def tgs_impl(
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
     *,
-    counts_df: pd.DataFrame,
+    counts_df: pl.DataFrame,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate_neighborhood_fractions: typing.Sequence[float],
@@ -47,7 +49,7 @@ def tgs_impl(
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -66,12 +68,16 @@ def tgs_impl(
         raise ValueError("phylogeny_df has no exposure episodes to fit")
 
     # number (partition, bin) pairs consecutively, partition-major, so that
-    # each partition's bins are contiguous; without columns, all are one
-    zeros = np.zeros(num_episodes, dtype=np.int64)
+    # each partition's bins are contiguous; a missing column counts as 0, so
+    # without either, every episode is in one bin
     pairs, bins = np.unique(
         np.column_stack(
             [
-                exposure_df.get(column, zeros)
+                (
+                    exposure_df[column].to_numpy()
+                    if column in exposure_df.columns
+                    else np.zeros(num_episodes, dtype=np.int64)
+                )
                 for column in ("calibration_partition", "calibration_bin")
             ],
         ),
@@ -81,19 +87,23 @@ def tgs_impl(
     bins = bins.ravel()
     num_bins = len(pairs)
     if num_bins > 1:
-        coordinates = [
-            exposure_df[column].to_numpy()
-            for column in exposure_df.columns
-            if column.startswith("calibration_compare_by_")
-        ]
-        # bins' mean ranks; constant coordinates carry no distance
-        ranks = calc_tiebroken_ranks(
-            [x for x in coordinates if np.ptp(x) > 0] or coordinates[:1]
+        compare_by_df = exposure_df.select(
+            cs.starts_with("calibration_compare_by_")
+        )
+        # each episode's rank by each compare-by column, averaged per bin;
+        # constant columns carry no distance
+        episode_ranks = calc_tiebroken_ranks(
+            [
+                compare_by_df[column].to_numpy()
+                for column in compare_by_df.columns
+                if compare_by_df[column].n_unique() > 1
+            ]
+            or [compare_by_df[compare_by_df.columns[0]].to_numpy()]
         )
         bin_coords = calc_group_means(
-            bins, ranks / num_episodes, num_groups=num_bins
+            bins, episode_ranks / num_episodes, num_groups=num_bins
         )
-        counts = tgs_count_traits(
+        trait_bin_counts_df = tgs_count_traits(
             exposure_df=exposure_df,
             bins=bins,
             num_bins=num_bins,
@@ -108,7 +118,9 @@ def tgs_impl(
                 tgs_select_calibration_neighborhoods(
                     bin_coords=bin_coords[begin:end],
                     neighborhood_fractions=calibrate_neighborhood_fractions,
-                    counts=_slice_bins(counts, begin, end),
+                    trait_bin_counts_df=_slice_bins(
+                        trait_bin_counts_df, begin, end
+                    ),
                     neutral_traits=neutral_traits,
                     trait_names=trait_names,
                     max_rate_ratio=calibrate_max_rate_ratio,

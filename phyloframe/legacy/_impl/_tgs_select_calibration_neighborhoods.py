@@ -3,7 +3,7 @@ import typing
 import warnings
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
@@ -14,7 +14,7 @@ def tgs_select_calibration_neighborhoods(
     *,
     bin_coords: np.ndarray,
     neighborhood_fractions: typing.Sequence[float],
-    counts: pd.DataFrame,
+    trait_bin_counts_df: pl.DataFrame,
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
@@ -28,7 +28,7 @@ def tgs_select_calibration_neighborhoods(
     (see `tgs_calc_calibration_factors`): each bin's nearest bins by
     `bin_coords`, of the size, among `neighborhood_fractions`, that best
     predicts each held-out neutral trait's gains when calibrating against
-    the other neutral traits (see `tgs_calc_heldout_nll`), given (`trait`, `bin`)-indexed `counts` (see
+    the other neutral traits (see `tgs_calc_heldout_nll`), given `trait_bin_counts_df` (see
     `tgs_count_traits`). Warns about any neighborhoods without neutral gains.
     """
     best_nll, best_neighborhoods, best_fraction = np.inf, None, np.nan
@@ -43,7 +43,7 @@ def tgs_select_calibration_neighborhoods(
         nll = sum(
             tgs_calc_heldout_nll(
                 calibration_neighborhoods=calibration_neighborhoods,
-                counts=counts,
+                trait_bin_counts_df=trait_bin_counts_df,
                 trait=trait,
                 trait_name=trait_names[trait],
                 neutral_traits=neutral_traits,
@@ -61,9 +61,10 @@ def tgs_select_calibration_neighborhoods(
             best_fraction = fraction
 
     neutral_gains = (
-        counts.loc[list(neutral_traits), "num_successes"]
-        .groupby(level="bin")
-        .sum()
+        trait_bin_counts_df.filter(pl.col("trait").is_in(neutral_traits))
+        .group_by("bin")
+        .agg(pl.col("num_successes").sum())
+        .sort("bin")["num_successes"]
         .to_numpy()
     )
     num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
