@@ -16,13 +16,13 @@ def _tgs_calc_exposure(partitions: pl.DataFrame) -> float:
     return (partitions["num_trials"] * partitions["length"]).sum()
 
 
-def tgs_pick_selection_scale(partitions: pl.DataFrame) -> float:
+def tgs_pick_selection_rescale(partitions: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
-    Picks the scale by which to optimize the selection coefficient (see
-    `tgs_minimize_nll`): 1 / mean branch length of `partitions`' episodes,
-    a typical rate.
+    Picks the rate by which to rescale the selection coefficient for
+    optimization (see `tgs_minimize_nll`): 1 / mean branch length of
+    `partitions`' episodes, a typical rate.
     """
     return partitions["num_trials"].sum() / _tgs_calc_exposure(partitions)
 
@@ -46,7 +46,7 @@ def tgs_minimize_nll(
     starts: typing.Sequence[typing.Tuple[float, float]],
     fit_gain: bool,
     fit_selection: bool,
-    selection_scale: float,
+    selection_rescale: float,
     loss_rate: float,
 ) -> optimize.OptimizeResult:
     """Implementation detail for `tgs_fit_trait`,
@@ -61,7 +61,7 @@ def tgs_minimize_nll(
     `.num_converged`.
 
     The selection coefficient is optimized, and given in `starts`, as a
-    multiple of `selection_scale`, a typical rate, e.g., 1 / mean branch
+    multiple of `selection_rescale`, a typical rate, e.g., 1 / mean branch
     length, so that both parameters are of order one; otherwise, with long
     lengths, L-BFGS-B stops early on the tiny selection coefficient.
     """
@@ -72,13 +72,13 @@ def tgs_minimize_nll(
     ) -> typing.Tuple[float, np.ndarray]:
         params = start.copy()
         params[is_free] = free_params
-        log_gain_rate, scaled_selection = params
+        log_gain_rate, rescaled_selection = params
         res, dlog_gain, drate = tgs_calc_nll(
             **nll_kwargs,
             log_gain_rate=log_gain_rate,
-            rate=scaled_selection * selection_scale - loss_rate,
+            rate=rescaled_selection * selection_rescale - loss_rate,
         )
-        return res, np.array([dlog_gain, drate * selection_scale])[is_free]
+        return res, np.array([dlog_gain, drate * selection_rescale])[is_free]
 
     fits = []
     for start in starts:

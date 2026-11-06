@@ -9,7 +9,7 @@ from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrt
 from ._tgs_minimize_nll import (
     tgs_minimize_nll,
     tgs_pick_log_gain_rate_start,
-    tgs_pick_selection_scale,
+    tgs_pick_selection_rescale,
 )
 
 
@@ -57,14 +57,14 @@ def tgs_fit_trait(
     if not partitions["num_successes"].to_numpy().any():
         return dict(gain_rate=0.0, selection_coef=np.nan)
 
-    selection_scale = tgs_pick_selection_scale(partitions)
+    selection_rescale = tgs_pick_selection_rescale(partitions)
     log_gain_start = tgs_pick_log_gain_rate_start(partitions)
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
         starts=[(log_gain_start, start) for start in selection_coef_starts],
         fit_gain=True,
         fit_selection=True,
-        selection_scale=selection_scale,
+        selection_rescale=selection_rescale,
         loss_rate=loss_rate,
     )
     if not best.num_converged:
@@ -79,7 +79,7 @@ def tgs_fit_trait(
     )
     return dict(
         gain_rate=float(np.exp(best.x[0])),
-        selection_coef=float(best.x[1] * selection_scale),
+        selection_coef=float(best.x[1] * selection_rescale),
     )
 
 
