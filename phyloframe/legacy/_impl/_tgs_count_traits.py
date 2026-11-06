@@ -2,7 +2,10 @@ import numpy as np
 import polars as pl
 import polars.selectors as cs
 
-from ._tgs_extract_trait_masks import tgs_extract_trait_masks
+from ._tgs_unpivot_exposure_episodes import (
+    tgs_count_exposure_traits,
+    tgs_unpivot_exposure_episodes,
+)
 
 
 def tgs_count_traits(
@@ -23,24 +26,20 @@ def tgs_count_traits(
     `tgs_calc_exposure_df`), its `bins` index, and its `weights` (e.g.,
     bootstrap draw counts).
     """
-    starts_absent, gains = tgs_extract_trait_masks(exposure_df)
-    num_traits = starts_absent.shape[1]
-    # one row per exposure episode, i.e., trait and branch starting without
-    # it
-    episode_traits, episodes = np.nonzero(starts_absent.T)
-    episode_df = pl.DataFrame(
-        {
-            "trait": episode_traits,
-            "bin": np.asarray(bins)[episodes],
-            "weight": np.asarray(weights, dtype=np.float64)[episodes],
-            "gain": gains[episodes, episode_traits],
-            "length": exposure_df["branch_length"].to_numpy()[episodes],
-        },
-        schema_overrides={"trait": pl.Int64, "bin": pl.Int64},
+    episode_df = tgs_unpivot_exposure_episodes(exposure_df)
+    branches = episode_df["branch"].to_numpy()
+    episode_df = episode_df.with_columns(
+        bin=np.asarray(bins, dtype=np.int64)[branches],
+        weight=np.asarray(weights, dtype=np.float64)[branches],
+        length=exposure_df["branch_length"].to_numpy()[branches],
     )
     # every (trait, bin) pair, including those without episodes
     all_pairs_df = pl.DataFrame(
-        {"trait": np.arange(num_traits, dtype=np.int64)}
+        {
+            "trait": np.arange(
+                tgs_count_exposure_traits(exposure_df), dtype=np.int64
+            )
+        }
     ).join(
         pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)}),
         how="cross",

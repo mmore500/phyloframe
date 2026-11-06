@@ -17,7 +17,7 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
     tgs_build_exposure_df_polars,
-    tgs_extract_trait_masks,
+    tgs_count_episodes,
     tgs_impl,
     tgs_validate_args,
 )
@@ -323,16 +323,11 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     )
     # leaf pendant branches only
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
-    starts_absent, gains = tgs_extract_trait_masks(exposure_df)
     return tgs_impl(
         exposure_df,
-        counts_df=pl.DataFrame(
-            {
-                "trait": trait_names,
-                "num_leaves": starts_absent.sum(axis=0),
-                "num_trait_present": gains.sum(axis=0),
-            },
-        ),
+        counts_df=tgs_count_episodes(
+            trait_names=trait_names, exposure_df=exposure_df
+        ).select("trait", "num_leaves", "num_trait_present"),
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,

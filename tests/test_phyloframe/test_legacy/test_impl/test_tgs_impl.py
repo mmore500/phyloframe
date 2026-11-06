@@ -6,8 +6,8 @@ import pytest
 from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
-    tgs_allmdc_count_episodes,
     tgs_calc_exposure_df,
+    tgs_count_episodes,
     tgs_impl,
 )
 
@@ -21,7 +21,7 @@ def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
         exposure_df,
         **{
             **dict(
-                counts_df=tgs_allmdc_count_episodes(
+                counts_df=tgs_count_episodes(
                     trait_names=_TRAIT_NAMES, exposure_df=exposure_df
                 ),
                 trait_names=_TRAIT_NAMES,

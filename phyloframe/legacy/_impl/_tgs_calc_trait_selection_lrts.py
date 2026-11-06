@@ -31,10 +31,11 @@ def tgs_calc_trait_selection_lrt(
         log_gain_rate=np.log(gain_rate),
         rate=selection_coef - loss_rate,
     )
-    # under the null hypothesis of no selection
+    # under the null hypothesis of no selection, refit the log gain rate
+    # alone, starting from its free fit, with selection held at 0
     null = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
-        starts=[(np.log(gain_rate), 0.0)],
+        starts=[(np.log(gain_rate), 0.0)],  # (log gain rate, selection)
         fit_gain=True,
         fit_selection=False,
         selection_scale=selection_scale,

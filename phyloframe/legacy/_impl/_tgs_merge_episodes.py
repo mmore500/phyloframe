@@ -5,7 +5,7 @@ import polars as pl
 import scipy.sparse as scipy_sparse
 import sklearn.preprocessing as sklearn_preprocessing
 
-from ._tgs_extract_trait_masks import tgs_extract_trait_masks
+from ._tgs_unpivot_exposure_episodes import tgs_unpivot_exposure_episodes
 
 
 def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
@@ -47,13 +47,14 @@ def tgs_merge_episodes(
     Returns `partition_df`, one row per trait and merged length cell with
     episodes, trait-major, with columns `trait` (index), the (weighted, by
     `weights`) counts of episodes, `num_trials`, and of gains,
-    `num_successes`, and their mean calibrated `length`. Also returns `survival_shares`, a sparse matrix with a row
-    per `partition_df` row and a column per distinct survival duration
+    `num_successes`, and their mean calibrated `length`. Also returns
+    `survival_shares`, a sparse matrix with a row per `partition_df` row and a column per distinct survival duration
     (episodes' `survival_duration_indices`), giving the share of the row's
     episodes with each.
     """
-    starts_absent, gains = tgs_extract_trait_masks(exposure_df)
-    episode_traits, episodes = np.nonzero(starts_absent.T)  # trait-major
+    episodes_df = tgs_unpivot_exposure_episodes(exposure_df)
+    episode_traits = episodes_df["trait"].to_numpy()
+    episodes = episodes_df["branch"].to_numpy()
     lengths = (
         exposure_df["branch_length"].to_numpy()[episodes]
         * calibration_factors[episode_traits, bins[episodes]]
@@ -74,7 +75,7 @@ def tgs_merge_episodes(
             "length_cell": length_cells,
             "survival_cell": survival_cells,
             "weight": episode_weights,
-            "gain": gains[episodes, episode_traits],
+            "gain": episodes_df["gain"],
             "length": lengths,
         },
     ).with_columns(
