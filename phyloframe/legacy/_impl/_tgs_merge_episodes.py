@@ -90,6 +90,8 @@ def tgs_merge_episodes(
         row=pl.struct("length_cell", "survival_cell").rank("dense")
         - 1,
     )
+    # copied into episode_df; free before aggregating
+    del episodes_df, lengths, survival_durations, length_cells, survival_cells
     row_sums_df = (
         episode_df.group_by("row")
         .agg(

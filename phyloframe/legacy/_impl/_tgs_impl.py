@@ -1,4 +1,5 @@
 import functools
+import gc
 import logging
 import typing
 
@@ -9,6 +10,7 @@ from scipy import sparse
 
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
+from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_count_traits import tgs_count_traits
@@ -149,6 +151,7 @@ def tgs_impl(
         bin_coords = calc_group_means(
             bins, episode_ranks / num_episodes, num_groups=num_bins
         )
+        del compare_by_df, episode_ranks
         trait_bin_counts_df = tgs_count_traits(
             exposure_df=exposure_df,
             bins=bins,
@@ -175,6 +178,8 @@ def tgs_impl(
             ],
             format="csr",
         )
+        gc.collect()
+        log_memory_usage(logging.info)
     else:  # one neighborhood of all episodes, i.e., no calibration
         calibration_neighborhoods = sparse.identity(1, format="csr")
 
@@ -207,6 +212,9 @@ def tgs_impl(
         trait_bin_counts_df=trait_bin_counts_df,
         **fit_kwargs,
     )
+    del trait_bin_counts_df  # replicates count with their own weights
+    gc.collect()
+    log_memory_usage(logging.info)
     bootstrap_fits_df = None
     if num_bootstrap:
         logging.info(f"- tgs: fitting {num_bootstrap} bootstrap replicates...")
@@ -218,6 +226,8 @@ def tgs_impl(
             parallel_backend=parallel_backend,
             progress_wrap=progress_wrap,
         )
+        gc.collect()
+        log_memory_usage(logging.info)
     return tgs_build_estimates_df(
         counts_df,
         point_estimate_df=point_estimate_df,

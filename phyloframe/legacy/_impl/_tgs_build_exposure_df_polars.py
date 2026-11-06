@@ -1,8 +1,11 @@
+import gc
+import logging
 import typing
 
 import numpy as np
 import polars as pl
 
+from ..._auxlib._log_memory_usage import log_memory_usage
 from .._alifestd_assign_contiguous_ids_polars import (
     alifestd_assign_contiguous_ids_polars,
 )
@@ -148,6 +151,9 @@ def tgs_build_exposure_df_polars(
             .lazy()
             .collect()
         )
+        del selected, states
+        gc.collect()
+        log_memory_usage(logging.info)
     ancestor_ids = collapsed["ancestor_id"].to_numpy()
     exposure_df = tgs_calc_exposure_df(
         ancestor_ids=ancestor_ids,
@@ -181,4 +187,8 @@ def tgs_build_exposure_df_polars(
                 )
             values = values.to_numpy()[~is_root]
         columns[f"calibration_compare_by_{column}"] = values
-    return exposure_df.with_columns(**columns)
+    exposure_df = exposure_df.with_columns(**columns)
+    del collapsed, columns
+    gc.collect()
+    log_memory_usage(logging.info)
+    return exposure_df
