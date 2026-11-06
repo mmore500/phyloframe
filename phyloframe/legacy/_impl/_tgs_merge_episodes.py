@@ -99,8 +99,10 @@ def tgs_merge_episodes(
         )
         .sort("row")
     )
-    # each row's distribution of episode weight over survival durations,
-    # scaling each row by its total weight, num_trials, to sum to 1
+    # each row's distribution of episode weight over survival durations;
+    # scaling each row by its total weight, num_trials, makes its shares sum
+    # to 1, so `tgs_calc_nll` gets the row's mean survival factor,
+    # exp(rate * u), as shares @ exp(rate * distinct durations)
     survival_shares = scipy_sparse.diags(
         1 / row_sums_df["num_trials"].to_numpy()
     ) @ scipy_sparse.csr_matrix(

@@ -13,19 +13,28 @@ def _tgs_count_trait_episodes(
 
     Output Schema
     -------------
-    As for `tgs_count_episodes`, but without 'trait'.
+    'num_leaves' : integer
+        Leaf exposure episodes, i.e., leaf branches that started without
+        the trait.
+    'num_trait_present' : integer
+        Of those, the number that gained the trait.
+    'num_inner_branches' : integer
+        Inner exposure episodes, i.e., inner branches that started without
+        the trait.
+    'num_inner_gains' : integer
+        Of those, the number that gained the trait.
     """
     starts_absent = pl.col(f"trait{trait}_starts_absent")
     gain = starts_absent & pl.col(f"trait{trait}_gain")
     is_leaf = pl.col("clade_size") == 1
     return exposure_df.select(
-        (mask.cast(pl.Int64).sum().alias(name))
-        for name, mask in (
-            ("num_leaves", starts_absent & is_leaf),
-            ("num_trait_present", gain & is_leaf),
-            ("num_inner_branches", starts_absent & ~is_leaf),
-            ("num_inner_gains", gain & ~is_leaf),
-        )
+        mask.cast(pl.Int64).sum().alias(name)
+        for name, mask in dict(
+            num_leaves=starts_absent & is_leaf,
+            num_trait_present=gain & is_leaf,
+            num_inner_branches=starts_absent & ~is_leaf,
+            num_inner_gains=gain & ~is_leaf,
+        ).items()
     )
 
 
@@ -56,11 +65,19 @@ def tgs_count_episodes(
     'num_inner_gains' : integer
         Of those, the number that gained the trait.
     """
-    columns = ["num_leaves", "num_trait_present"]
-    columns += ["num_inner_branches", "num_inner_gains"]
     return pl.concat(
         [
-            pl.DataFrame(schema=dict.fromkeys(columns, pl.Int64)),  # no traits
+            pl.DataFrame(  # in case there are no traits
+                schema=dict.fromkeys(
+                    [
+                        "num_leaves",
+                        "num_trait_present",
+                        "num_inner_branches",
+                        "num_inner_gains",
+                    ],
+                    pl.Int64,
+                ),
+            ),
             *(  # one trait at a time, straight from the exposure table
                 _tgs_count_trait_episodes(exposure_df, trait=trait)
                 for trait in range(len(trait_names))

@@ -1,5 +1,4 @@
 import polars as pl
-import polars.selectors as cs
 
 
 def tgs_count_exposure_traits(exposure_df: pl.DataFrame) -> int:
@@ -10,7 +9,12 @@ def tgs_count_exposure_traits(exposure_df: pl.DataFrame) -> int:
     Returns the number of traits in `exposure_df` (see
     `tgs_calc_exposure_df`).
     """
-    return exposure_df.select(cs.matches(r"^trait\d+_starts_absent$")).width
+    return (
+        pl.Series(exposure_df.columns, dtype=pl.String)
+        .str.extract(r"^trait(\d+)_")
+        .drop_nulls()
+        .n_unique()
+    )
 
 
 def tgs_select_trait_episodes(

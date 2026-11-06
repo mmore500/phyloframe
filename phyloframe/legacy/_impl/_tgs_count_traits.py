@@ -7,14 +7,6 @@ from ._tgs_select_trait_episodes import (
     tgs_select_trait_episodes,
 )
 
-_SCHEMA = {
-    "trait": pl.Int64,
-    "bin": pl.Int64,
-    "num_trials": pl.Float64,
-    "num_successes": pl.Float64,
-    "length_sum": pl.Float64,
-}
-
 
 def _tgs_count_trait_bins(
     *,
@@ -85,7 +77,15 @@ def tgs_count_traits(
     )
     return pl.concat(
         [
-            pl.DataFrame(schema=_SCHEMA),  # in case there are no traits
+            pl.DataFrame(  # in case there are no traits
+                schema={
+                    "trait": pl.Int64,
+                    "bin": pl.Int64,
+                    "num_trials": pl.Float64,
+                    "num_successes": pl.Float64,
+                    "length_sum": pl.Float64,
+                },
+            ),
             *(
                 # one trait at a time, bounding memory to its episodes
                 bin_df.join(

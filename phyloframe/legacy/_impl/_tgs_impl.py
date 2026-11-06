@@ -65,9 +65,18 @@ def tgs_impl(
 
     Input Schema
     ------------
-    `exposure_df` columns
-        As for `tgs_build_exposure_df_polars`; calibration columns are
-        optional.
+    'branch_length' : float
+        Branch length of each exposure table row (see
+        `tgs_calc_exposure_df`).
+    'survival_duration' : float
+        Time from the branch's end node to the latest leaf below it.
+    'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
+        Whether the branch started without, and whether it gained, the
+        trait.
+    'calibration_partition', 'calibration_bin' : integer, optional
+        The branch's calibration partition and bin.
+    'calibration_compare_by_{name}' : numeric, optional
+        Values by which calibration bins are compared.
     `counts_df` columns
         Trait name, 'trait', then per-trait counts, e.g., as for
         `tgs_count_episodes`.
