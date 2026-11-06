@@ -3,7 +3,6 @@ import typing
 import numpy as np
 import polars as pl
 import scipy.sparse as scipy_sparse
-import sklearn.preprocessing as sklearn_preprocessing
 
 from ._tgs_select_trait_episodes import (
     tgs_count_exposure_traits,
@@ -85,20 +84,19 @@ def _tgs_merge_trait_episodes(
         )
         .sort("row")
     )
-    # each row's distribution of episode weight over survival durations;
-    # l1 normalization scales each row to sum to 1
-    survival_shares = sklearn_preprocessing.normalize(
-        scipy_sparse.csr_matrix(
+    # each row's distribution of episode weight over survival durations,
+    # scaling each row by its total weight, num_trials, to sum to 1
+    survival_shares = scipy_sparse.diags(
+        1 / row_sums_df["num_trials"].to_numpy()
+    ) @ scipy_sparse.csr_matrix(
+        (
+            episode_weights,
             (
-                episode_weights,
-                (
-                    episode_df["row"].to_numpy(),
-                    survival_duration_indices[episodes],
-                ),
+                episode_df["row"].to_numpy(),
+                survival_duration_indices[episodes],
             ),
-            shape=(len(row_sums_df), num_survival_durations),
         ),
-        norm="l1",
+        shape=(len(row_sums_df), num_survival_durations),
     )
     partition_df = row_sums_df.select(
         pl.lit(trait, dtype=pl.Int64).alias("trait"),
