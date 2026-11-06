@@ -5,7 +5,6 @@ from ._add_bool_arg import add_bool_arg
 from ._add_compression_cli_arg import add_compression_cli_arg
 from ._all_unique import all_unique
 from ._assign_kdtree_partitions import assign_kdtree_partitions
-from ._assign_rank_bins import assign_rank_bins
 from ._begin_prod_logging import begin_prod_logging
 from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ._calc_geometric_bins import calc_geometric_bins
@@ -77,7 +76,6 @@ __all__ = [
     "run_weighted_bootstrap",
     "calc_geometric_bins",
     "assign_kdtree_partitions",
-    "assign_rank_bins",
     "calc_knn_neighborhoods",
     "calc_neighborhood_rate_ratios",
     "calc_two_sided_normal_p",

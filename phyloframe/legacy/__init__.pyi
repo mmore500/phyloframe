@@ -445,6 +445,9 @@ from ._alifestd_mark_is_right_child_asexual import (
 from ._alifestd_mark_is_right_child_polars import (
     alifestd_mark_is_right_child_polars,
 )
+from ._alifestd_mark_joint_quantile_bins_polars import (
+    alifestd_mark_joint_quantile_bins_polars,
+)
 from ._alifestd_mark_leaves import alifestd_mark_leaves
 from ._alifestd_mark_leaves_polars import alifestd_mark_leaves_polars
 from ._alifestd_mark_left_child_asexual import alifestd_mark_left_child_asexual
@@ -569,9 +572,6 @@ from ._alifestd_mark_prev_sibling_id_asexual import (
 )
 from ._alifestd_mark_prev_sibling_id_polars import (
     alifestd_mark_prev_sibling_id_polars,
-)
-from ._alifestd_mark_rank_bins_polars import (
-    alifestd_mark_rank_bins_polars,
 )
 from ._alifestd_mark_right_child_asexual import (
     alifestd_mark_right_child_asexual,
@@ -1035,6 +1035,7 @@ __all__ = [
     "alifestd_mark_is_left_child_polars",
     "alifestd_mark_is_right_child_asexual",
     "alifestd_mark_is_right_child_polars",
+    "alifestd_mark_joint_quantile_bins_polars",
     "alifestd_mark_leaves",
     "alifestd_mark_leaves_polars",
     "alifestd_mark_left_child_asexual",
@@ -1080,7 +1081,6 @@ __all__ = [
     "alifestd_mark_ot_mrca_polars",
     "alifestd_mark_prev_sibling_id_asexual",
     "alifestd_mark_prev_sibling_id_polars",
-    "alifestd_mark_rank_bins_polars",
     "alifestd_mark_right_child_asexual",
     "alifestd_mark_right_child_polars",
     "alifestd_mark_root_id",

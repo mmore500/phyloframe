@@ -34,6 +34,7 @@ def _alifestd_mark_clade_size_classes_fast_path(
     weights: np.ndarray,
     size_ratio: float,
     min_class_weight: float,
+    min_num_classes: int,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mark_clade_size_classes_polars`.
 
@@ -49,16 +50,15 @@ def _alifestd_mark_clade_size_classes_fast_path(
     num_classes = classes.max(initial=0) + 1
     class_weights = np.bincount(classes, weights, minlength=num_classes)
     # the first class above class 0 that is too light, and every class of
-    # larger clades, join the class below it
+    # larger clades, join the class below it, keeping `min_num_classes`
     (light,) = np.nonzero(class_weights[1:] < min_class_weight)
-    if len(light):
-        cap = max(light[0], 1)
-        if cap < num_classes - 1:
-            logging.info(
-                "- alifestd_mark_clade_size_classes_polars: clade size "
-                f"classes above {cap} weigh less than {min_class_weight}, so "
-                f"join class {cap}",
-            )
+    cap = max(light[0], min_num_classes - 1) if len(light) else num_classes
+    if cap < num_classes - 1:
+        logging.info(
+            "- alifestd_mark_clade_size_classes_polars: clade size "
+            f"classes above {cap} weigh less than {min_class_weight}, so "
+            f"join class {cap}",
+        )
         classes = np.minimum(classes, cap)
         num_classes = cap + 1
         class_weights = np.bincount(classes, weights, minlength=num_classes)
@@ -79,6 +79,7 @@ def alifestd_mark_clade_size_classes_polars(
     size_ratio: float = 2.0,
     weight_by: typing.Sequence[str] = (),
     min_class_weight: float = 0.0,
+    min_num_classes: int = 2,
     mark_as: str = "clade_size_class",
 ) -> pl.DataFrame:
     """Add column `clade_size_class`, each node's class of clade size (number
@@ -89,12 +90,22 @@ def alifestd_mark_clade_size_classes_polars(
     leaves. Classes number occupied bins consecutively from 0, so leaves are
     always class 0.
 
-    So that every class carries enough weight (e.g., gains of neutral traits
-    to calibrate against), classes can then be merged from the largest
-    clades down: with each node's weight the sum of its `weight_by` columns,
-    the first class above class 0 weighing less than `min_class_weight`,
-    and every class of larger clades, joins the class below it. If even
-    class 1 is too light, all classes but 0 form one class.
+    For example, pass this column as `calibration_partition_by` to
+    `alifestd_tgs_allmdc_estimate_polars`, which then calibrates within
+    each class separately, as neutral traits' gain rates per unit branch
+    length may differ between small and large clades (e.g., between leaves
+    and inner nodes). Calibrating within a class requires that class to hold
+    enough neutral trait gains, so set `weight_by` to the neutral traits'
+    transition columns and `min_class_weight` to the fewest gains a class
+    should hold.
+
+    If `min_class_weight` is positive, this function merges classes from
+    the largest clades down: with each node's weight the sum of its
+    `weight_by` columns, the first class above class 0 weighing less than
+    `min_class_weight`, and every class of larger clades, joins the class
+    below it. Merging stops at `min_num_classes` classes, which may then
+    still be light; the default of 2 keeps leaves (class 0) apart from
+    inner nodes. Class 0's own weight is not checked.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -110,11 +121,13 @@ def alifestd_mark_clade_size_classes_polars(
         Larger ratios give fewer, larger classes.
     weight_by : Sequence[str], default ()
         Names of numeric columns summed into each node's weight, e.g.,
-        neutral traits' transitions (see
-        `alifestd_tgs_allmdc_estimate_polars`).
+        neutral traits' transitions.
     min_class_weight : float, default 0.0
         Least weight a class above class 0 may hold before merging; 0
         disables merging.
+    min_num_classes : int, default 2
+        Fewest classes merging may leave, if there are that many; must be at
+        least 1.
     mark_as : str, default "clade_size_class"
         Output column name.
 
@@ -130,21 +143,28 @@ def alifestd_mark_clade_size_classes_polars(
         not topologically sorted, or a `weight_by` column has null values.
     ValueError
         If `size_ratio` does not exceed 1, if `min_class_weight` is negative,
-        or if a `weight_by` column is missing.
+        if `min_num_classes` is less than 1, or if a `weight_by` column is
+        missing.
 
     See Also
     --------
     alifestd_mark_num_leaves_polars :
         Marks clade sizes.
-    alifestd_mark_rank_bins_polars :
-        Bins nodes within these classes, e.g., for calibration of
-        `alifestd_tgs_allmdc_estimate_polars`.
+    alifestd_mark_joint_quantile_bins_polars :
+        Bins nodes within these classes, e.g., for calibration.
+    alifestd_tgs_allmdc_estimate_polars :
+        Calibrates within these classes, e.g., with `weight_by` its
+        `neutral_traits`.
     """
     if not size_ratio > 1:
         raise ValueError(f"size_ratio must exceed 1, got {size_ratio}")
     if not min_class_weight >= 0:
         raise ValueError(
             f"min_class_weight must be nonnegative, got {min_class_weight}",
+        )
+    if min_num_classes < 1:
+        raise ValueError(
+            f"min_num_classes must be at least 1, got {min_num_classes}",
         )
     if isinstance(weight_by, str):
         raise TypeError(
@@ -198,6 +218,7 @@ def alifestd_mark_clade_size_classes_polars(
                 weights=selected["weight"].to_numpy(),
                 size_ratio=size_ratio,
                 min_class_weight=min_class_weight,
+                min_num_classes=min_num_classes,
             ),
             dtype=pl.Int64,
         ),
@@ -260,6 +281,12 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--min-num-classes",
+        default=2,
+        type=int,
+        help="Fewest classes merging may leave (default: 2).",
+    )
+    parser.add_argument(
         "--mark-as",
         default="clade_size_class",
         type=str,
@@ -286,6 +313,7 @@ if __name__ == "__main__":
                     size_ratio=args.size_ratio,
                     weight_by=args.weight_by,
                     min_class_weight=args.min_class_weight,
+                    min_num_classes=args.min_num_classes,
                     mark_as=args.mark_as,
                 ),
             )

@@ -9,36 +9,72 @@ from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
 
-from .._auxlib._assign_rank_bins import assign_rank_bins
+from .._auxlib._assign_kdtree_partitions import assign_kdtree_partitions
 from .._auxlib._begin_prod_logging import begin_prod_logging
+from .._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
+from .._auxlib._ceil_div import ceil_div
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
 
 
-def alifestd_mark_rank_bins_polars(
+def _alifestd_mark_joint_quantile_bins_fast_path(
+    coordinates: typing.Sequence[np.ndarray],
+    *,
+    max_bins: int,
+    min_bin_size: int,
+) -> typing.Tuple[np.ndarray, int]:
+    """Implementation detail for `alifestd_mark_joint_quantile_bins_polars`.
+
+    Assigns items to equal-occupancy bins, the leaves of a balanced k-d tree
+    over items' tiebroken ranks (see `calc_tiebroken_ranks`). Uses the
+    largest power of two of bins, up to `max_bins`, that keeps at least
+    `min_bin_size` items in each.
+
+    Returns each item's bin, numbered from 0, and the number of bins.
+    """
+    assert int(max_bins).bit_count() == 1
+    assert min_bin_size >= 1
+    num_items = len(coordinates[0])
+    if num_items == 0:
+        return np.zeros(0, dtype=np.int64), 0
+
+    ranks = calc_tiebroken_ranks(coordinates) / num_items  # scaled to (0, 1]
+    num_levels = int(
+        np.clip(np.log2(num_items / min_bin_size), 0, np.log2(max_bins))
+    )
+    num_bins = 2**num_levels
+    # median splitting stops exactly `num_levels` levels down, as nodes there
+    # hold at most this many items and nodes above hold more
+    bins = assign_kdtree_partitions(ranks, ceil_div(num_items, num_bins))
+    return bins, num_bins
+
+
+def alifestd_mark_joint_quantile_bins_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    rank_by: typing.Sequence[str],
+    bin_by: typing.Sequence[str],
     partition_by: typing.Optional[str] = None,
     max_bins: int = 4096,
     min_bin_size: int = 4,
-    mark_as: str = "rank_bin",
+    mark_as: str = "joint_quantile_bin",
 ) -> pl.DataFrame:
-    """Add column `rank_bin`, assigning rows to equal-occupancy bins by
-    their ranks in columns `rank_by`, separately within each value of
-    column `partition_by`, if given.
+    """Add column `joint_quantile_bin`, assigning rows to equal-occupancy
+    bins by their joint quantiles over columns `bin_by`, separately within
+    each value of column `partition_by`, if given.
 
-    Bins are the leaves of a balanced k-d tree over rows' ranks, with ties
-    on one column broken by the others, so bins do not depend on row order
+    Bins are the leaves of a balanced k-d tree over rows' ranks, which
+    repeatedly splits rows at the median of one of the columns. Ties on one
+    column are broken by the others, so bins do not depend on row order
     unless rows tie on every column. Each partition gets the largest power
     of two of bins, up to `max_bins`, that keeps at least `min_bin_size` rows
     in each. Bins are numbered consecutively across partitions, in order of
     partition value, so each bin lies within one partition.
 
-    Columns constant within a partition are ignored there, as they would
-    only split rows on ties. Rows with null (or nan) values, e.g., roots'
-    branch lengths, are marked -1.
+    Columns constant within a partition are skipped there: their ranks,
+    tiebroken by the other columns, would only repeat those columns'
+    splits. Rows with null (or nan) values, e.g., roots' branch lengths, are
+    marked -1.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -47,8 +83,8 @@ def alifestd_mark_rank_bins_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format (or any
         dataframe).
-    rank_by : Sequence[str]
-        Names of numeric columns to rank rows by, e.g., branch length and
+    bin_by : Sequence[str]
+        Names of numeric columns to bin rows by, e.g., branch length and
         origin time.
     partition_by : str, optional
         Name of a column whose values group rows to bin separately, e.g.,
@@ -57,7 +93,7 @@ def alifestd_mark_rank_bins_polars(
         Largest number of bins per partition; a power of two.
     min_bin_size : int, default 4
         Fewest rows per bin, unless a partition has fewer rows in all.
-    mark_as : str, default "rank_bin"
+    mark_as : str, default "joint_quantile_bin"
         Output column name.
 
     Returns
@@ -68,7 +104,7 @@ def alifestd_mark_rank_bins_polars(
     Raises
     ------
     ValueError
-        If a column is missing, if `rank_by` is empty, if `max_bins` is not a
+        If a column is missing, if `bin_by` is empty, if `max_bins` is not a
         power of two, or if `min_bin_size` is less than 1.
 
     Notes
@@ -81,13 +117,13 @@ def alifestd_mark_rank_bins_polars(
     alifestd_mark_clade_size_classes_polars :
         Marks clade size classes, e.g., as partitions.
     """
-    if isinstance(rank_by, str):
+    if isinstance(bin_by, str):
         raise TypeError(
-            "rank_by must be a sequence of column names, not a single "
-            f"string; did you mean [{rank_by!r}]?",
+            "bin_by must be a sequence of column names, not a single "
+            f"string; did you mean [{bin_by!r}]?",
         )
-    if not len(rank_by):
-        raise ValueError("rank_by must be nonempty")
+    if not len(bin_by):
+        raise ValueError("bin_by must be nonempty")
     if int(max_bins).bit_count() != 1 or max_bins < 1:
         raise ValueError(f"max_bins must be a power of two, got {max_bins}")
     if min_bin_size < 1:
@@ -96,7 +132,7 @@ def alifestd_mark_rank_bins_polars(
         )
     schema_names = phylogeny_df.lazy().collect_schema().names()
     partition_columns = [] if partition_by is None else [partition_by]
-    for column in [*rank_by, *partition_columns]:
+    for column in [*bin_by, *partition_columns]:
         if column not in schema_names:
             raise ValueError(f"phylogeny_df has no column {column}")
 
@@ -104,45 +140,38 @@ def alifestd_mark_rank_bins_polars(
         phylogeny_df.lazy()
         .select(
             *(
-                pl.col(c).cast(pl.Float64).fill_nan(None).alias(f"rank_by{i}")
-                for i, c in enumerate(rank_by)
+                pl.col(c).cast(pl.Float64).fill_nan(None).alias(f"bin_by{i}")
+                for i, c in enumerate(bin_by)
             ),
             (
                 pl.lit(0) if partition_by is None else pl.col(partition_by)
             ).alias("partition"),
         )
-        .with_columns(is_valid=~pl.any_horizontal(pl.all().is_null()))
+        .with_row_index("row")
+        .filter(~pl.any_horizontal(pl.all().is_null()))
+        .sort("partition")
         .collect()
     )
-    is_valid = selected["is_valid"].to_numpy()
-    selected = selected.filter("is_valid")
 
-    __, partitions = np.unique(
-        selected["partition"].to_numpy(), return_inverse=True
-    )
-    partitions = partitions.ravel()
-    coordinates = [
-        selected[f"rank_by{i}"].to_numpy() for i in range(len(rank_by))
-    ]
-    bins = np.empty(len(selected), dtype=np.int64)
-    offset = 0
-    for partition in range(partitions.max(initial=-1) + 1):
-        (members,) = np.nonzero(partitions == partition)
-        member_coordinates = [x[members] for x in coordinates]
-        member_bins, num_bins = assign_rank_bins(
-            [x for x in member_coordinates if np.ptp(x) > 0]
-            or member_coordinates,
+    marks = np.full(phylogeny_df.lazy().select(pl.len()).collect().item(), -1)
+    offset = 0  # bins are numbered consecutively across partitions
+    for (partition,), group in selected.group_by(
+        "partition", maintain_order=True
+    ):
+        coordinates = [
+            group[f"bin_by{i}"].to_numpy() for i in range(len(bin_by))
+        ]
+        bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
+            [x for x in coordinates if np.ptp(x) > 0] or coordinates,
             max_bins=max_bins,
             min_bin_size=min_bin_size,
         )
-        bins[members] = member_bins + offset
+        marks[group["row"].to_numpy()] = bins + offset
         offset += num_bins
         logging.info(
-            f"- alifestd_mark_rank_bins_polars: partition {partition} has "
-            f"{len(members)} rows in {num_bins} bins",
+            "- alifestd_mark_joint_quantile_bins_polars: partition "
+            f"{partition} has {len(group)} rows in {num_bins} bins",
         )
-    marks = np.full(len(is_valid), -1, dtype=np.int64)
-    marks[is_valid] = bins
     return phylogeny_df.with_columns(
         pl.Series(name=mark_as, values=marks, dtype=pl.Int64),
     )
@@ -152,9 +181,9 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column `rank_bin`, assigning rows to equal-occupancy bins by their ranks
-in columns `--rank-by`, separately within each value of `--partition-by`, if
-given.
+Add column `joint_quantile_bin`, assigning rows to equal-occupancy bins by
+their joint quantiles over columns `--bin-by`, separately within each value of
+`--partition-by`, if given.
 
 Additional Notes
 ================
@@ -175,15 +204,15 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_mark_rank_bins_polars",
+        dfcli_module="phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
-        "--rank-by",
+        "--bin-by",
         nargs="+",
         required=True,
         type=str,
-        help="Columns to rank rows by.",
+        help="Columns to bin rows by.",
     )
     parser.add_argument(
         "--partition-by",
@@ -205,9 +234,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mark-as",
-        default="rank_bin",
+        default="joint_quantile_bin",
         type=str,
-        help="Output column name (default: rank_bin).",
+        help="Output column name (default: joint_quantile_bin).",
     )
     return parser
 
@@ -219,14 +248,14 @@ if __name__ == "__main__":
     args, __ = parser.parse_known_args()
 
     with log_context_duration(
-        "phyloframe.legacy._alifestd_mark_rank_bins_polars",
+        "phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars",
         logging.info,
     ):
         _run_dataframe_cli(
             base_parser=parser,
             output_dataframe_op=functools.partial(
-                alifestd_mark_rank_bins_polars,
-                rank_by=args.rank_by,
+                alifestd_mark_joint_quantile_bins_polars,
+                bin_by=args.bin_by,
                 partition_by=args.partition_by,
                 max_bins=args.max_bins,
                 min_bin_size=args.min_bin_size,

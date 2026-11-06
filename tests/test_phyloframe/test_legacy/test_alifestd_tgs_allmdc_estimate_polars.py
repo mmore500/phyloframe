@@ -32,7 +32,7 @@ def _estimate(
             size_ratio=calibrate_size_ratio,
         )
         kwargs["calibration_partition_by"] = "clade_size_class"
-        kwargs["calibration_compare_by_bins"] = "rank_bin"
+        kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
     return estimator(df_pl, **kwargs).to_pandas()
 
 

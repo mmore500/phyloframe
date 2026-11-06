@@ -4,7 +4,9 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from phyloframe._auxlib._assign_rank_bins import assign_rank_bins
+from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
+    _alifestd_mark_joint_quantile_bins_fast_path,
+)
 
 
 def make_tgs_fit_kwargs(
@@ -17,7 +19,7 @@ def make_tgs_fit_kwargs(
     """
     num_traits = sum(c.endswith("_starts_absent") for c in exposure_df)
     if calibrate:
-        bins, num_bins = assign_rank_bins(
+        bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
             [
                 exposure_df["branch_length"].to_numpy(),
                 exposure_df["origin_time"].to_numpy(),

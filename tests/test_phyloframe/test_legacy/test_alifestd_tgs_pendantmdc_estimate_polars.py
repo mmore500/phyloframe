@@ -32,7 +32,7 @@ def _estimate_pendantmdc(
             neutral_traits=kwargs["neutral_traits"],
             max_bins=calibrate_max_bins,
         )
-        kwargs["calibration_compare_by_bins"] = "rank_bin"
+        kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
     return alifestd_tgs_pendantmdc_estimate_polars(df_pl, **kwargs).to_pandas()
 
 

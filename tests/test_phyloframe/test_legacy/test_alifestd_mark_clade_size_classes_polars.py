@@ -12,7 +12,7 @@ from phyloframe.legacy._alifestd_mark_clade_size_classes_polars import (
 _SIZES = np.array([1, 1, 2, 3, 4, 5, 8, 9, 16])
 
 
-def _calc(weighted_positions, min_class_weight=1.0):
+def _calc(weighted_positions, min_class_weight=1.0, min_num_classes=2):
     weights = np.zeros(len(_SIZES))
     weights[np.asarray(weighted_positions, dtype=int)] = 1.0
     return _alifestd_mark_clade_size_classes_fast_path(
@@ -20,6 +20,7 @@ def _calc(weighted_positions, min_class_weight=1.0):
         weights=weights,
         size_ratio=2.0,
         min_class_weight=min_class_weight,
+        min_num_classes=min_num_classes,
     )
 
 
@@ -46,6 +47,22 @@ def test_first_inner_light_keeps_class_zero_apart():
     assert res.tolist() == [0, 0] + [1] * (len(_SIZES) - 2)
 
 
+@pytest.mark.parametrize(
+    "min_num_classes, expected",
+    [
+        (1, [0] * len(_SIZES)),
+        (2, [0, 0] + [1] * (len(_SIZES) - 2)),
+        (3, [0, 0, 1, 2, 2, 2, 2, 2, 2]),
+        (5, [0, 0, 1, 2, 2, 3, 3, 4, 4]),
+        (10, [0, 0, 1, 2, 2, 3, 3, 4, 4]),
+    ],
+)
+def test_min_num_classes(min_num_classes: int, expected: list):
+    # no weight anywhere, so merging stops at min_num_classes
+    res = _calc([], min_num_classes=min_num_classes)
+    assert res.tolist() == expected
+
+
 def test_heavy_enough_everywhere():
     res = _calc(range(len(_SIZES)))
     assert res.tolist() == _calc([], min_class_weight=0.0).tolist()
@@ -58,6 +75,7 @@ def test_empty_bins_skipped():
         weights=np.ones(6),
         size_ratio=1.5,
         min_class_weight=1.0,
+        min_num_classes=2,
     )
     assert res.tolist() == [0, 0, 1, 1, 2, 2]
 
@@ -118,6 +136,7 @@ def test_polars_empty():
     [
         (dict(size_ratio=1.0), ValueError),
         (dict(min_class_weight=-1), ValueError),
+        (dict(min_num_classes=0), ValueError),
         (dict(weight_by=["absent"]), ValueError),
         (dict(weight_by="n1"), TypeError),
     ],
