@@ -71,3 +71,14 @@ def test_empty():
     )
     assert nll == 0.0
     assert grad.shape == (0,)
+
+
+def test_scalars_match_arrays():
+    for k in (0.0, 2.0):
+        nll, dnll_dp = calc_binomial_nll_proxy(5.0, k, 0.2)
+        nlls, dnll_dps = calc_binomial_nll_proxy(
+            np.array([5.0]), np.array([k]), np.array([0.2])
+        )
+        assert np.shape(dnll_dp) == ()
+        assert nll == pytest.approx(nlls)
+        assert dnll_dp == pytest.approx(dnll_dps[0])

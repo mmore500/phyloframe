@@ -49,18 +49,21 @@ def calc_binomial_nll_proxy(
     finfo = np.finfo(np.float64)
     raw_p = np.asarray(p, dtype=np.float64)
     clipped_p = np.clip(raw_p, finfo.tiny, 1 - finfo.epsneg)
-    num_failures = num_trials - num_successes
+    num_successes = np.asarray(num_successes, dtype=np.float64)
+    num_failures = np.asarray(num_trials, dtype=np.float64) - num_successes
+    # optimization: take log(p) and 1 / p only for nonzero successes
+    has_successes = num_successes > 0
+    successes = num_successes[has_successes]
+    success_p = clipped_p[has_successes]
 
     # for n trials and k successes, up to the additive constant -log C(n, k),
     #   nll = -sum(k * log(p) + (n - k) * log(1 - p))
     #   d nll / d p = (n - k) / (1 - p) - k / p
-    nll = -np.sum(
-        special.xlogy(num_successes, clipped_p)
-        + special.xlog1py(num_failures, -clipped_p)
+    nll = -(
+        np.sum(successes * np.log(success_p))
+        + np.sum(special.xlog1py(num_failures, -clipped_p))
     )
-    dnll_dp = np.where(
-        clipped_p == raw_p,
-        num_failures / (1 - clipped_p) - num_successes / clipped_p,
-        0.0,
-    )
+    dnll_dp = np.asarray(num_failures / (1 - clipped_p))  # 0-d if scalar
+    dnll_dp[has_successes] -= successes / success_p
+    dnll_dp[clipped_p != raw_p] = 0.0
     return nll, dnll_dp
