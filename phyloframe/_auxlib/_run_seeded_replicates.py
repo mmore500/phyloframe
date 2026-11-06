@@ -47,7 +47,7 @@ def run_seeded_replicates(
         num_replicates
     )
     # eager list for tqdm/joblib compat
-    jobs = [
+    jobs = [  # eager list for tqdm/joblib compat
         joblib.delayed(func)(seed=int(replicate_seed))
         for replicate_seed in replicate_seeds
     ]
