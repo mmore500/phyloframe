@@ -61,11 +61,14 @@ def tgs_merge_episodes(
     'length' : float
         Their weighted mean calibrated branch length.
     """
-    weights = np.asarray(weights, dtype=np.float64)
-    # optimization: drop zero-weight episodes
-    episodes_df = tgs_unpivot_exposure_episodes(exposure_df)
-    episodes_df = episodes_df.filter(
-        weights[episodes_df["exposure_row"].to_numpy()] > 0
+    episodes_df = (
+        tgs_unpivot_exposure_episodes(exposure_df).with_columns(
+            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
+                "exposure_row"
+            ),
+        )
+        # optimization: drop zero-weight episodes
+        .filter(pl.col("weight") > 0)
     )
     episode_traits = episodes_df["trait"].to_numpy()
     episodes = episodes_df["exposure_row"].to_numpy()
@@ -82,7 +85,7 @@ def tgs_merge_episodes(
     else:
         length_cells = np.arange(len(lengths))
         survival_cells = np.zeros(len(lengths), dtype=np.int64)
-    episode_weights = weights[episodes]
+    episode_weights = episodes_df["weight"].to_numpy()
     episode_df = pl.DataFrame(
         {
             "trait": episode_traits,

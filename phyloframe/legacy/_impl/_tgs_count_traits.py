@@ -37,17 +37,16 @@ def tgs_count_traits(
     'length_sum' : float
         Weighted sum of those episodes' branch lengths.
     """
-    weights = np.asarray(weights, dtype=np.float64)
-    episode_df = tgs_unpivot_exposure_episodes(exposure_df)
-    # optimization: drop zero-weight episodes
-    episode_df = episode_df.filter(
-        weights[episode_df["exposure_row"].to_numpy()] > 0
-    )
-    exposure_rows = episode_df["exposure_row"].to_numpy()
-    episode_df = episode_df.with_columns(
-        bin=np.asarray(bins, dtype=np.int64)[exposure_rows],
-        weight=weights[exposure_rows],
-        length=exposure_df["branch_length"].to_numpy()[exposure_rows],
+    episode_df = (
+        tgs_unpivot_exposure_episodes(exposure_df).with_columns(
+            bin=pl.lit(pl.Series(bins, dtype=pl.Int64)).gather("exposure_row"),
+            weight=pl.lit(pl.Series(weights, dtype=pl.Float64)).gather(
+                "exposure_row"
+            ),
+            length=pl.lit(exposure_df["branch_length"]).gather("exposure_row"),
+        )
+        # optimization: drop zero-weight episodes
+        .filter(pl.col("weight") > 0)
     )
     # every (trait, bin) pair, including those without episodes
     all_pairs_df = pl.DataFrame(
