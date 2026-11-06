@@ -32,7 +32,9 @@ def tgs_calc_trait_selection_lrt(
         rate=selection_coef - loss_rate,
     )
     # under the null hypothesis of no selection, refit the log gain rate
-    # alone, starting from its free fit, with selection held at 0
+    # alone, with selection held at 0; one start, from the free fit,
+    # suffices, as the negative log likelihood is then convex in log gain
+    # rate (each bin's gain probability is gain rate times a fixed exposure)
     null = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
         starts=[(np.log(gain_rate), 0.0)],  # (log gain rate, selection)
