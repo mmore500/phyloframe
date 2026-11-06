@@ -121,7 +121,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     calibration_compare_by_bins : str, optional
         Name of an integer column (see Input Schema) assigning branches, by
         their end nodes, to calibration bins, e.g., from
-        `alifestd_mark_rank_bins_polars` (see Notes). Calibration
+        `alifestd_mark_joint_quantile_bins_polars` (see Notes). Calibration
         rescales each leaf's pendant length by how often neutral traits were
         gained in its bin's neighborhood, relative to all leaves, removing
         distortion of branch lengths that neutral traits share (e.g., from
@@ -265,14 +265,14 @@ def alifestd_tgs_pendantmdc_estimate_polars(
             branch_length=pl.col("origin_time")
             - pl.col("origin_time").gather(pl.col("stem_node_id")),
         )
-        df = alifestd_mark_rank_bins_polars(
-            df, rank_by=["branch_length", "origin_time"], partition_by="is_leaf"
+        df = alifestd_mark_joint_quantile_bins_polars(
+            df, bin_by=["branch_length", "origin_time"], partition_by="is_leaf"
         )
         alifestd_tgs_pendantmdc_estimate_polars(
             df,
             trait_transitions=trait_transitions,
             neutral_traits=neutral_traits,
-            calibration_compare_by_bins="rank_bin",
+            calibration_compare_by_bins="joint_quantile_bin",
         )
 
     To exclude some leaves, e.g., those originating before a given time,
@@ -299,8 +299,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
 
     See Also
     --------
-    alifestd_mark_rank_bins_polars :
-        Marks rank bins, e.g., as calibration bins.
+    alifestd_mark_joint_quantile_bins_polars :
+        Marks joint quantile bins, e.g., as calibration bins.
     alifestd_mask_trait_singletons_polars :
         Marks leaves dropped for each trait.
     alifestd_tgs_allmdc_estimate_polars :
@@ -384,7 +384,7 @@ Input Schema: Optional Columns
 `--calibration-partition-by`, `--calibration-compare-by-bins` columns : integer
     Each node's calibration partition and bin (see
     phyloframe.legacy._alifestd_mark_clade_size_classes_polars and
-    phyloframe.legacy._alifestd_mark_rank_bins_polars).
+    phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars).
 
 `--calibration-compare-by-vals` columns : numeric
     Values by which calibration bins are compared, if not exposure episode

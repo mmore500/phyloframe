@@ -4,8 +4,8 @@ import polars as pl
 
 from phyloframe.legacy import (
     alifestd_mark_clade_size_classes_polars,
+    alifestd_mark_joint_quantile_bins_polars,
     alifestd_mark_leaves_polars,
-    alifestd_mark_rank_bins_polars,
     alifestd_mark_stem_node_id_polars,
 )
 
@@ -19,7 +19,7 @@ def mark_tgs_calibration_columns(
     max_bins: int = 4096,
 ) -> pl.DataFrame:
     """Mark calibration partitions, `clade_size_class`, and bins within
-    them, `rank_bin`, as the tgs estimators' Notes describe."""
+    them, `joint_quantile_bin`, as the tgs estimators' Notes describe."""
     phylogeny_df = alifestd_mark_leaves_polars(
         alifestd_mark_stem_node_id_polars(phylogeny_df)
     ).with_columns(
@@ -32,9 +32,9 @@ def mark_tgs_calibration_columns(
         weight_by=list(dict.fromkeys(neutral_traits)),
         min_class_weight=min_class_weight,
     )
-    return alifestd_mark_rank_bins_polars(
+    return alifestd_mark_joint_quantile_bins_polars(
         phylogeny_df,
-        rank_by=["branch_length", "origin_time"],
+        bin_by=["branch_length", "origin_time"],
         partition_by="clade_size_class",
         max_bins=max_bins,
     )

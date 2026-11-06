@@ -3,7 +3,9 @@ import pandas as pd
 import pytest
 
 from phyloframe._auxlib import identity
-from phyloframe._auxlib._assign_rank_bins import assign_rank_bins
+from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
+    _alifestd_mark_joint_quantile_bins_fast_path,
+)
 from phyloframe.legacy._impl import (
     tgs_allmdc_count_episodes,
     tgs_calc_exposure_df,
@@ -43,7 +45,7 @@ def _impl(exposure_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
 def _binned_exposure_df() -> pd.DataFrame:
     exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
-    bins, __ = assign_rank_bins(
+    bins, __ = _alifestd_mark_joint_quantile_bins_fast_path(
         [exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")],
         max_bins=16,
         min_bin_size=4,

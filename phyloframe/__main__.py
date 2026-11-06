@@ -115,6 +115,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_is_left_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_is_left_child_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_is_right_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_is_right_child_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_leaves
 $ python3 -m phyloframe.legacy._alifestd_mark_leaves_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_left_child_asexual
@@ -164,7 +165,6 @@ $ python3 -m phyloframe.legacy._alifestd_mark_ot_mrca_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_ot_mrca_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_polars
-$ python3 -m phyloframe.legacy._alifestd_mark_rank_bins_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_right_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_right_child_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_root_id

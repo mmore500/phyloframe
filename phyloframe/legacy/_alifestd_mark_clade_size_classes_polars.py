@@ -89,12 +89,19 @@ def alifestd_mark_clade_size_classes_polars(
     leaves. Classes number occupied bins consecutively from 0, so leaves are
     always class 0.
 
-    So that every class carries enough weight (e.g., gains of neutral traits
-    to calibrate against), classes can then be merged from the largest
-    clades down: with each node's weight the sum of its `weight_by` columns,
-    the first class above class 0 weighing less than `min_class_weight`,
-    and every class of larger clades, joins the class below it. If even
-    class 1 is too light, all classes but 0 form one class.
+    These classes can partition nodes for calibration in
+    `alifestd_tgs_allmdc_estimate_polars`, since neutral traits' gain rates
+    per unit branch length may differ between small and large clades
+    (e.g., between leaves and inner nodes). Calibrating within a class
+    needs enough neutral gains there, so weight each node by its neutral
+    traits' transitions (`weight_by`) and set `min_class_weight`.
+
+    If `min_class_weight` is positive, this function merges classes from
+    the largest clades down: with each node's weight the sum of its
+    `weight_by` columns, the first class above class 0 weighing less than
+    `min_class_weight`, and every class of larger clades, joins the class
+    below it. If even class 1 is too light, all classes but 0 form one
+    class.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -110,8 +117,7 @@ def alifestd_mark_clade_size_classes_polars(
         Larger ratios give fewer, larger classes.
     weight_by : Sequence[str], default ()
         Names of numeric columns summed into each node's weight, e.g.,
-        neutral traits' transitions (see
-        `alifestd_tgs_allmdc_estimate_polars`).
+        neutral traits' transitions.
     min_class_weight : float, default 0.0
         Least weight a class above class 0 may hold before merging; 0
         disables merging.
@@ -136,9 +142,11 @@ def alifestd_mark_clade_size_classes_polars(
     --------
     alifestd_mark_num_leaves_polars :
         Marks clade sizes.
-    alifestd_mark_rank_bins_polars :
-        Bins nodes within these classes, e.g., for calibration of
-        `alifestd_tgs_allmdc_estimate_polars`.
+    alifestd_mark_joint_quantile_bins_polars :
+        Bins nodes within these classes, e.g., for calibration.
+    alifestd_tgs_allmdc_estimate_polars :
+        Calibrates within these classes, e.g., with `weight_by` its
+        `neutral_traits`.
     """
     if not size_ratio > 1:
         raise ValueError(f"size_ratio must exceed 1, got {size_ratio}")
