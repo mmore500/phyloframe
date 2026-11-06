@@ -65,6 +65,7 @@ def tgs_count_traits(
             on=["trait", "bin"],
             how="left",
         )
-        .with_columns(cs.float().fill_null(0.0))
-        .sort("trait", "bin")
+        # zero counts for (trait, bin) pairs without exposure episodes, e.g.,
+        # a bin whose branches all carry the trait
+        .with_columns(cs.float().fill_null(0.0)).sort("trait", "bin")
     )

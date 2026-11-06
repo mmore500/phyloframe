@@ -134,8 +134,8 @@ def test_recovers_gain_selection(calibrate: bool):
         seed=1,
     )
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
-    assert (res["num_clades"] == 40_000).all()
-    assert (res["num_clade_gains"] > 0).all()
+    assert (res["num_inner_branches"] == 40_000).all()
+    assert (res["num_inner_gains"] > 0).all()
 
     focal = res.iloc[0]
     assert focal["gain_ratio"] == pytest.approx(2.0, rel=0.25)
@@ -183,7 +183,7 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
         assert res[column].to_numpy() == pytest.approx(
             expected[column].to_numpy(), rel=1e-4, abs=1e-8
         )
-    assert (res["num_clades"] == 0).all()
+    assert (res["num_inner_branches"] == 0).all()
 
 
 def test_counts():
@@ -209,13 +209,22 @@ def test_counts():
     # trait 0: gained on branch 1, whose clade carries it at both leaves,
     # so leaves 2 and 3 started with it; leaf 4 started without it
     assert res.loc[0, ["num_leaves", "num_trait_present"]].tolist() == [1, 0]
-    assert res.loc[0, ["num_clades", "num_clade_gains"]].tolist() == [1, 1]
+    assert res.loc[0, ["num_inner_branches", "num_inner_gains"]].tolist() == [
+        1,
+        1,
+    ]
     # trait 1: gained on leaf 2's pendant branch only
     assert res.loc[1, ["num_leaves", "num_trait_present"]].tolist() == [3, 1]
-    assert res.loc[1, ["num_clades", "num_clade_gains"]].tolist() == [1, 0]
+    assert res.loc[1, ["num_inner_branches", "num_inner_gains"]].tolist() == [
+        1,
+        0,
+    ]
     # trait 2: every leaf carries it, so it predates every branch
     assert res.loc[2, ["num_leaves", "num_trait_present"]].tolist() == [0, 0]
-    assert res.loc[2, ["num_clades", "num_clade_gains"]].tolist() == [0, 0]
+    assert res.loc[2, ["num_inner_branches", "num_inner_gains"]].tolist() == [
+        0,
+        0,
+    ]
     assert np.isnan(res.loc[2, "selection_coef"])
 
 

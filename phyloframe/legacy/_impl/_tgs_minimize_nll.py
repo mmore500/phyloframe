@@ -7,18 +7,34 @@ from scipy import optimize
 from ._tgs_calc_nll import tgs_calc_nll
 
 
-def _tgs_calc_scales(partitions: pl.DataFrame) -> typing.Tuple[float, float]:
+def _tgs_calc_exposure(partitions: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
-    Returns the selection scale, 1 / mean branch length, and the neutral
-    log gain rate, log(gains per unit branch length), of `partitions`.
+    Returns the total branch length of `partitions`' episodes.
     """
-    num_trials = partitions["num_trials"].to_numpy()
-    exposure = np.sum(num_trials * partitions["length"].to_numpy())
-    return (
-        num_trials.sum() / exposure,
-        np.log(partitions["num_successes"].sum() / exposure),
+    return (partitions["num_trials"] * partitions["length"]).sum()
+
+
+def tgs_calc_selection_scale(partitions: pl.DataFrame) -> float:
+    """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
+    stands for trait gain/selection.
+
+    Returns 1 / mean branch length of `partitions`' episodes, a typical rate
+    by which to scale the selection coefficient (see `tgs_minimize_nll`).
+    """
+    return partitions["num_trials"].sum() / _tgs_calc_exposure(partitions)
+
+
+def tgs_calc_neutral_log_gain_rate(partitions: pl.DataFrame) -> float:
+    """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
+    stands for trait gain/selection.
+
+    Returns log(gains per unit branch length) of `partitions`, the log gain
+    rate under no selection, as a starting point for fitting.
+    """
+    return np.log(
+        partitions["num_successes"].sum() / _tgs_calc_exposure(partitions)
     )
 
 

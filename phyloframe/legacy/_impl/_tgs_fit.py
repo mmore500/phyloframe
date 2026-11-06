@@ -6,7 +6,11 @@ import numpy as np
 import polars as pl
 
 from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrt
-from ._tgs_minimize_nll import _tgs_calc_scales, tgs_minimize_nll
+from ._tgs_minimize_nll import (
+    tgs_calc_neutral_log_gain_rate,
+    tgs_calc_selection_scale,
+    tgs_minimize_nll,
+)
 
 
 class TgsFitResult(typing.NamedTuple):
@@ -53,7 +57,8 @@ def tgs_fit_trait(
     if not partitions["num_successes"].to_numpy().any():
         return dict(gain_rate=0.0, selection_coef=np.nan)
 
-    selection_scale, log_gain_start = _tgs_calc_scales(partitions)
+    selection_scale = tgs_calc_selection_scale(partitions)
+    log_gain_start = tgs_calc_neutral_log_gain_rate(partitions)
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
         starts=[(log_gain_start, start) for start in selection_coef_starts],
@@ -180,14 +185,16 @@ def tgs_fit(
         ),
         growth_exponent_bound=growth_exponent_bound,
     )
-    fit = tgs_fit_trait(
+    trait_fit = tgs_fit_trait(
         nll_kwargs=nll_kwargs,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
     )
+    # no gain ratio or its statistic, which need neutral reference traits,
+    # as this fits one trait alone
     return TgsFitResult(
-        **fit,
+        **trait_fit,
         selection_coef_lrt_naive=tgs_calc_trait_selection_lrt(
-            nll_kwargs=nll_kwargs, loss_rate=loss_rate, **fit
+            nll_kwargs=nll_kwargs, loss_rate=loss_rate, **trait_fit
         ),
     )

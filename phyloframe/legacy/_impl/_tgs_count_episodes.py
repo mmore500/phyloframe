@@ -26,10 +26,10 @@ def tgs_count_episodes(
         the trait.
     'num_trait_present' : integer
         Of those, the number that gained the trait.
-    'num_clades' : integer
+    'num_inner_branches' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
-    'num_clade_gains' : integer
+    'num_inner_gains' : integer
         Of those, the number that gained the trait.
     """
     episode_df = tgs_unpivot_exposure_episodes(exposure_df)
@@ -42,13 +42,14 @@ def tgs_count_episodes(
             num_trait_present=(pl.col("gain") & pl.col("is_leaf"))
             .cast(pl.Int64)
             .sum(),
-            num_clades=(~pl.col("is_leaf")).cast(pl.Int64).sum(),
-            num_clade_gains=(pl.col("gain") & ~pl.col("is_leaf"))
+            num_inner_branches=(~pl.col("is_leaf")).cast(pl.Int64).sum(),
+            num_inner_gains=(pl.col("gain") & ~pl.col("is_leaf"))
             .cast(pl.Int64)
             .sum(),
         )
     )
-    # every trait, including those without episodes
+    # every trait, with zero counts for those without exposure episodes
+    # (e.g., carried from the root by every leaf), as group_by omits them
     return (
         pl.DataFrame(
             {

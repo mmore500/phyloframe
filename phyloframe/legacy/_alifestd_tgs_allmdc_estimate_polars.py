@@ -203,10 +203,10 @@ def alifestd_tgs_allmdc_estimate_polars(
     -------------
     As for `alifestd_tgs_pendantmdc_estimate_polars`, with also:
 
-    'num_clades' : integer
+    'num_inner_branches' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
-    'num_clade_gains' : integer
+    'num_inner_gains' : integer
         Of those, the number that gained the trait.
 
     Here, 'num_leaves' and 'num_trait_present' count leaf exposure
@@ -345,8 +345,8 @@ Input Schema: Optional Columns
 Output Schema
 =============
 As for phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars, with also
-'num_clades' and 'num_clade_gains' : integer, the inner exposure episodes and
-how many gained the trait.
+'num_inner_branches' and 'num_inner_gains' : integer, the inner exposure
+episodes and how many gained the trait.
 
 
 Additional Notes

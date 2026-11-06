@@ -4,6 +4,7 @@ import typing
 
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._calc_group_means import calc_group_means
@@ -67,7 +68,8 @@ def tgs_impl(
         raise ValueError("phylogeny_df has no exposure episodes to fit")
 
     # number (partition, bin) pairs consecutively, partition-major, so that
-    # each partition's bins are contiguous; without columns, all are one
+    # each partition's bins are contiguous; a missing column counts as 0, so
+    # without either, every episode is in one bin
     pairs, bins = np.unique(
         np.column_stack(
             [
@@ -85,16 +87,18 @@ def tgs_impl(
     bins = bins.ravel()
     num_bins = len(pairs)
     if num_bins > 1:
-        compare_by_values = [
-            exposure_df[column].to_numpy()
-            for column in exposure_df.columns
-            if column.startswith("calibration_compare_by_")
-        ]
+        compare_by_df = exposure_df.select(
+            cs.starts_with("calibration_compare_by_")
+        )
         # each episode's rank by each compare-by column, averaged per bin;
         # constant columns carry no distance
         episode_ranks = calc_tiebroken_ranks(
-            [x for x in compare_by_values if np.ptp(x) > 0]
-            or compare_by_values[:1]
+            [
+                compare_by_df[column].to_numpy()
+                for column in compare_by_df.columns
+                if compare_by_df[column].n_unique() > 1
+            ]
+            or [compare_by_df[compare_by_df.columns[0]].to_numpy()]
         )
         bin_coords = calc_group_means(
             bins, episode_ranks / num_episodes, num_groups=num_bins

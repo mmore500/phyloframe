@@ -18,10 +18,10 @@ def test_count():
         "trait",
         "num_leaves",
         "num_trait_present",
-        "num_clades",
-        "num_clade_gains",
+        "num_inner_branches",
+        "num_inner_gains",
     ]
     assert res["num_leaves"].to_list() == [3, 1]
     assert res["num_trait_present"].to_list() == [1, 0]
-    assert res["num_clades"].to_list() == [2, 1]
-    assert res["num_clade_gains"].to_list() == [1, 0]
+    assert res["num_inner_branches"].to_list() == [2, 1]
+    assert res["num_inner_gains"].to_list() == [1, 0]
