@@ -89,12 +89,14 @@ def alifestd_mark_clade_size_classes_polars(
     leaves. Classes number occupied bins consecutively from 0, so leaves are
     always class 0.
 
-    These classes can partition nodes for calibration in
-    `alifestd_tgs_allmdc_estimate_polars`, since neutral traits' gain rates
-    per unit branch length may differ between small and large clades
-    (e.g., between leaves and inner nodes). Calibrating within a class
-    needs enough neutral gains there, so weight each node by its neutral
-    traits' transitions (`weight_by`) and set `min_class_weight`.
+    For example, pass this column as `calibration_partition_by` to
+    `alifestd_tgs_allmdc_estimate_polars`, which then calibrates within
+    each class separately, as neutral traits' gain rates per unit branch
+    length may differ between small and large clades (e.g., between leaves
+    and inner nodes). Calibrating within a class requires that class to hold
+    enough neutral trait gains, so set `weight_by` to the neutral traits'
+    transition columns and `min_class_weight` to the fewest gains a class
+    should hold.
 
     If `min_class_weight` is positive, this function merges classes from
     the largest clades down: with each node's weight the sum of its
