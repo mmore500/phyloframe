@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from ._tgs_extract_trait_masks import tgs_extract_trait_masks
 
@@ -9,8 +9,8 @@ from ._tgs_extract_trait_masks import tgs_extract_trait_masks
 def tgs_allmdc_count_episodes(
     *,
     trait_names: typing.Sequence[str],
-    exposure_df: pd.DataFrame,
-) -> pd.DataFrame:
+    exposure_df: pl.DataFrame,
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_allmdc_estimate_polars`. Acronym
     tgs stands for trait gain/selection.
 
@@ -22,7 +22,7 @@ def tgs_allmdc_count_episodes(
     """
     starts_absent, gains = tgs_extract_trait_masks(exposure_df)
     is_leaf = np.expand_dims((exposure_df["clade_size"] == 1).to_numpy(), 1)
-    return pd.DataFrame(
+    return pl.DataFrame(
         {
             "trait": list(trait_names),
             "num_leaves": (starts_absent & is_leaf).sum(axis=0),

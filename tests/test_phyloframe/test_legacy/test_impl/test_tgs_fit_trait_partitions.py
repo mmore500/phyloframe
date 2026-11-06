@@ -34,12 +34,13 @@ def fixture():
 
 def _trait_kwargs(fixture, trait: int):
     data, shares, times = fixture
-    partitions = data[data["trait"] == trait]
+    rows = np.flatnonzero(data["trait"].to_numpy() == trait)
+    partitions = data[rows]
     calc_nll = functools.partial(
         tgs_calc_nll,
         partitions=partitions,
         growth_exponent_bound=600.0,
-        survival_shares=shares[partitions.index],
+        survival_shares=shares[rows],
         distinct_survival_durations=times,
     )
     return dict(calc_nll=calc_nll, partitions=partitions)
@@ -100,6 +101,7 @@ def test_fit_trait_partitions(fixture):
     data, shares, times = fixture
     res = tgs_fit_trait_partitions(
         partition_df=data,
+        num_traits=3,
         neutral_traits=[1, 2],
         loss_rate=0.0,
         selection_coef_starts=(0.0, -0.3),
@@ -107,7 +109,7 @@ def test_fit_trait_partitions(fixture):
         survival_shares=shares,
         distinct_survival_durations=times,
     )
-    assert list(res.columns) == [
+    assert res.columns == [
         "gain_rate",
         "selection_coef",
         "selection_coef_lrt_naive",
@@ -122,10 +124,10 @@ def test_fit_trait_partitions(fixture):
             loss_rate=0.0,
             selection_coef_starts=(0.0, -0.3),
         )
-        assert res.loc[trait, "gain_rate"] == pytest.approx(alone.gain_rate)
-        assert res.loc[trait, "selection_coef"] == pytest.approx(
+        assert res["gain_rate"][trait] == pytest.approx(alone.gain_rate)
+        assert res["selection_coef"][trait] == pytest.approx(
             alone.selection_coef
         )
     # focal gains at twice the neutral rate
-    assert res.loc[0, "gain_ratio"] == pytest.approx(2.0, rel=0.2)
-    assert res.loc[0, "gain_ratio_lrt_naive"] > 10
+    assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.2)
+    assert res["gain_ratio_lrt_naive"][0] > 10

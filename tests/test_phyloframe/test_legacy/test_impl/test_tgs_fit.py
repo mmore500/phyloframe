@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 
 from phyloframe.legacy._impl._tgs_fit import tgs_fit
@@ -109,7 +109,7 @@ def test_no_successes_skips_fit_without_warning():
 
     from phyloframe.legacy._impl import tgs_fit_partitions
 
-    partitions = pd.DataFrame(
+    partitions = pl.DataFrame(
         {"num_trials": [10.0], "num_successes": [0.0], "length": [1.0]}
     )
     with warnings.catch_warnings():

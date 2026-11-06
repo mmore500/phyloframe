@@ -3,7 +3,7 @@ import logging
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_group_means import calc_group_means
@@ -17,24 +17,21 @@ from ._tgs_select_calibration_neighborhoods import (
 )
 
 
-def _slice_bins(counts: pd.DataFrame, begin: int, end: int) -> pd.DataFrame:
+def _slice_bins(counts: pl.DataFrame, begin: int, end: int) -> pl.DataFrame:
     """Implementation detail for `tgs_impl`.
 
     Returns `counts` (see `tgs_count_traits`) of bins `begin` up to `end`,
     renumbered from 0.
     """
-    res = counts.loc[(slice(None), slice(begin, end - 1)), :].copy()
-    res.index = pd.MultiIndex.from_product(
-        [counts.index.levels[0], range(end - begin)],
-        names=counts.index.names,
-    )
-    return res
+    return counts.filter(
+        pl.col("bin").is_between(begin, end - 1)
+    ).with_columns(pl.col("bin") - begin)
 
 
 def tgs_impl(
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
     *,
-    counts_df: pd.DataFrame,
+    counts_df: pl.DataFrame,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate_neighborhood_fractions: typing.Sequence[float],
@@ -47,7 +44,7 @@ def tgs_impl(
     seed: typing.Optional[int],
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -71,7 +68,11 @@ def tgs_impl(
     pairs, bins = np.unique(
         np.column_stack(
             [
-                exposure_df.get(column, zeros)
+                (
+                    exposure_df[column].to_numpy()
+                    if column in exposure_df.columns
+                    else zeros
+                )
                 for column in ("calibration_partition", "calibration_bin")
             ],
         ),

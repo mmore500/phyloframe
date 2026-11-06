@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ._tgs_calc_calibration_factors import tgs_calc_calibration_factors
@@ -12,7 +12,7 @@ from ._tgs_merge_episodes import tgs_merge_episodes
 
 def tgs_fit_traits(
     *,
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
     bins: np.ndarray,
     num_bins: int,
     calibration_neighborhoods: sparse.spmatrix,
@@ -25,7 +25,7 @@ def tgs_fit_traits(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -43,7 +43,7 @@ def tgs_fit_traits(
         num_bins=num_bins,
         weights=weights,
     )
-    num_traits = len(counts.index.levels[0])
+    num_traits = counts["trait"].n_unique()
     partition_df, survival_shares = tgs_merge_episodes(
         exposure_df=exposure_df,
         bins=bins,
@@ -66,6 +66,7 @@ def tgs_fit_traits(
     )
     return tgs_fit_trait_partitions(
         partition_df=partition_df,
+        num_traits=num_traits,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,

@@ -1,7 +1,7 @@
 import functools
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from phyloframe.legacy._impl import (
     tgs_calc_gain_ratio_lrts,
@@ -16,7 +16,7 @@ def _simulate(gain_rate: float, seed: int):
     lengths = rng.uniform(1, 60, 40)
     num_trials = np.full(40, 20_000.0)
     num_successes = rng.binomial(20_000, gain_rate * lengths).astype(float)
-    return pd.DataFrame(
+    return pl.DataFrame(
         {
             "num_trials": num_trials,
             "num_successes": num_successes,
@@ -29,7 +29,7 @@ def _fit_traits(gain_rates):
     trait_partitions = [
         _simulate(g, seed) for seed, g in enumerate(gain_rates)
     ]
-    fits = pd.DataFrame(
+    fits = pl.DataFrame(
         [
             tgs_fit(
                 num_trials=partitions["num_trials"],
@@ -49,7 +49,7 @@ def _fit_traits(gain_rates):
 
 
 def _lrts(fits, trait_partitions, calc_nlls, *, neutral_traits, **kwargs):
-    fits = fits.assign(
+    fits = fits.with_columns(
         gain_ratio=tgs_normalize_gain_rates_to_neutral(
             gain_rates=fits["gain_rate"].to_numpy(),
             neutral_traits=neutral_traits,
@@ -79,7 +79,11 @@ def test_gain_ratio_lrts():
 def test_matches_free_fit_at_reference_rate():
     fits, trait_partitions, calc_nlls = _fit_traits([1e-4, 1e-4, 1e-4])
     # make trait 0's fitted gain rate exactly its reference's mean
-    fits.loc[0, "gain_rate"] = fits.loc[[1, 2], "gain_rate"].mean()
+    fits = fits.with_columns(
+        gain_rate=pl.Series(
+            [fits["gain_rate"][1:].mean(), *fits["gain_rate"][1:]]
+        )
+    )
     lrts = _lrts(
         fits,
         trait_partitions,
@@ -104,7 +108,7 @@ def test_undefined_without_reference_or_gains():
     assert np.isnan(lrts).all()
     # without gains, a trait's fitted gain rate is 0
     lrts = _lrts(
-        fits.assign(gain_rate=[0.0, fits.loc[1, "gain_rate"]]),
+        fits.with_columns(gain_rate=pl.Series([0.0, fits["gain_rate"][1]])),
         trait_partitions,
         calc_nlls,
         neutral_traits=[1],

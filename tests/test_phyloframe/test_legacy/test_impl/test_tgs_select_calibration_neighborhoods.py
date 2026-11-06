@@ -15,12 +15,12 @@ from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 def test_select(caplog):
     exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
-    exposure_df = exposure_df[exposure_df["clade_size"] == 1]
+    exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
     coordinates = [
         exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")
     ]
     bins = alifestd_mark_joint_quantile_bins_polars(
-        pl.from_pandas(exposure_df),
+        exposure_df,
         bin_by=["branch_length", "origin_time"],
         max_bins=64,
     )["joint_quantile_bin"].to_numpy()

@@ -1,10 +1,10 @@
-import pandas as pd
+import polars as pl
 
 from phyloframe.legacy._impl import tgs_extract_trait_masks
 
 
 def test_masks():
-    exposure_df = pd.DataFrame(
+    exposure_df = pl.DataFrame(
         {
             "clade_size": [1, 1, 2],
             "trait0_starts_absent": [True, False, True],
@@ -20,8 +20,9 @@ def test_masks():
 
 
 def test_empty():
-    exposure_df = pd.DataFrame(
-        {"trait0_starts_absent": [], "trait0_gain": []}, dtype=bool
+    exposure_df = pl.DataFrame(
+        {"trait0_starts_absent": [], "trait0_gain": []},
+        schema={"trait0_starts_absent": pl.Boolean, "trait0_gain": pl.Boolean},
     )
     starts_absent, gains = tgs_extract_trait_masks(exposure_df)
     assert starts_absent.shape == gains.shape == (0, 1)

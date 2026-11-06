@@ -1,15 +1,15 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from phyloframe.legacy._impl import tgs_build_estimates_df
 
 
-def _counts() -> pd.DataFrame:
-    return pd.DataFrame({"trait": ["a", "b"], "num_leaves": [10, 20]})
+def _counts() -> pl.DataFrame:
+    return pl.DataFrame({"trait": ["a", "b"], "num_leaves": [10, 20]})
 
 
-def _point() -> pd.DataFrame:
-    return pd.DataFrame(
+def _point() -> pl.DataFrame:
+    return pl.DataFrame(
         {
             "gain_rate": [1e-3, 2e-3],
             "selection_coef": [-0.05, 0.0],
@@ -38,19 +38,19 @@ def test_no_bootstrap():
         bootstrap_fits_df=None,
         num_bootstrap=0,
     )
-    assert out.columns.tolist() == _COLUMNS
-    assert out["gain_ratio"].tolist() == [0.5, 2.0]
+    assert out.columns == _COLUMNS
+    assert out["gain_ratio"].to_list() == [0.5, 2.0]
 
 
 def test_summary_appended():
     point = _point()
-    replicate_fits = pd.concat(
-        [
-            point.assign(selection_coef=point["selection_coef"] + delta)
-            for delta in (-0.01, 0.0, 0.01)
-        ],
-        keys=range(3),
-        names=["replicate", "trait_index"],
+    replicate_fits = pl.concat(
+        point.select(
+            pl.lit(replicate).alias("replicate"),
+            pl.int_range(pl.len()).alias("trait_index"),
+            pl.all(),
+        ).with_columns(pl.col("selection_coef") + delta)
+        for replicate, delta in enumerate((-0.01, 0.0, 0.01))
     )
     out = tgs_build_estimates_df(
         _counts(),
@@ -58,5 +58,5 @@ def test_summary_appended():
         bootstrap_fits_df=replicate_fits,
         num_bootstrap=3,
     )
-    assert out.columns[: len(_COLUMNS)].tolist() == _COLUMNS
+    assert out.columns[: len(_COLUMNS)] == _COLUMNS
     np.testing.assert_allclose(out["selection_coef_se"], 0.01)

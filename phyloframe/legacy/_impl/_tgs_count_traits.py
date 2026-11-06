@@ -1,21 +1,21 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from ._tgs_extract_trait_masks import tgs_extract_trait_masks
 
 
 def tgs_count_traits(
     *,
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
     bins: np.ndarray,
     num_bins: int,
     weights: np.ndarray,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns, indexed by (`trait`, `bin`), each trait's (weighted) count of
+    Returns, with columns `trait` and `bin`, trait-major, each trait's (weighted) count of
     exposure episodes in each calibration bin, `num_trials`, of their gains,
     `num_successes`, and their summed branch length, `length_sum`, given
     each row of `exposure_df` (see `tgs_calc_exposure_df`), its `bins`
@@ -34,14 +34,13 @@ def tgs_count_traits(
             ],
         )
 
-    return pd.DataFrame(
+    num_traits = starts_absent.shape[1]
+    return pl.DataFrame(
         {
+            "trait": np.repeat(np.arange(num_traits), num_bins),
+            "bin": np.tile(np.arange(num_bins), num_traits),
             "num_trials": count(starts_absent * weights),
             "num_successes": count(gains * weights),
             "length_sum": count(starts_absent * weights * lengths),
         },
-        index=pd.MultiIndex.from_product(
-            [range(starts_absent.shape[1]), range(num_bins)],
-            names=["trait", "bin"],
-        ),
     )

@@ -1,11 +1,11 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 def tgs_extract_trait_masks(
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -17,14 +17,16 @@ def tgs_extract_trait_masks(
     gained it.
     """
     num_traits = sum(
-        column.endswith("_starts_absent") for column in exposure_df
+        column.endswith("_starts_absent") for column in exposure_df.columns
     )
     traits = range(num_traits)
     return (
-        exposure_df[[f"trait{i}_starts_absent" for i in traits]]
-        .to_numpy(dtype=bool)
+        exposure_df.select(f"trait{i}_starts_absent" for i in traits)
+        .to_numpy()
+        .astype(bool)
         .reshape(len(exposure_df), num_traits),
-        exposure_df[[f"trait{i}_gain" for i in traits]]
-        .to_numpy(dtype=bool)
+        exposure_df.select(f"trait{i}_gain" for i in traits)
+        .to_numpy()
+        .astype(bool)
         .reshape(len(exposure_df), num_traits),
     )

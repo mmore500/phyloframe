@@ -2,14 +2,14 @@ import typing
 import warnings
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from ._tgs_fit import _tgs_calc_scales, tgs_minimize_nll
 
 
 def _tgs_calc_gain_ratio_lrt(
     *,
-    partitions: pd.DataFrame,
+    partitions: pl.DataFrame,
     calc_nll: typing.Callable,
     gain_rate: float,
     selection_coef: float,
@@ -56,8 +56,8 @@ def _tgs_calc_gain_ratio_lrt(
 
 def tgs_calc_gain_ratio_lrts(
     *,
-    fits_df: pd.DataFrame,
-    trait_partitions: typing.Sequence[pd.DataFrame],
+    fits_df: pl.DataFrame,
+    trait_partitions: typing.Sequence[pl.DataFrame],
     calc_nlls: typing.Sequence[typing.Callable],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
@@ -85,14 +85,14 @@ def tgs_calc_gain_ratio_lrts(
             _tgs_calc_gain_ratio_lrt(
                 partitions=partitions,
                 calc_nll=calc_nll,
-                gain_rate=fit.gain_rate,
-                selection_coef=fit.selection_coef,
-                gain_ratio=fit.gain_ratio,
+                gain_rate=fit["gain_rate"],
+                selection_coef=fit["selection_coef"],
+                gain_ratio=fit["gain_ratio"],
                 loss_rate=loss_rate,
                 selection_coef_starts=selection_coef_starts,
             )
             for partitions, calc_nll, fit in zip(
-                trait_partitions, calc_nlls, fits_df.itertuples()
+                trait_partitions, calc_nlls, fits_df.iter_rows(named=True)
             )
         ],
         dtype=np.float64,

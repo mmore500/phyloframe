@@ -4,7 +4,7 @@ import typing
 import warnings
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import optimize
 
 from ._tgs_calc_nll import tgs_calc_nll
@@ -33,7 +33,7 @@ class TgsFitResult(typing.NamedTuple):
     selection_coef_lrt_naive: float
 
 
-def _tgs_calc_scales(partitions: pd.DataFrame) -> typing.Tuple[float, float]:
+def _tgs_calc_scales(partitions: pl.DataFrame) -> typing.Tuple[float, float]:
     """Implementation detail for `tgs_fit_partitions` and
     `tgs_calc_gain_ratio_lrts`. Acronym tgs stands for trait gain/selection.
 
@@ -109,7 +109,7 @@ def tgs_minimize_nll(
 def tgs_fit_partitions(
     *,
     calc_nll: typing.Callable[..., typing.Tuple[float, float, float]],
-    partitions: pd.DataFrame,
+    partitions: pl.DataFrame,
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
 ) -> TgsFitResult:
@@ -264,7 +264,7 @@ def tgs_fit(
             "tgs_fit got no trait carriers, so gain rate is 0 and the "
             "selection coefficient is undefined.",
         )
-    partitions = pd.DataFrame(
+    partitions = pl.DataFrame(
         {
             "num_trials": num_trials,
             "num_successes": num_successes,

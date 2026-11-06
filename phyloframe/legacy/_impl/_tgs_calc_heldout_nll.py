@@ -2,7 +2,7 @@ import typing
 import warnings
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
@@ -12,7 +12,7 @@ from ._tgs_calc_calibration_factors import tgs_calc_calibration_factors
 def tgs_calc_heldout_nll(
     *,
     calibration_neighborhoods: sparse.spmatrix,
-    counts: pd.DataFrame,
+    counts: pl.DataFrame,
     trait: int,
     trait_name: str,
     neutral_traits: typing.Sequence[int],
@@ -26,7 +26,7 @@ def tgs_calc_heldout_nll(
     against the other neutral traits only; 0 if it has no gains or no
     calibrated exposure, so scores the same for every neighborhood size.
     """
-    trait_counts = counts.loc[trait]
+    trait_counts = counts.filter(pl.col("trait") == trait)
     n = trait_counts["num_trials"].to_numpy()
     k = trait_counts["num_successes"].to_numpy()
     mean_lengths = np.divide(

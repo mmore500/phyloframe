@@ -1,7 +1,6 @@
 import typing
 
 import numpy as np
-import pandas as pd
 import polars as pl
 
 from .._alifestd_assign_contiguous_ids_polars import (
@@ -31,7 +30,7 @@ def tgs_build_exposure_df_polars(
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
     calibration_compare_by_vals: typing.Sequence[str] = (),
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -151,9 +150,9 @@ def tgs_build_exposure_df_polars(
         ],
     )
     is_root = ancestor_ids == np.arange(len(ancestor_ids))
-    exposure_df["node_id"] = collapsed["__alifestd_tgs_node_id"].to_numpy()[
-        ~is_root
-    ]
+    columns = {
+        "node_id": collapsed["__alifestd_tgs_node_id"].to_numpy()[~is_root],
+    }
     for name, column in integer_columns.items():
         values = collapsed[column]
         if not values.dtype.is_integer() or values.has_nulls():
@@ -161,7 +160,7 @@ def tgs_build_exposure_df_polars(
                 f"calibration column {column} must be integer, without null "
                 "values",
             )
-        exposure_df[name] = values.to_numpy()[~is_root]
+        columns[name] = values.to_numpy()[~is_root]
     for column in calibration_compare_by_vals:
         if column in exposure_columns:
             values = exposure_df[column].to_numpy()
@@ -173,5 +172,7 @@ def tgs_build_exposure_df_polars(
                     "null values",
                 )
             values = values.to_numpy()[~is_root]
-        exposure_df[f"calibration_compare_by_{column}"] = values
-    return exposure_df
+        columns[f"calibration_compare_by_{column}"] = values
+    return exposure_df.with_columns(
+        pl.Series(name, values) for name, values in columns.items()
+    )

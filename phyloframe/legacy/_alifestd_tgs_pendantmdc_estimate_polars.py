@@ -7,7 +7,6 @@ import typing
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
-import pandas as pd
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -323,13 +322,11 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
     # leaf pendant branches only
-    exposure_df = exposure_df[exposure_df["clade_size"] == 1].reset_index(
-        drop=True
-    )
+    exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
     starts_absent, gains = tgs_extract_trait_masks(exposure_df)
-    res = tgs_impl(
+    return tgs_impl(
         exposure_df,
-        counts_df=pd.DataFrame(
+        counts_df=pl.DataFrame(
             {
                 "trait": trait_names,
                 "num_leaves": starts_absent.sum(axis=0),
@@ -349,7 +346,6 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
     )
-    return pl.from_pandas(res)
 
 
 _raw_description = f"""\

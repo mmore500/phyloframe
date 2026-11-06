@@ -1,12 +1,13 @@
 import typing
 import warnings
 
-import pandas as pd
+import numpy as np
 
 
 def tgs_warn_excluded_replicates(
-    is_excluded: pd.Series,
+    is_excluded: np.ndarray,
     *,
+    trait_index: np.ndarray,
     trait_names: typing.Sequence[str],
     num_replicates: int,
     reason: str,
@@ -15,10 +16,12 @@ def tgs_warn_excluded_replicates(
     for trait gain/selection.
 
     Warns, if any, how many bootstrap replicates were excluded per trait,
-    from `is_excluded`, a boolean series indexed by replicate and trait
-    index, for `reason`, e.g., "no carriers of the trait".
+    from `is_excluded`, a boolean array over replicate fits with trait
+    indices `trait_index`, for `reason`, e.g., "no carriers of the trait".
     """
-    num_excluded = is_excluded.groupby(level="trait_index").sum()
+    num_excluded = np.bincount(
+        trait_index, weights=is_excluded, minlength=len(trait_names)
+    ).astype(np.int64)
     if num_excluded.any():
         counts = ", ".join(
             f"{trait} ({count} of {num_replicates})"

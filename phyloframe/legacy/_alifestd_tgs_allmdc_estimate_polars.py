@@ -281,7 +281,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
-    res = tgs_impl(
+    return tgs_impl(
         exposure_df,
         counts_df=tgs_allmdc_count_episodes(
             trait_names=trait_names, exposure_df=exposure_df
@@ -299,7 +299,6 @@ def alifestd_tgs_allmdc_estimate_polars(
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
     )
-    return pl.from_pandas(res)
 
 
 _raw_description = f"""\

@@ -1,22 +1,21 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from phyloframe.legacy._impl import tgs_calc_calibration_factors
 
 
-def _counts(num_successes) -> pd.DataFrame:
+def _counts(num_successes) -> pl.DataFrame:
     num_successes = np.asarray(num_successes, dtype=float)
     num_traits, num_bins = num_successes.shape
-    return pd.DataFrame(
+    return pl.DataFrame(
         {
+            "trait": np.repeat(np.arange(num_traits), num_bins),
+            "bin": np.tile(np.arange(num_bins), num_traits),
             "num_trials": 100.0,
             "num_successes": num_successes.ravel(),
             "length_sum": 1000.0,
         },
-        index=pd.MultiIndex.from_product(
-            [range(num_traits), range(num_bins)], names=["trait", "bin"]
-        ),
     )
 
 

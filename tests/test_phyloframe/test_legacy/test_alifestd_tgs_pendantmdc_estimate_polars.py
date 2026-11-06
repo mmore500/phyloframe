@@ -420,15 +420,14 @@ def test_calibration_warns_without_neutral_gains():
 def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     bin_coords = rng.random((256, 2))
-    counts = pd.DataFrame(
+    counts = pl.DataFrame(
         {
+            "trait": np.repeat(np.arange(3), 256),
+            "bin": np.tile(np.arange(256), 3),
             "num_trials": 100.0,
             "num_successes": rng.binomial(100, 0.01, 3 * 256).astype(float),
             "length_sum": 1000.0,
         },
-        index=pd.MultiIndex.from_product(
-            [range(3), range(256)], names=["trait", "bin"]
-        ),
     )
     res = tgs_select_calibration_neighborhoods(
         bin_coords=bin_coords,

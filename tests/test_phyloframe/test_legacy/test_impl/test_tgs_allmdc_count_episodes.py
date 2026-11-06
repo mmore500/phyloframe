@@ -1,32 +1,29 @@
-import pandas as pd
+import polars as pl
 
 from phyloframe.legacy._impl import tgs_allmdc_count_episodes
 
 
 def test_count():
-    exposure_df = pd.DataFrame(
+    exposure_df = pl.DataFrame(
         {
-            "origin_time": 0.0,
-            "branch_length": 1.0,
-            "survival_duration": 0.0,
             "clade_size": [1, 1, 2, 1, 5],
-            "trait0_starts_absent": True,
+            "trait0_starts_absent": [True] * 5,
             "trait0_gain": [False, True, True, False, False],
             "trait1_starts_absent": [True, False, True, False, False],
-            "trait1_gain": False,
+            "trait1_gain": [False] * 5,
         },
     )
     res = tgs_allmdc_count_episodes(
         trait_names=["a", "b"], exposure_df=exposure_df
     )
-    assert res.columns.tolist() == [
+    assert res.columns == [
         "trait",
         "num_leaves",
         "num_trait_present",
         "num_clades",
         "num_clade_gains",
     ]
-    assert res["num_leaves"].tolist() == [3, 1]
-    assert res["num_trait_present"].tolist() == [1, 0]
-    assert res["num_clades"].tolist() == [2, 1]
-    assert res["num_clade_gains"].tolist() == [1, 0]
+    assert res["num_leaves"].to_list() == [3, 1]
+    assert res["num_trait_present"].to_list() == [1, 0]
+    assert res["num_clades"].to_list() == [2, 1]
+    assert res["num_clade_gains"].to_list() == [1, 0]

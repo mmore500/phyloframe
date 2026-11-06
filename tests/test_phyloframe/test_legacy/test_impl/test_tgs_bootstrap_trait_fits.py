@@ -1,7 +1,7 @@
 import functools
 
 import numpy as np
-import pandas as pd
+import polars.testing as pltest
 
 from phyloframe._auxlib import identity
 from phyloframe.legacy._impl import tgs_bootstrap_trait_fits, tgs_fit_traits
@@ -25,6 +25,7 @@ def test_replicate():
     again = tgs_bootstrap_trait_fits(seed=1, **kwargs)
     other = tgs_bootstrap_trait_fits(seed=2, **kwargs)
     assert len(fits) == 2 * 3
-    assert fits.index.names == ["replicate", "trait_index"]
-    pd.testing.assert_frame_equal(fits, again)
+    assert fits["replicate"].to_list() == [0, 0, 0, 1, 1, 1]
+    assert fits["trait_index"].to_list() == [0, 1, 2] * 2
+    pltest.assert_frame_equal(fits, again)
     assert not np.allclose(fits["gain_rate"], other["gain_rate"])

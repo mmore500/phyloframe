@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from .._alifestd_mark_lineage_delta_asexual import (
     _alifestd_mark_lineage_delta_asexual_fast_path,
@@ -19,7 +19,7 @@ def tgs_calc_exposure_df(
     ancestor_ids: np.ndarray,
     origin_time: np.ndarray,
     trait_states: typing.Sequence[np.ndarray],
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -73,4 +73,4 @@ def tgs_calc_exposure_df(
         # a node's parent's state is its state minus its delta
         columns[f"trait{i}_starts_absent"] = (states - deltas == 0)[keep]
         columns[f"trait{i}_gain"] = (deltas == 1)[keep]
-    return pd.DataFrame(columns)
+    return pl.DataFrame(columns)

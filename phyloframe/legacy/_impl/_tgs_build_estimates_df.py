@@ -1,17 +1,17 @@
 import typing
 
-import pandas as pd
+import polars as pl
 
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 
 
 def tgs_build_estimates_df(
-    counts_df: pd.DataFrame,
+    counts_df: pl.DataFrame,
     *,
-    point_estimate_df: pd.DataFrame,
-    bootstrap_fits_df: typing.Optional[pd.DataFrame],
+    point_estimate_df: pl.DataFrame,
+    bootstrap_fits_df: typing.Optional[pl.DataFrame],
     num_bootstrap: int,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -21,24 +21,22 @@ def tgs_build_estimates_df(
     with `num_bootstrap` replicates, in `bootstrap_fits_df`, their summary
     columns (see `tgs_summarize_bootstrap`).
     """
-    estimates_df = pd.concat(
+    estimates_df = pl.concat(
         [
             counts_df,
-            point_estimate_df[
-                [
-                    "gain_rate",
-                    "selection_coef",
-                    "gain_ratio",
-                    "selection_coef_lrt_naive",
-                    "gain_ratio_lrt_naive",
-                ]
-            ],
+            point_estimate_df.select(
+                "gain_rate",
+                "selection_coef",
+                "gain_ratio",
+                "selection_coef_lrt_naive",
+                "gain_ratio_lrt_naive",
+            ),
         ],
-        axis=1,
+        how="horizontal",
     )
     if not num_bootstrap:
         return estimates_df
-    return pd.concat(
+    return pl.concat(
         [
             estimates_df,
             tgs_summarize_bootstrap(
@@ -46,5 +44,5 @@ def tgs_build_estimates_df(
                 bootstrap_fits_df=bootstrap_fits_df,
             ),
         ],
-        axis=1,
+        how="horizontal",
     )

@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_neighborhood_rate_ratios import (
@@ -11,7 +11,7 @@ from ..._auxlib._calc_neighborhood_rate_ratios import (
 
 def tgs_calc_calibration_factors(
     *,
-    counts: pd.DataFrame,
+    counts: pl.DataFrame,
     trait: int,
     neutral_traits: typing.Sequence[int],
     calibration_neighborhoods: sparse.spmatrix,
@@ -24,14 +24,19 @@ def tgs_calc_calibration_factors(
     Returns, for each calibration bin, the factor rescaling `trait`'s branch
     lengths there: the rate ratio of gains of `trait`'s neutral reference
     (the other neutral traits) within the bin's calibration
-    neighborhood, capped at `max_rate_ratio`, given (`trait`,
-    `bin`)-indexed `counts` (see `tgs_count_traits`).
+    neighborhood, capped at `max_rate_ratio`, given `counts` (see
+    `tgs_count_traits`).
     """
     # a neutral trait is not calibrated against itself
     references = (
-        counts.loc[[ref for ref in neutral_traits if ref != trait]]
-        .groupby(level="bin")
-        .sum()
+        counts.filter(
+            pl.col("trait").is_in(
+                [ref for ref in neutral_traits if ref != trait]
+            )
+        )
+        .group_by("bin")
+        .agg(pl.col("num_successes", "length_sum").sum())
+        .sort("bin")
     )
     return calc_neighborhood_rate_ratios(
         neighborhoods=calibration_neighborhoods,

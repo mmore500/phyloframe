@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import scipy.sparse as scipy_sparse
 import sklearn.preprocessing as sklearn_preprocessing
 
@@ -22,14 +22,14 @@ def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
 
 def tgs_merge_episodes(
     *,
-    exposure_df: pd.DataFrame,
+    exposure_df: pl.DataFrame,
     bins: np.ndarray,
     calibration_factors: np.ndarray,
     weights: np.ndarray,
     length_rtol: float,
     survival_duration_indices: np.ndarray,
     num_survival_durations: int,
-) -> typing.Tuple[pd.DataFrame, scipy_sparse.csr_matrix]:
+) -> typing.Tuple[pl.DataFrame, scipy_sparse.csr_matrix]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
@@ -44,8 +44,7 @@ def tgs_merge_episodes(
     factor, `calibration_factors[trait, bin]`.
 
     Returns `partition_df`, one row per trait and merged length cell with
-    episodes, trait-major, with columns `trait` (index, categorical over
-    all traits), the (weighted, by `weights`) counts of episodes,
+    episodes, trait-major, with columns `trait` (index), the (weighted, by `weights`) counts of episodes,
     `num_trials`, and of gains, `num_successes`, and their mean calibrated
     `length`. Also returns `survival_shares`, a sparse matrix with a row
     per `partition_df` row and a column per distinct survival duration
@@ -53,7 +52,6 @@ def tgs_merge_episodes(
     episodes with each.
     """
     starts_absent, gains = tgs_extract_trait_masks(exposure_df)
-    num_traits = starts_absent.shape[1]
     episode_traits, episodes = np.nonzero(starts_absent.T)  # trait-major
     lengths = (
         exposure_df["branch_length"].to_numpy()[episodes]
@@ -69,18 +67,29 @@ def tgs_merge_episodes(
         length_cells = np.arange(len(lengths))
         survival_cells = np.zeros(len(lengths), dtype=np.int64)
     episode_weights = np.asarray(weights, dtype=np.float64)[episodes]
-    grouped = pd.DataFrame(
+    # each episode's merged row, numbering (trait, cells) keys in sorted order
+    keys, rows = np.unique(
+        np.column_stack([episode_traits, length_cells, survival_cells]),
+        axis=0,
+        return_inverse=True,
+    )
+    rows = rows.ravel()
+    sums = pl.DataFrame(
         {
-            "trait": episode_traits,
-            "length_cell": length_cells,
-            "survival_cell": survival_cells,
-            "num_trials": episode_weights,
-            "num_successes": episode_weights * gains[episodes, episode_traits],
-            "length": episode_weights * lengths,
+            "trait": keys[:, 0],
+            **{
+                name: np.bincount(rows, values, minlength=len(keys))
+                for name, values in (
+                    ("num_trials", episode_weights),
+                    (
+                        "num_successes",
+                        episode_weights * gains[episodes, episode_traits],
+                    ),
+                    ("length", episode_weights * lengths),
+                )
+            },
         },
-    ).groupby(["trait", "length_cell", "survival_cell"], sort=True)
-    sums = grouped[["num_trials", "num_successes", "length"]].sum()
-    rows = grouped.ngroup().to_numpy()  # each episode's merged row
+    )
 
     # each row's distribution of episode weight over survival durations;
     # l1 normalization scales each row to sum to 1
@@ -94,12 +103,7 @@ def tgs_merge_episodes(
     # drop rows whose episodes all have zero weight (e.g., in a bootstrap
     # replicate)
     has_episodes = sums["num_trials"].to_numpy() > 0
-    partition_df = sums[has_episodes].reset_index()
-    partition_df["length"] /= partition_df["num_trials"]
-    partition_df["trait"] = pd.Categorical(
-        partition_df["trait"], categories=range(num_traits)
+    partition_df = sums.filter(has_episodes).with_columns(
+        pl.col("length") / pl.col("num_trials"),
     )
-    return (
-        partition_df[["trait", "num_trials", "num_successes", "length"]],
-        survival_shares[has_episodes],
-    )
+    return partition_df, survival_shares[has_episodes]
