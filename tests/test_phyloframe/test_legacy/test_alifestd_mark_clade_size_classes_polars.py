@@ -63,6 +63,18 @@ def test_min_num_classes(min_num_classes: int, expected: list):
     assert res.tolist() == expected
 
 
+def test_warns_if_still_light():
+    # class 1 is light, but min_num_classes keeps it
+    with pytest.warns(UserWarning, match=r"classes \[1\] weigh less"):
+        _calc([0, 1, 4, 5, 7], min_num_classes=3)
+
+
+def test_no_warning_if_heavy(recwarn):
+    _calc(range(len(_SIZES)))
+    _calc([], min_class_weight=0.0)
+    assert not [w for w in recwarn if "weigh less" in str(w.message)]
+
+
 def test_heavy_enough_everywhere():
     res = _calc(range(len(_SIZES)))
     assert res.tolist() == _calc([], min_class_weight=0.0).tolist()

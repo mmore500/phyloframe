@@ -3,6 +3,7 @@ import functools
 import logging
 import os
 import typing
+import warnings
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
@@ -63,6 +64,14 @@ def _alifestd_mark_clade_size_classes_fast_path(
         num_classes = cap + 1
         class_weights = np.bincount(classes, weights, minlength=num_classes)
 
+    (still_light,) = np.nonzero(class_weights[1:] < min_class_weight)
+    if len(still_light):
+        warnings.warn(
+            f"clade size classes {(still_light + 1).tolist()} weigh less "
+            f"than min_class_weight={min_class_weight}, but are kept, as "
+            f"min_num_classes={min_num_classes}",
+        )
+
     for class_ in range(num_classes):
         sizes = clade_sizes[classes == class_]
         logging.info(
@@ -103,9 +112,9 @@ def alifestd_mark_clade_size_classes_polars(
     the largest clades down: with each node's weight the sum of its
     `weight_by` columns, the first class above class 0 weighing less than
     `min_class_weight`, and every class of larger clades, joins the class
-    below it. Merging stops at `min_num_classes` classes, which may then
-    still be light; the default of 2 keeps leaves (class 0) apart from
-    inner nodes. Class 0's own weight is not checked.
+    below it. Merging stops at `min_num_classes` classes, warning if any
+    class above class 0 is then still light; the default of 2 keeps leaves
+    (class 0) apart from inner nodes. Class 0's own weight is not checked.
 
     The output column name can be changed via the ``mark_as`` parameter.
 

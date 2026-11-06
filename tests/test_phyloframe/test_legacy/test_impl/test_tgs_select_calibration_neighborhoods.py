@@ -1,11 +1,10 @@
 import logging
 
 import numpy as np
+import polars as pl
 
 from phyloframe._auxlib._calc_group_means import calc_group_means
-from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
-    _alifestd_mark_joint_quantile_bins_fast_path,
-)
+from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
     tgs_count_traits,
     tgs_select_calibration_neighborhoods,
@@ -20,9 +19,12 @@ def test_select(caplog):
     coordinates = [
         exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")
     ]
-    bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
-        coordinates, max_bins=64, min_bin_size=4
-    )
+    bins = alifestd_mark_joint_quantile_bins_polars(
+        pl.from_pandas(exposure_df[["branch_length", "origin_time"]]),
+        bin_by=["branch_length", "origin_time"],
+        max_bins=64,
+    )["joint_quantile_bin"].to_numpy()
+    num_bins = bins.max() + 1
     with caplog.at_level(logging.INFO):
         res = tgs_select_calibration_neighborhoods(
             bin_coords=calc_group_means(
