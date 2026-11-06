@@ -25,7 +25,6 @@ from ._tgs_merge_episodes import tgs_merge_episodes
 from ._tgs_normalize_gain_rates_to_neutral import (
     tgs_normalize_gain_rates_to_neutral,
 )
-from ._tgs_partition_by_rank import tgs_partition_by_rank
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
@@ -55,7 +54,6 @@ __all__ = [
     "tgs_merge_episodes",
     "tgs_minimize_nll",
     "tgs_normalize_gain_rates_to_neutral",
-    "tgs_partition_by_rank",
     "tgs_select_calibration_neighborhoods",
     "tgs_summarize_bootstrap",
     "tgs_validate_args",

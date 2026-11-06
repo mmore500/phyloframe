@@ -114,13 +114,14 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Name of an integer column (see Input Schema) partitioning
         calibration bins: bins are compared only with bins of the same
         partition, never across partitions, with neighborhood size selected
-        separately within each, e.g., by clade size, as neutral gains per
+        separately within each, e.g., by clade size (see
+        `alifestd_mark_clade_size_classes_polars`), as neutral gains per
         unit length may differ between leaves and inner nodes. If not given,
         all bins are compared with one another.
     calibration_compare_by_bins : str, optional
         Name of an integer column (see Input Schema) assigning branches, by
         their end nodes, to calibration bins, e.g., from
-        `alifestd_tgs_mark_calibration_compare_bins_polars`. Calibration
+        `alifestd_mark_rank_bins_polars` (see Notes). Calibration
         rescales each leaf's pendant length by how often neutral traits were
         gained in its bin's neighborhood, relative to all leaves, removing
         distortion of branch lengths that neutral traits share (e.g., from
@@ -254,6 +255,26 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     ancestor with at least two children. Root leaves have no pendant branch,
     so are excluded.
 
+    To calibrate by bins of leaves of similar pendant length and origin
+    time, mark them, measuring pendant lengths from each leaf's stem node
+    (see `alifestd_mark_stem_node_id_polars`):
+
+        df = alifestd_mark_leaves_polars(
+            alifestd_mark_stem_node_id_polars(df)
+        ).with_columns(
+            branch_length=pl.col("origin_time")
+            - pl.col("origin_time").gather(pl.col("stem_node_id")),
+        )
+        df = alifestd_mark_rank_bins_polars(
+            df, rank_by=["branch_length", "origin_time"], partition_by="is_leaf"
+        )
+        alifestd_tgs_pendantmdc_estimate_polars(
+            df,
+            trait_transitions=trait_transitions,
+            neutral_traits=neutral_traits,
+            calibration_compare_by_bins="rank_bin",
+        )
+
     To exclude some leaves, e.g., those originating before a given time,
     prune them first: mark the leaves to keep in a boolean column, and pass
     it as `criterion` to `alifestd_prune_extinct_lineages_polars`. Pruning a
@@ -278,6 +299,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
 
     See Also
     --------
+    alifestd_mark_rank_bins_polars :
+        Marks rank bins, e.g., as calibration bins.
     alifestd_mask_trait_singletons_polars :
         Marks leaves dropped for each trait.
     alifestd_tgs_allmdc_estimate_polars :
@@ -360,7 +383,8 @@ Input Schema: Optional Columns
 ==============================
 `--calibration-partition-by`, `--calibration-compare-by-bins` columns : integer
     Each node's calibration partition and bin (see
-    phyloframe.legacy._alifestd_tgs_mark_calibration_compare_bins_polars).
+    phyloframe.legacy._alifestd_mark_clade_size_classes_polars and
+    phyloframe.legacy._alifestd_mark_rank_bins_polars).
 
 `--calibration-compare-by-vals` columns : numeric
     Values by which calibration bins are compared, if not exposure episode

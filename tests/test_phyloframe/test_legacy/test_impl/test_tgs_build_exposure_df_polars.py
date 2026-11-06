@@ -137,3 +137,21 @@ def test_missing_calibration_column_raises():
             caller="test",
             calibration_compare_by_bins="x",
         )
+
+
+def test_stem_node_branch_lengths_match():
+    # as the estimators' Notes compute branch lengths for calibration bins
+    from phyloframe.legacy import alifestd_mark_stem_node_id_polars
+
+    df_pl = _make_tree()
+    res = tgs_build_exposure_df_polars(
+        df_pl, trait_transitions=["t"], caller="test"
+    )
+    marked = alifestd_mark_stem_node_id_polars(df_pl).with_columns(
+        branch_length=pl.col("origin_time")
+        - pl.col("origin_time").gather(pl.col("stem_node_id")),
+    )
+    assert (
+        marked["branch_length"].gather(res["node_id"].to_numpy()).to_list()
+        == res["branch_length"].tolist()
+    )

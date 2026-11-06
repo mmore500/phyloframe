@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from phyloframe.legacy._impl import tgs_partition_by_rank
+from phyloframe._auxlib._assign_rank_bins import assign_rank_bins
 
 
 def make_tgs_fit_kwargs(
@@ -17,12 +17,13 @@ def make_tgs_fit_kwargs(
     """
     num_traits = sum(c.endswith("_starts_absent") for c in exposure_df)
     if calibrate:
-        bins, num_bins, __ = tgs_partition_by_rank(
-            coordinates=[
+        bins, num_bins = assign_rank_bins(
+            [
                 exposure_df["branch_length"].to_numpy(),
                 exposure_df["origin_time"].to_numpy(),
             ],
-            max_partitions=64,
+            max_bins=64,
+            min_bin_size=4,
         )
     else:
         bins, num_bins = np.zeros(len(exposure_df), dtype=np.int64), 1

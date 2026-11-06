@@ -89,6 +89,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_clade_logistic_growth_children_ase
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_logistic_growth_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_nodecount_ratio_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_nodecount_ratio_sister_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_clade_size_classes_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_subtended_duration_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_subtended_duration_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_subtended_duration_ratio_sister_asexual
@@ -163,6 +164,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_ot_mrca_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_ot_mrca_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_prev_sibling_id_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_rank_bins_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_right_child_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_right_child_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_root_id
@@ -215,7 +217,6 @@ $ python3 -m phyloframe.legacy._alifestd_splice_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_polars
 $ python3 -m phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars
-$ python3 -m phyloframe.legacy._alifestd_tgs_mark_calibration_compare_bins_polars
 $ python3 -m phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars
 $ python3 -m phyloframe.legacy._alifestd_to_working_format
 $ python3 -m phyloframe.legacy._alifestd_to_working_format_polars

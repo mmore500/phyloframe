@@ -2,10 +2,10 @@ import logging
 
 import numpy as np
 
+from phyloframe._auxlib._assign_rank_bins import assign_rank_bins
 from phyloframe._auxlib._calc_group_means import calc_group_means
 from phyloframe.legacy._impl import (
     tgs_count_traits,
-    tgs_partition_by_rank,
     tgs_select_calibration_neighborhoods,
 )
 
@@ -18,9 +18,7 @@ def test_select(caplog):
     coordinates = [
         exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")
     ]
-    bins, num_bins, __ = tgs_partition_by_rank(
-        coordinates=coordinates, max_partitions=64
-    )
+    bins, num_bins = assign_rank_bins(coordinates, max_bins=64, min_bin_size=4)
     with caplog.at_level(logging.INFO):
         res = tgs_select_calibration_neighborhoods(
             bin_coords=calc_group_means(

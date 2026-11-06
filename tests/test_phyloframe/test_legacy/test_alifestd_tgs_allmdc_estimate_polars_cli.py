@@ -6,12 +6,12 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_tgs_allmdc_estimate_polars,
-    alifestd_tgs_mark_calibration_compare_bins_polars,
 )
 from phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars import (
     _create_parser,
 )
 
+from ._impl import mark_tgs_calibration_columns
 from .test_alifestd_tgs_allmdc_estimate_polars import _make_cherries_polars
 
 MODULE = "phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars"
@@ -22,7 +22,7 @@ NEUTRAL_TRAITS = ["n1", "n2", "n3", "n4"]
 def input_pqt(tmp_path):
     """Create a parquet phylogeny with trait and calibration columns."""
     path = tmp_path / "input.pqt"
-    alifestd_tgs_mark_calibration_compare_bins_polars(
+    mark_tgs_calibration_columns(
         _make_cherries_polars(5_000), neutral_traits=NEUTRAL_TRAITS
     ).write_parquet(path)
     return str(path)
@@ -61,9 +61,9 @@ def test_cli(input_pqt, ext, tmp_path):
             "--neutral-traits",
             *NEUTRAL_TRAITS,
             "--calibration-partition-by",
-            "tgs_calibration_partition",
+            "clade_size_class",
             "--calibration-compare-by-bins",
-            "tgs_calibration_compare_bin",
+            "rank_bin",
             "--num-bootstrap",
             "5",
             "--bootstrap-seed",
@@ -99,7 +99,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "n1",
             "n2",
             "--calibration-compare-by-bins",
-            "tgs_calibration_compare_bin",
+            "rank_bin",
             "--calibration-compare-by-vals",
             "origin_time",
             "--calibrate-neighborhood-fractions",
@@ -126,7 +126,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
         pl.read_parquet(input_pqt),
         trait_transitions=["focal", "n1", "n2"],
         neutral_traits=["n1", "n2"],
-        calibration_compare_by_bins="tgs_calibration_compare_bin",
+        calibration_compare_by_bins="rank_bin",
         calibration_compare_by_vals=["origin_time"],
         calibrate_neighborhood_fractions=(0.1, 1.0),
         calibrate_max_rate_ratio=4.0,

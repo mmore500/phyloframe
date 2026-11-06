@@ -3,11 +3,11 @@ import pandas as pd
 import pytest
 
 from phyloframe._auxlib import identity
+from phyloframe._auxlib._assign_rank_bins import assign_rank_bins
 from phyloframe.legacy._impl import (
     tgs_allmdc_count_episodes,
     tgs_calc_exposure_df,
     tgs_impl,
-    tgs_partition_by_rank,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -43,11 +43,10 @@ def _impl(exposure_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
 def _binned_exposure_df() -> pd.DataFrame:
     exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
-    bins, __, __ = tgs_partition_by_rank(
-        coordinates=[
-            exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")
-        ],
-        max_partitions=16,
+    bins, __ = assign_rank_bins(
+        [exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")],
+        max_bins=16,
+        min_bin_size=4,
     )
     return exposure_df.assign(
         calibration_partition=(exposure_df["clade_size"] > 1).astype(int),

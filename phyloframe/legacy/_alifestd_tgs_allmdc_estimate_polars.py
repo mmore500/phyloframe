@@ -103,13 +103,14 @@ def alifestd_tgs_allmdc_estimate_polars(
         Name of an integer column (see Input Schema) partitioning
         calibration bins: bins are compared only with bins of the same
         partition, never across partitions, with neighborhood size selected
-        separately within each, e.g., by clade size, as neutral gains per
+        separately within each, e.g., by clade size (see
+        `alifestd_mark_clade_size_classes_polars`), as neutral gains per
         unit length may differ between leaves and inner nodes. If not given,
         all bins are compared with one another.
     calibration_compare_by_bins : str, optional
         Name of an integer column (see Input Schema) assigning branches, by
         their end nodes, to calibration bins, e.g., from
-        `alifestd_tgs_mark_calibration_compare_bins_polars`. Calibration
+        `alifestd_mark_rank_bins_polars` (see Notes). Calibration
         rescales each branch's length by how often neutral traits were
         gained in its bin's neighborhood, relative to all branches, removing
         distortion of branch lengths that neutral traits share (e.g., from
@@ -215,6 +216,30 @@ def alifestd_tgs_allmdc_estimate_polars(
     -----
     Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`).
 
+    To calibrate within clade size classes, by bins of similar branch length
+    and origin time, mark both, measuring branch lengths from each node's
+    stem node, as fit (see `alifestd_mark_stem_node_id_polars`):
+
+        df = alifestd_mark_stem_node_id_polars(df).with_columns(
+            branch_length=pl.col("origin_time")
+            - pl.col("origin_time").gather(pl.col("stem_node_id")),
+        )
+        df = alifestd_mark_clade_size_classes_polars(
+            df, weight_by=neutral_traits, min_class_weight=20
+        )
+        df = alifestd_mark_rank_bins_polars(
+            df,
+            rank_by=["branch_length", "origin_time"],
+            partition_by="clade_size_class",
+        )
+        alifestd_tgs_allmdc_estimate_polars(
+            df,
+            trait_transitions=trait_transitions,
+            neutral_traits=neutral_traits,
+            calibration_partition_by="clade_size_class",
+            calibration_compare_by_bins="rank_bin",
+        )
+
     Survival durations take the tree's branch lengths at face value, so
     distortion of inner branch lengths (e.g., from reconstruction) also
     distorts the survival term, which neutral calibration does not correct.
@@ -233,8 +258,10 @@ def alifestd_tgs_allmdc_estimate_polars(
 
     See Also
     --------
-    alifestd_tgs_mark_calibration_compare_bins_polars :
-        Marks calibration partitions by clade size, and bins within them.
+    alifestd_mark_clade_size_classes_polars :
+        Marks clade size classes, e.g., as calibration partitions.
+    alifestd_mark_rank_bins_polars :
+        Marks rank bins, e.g., as calibration bins.
     alifestd_tgs_pendantmdc_estimate_polars :
         Leaf pendant branches only.
     """
@@ -308,7 +335,8 @@ Input Schema: Optional Columns
 ==============================
 `--calibration-partition-by`, `--calibration-compare-by-bins` columns : integer
     Each node's calibration partition and bin (see
-    phyloframe.legacy._alifestd_tgs_mark_calibration_compare_bins_polars).
+    phyloframe.legacy._alifestd_mark_clade_size_classes_polars and
+    phyloframe.legacy._alifestd_mark_rank_bins_polars).
 
 `--calibration-compare-by-vals` columns : numeric
     Values by which calibration bins are compared, if not exposure episode

@@ -367,6 +367,9 @@ from ._alifestd_mark_clade_nodecount_ratio_sister_asexual import (
 from ._alifestd_mark_clade_nodecount_ratio_sister_polars import (
     alifestd_mark_clade_nodecount_ratio_sister_polars,
 )
+from ._alifestd_mark_clade_size_classes_polars import (
+    alifestd_mark_clade_size_classes_polars,
+)
 from ._alifestd_mark_clade_subtended_duration_asexual import (
     alifestd_mark_clade_subtended_duration_asexual,
 )
@@ -567,6 +570,9 @@ from ._alifestd_mark_prev_sibling_id_asexual import (
 from ._alifestd_mark_prev_sibling_id_polars import (
     alifestd_mark_prev_sibling_id_polars,
 )
+from ._alifestd_mark_rank_bins_polars import (
+    alifestd_mark_rank_bins_polars,
+)
 from ._alifestd_mark_right_child_asexual import (
     alifestd_mark_right_child_asexual,
 )
@@ -726,9 +732,6 @@ from ._alifestd_test_leaves_isomorphic_polars import (
 )
 from ._alifestd_tgs_allmdc_estimate_polars import (
     alifestd_tgs_allmdc_estimate_polars,
-)
-from ._alifestd_tgs_mark_calibration_compare_bins_polars import (
-    alifestd_tgs_mark_calibration_compare_bins_polars,
 )
 from ._alifestd_tgs_pendantmdc_estimate_polars import (
     alifestd_tgs_pendantmdc_estimate_polars,
@@ -951,7 +954,6 @@ __all__ = [
     "alifestd_mask_trait_mdcs_strict_asexual",
     "alifestd_mask_trait_mdcs_strict_polars",
     "alifestd_tgs_allmdc_estimate_polars",
-    "alifestd_tgs_mark_calibration_compare_bins_polars",
     "alifestd_tgs_pendantmdc_estimate_polars",
     "alifestd_to_iplotx_pandas",
     "alifestd_to_iplotx_polars",
@@ -1007,6 +1009,7 @@ __all__ = [
     "alifestd_mark_clade_logistic_growth_sister_asexual",
     "alifestd_mark_clade_nodecount_ratio_sister_asexual",
     "alifestd_mark_clade_nodecount_ratio_sister_polars",
+    "alifestd_mark_clade_size_classes_polars",
     "alifestd_mark_clade_subtended_duration_asexual",
     "alifestd_mark_clade_subtended_duration_polars",
     "alifestd_mark_clade_subtended_duration_ratio_sister_asexual",
@@ -1077,6 +1080,7 @@ __all__ = [
     "alifestd_mark_ot_mrca_polars",
     "alifestd_mark_prev_sibling_id_asexual",
     "alifestd_mark_prev_sibling_id_polars",
+    "alifestd_mark_rank_bins_polars",
     "alifestd_mark_right_child_asexual",
     "alifestd_mark_right_child_polars",
     "alifestd_mark_root_id",

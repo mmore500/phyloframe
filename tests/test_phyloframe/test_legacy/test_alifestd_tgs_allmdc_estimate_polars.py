@@ -7,12 +7,11 @@ import pytest
 
 from phyloframe.legacy import (
     alifestd_tgs_allmdc_estimate_polars,
-    alifestd_tgs_mark_calibration_compare_bins_polars,
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
 )
 
-from ._impl import add_trait_transitions
+from ._impl import add_trait_transitions, mark_tgs_calibration_columns
 
 
 def _estimate(
@@ -24,16 +23,16 @@ def _estimate(
 ) -> pd.DataFrame:
     """Run a polars estimator on a pandas phylogeny, returning pandas. If
     `calibrate`, calibrates by partitions and bins from
-    `alifestd_tgs_mark_calibration_compare_bins_polars`."""
+    `mark_tgs_calibration_columns`."""
     df_pl = pl.from_pandas(alifestd_to_working_format(phylogeny_df))
     if calibrate:
-        df_pl = alifestd_tgs_mark_calibration_compare_bins_polars(
-            df_pl,
+        df_pl = mark_tgs_calibration_columns(
+            df_pl.drop("ancestor_list", strict=False),
             neutral_traits=kwargs["neutral_traits"],
             size_ratio=calibrate_size_ratio,
         )
-        kwargs["calibration_partition_by"] = "tgs_calibration_partition"
-        kwargs["calibration_compare_by_bins"] = "tgs_calibration_compare_bin"
+        kwargs["calibration_partition_by"] = "clade_size_class"
+        kwargs["calibration_compare_by_bins"] = "rank_bin"
     return estimator(df_pl, **kwargs).to_pandas()
 
 

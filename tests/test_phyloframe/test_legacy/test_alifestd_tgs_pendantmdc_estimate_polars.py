@@ -8,13 +8,12 @@ import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
 from phyloframe.legacy import (
-    alifestd_tgs_mark_calibration_compare_bins_polars,
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
 )
 from phyloframe.legacy._impl import tgs_select_calibration_neighborhoods
 
-from ._impl import add_trait_transitions
+from ._impl import add_trait_transitions, mark_tgs_calibration_columns
 
 
 def _estimate_pendantmdc(
@@ -25,16 +24,15 @@ def _estimate_pendantmdc(
     **kwargs,
 ) -> pd.DataFrame:
     """Run the polars estimator on a pandas phylogeny, returning pandas. If
-    `calibrate`, calibrates by bins from
-    `alifestd_tgs_mark_calibration_compare_bins_polars`."""
+    `calibrate`, calibrates by bins from `mark_tgs_calibration_columns`."""
     df_pl = pl.from_pandas(alifestd_to_working_format(phylogeny_df))
     if calibrate:
-        df_pl = alifestd_tgs_mark_calibration_compare_bins_polars(
-            df_pl,
+        df_pl = mark_tgs_calibration_columns(
+            df_pl.drop("ancestor_list", strict=False),
             neutral_traits=kwargs["neutral_traits"],
             max_bins=calibrate_max_bins,
         )
-        kwargs["calibration_compare_by_bins"] = "tgs_calibration_compare_bin"
+        kwargs["calibration_compare_by_bins"] = "rank_bin"
     return alifestd_tgs_pendantmdc_estimate_polars(df_pl, **kwargs).to_pandas()
 
 
