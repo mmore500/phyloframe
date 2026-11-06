@@ -140,10 +140,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     length_rtol : float, default 1e-2
         Relative tolerance within which exposure episodes' calibrated branch
         lengths and survival durations must both agree for them to be
-        merged for fitting, bounding fit cost; 0 for no merging. On a 7.8M
-        node test phylogeny, 1e-2 roughly halved runtime relative to 1e-3,
-        moving gain rates and ratios by ~1e-4 (relative) and selection
-        coefficients by far less than their bootstrap standard errors.
+        merged for fitting, bounding fit cost; 0 for no merging.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling exposure episodes with
         replacement and refitting, for standard errors, z-scores, and
