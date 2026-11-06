@@ -42,6 +42,7 @@ def tgs_fit_traits(
     calibration bin (see `tgs_calc_calibration_factors`), merges episodes of
     similar calibrated length (see `tgs_merge_episodes`), and fits gain
     rate and selection coefficient (see `tgs_fit_trait_partitions`).
+
     Merges, then fits, one trait at a time, each wrapped in `progress_wrap`
     (e.g., tqdm), so that episode tables scale with branches, not branches
     times traits; every trait's merged partitions, far fewer with merging
