@@ -14,11 +14,13 @@ from .._alifestd_mark_num_leaves_asexual import (
 )
 
 
-def tgs_calc_exposure_df(
+def tgs_build_exposure_df(  # HEY! rename file and tests too
     *,
     ancestor_ids: np.ndarray,
     origin_time: np.ndarray,
-    trait_states: typing.Sequence[np.ndarray],
+    trait_states: typing.Sequence[
+        np.ndarray
+    ],  # HEY! unclear what this is, can it be a dataframe instead? could this all just be one dataframe param?
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -55,6 +57,7 @@ def tgs_calc_exposure_df(
     branch_length = _alifestd_mark_lineage_delta_asexual_fast_path(
         ancestor_ids, origin_time
     )
+    # HEY! why are we excluding roots?
     keep = ancestor_ids != np.arange(len(ancestor_ids))  # excludes roots
     (bad_ids,) = np.nonzero(keep & ~(branch_length > 0))  # nan is bad
     if len(bad_ids):
@@ -64,16 +67,16 @@ def tgs_calc_exposure_df(
             "branch length; a parent with unknown (nan) origin_time, such "
             "as a root, leaves its children's branch lengths undefined",
         )
-    latest = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
+    latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids, origin_time
     )
     columns = {
         "origin_time": origin_time[keep],
         "branch_length": branch_length[keep],
-        "survival_duration": (latest - origin_time)[keep],
-        "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
-            ancestor_ids
-        )[keep],
+        "survival_duration": (latest_ot - origin_time)[keep],
+        "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)[
+            keep
+        ],
     }
     for i, states in enumerate(trait_states):
         deltas = _alifestd_mark_lineage_delta_asexual_fast_path(
