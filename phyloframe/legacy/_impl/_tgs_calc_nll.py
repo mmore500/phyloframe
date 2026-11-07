@@ -49,7 +49,7 @@ def _tgs_calc_effective_length(
 
 def tgs_calc_nll(
     *,
-    log_gain_rate: float,
+    gain_rate: float,  # HEY! change callers
     rate: float,
     partitions: pl.DataFrame,
     growth_exponent_bound: float,
@@ -87,13 +87,12 @@ def tgs_calc_nll(
     """
     if not growth_exponent_bound < np.log(np.finfo(np.float64).max):
         raise ValueError("growth exponent bound overflows float64")
-    num_trials = partitions["num_trials"].to_numpy()
-    num_successes = partitions["num_successes"].to_numpy()
-    lengths = partitions["length"].to_numpy()
-    gain_rate = np.exp(log_gain_rate)
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
-        length=lengths, rate=rate, growth_exponent_bound=growth_exponent_bound
+        length=partitions["length"].to_numpy(),
+        rate=rate,  # HEY! what rate?
+        growth_exponent_bound=growth_exponent_bound,
     )
+
     if survival_shares is None:
         survival, survival_deriv = 1.0, 0.0
     else:
@@ -108,8 +107,14 @@ def tgs_calc_nll(
         survival_deriv = survival_shares @ (
             distinct_survival_durations * survival_factors
         )
+
     p = gain_rate * effective_length * survival
-    nll, dnll_dp = calc_binomial_nll_proxy(num_trials, num_successes, p)
+    nll, dnll_dp = calc_binomial_nll_proxy(
+        partitions["num_trials"].to_numpy(),
+        partitions["num_successes"].to_numpy(),
+        p,
+    )
+
     # chain rule, as d p / d log(gain_rate) = p
     dnll_dlog_gain = np.sum(dnll_dp * p)
     dnll_drate = np.sum(
@@ -120,4 +125,5 @@ def tgs_calc_nll(
             + effective_length * survival_deriv
         )
     )
+
     return nll, dnll_dlog_gain, dnll_drate

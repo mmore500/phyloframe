@@ -232,5 +232,4 @@ def tgs_impl(
         counts_df,
         point_estimate_df=point_estimate_df,
         bootstrap_fits_df=bootstrap_fits_df,
-        num_bootstrap=num_bootstrap,
     )

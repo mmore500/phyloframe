@@ -42,15 +42,6 @@ def _tgs_select_columns(
     `columns`, collected, checking that it is asexual, with contiguous,
     topologically sorted ids.
     """
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    if "ancestor_id" not in schema_names:
-        raise NotImplementedError(
-            f"{caller} only supports asexual phylogenies.",
-        )
-    for column in columns:
-        if column not in schema_names:
-            raise ValueError(f"phylogeny_df has no column {column}")
 
     selected = (
         phylogeny_df.lazy()
@@ -93,7 +84,7 @@ def _tgs_calc_states(
 
 
 def _tgs_collapse_unifurcations(
-    selected: pl.DataFrame,
+    phylogeny_df: pl.DataFrame,
     *,
     states: typing.Sequence[np.ndarray],
     columns: typing.Sequence[str],
@@ -105,22 +96,22 @@ def _tgs_collapse_unifurcations(
     and trait states, `__alifestd_tgs_state{i}`.
     """
     return (
-        alifestd_assign_contiguous_ids_polars(
-            alifestd_collapse_unifurcations_polars(
-                selected.select(
-                    "id", "ancestor_id", "origin_time", *columns
-                ).with_columns(
-                    pl.col("id").alias("__alifestd_tgs_node_id"),
-                    *(
-                        pl.Series(f"__alifestd_tgs_state{i}", s)
-                        for i, s in enumerate(states)
-                    ),
-                ),
-                ignore_topological_sensitivity=True,
+        phylogeny_df.select("id", "ancestor_id", "origin_time", *columns)
+        .with_columns(
+            pl.col("id").alias("__alifestd_tgs_node_id"),
+            *(
+                pl.Series(f"__alifestd_tgs_state{i}", s)
+                for i, s in enumerate(states)
             ),
         )
-        .lazy()
-        .collect()
+        .pipe(
+            alifestd_assign_contiguous_ids_polars,
+            ignore_topological_sensitivity=True,
+        )
+        .pipe(
+            alifestd_collapse_unifurcations_polars,
+            ignore_topological_sensitivity=True,
+        )
     )
 
 
@@ -217,6 +208,7 @@ def tgs_build_exposure_df_polars(
     # affinity RE https://github.com/pola-rs/polars/issues/30408
     # TODO: drop the engine affinity for polars>2.1.0
     with pl.Config(engine_affinity="in-memory"):
+        phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
         selected = _tgs_select_columns(
             phylogeny_df,
             columns=[*trait_transitions, *extra_columns],
@@ -229,9 +221,7 @@ def tgs_build_exposure_df_polars(
                 trait_states=[np.zeros(0, dtype=np.int64)]
                 * len(trait_transitions),
             )
-        states = _tgs_calc_states(
-            selected, trait_transitions=trait_transitions
-        )
+        states = _tgs_calc_states(selected, trait_transitions=trait_transitions)
         collapsed = _tgs_collapse_unifurcations(
             selected, states=states, columns=extra_columns
         )

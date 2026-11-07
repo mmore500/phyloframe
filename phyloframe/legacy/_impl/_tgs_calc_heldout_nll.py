@@ -29,20 +29,21 @@ def tgs_calc_heldout_nll(
     trait_counts_df = trait_bin_counts_df.filter(pl.col("trait") == trait)
     n = trait_counts_df["num_trials"].to_numpy()
     k = trait_counts_df["num_successes"].to_numpy()
-    mean_lengths = np.divide(
+    mean_lengths = np.divide(  # HEY! name this mean_XXX_lengths what is XXX?
         trait_counts_df["length_sum"].to_numpy(),
         n,
         out=np.zeros(n.shape),
         where=n > 0,
     )
-    lengths = mean_lengths * tgs_calc_calibration_factors(
+    assert trait not in neutral_traits
+    calibrated_lengths = mean_lengths * tgs_calc_calibration_factors(
         trait_bin_counts_df=trait_bin_counts_df,
         trait=trait,
         neutral_traits=neutral_traits,
         calibration_neighborhoods=calibration_neighborhoods,
         max_rate_ratio=max_rate_ratio,
     )
-    exposure = (n * lengths).sum()
+    exposure = (n * calibrated_lengths).sum()
     if not (k.any() and exposure):
         warnings.warn(
             f"neutral trait {trait_name} has no gains or no calibrated "
@@ -51,4 +52,4 @@ def tgs_calc_heldout_nll(
         )
         return 0.0
     gain_rate = k.sum() / exposure  # neutral fit, to first order
-    return calc_binomial_nll_proxy(n, k, gain_rate * lengths)[0]
+    return calc_binomial_nll_proxy(n, k, gain_rate * calibrated_lengths)[0]

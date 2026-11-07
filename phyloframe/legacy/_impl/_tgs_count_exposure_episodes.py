@@ -3,7 +3,7 @@ import typing
 import polars as pl
 
 
-def _tgs_count_trait_episodes(
+def _tgs_tally_trait_exposure_episodes(
     exposure_df: pl.DataFrame, *, trait: int
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_count_exposure_episodes`.
@@ -13,12 +13,12 @@ def _tgs_count_trait_episodes(
 
     Output Schema
     -------------
-    'num_leaves' : integer
+    'num_leaf_episodes' : integer   # HEY! update the code to match
         Leaf exposure episodes, i.e., leaf branches that started without
         the trait.
-    'num_trait_present' : integer
+    'num_leaf_gains' : integer
         Of those, the number that gained the trait.
-    'num_inner_branches' : integer
+    'num_inner_episodes' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
     'num_inner_gains' : integer
@@ -38,7 +38,7 @@ def _tgs_count_trait_episodes(
     )
 
 
-def tgs_count_exposure_episodes(
+def tgs_tally_exposure_episodes(  # HEY! rename file and tests too
     *,
     trait_names: typing.Sequence[str],
     exposure_df: pl.DataFrame,
@@ -79,7 +79,7 @@ def tgs_count_exposure_episodes(
                 ),
             ),
             *(  # one trait at a time reduces peak memory
-                _tgs_count_trait_episodes(exposure_df, trait=trait)
+                _tgs_tally_trait_exposure_episodes(exposure_df, trait=trait)
                 for trait in range(len(trait_names))
             ),
         ],

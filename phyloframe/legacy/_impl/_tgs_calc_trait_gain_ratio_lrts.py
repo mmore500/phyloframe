@@ -11,9 +11,9 @@ from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 def _tgs_calc_trait_gain_ratio_lrt(
     *,
     nll_kwargs: typing.Dict[str, typing.Any],
-    gain_rate: float,
+    gain_rate: float,  # HEY! can this be named gain_rate_neutral
     selection_coef: float,
-    gain_ratio: float,
+    gain_ratio: float,  # and can this instead be gain_rate_trait?
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
 ) -> float:
@@ -29,7 +29,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
     selection_rescale = tgs_pick_selection_rescale(nll_kwargs["partitions"])
     free_nll, __, __ = tgs_calc_nll(
         **nll_kwargs,
-        log_gain_rate=np.log(gain_rate),
+        gain_rate=gain_rate,
         rate=selection_coef - loss_rate,
     )
     reference_log_gain_rate = np.log(gain_rate / gain_ratio)
