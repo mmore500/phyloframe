@@ -1,5 +1,6 @@
 import typing
 
+import opytional as opyt
 import polars as pl
 
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
@@ -63,7 +64,7 @@ def tgs_build_estimates_df(
         Replicates excluded for an undefined selection coefficient or gain
         ratio.
     """
-    estimates_df = pl.concat(
+    return pl.concat(
         [
             counts_df,
             point_estimate_df.select(
@@ -73,17 +74,13 @@ def tgs_build_estimates_df(
                 "selection_coef_lrt_naive",
                 "gain_ratio_lrt_naive",
             ),
-        ],
-        how="horizontal",
-    )
-    if bootstrap_fits_df is None:
-        return estimates_df
-    return pl.concat(
-        [
-            estimates_df,
-            tgs_summarize_bootstrap(
-                point_estimate_df=estimates_df,
-                bootstrap_fits_df=bootstrap_fits_df,
+            opyt.apply_if_or_else(
+                bootstrap_fits_df,
+                lambda df: tgs_summarize_bootstrap(
+                    point_estimate_df=point_estimate_df,
+                    bootstrap_fits_df=df,
+                ),
+                pl.DataFrame,
             ),
         ],
         how="horizontal",
