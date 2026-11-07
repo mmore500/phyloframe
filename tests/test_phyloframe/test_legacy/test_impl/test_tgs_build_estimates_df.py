@@ -36,7 +36,6 @@ def test_no_bootstrap():
         _counts(),
         point_estimate_df=_point(),
         bootstrap_fits_df=None,
-        num_bootstrap=0,
     )
     assert out.columns == _COLUMNS
     assert out["gain_ratio"].to_list() == [0.5, 2.0]
@@ -56,7 +55,6 @@ def test_summary_appended():
         _counts(),
         point_estimate_df=point,
         bootstrap_fits_df=replicate_fits,
-        num_bootstrap=3,
     )
     assert out.columns[: len(_COLUMNS)] == _COLUMNS
     np.testing.assert_allclose(out["selection_coef_se"], 0.01)

@@ -10,7 +10,6 @@ def tgs_build_estimates_df(
     *,
     point_estimate_df: pl.DataFrame,
     bootstrap_fits_df: typing.Optional[pl.DataFrame],
-    num_bootstrap: int,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -77,7 +76,7 @@ def tgs_build_estimates_df(
         ],
         how="horizontal",
     )
-    if not num_bootstrap:
+    if bootstrap_fits_df is None:
         return estimates_df
     return pl.concat(
         [
