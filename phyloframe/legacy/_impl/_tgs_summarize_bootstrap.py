@@ -1,8 +1,40 @@
+import typing
+import warnings
+
 import numpy as np
 import polars as pl
 
 from ..._auxlib._calc_two_sided_normal_p import calc_two_sided_normal_p
-from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
+
+
+def _warn_excluded_replicates(
+    is_excluded: np.ndarray,
+    *,
+    trait_index: np.ndarray,
+    trait_names: typing.Sequence[str],
+    num_replicates: int,
+    reason: str,
+) -> None:
+    """Implementation detail for `tgs_summarize_bootstrap`.
+
+    Warns, if any, how many bootstrap replicates were excluded per trait,
+    from `is_excluded`, a boolean array over replicate fits with trait
+    indices `trait_index`, for `reason`, e.g., "no carriers of the trait".
+    """
+    num_excluded = np.bincount(
+        trait_index, weights=is_excluded, minlength=len(trait_names)
+    ).astype(np.int64)
+    if num_excluded.any():
+        counts = ", ".join(
+            f"{trait} ({count} of {num_replicates})"
+            for trait, count in zip(trait_names, num_excluded)
+            if count
+        )
+        warnings.warn(
+            f"bootstrap replicates that resampled {reason} were excluded "
+            f"for traits {counts}, so their standard errors may be "
+            "underestimated.",
+        )
 
 
 def tgs_summarize_bootstrap(
@@ -38,14 +70,13 @@ def tgs_summarize_bootstrap(
         Replicates excluded for an undefined selection coefficient or gain
         ratio.
     """
-    # replicates resampling no carriers of a trait leave its selection
-    # coefficient undefined, and those resampling no carriers of its neutral
-    # reference leave its gain ratio undefined, so exclude them; gain ratio is
-    # also undefined, by design, without neutral traits, which does not make a
-    # replicate degenerate
     trait_index = bootstrap_fits_df["trait_index"].to_numpy()
     selection_coef = bootstrap_fits_df["selection_coef"].to_numpy()
     gain_ratio = bootstrap_fits_df["gain_ratio"].to_numpy()
+    # exclude undefined estimates, e.g., the selection coefficient of a
+    # replicate resampling no carriers of the trait, or the gain ratio of one
+    # resampling no carriers of its neutral reference; a gain ratio undefined
+    # in the point estimate too does not make a replicate degenerate
     is_selection_degenerate = ~np.isfinite(selection_coef)
     is_gain_ratio_degenerate = is_selection_degenerate | (
         np.isfinite(point_estimate_df["gain_ratio"].to_numpy())[trait_index]
@@ -58,7 +89,7 @@ def tgs_summarize_bootstrap(
             "no carriers of the trait's neutral reference",
         ),
     ):
-        tgs_warn_excluded_replicates(
+        _warn_excluded_replicates(
             is_excluded,
             trait_index=trait_index,
             trait_names=point_estimate_df["trait"],

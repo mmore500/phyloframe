@@ -54,9 +54,9 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "id",
             "--partition-by",
             "p",
-            "--max-bins",
+            "--max-num-bins",
             "64",
-            "--min-bin-size",
+            "--min-bin-occupancy",
             "8",
             "--mark-as",
             "b",
@@ -70,8 +70,8 @@ def test_cli_matches_function(input_pqt, tmp_path):
         pl.read_parquet(input_pqt),
         bin_by=["origin_time", "id"],
         partition_by="p",
-        max_bins=64,
-        min_bin_size=8,
+        max_num_bins=64,
+        min_bin_occupancy=8,
         mark_as="b",
     )
     pd.testing.assert_frame_equal(

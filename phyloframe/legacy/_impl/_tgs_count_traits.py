@@ -8,7 +8,7 @@ from ._tgs_select_trait_episodes import (
 )
 
 
-def _tgs_count_trait_bins(
+def _tgs_count_exposures_per_trait_bin(
     *,
     exposure_df: pl.DataFrame,
     trait: int,
@@ -94,7 +94,9 @@ def tgs_count_traits(
             ),
             *(  # one trait at a time reduces peak memory
                 bin_df.join(
-                    _tgs_count_trait_bins(trait=trait, **trait_bin_kwargs),
+                    _tgs_count_exposures_per_trait_bin(
+                        trait=trait, **trait_bin_kwargs
+                    ),
                     on="bin",
                     how="left",
                 )

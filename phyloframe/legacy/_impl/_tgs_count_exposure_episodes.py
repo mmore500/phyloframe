@@ -6,7 +6,7 @@ import polars as pl
 def _tgs_count_trait_episodes(
     exposure_df: pl.DataFrame, *, trait: int
 ) -> pl.DataFrame:
-    """Implementation detail for `tgs_count_episodes`.
+    """Implementation detail for `tgs_count_exposure_episodes`.
 
     Returns `trait`'s leaf and inner exposure episode and gain counts, as one
     row; see Output Schema.
@@ -38,7 +38,7 @@ def _tgs_count_trait_episodes(
     )
 
 
-def tgs_count_episodes(
+def tgs_count_exposure_episodes(
     *,
     trait_names: typing.Sequence[str],
     exposure_df: pl.DataFrame,

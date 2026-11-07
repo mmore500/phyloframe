@@ -20,7 +20,7 @@ def _estimate_pendantmdc(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     calibrate: bool = False,
-    calibrate_max_bins: int = 4096,
+    calibrate_max_num_bins: int = 4096,
     **kwargs,
 ) -> pd.DataFrame:
     """Run the polars estimator on a pandas phylogeny, returning pandas. If
@@ -30,7 +30,7 @@ def _estimate_pendantmdc(
         df_pl = mark_tgs_calibration_columns(
             df_pl.drop("ancestor_list", strict=False),
             neutral_traits=kwargs["neutral_traits"],
-            max_bins=calibrate_max_bins,
+            max_num_bins=calibrate_max_num_bins,
         )
         kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
     return alifestd_tgs_pendantmdc_estimate_polars(df_pl, **kwargs).to_pandas()
@@ -524,15 +524,15 @@ def test_neutral_trait_index_raises():
         )
 
 
-@pytest.mark.parametrize("calibrate_max_bins", [1, 64, 2**20])
-def test_calibrate_max_bins(calibrate_max_bins: int):
+@pytest.mark.parametrize("calibrate_max_num_bins", [1, 64, 2**20])
+def test_calibrate_max_num_bins(calibrate_max_num_bins: int):
     # more bins than leaves allow are capped, keeping 4 leaves each
     phylogeny_df, traits = _make_cherries(2_000)
     res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=traits,
         calibrate=True,
-        calibrate_max_bins=calibrate_max_bins,
+        calibrate_max_num_bins=calibrate_max_num_bins,
     )
     assert np.isfinite(res["selection_coef"]).all()
 

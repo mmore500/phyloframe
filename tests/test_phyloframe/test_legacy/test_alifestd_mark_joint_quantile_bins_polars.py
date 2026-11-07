@@ -21,7 +21,7 @@ def _make_df(num_rows: int = 400, seed: int = 1) -> pl.DataFrame:
 def test_bins(apply):
     res = (
         alifestd_mark_joint_quantile_bins_polars(
-            apply(_make_df()), bin_by=["x", "y"], max_bins=8
+            apply(_make_df()), bin_by=["x", "y"], max_num_bins=8
         )
         .lazy()
         .collect()
@@ -37,7 +37,7 @@ def test_bins(apply):
 def test_partition_by():
     df = _make_df()
     res = alifestd_mark_joint_quantile_bins_polars(
-        df, bin_by=["x", "y"], partition_by="p", max_bins=4, mark_as="b"
+        df, bin_by=["x", "y"], partition_by="p", max_num_bins=4, mark_as="b"
     )
     # bins are numbered consecutively across partitions, in partition order
     assert sorted(res["b"].unique().to_list()) == list(range(12))
@@ -50,9 +50,9 @@ def test_partition_by():
     )
 
 
-def test_min_bin_size():
+def test_min_bin_occupancy():
     res = alifestd_mark_joint_quantile_bins_polars(
-        _make_df(40), bin_by=["x"], max_bins=1024, min_bin_size=10
+        _make_df(40), bin_by=["x"], max_num_bins=1024, min_bin_occupancy=10
     )
     assert res["joint_quantile_bin"].n_unique() == 4
 
@@ -85,10 +85,13 @@ def test_empty():
     "kwargs, error",
     [
         (dict(bin_by=[]), ValueError),
-        (dict(bin_by=["absent"]), ValueError),
-        (dict(bin_by=["x"], partition_by="absent"), ValueError),
-        (dict(bin_by=["x"], max_bins=6), ValueError),
-        (dict(bin_by=["x"], min_bin_size=0), ValueError),
+        (dict(bin_by=["absent"]), pl.exceptions.ColumnNotFoundError),
+        (
+            dict(bin_by=["x"], partition_by="absent"),
+            pl.exceptions.ColumnNotFoundError,
+        ),
+        (dict(bin_by=["x"], max_num_bins=6), ValueError),
+        (dict(bin_by=["x"], min_bin_occupancy=0), ValueError),
         (dict(bin_by="x"), TypeError),
     ],
 )
@@ -113,7 +116,7 @@ def test_full_ties_follow_row_order():
         {"x": np.zeros(num_rows), "p": np.arange(num_rows) % 2},
     )
     res = alifestd_mark_joint_quantile_bins_polars(
-        df, bin_by=["x"], partition_by="p", max_bins=4, min_bin_size=1
+        df, bin_by=["x"], partition_by="p", max_num_bins=4, min_bin_occupancy=1
     )
     for partition in range(2):
         bins = res.filter(pl.col("p") == partition)["joint_quantile_bin"]
@@ -132,3 +135,16 @@ def test_missing_partition_raises(missing):
         alifestd_mark_joint_quantile_bins_polars(
             df, bin_by=["x"], partition_by="p"
         )
+
+
+def test_expressions():
+    df = _make_df()
+    expected = alifestd_mark_joint_quantile_bins_polars(
+        df.with_columns(z=pl.col("x") * 2, q=pl.col("p") + 1),
+        bin_by=["z", "y"],
+        partition_by="q",
+    )
+    res = alifestd_mark_joint_quantile_bins_polars(
+        df, bin_by=[pl.col("x") * 2, "y"], partition_by=pl.col("p") + 1
+    )
+    assert res["joint_quantile_bin"].equals(expected["joint_quantile_bin"])

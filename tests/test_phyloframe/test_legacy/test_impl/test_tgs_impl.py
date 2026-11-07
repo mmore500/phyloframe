@@ -7,7 +7,7 @@ from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
     tgs_calc_exposure_df,
-    tgs_count_episodes,
+    tgs_count_exposure_episodes,
     tgs_impl,
 )
 
@@ -21,7 +21,7 @@ def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
         exposure_df,
         **{
             **dict(
-                counts_df=tgs_count_episodes(
+                counts_df=tgs_count_exposure_episodes(
                     trait_names=_TRAIT_NAMES, exposure_df=exposure_df
                 ),
                 trait_names=_TRAIT_NAMES,
@@ -46,7 +46,7 @@ def _binned_exposure_df() -> pl.DataFrame:
     return alifestd_mark_joint_quantile_bins_polars(
         simulate_allmdc_exposure_df(8_000, num_neutral=3),
         bin_by=["branch_length", "origin_time"],
-        max_bins=16,
+        max_num_bins=16,
         mark_as="calibration_bin",
     ).with_columns(
         calibration_partition=(pl.col("clade_size") > 1).cast(pl.Int64),

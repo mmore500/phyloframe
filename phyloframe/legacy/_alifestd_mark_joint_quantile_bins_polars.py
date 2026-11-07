@@ -22,27 +22,29 @@ from .._auxlib._log_context_duration import log_context_duration
 def _alifestd_mark_joint_quantile_bins_fast_path(
     coordinates: typing.Sequence[np.ndarray],
     *,
-    max_bins: int,
-    min_bin_size: int,
+    max_num_bins: int,
+    min_bin_occupancy: int,
 ) -> typing.Tuple[np.ndarray, int]:
     """Implementation detail for `alifestd_mark_joint_quantile_bins_polars`.
 
     Assigns items to equal-occupancy bins, the leaves of a balanced k-d tree
     over items' tiebroken ranks (see `calc_tiebroken_ranks`). Uses the
-    largest power of two of bins, up to `max_bins`, that keeps at least
-    `min_bin_size` items in each.
+    largest power of two of bins, up to `max_num_bins`, that keeps at least
+    `min_bin_occupancy` items in each.
 
     Returns each item's bin, numbered from 0, and the number of bins.
     """
-    assert int(max_bins).bit_count() == 1
-    assert min_bin_size >= 1
+    assert int(max_num_bins).bit_count() == 1
+    assert min_bin_occupancy >= 1
     num_items = len(coordinates[0])
     if num_items == 0:
         return np.zeros(0, dtype=np.int64), 0
 
     ranks = calc_tiebroken_ranks(coordinates) / num_items  # scaled to (0, 1]
     num_levels = int(
-        np.clip(np.log2(num_items / min_bin_size), 0, np.log2(max_bins))
+        np.clip(
+            np.log2(num_items / min_bin_occupancy), 0, np.log2(max_num_bins)
+        )
     )
     num_bins = 2**num_levels
     # median splitting stops exactly `num_levels` levels down, as nodes there
@@ -54,10 +56,10 @@ def _alifestd_mark_joint_quantile_bins_fast_path(
 def alifestd_mark_joint_quantile_bins_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    bin_by: typing.Sequence[str],
-    partition_by: typing.Optional[str] = None,
-    max_bins: int = 4096,
-    min_bin_size: int = 4,
+    bin_by: typing.Sequence[typing.Union[str, pl.Expr]],
+    partition_by: typing.Union[str, pl.Expr, None] = None,
+    max_num_bins: int = 4096,
+    min_bin_occupancy: int = 4,
     mark_as: str = "joint_quantile_bin",
 ) -> pl.DataFrame:
     """Add column `joint_quantile_bin`, assigning rows to equal-occupancy
@@ -68,7 +70,7 @@ def alifestd_mark_joint_quantile_bins_polars(
     repeatedly splits rows at the median of one of the columns. Ties on one
     column are broken by the others, so bins do not depend on row order
     unless rows tie on every column. Each partition gets the largest power
-    of two of bins, up to `max_bins`, that keeps at least `min_bin_size` rows
+    of two of bins, up to `max_num_bins`, that keeps at least `min_bin_occupancy` rows
     in each. Bins are numbered consecutively across partitions, in order of
     partition value, so each bin lies within one partition.
 
@@ -83,15 +85,15 @@ def alifestd_mark_joint_quantile_bins_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format (or any
         dataframe).
-    bin_by : Sequence[str]
-        Names of numeric columns to bin rows by, e.g., branch length and
-        origin time.
-    partition_by : str, optional
-        Name of a column whose values group rows to bin separately, e.g.,
-        from `alifestd_mark_clade_size_classes_polars`.
-    max_bins : int, default 4096
+    bin_by : Sequence[str or polars.Expr]
+        Numeric columns, by name or expression, to bin rows by, e.g., branch
+        length and origin time.
+    partition_by : str or polars.Expr, optional
+        Column, by name or expression, whose values group rows to bin
+        separately, e.g., from `alifestd_mark_clade_size_classes_polars`.
+    max_num_bins : int, default 4096
         Largest number of bins per partition; a power of two.
-    min_bin_size : int, default 4
+    min_bin_occupancy : int, default 4
         Fewest rows per bin, unless a partition has fewer rows in all.
     mark_as : str, default "joint_quantile_bin"
         Output column name.
@@ -106,8 +108,8 @@ def alifestd_mark_joint_quantile_bins_polars(
     NotImplementedError
         If a `bin_by` or `partition_by` value is null or nan.
     ValueError
-        If a column is missing, if `bin_by` is empty, if `max_bins` is not a
-        power of two, or if `min_bin_size` is less than 1.
+        If `bin_by` is empty, if `max_num_bins` is not a power of two, or if
+        `min_bin_occupancy` is less than 1.
 
     Notes
     -----
@@ -126,27 +128,27 @@ def alifestd_mark_joint_quantile_bins_polars(
         )
     if not len(bin_by):
         raise ValueError("bin_by must be nonempty")
-    if int(max_bins).bit_count() != 1 or max_bins < 1:
-        raise ValueError(f"max_bins must be a power of two, got {max_bins}")
-    if min_bin_size < 1:
+    if int(max_num_bins).bit_count() != 1 or max_num_bins < 1:
         raise ValueError(
-            f"min_bin_size must be at least 1, got {min_bin_size}"
+            f"max_num_bins must be a power of two, got {max_num_bins}"
         )
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    partition_columns = [] if partition_by is None else [partition_by]
-    for column in [*bin_by, *partition_columns]:
-        if column not in schema_names:
-            raise ValueError(f"phylogeny_df has no column {column}")
+    if min_bin_occupancy < 1:
+        raise ValueError(
+            f"min_bin_occupancy must be at least 1, got {min_bin_occupancy}"
+        )
+
+    def as_expr(column: typing.Union[str, pl.Expr]) -> pl.Expr:
+        return pl.col(column) if isinstance(column, str) else column
 
     selected = (
         phylogeny_df.lazy()
         .select(
             *(
-                pl.col(c).cast(pl.Float64).alias(f"bin_by{i}")
+                as_expr(c).cast(pl.Float64).alias(f"bin_by{i}")
                 for i, c in enumerate(bin_by)
             ),
             (
-                pl.lit(0) if partition_by is None else pl.col(partition_by)
+                pl.lit(0) if partition_by is None else as_expr(partition_by)
             ).alias("partition"),
         )
         .with_row_index("row")
@@ -169,8 +171,8 @@ def alifestd_mark_joint_quantile_bins_polars(
         ]
         bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
             [x for x in coordinates if np.ptp(x) > 0] or coordinates,
-            max_bins=max_bins,
-            min_bin_size=min_bin_size,
+            max_num_bins=max_num_bins,
+            min_bin_occupancy=min_bin_occupancy,
         )
         marks[group["row"].to_numpy()] = bins + offset
         offset += num_bins
@@ -227,13 +229,13 @@ def _create_parser() -> argparse.ArgumentParser:
         help="Column of partitions to bin separately (default: none).",
     )
     parser.add_argument(
-        "--max-bins",
+        "--max-num-bins",
         default=4096,
         type=int,
         help="Largest number of bins per partition (default: 4096).",
     )
     parser.add_argument(
-        "--min-bin-size",
+        "--min-bin-occupancy",
         default=4,
         type=int,
         help="Fewest rows per bin (default: 4).",
@@ -263,8 +265,8 @@ if __name__ == "__main__":
                 alifestd_mark_joint_quantile_bins_polars,
                 bin_by=args.bin_by,
                 partition_by=args.partition_by,
-                max_bins=args.max_bins,
-                min_bin_size=args.min_bin_size,
+                max_num_bins=args.max_num_bins,
+                min_bin_occupancy=args.min_bin_occupancy,
                 mark_as=args.mark_as,
             ),
         )

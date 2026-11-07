@@ -16,7 +16,7 @@ def mark_tgs_calibration_columns(
     neutral_traits: typing.Sequence[str],
     size_ratio: float = 2.0,
     min_class_weight: float = 20.0,
-    max_bins: int = 4096,
+    max_num_bins: int = 4096,
 ) -> pl.DataFrame:
     """Mark calibration partitions, `clade_size_class`, and bins within
     them, `joint_quantile_bin`, as the tgs estimators' Notes describe."""
@@ -36,5 +36,5 @@ def mark_tgs_calibration_columns(
         phylogeny_df,
         bin_by=["branch_length", "origin_time"],
         partition_by="clade_size_class",
-        max_bins=max_bins,
+        max_num_bins=max_num_bins,
     )

@@ -52,25 +52,25 @@ def _alifestd_mark_clade_size_classes_fast_path(
     class_weights = np.bincount(classes, weights, minlength=num_classes)
     # the first class above class 0 that is too light, and every class of
     # larger clades, join the class below it, keeping `min_num_classes`
-    (light,) = np.nonzero(class_weights[1:] < min_class_weight)
-    cap = max(light[0], min_num_classes - 1) if len(light) else num_classes
+    (is_light,) = np.nonzero(class_weights[1:] < min_class_weight)
+    cap = (
+        max(is_light[0], min_num_classes - 1) if len(is_light) else num_classes
+    )
     if cap < num_classes - 1:
         logging.info(
             "- alifestd_mark_clade_size_classes_polars: clade size class "
-            f"{light[0] + 1} weighs less than {min_class_weight}, so "
+            f"{is_light[0] + 1} weighs less than {min_class_weight}, so "
             f"classes above {cap} join class {cap}",
         )
         classes = np.minimum(classes, cap)
         num_classes = cap + 1
         class_weights = np.bincount(classes, weights, minlength=num_classes)
 
-    if (class_weights[1:] < min_class_weight).any():
+    light_classes = np.flatnonzero(class_weights[1:] < min_class_weight) + 1
+    if len(light_classes):
         warnings.warn(
-            "clade size classes "
-            f"{np.flatnonzero(class_weights[1:] < min_class_weight) + 1} "
-            f"weigh less than min_class_weight={min_class_weight}, but are "
-            "kept, as "
-            f"min_num_classes={min_num_classes}",
+            f"clade size classes {light_classes} weigh less than "
+            f"{min_class_weight=}, but are kept, as {min_num_classes=}",
         )
 
     for class_ in range(num_classes):

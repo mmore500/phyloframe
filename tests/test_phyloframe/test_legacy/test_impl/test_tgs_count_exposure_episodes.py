@@ -1,6 +1,6 @@
 import polars as pl
 
-from phyloframe.legacy._impl import tgs_count_episodes
+from phyloframe.legacy._impl import tgs_count_exposure_episodes
 
 
 def test_count():
@@ -13,7 +13,9 @@ def test_count():
             "trait1_gain": [False] * 5,
         },
     )
-    res = tgs_count_episodes(trait_names=["a", "b"], exposure_df=exposure_df)
+    res = tgs_count_exposure_episodes(
+        trait_names=["a", "b"], exposure_df=exposure_df
+    )
     assert res.columns == [
         "trait",
         "num_leaves",
@@ -28,7 +30,7 @@ def test_count():
 
 
 def test_no_traits():
-    res = tgs_count_episodes(
+    res = tgs_count_exposure_episodes(
         trait_names=[], exposure_df=pl.DataFrame({"clade_size": [1, 2]})
     )
     assert res.columns[0] == "trait"

@@ -22,7 +22,7 @@ def test_select(caplog):
     bins = alifestd_mark_joint_quantile_bins_polars(
         exposure_df,
         bin_by=["branch_length", "origin_time"],
-        max_bins=64,
+        max_num_bins=64,
     )["joint_quantile_bin"].to_numpy()
     num_bins = bins.max() + 1
     with caplog.at_level(logging.INFO):

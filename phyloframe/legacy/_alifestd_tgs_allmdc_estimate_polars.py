@@ -18,7 +18,7 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
     tgs_build_exposure_df_polars,
-    tgs_count_episodes,
+    tgs_count_exposure_episodes,
     tgs_impl,
     tgs_validate_args,
 )
@@ -97,35 +97,33 @@ def alifestd_tgs_allmdc_estimate_polars(
         Output rows are labeled by these column names.
     neutral_traits : Sequence[str]
         Names, among `trait_transitions`, of traits known to be neutral. At
-        least two are required: they calibrate branch lengths against one
-        another, and their mean gain rate, leaving the focal trait out, is
-        the reference for gain ratios.
+        least two are required for selecting the calibration configuration.
+        Used to calibrate branch lengths against one another; their mean gain
+        rate, leaving the focal trait out, is the reference for gain ratios.
     calibration_partition_by : str, optional
-        Name of an integer column (see Input Schema) partitioning
-        calibration bins: bins are compared only with bins of the same
-        partition, never across partitions, with neighborhood size selected
-        separately within each, e.g., by clade size (see
+        Name of a column of integer partition ids (see Input Schema): bins
+        are compared only with bins of the same partition, never across
+        partitions, with neighborhood size selected separately within each, e.g., by clade size (see
         `alifestd_mark_clade_size_classes_polars`), as neutral gains per
         unit length may differ between leaves and inner nodes. If not given,
         all bins are compared with one another.
     calibration_compare_by_bins : str, optional
-        Name of an integer column (see Input Schema) assigning branches, by
-        their end nodes, to calibration bins, e.g., from
+        Name of a column of integer calibration bin ids, at each exposure
+        episode's end node (see Input Schema), e.g., from
         `alifestd_mark_joint_quantile_bins_polars` (see Notes). Calibration
-        rescales each branch's length by how often neutral traits were
-        gained in its bin's neighborhood, relative to all branches, removing
-        distortion of branch lengths that neutral traits share (e.g., from
-        tree reconstruction). Assumes loss is negligible over a branch. If
-        not given, each partition's branches form one bin; so, without
-        `calibration_partition_by` either, there is no calibration.
+        rescales each episode's length by the neutral gain rate in its bin's
+        neighborhood relative to overall, removing distortion that neutral
+        traits share (e.g., from tree reconstruction). If not given, each
+        partition is one bin, so without `calibration_partition_by` too,
+        there is no calibration.
     calibration_compare_by_vals : Sequence[str], default ("branch_length", "origin_time")
         Columns by which bins are compared: a bin's neighborhood is its
         nearest bins in its partition by mean rank of these columns.
         Exposure episode columns take precedence: `branch_length`;
-        `origin_time`, of the branch's end node; `clade_size`, its number of
-        leaves; and `survival_duration`, from its end node to its latest
-        leaf. Other names are numeric columns of `phylogeny_df`, at each
-        branch's end node.
+        `origin_time`, of the exposure episode's end node; `clade_size`, its
+        number of leaves; and `survival_duration`, from its end node to its
+        latest leaf. Other names are numeric columns of `phylogeny_df`, at
+        each episode's end node.
     calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of a
         partition's bins. The candidate used is the one whose calibration
@@ -144,10 +142,9 @@ def alifestd_tgs_allmdc_estimate_polars(
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling exposure episodes with
         replacement and refitting, for standard errors, z-scores, and
-        p-values. Calibration neighborhood size is held constant. More than
-        about 200 replicates are rarely needed for standard errors; see
-        Efron and Tibshirani (1993), An Introduction to the Bootstrap
-        (Chapman & Hall).
+        p-values. Standard guidance suggests about 200 replicates for standard
+        errors (Efron and Tibshirani 1993, An Introduction to the Bootstrap).
+        Calibration neighborhood size is held constant.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
@@ -196,23 +193,54 @@ def alifestd_tgs_allmdc_estimate_polars(
         Each node's trait state transition on the branch from its parent; see
         `alifestd_tgs_pendantmdc_estimate_polars`.
     `calibration_partition_by`, `calibration_compare_by_bins` columns : integer, optional
-        Each node's calibration partition and bin, for the branch from its
-        parent; see Parameters.
+        Each node's calibration partition and bin ids, for the exposure
+        episode ending at it; see Parameters.
     `calibration_compare_by_vals` columns : numeric, optional
         Values by which calibration bins are compared; see Parameters.
 
     Output Schema
     -------------
-    As for `alifestd_tgs_pendantmdc_estimate_polars`, with also:
+    One row per trait:
 
+    'trait' : string
+        Trait, named by its `trait_transitions` column.
+    'num_leaves' : integer
+        Leaf exposure episodes, i.e., leaf branches that started without
+        the trait.
+    'num_trait_present' : integer
+        Of those, the number that gained the trait.
     'num_inner_branches' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
     'num_inner_gains' : integer
         Of those, the number that gained the trait.
+    'gain_rate' : float
+        Estimated rate of trait gain, per unit branch length.
+    'selection_coef' : float
+        Estimated selection coefficient, the rate at which a carrier
+        lineage's expected number of sampled descendants changes relative
+        to a non-carrier's (negative for a cost); nan without carriers.
+    'gain_ratio' : float
+        Gain rate relative to the mean gain rate of the other neutral
+        traits.
+    'selection_coef_lrt_naive' : float
+        Likelihood-ratio statistic for selection coefficient = 0 (see
+        Warnings).
+    'gain_ratio_lrt_naive' : float
+        Likelihood-ratio statistic for gain ratio = 1 (see Warnings).
 
-    Here, 'num_leaves' and 'num_trait_present' count leaf exposure
-    episodes, and 'gain_rate' is per unit branch length.
+    With bootstrap replicates, also:
+
+    'selection_coef_se', 'log_gain_ratio_se' : float
+        Bootstrap standard errors (se), i.e., standard deviations across
+        replicates, of the selection coefficient and log gain ratio.
+    'selection_coef_z', 'gain_ratio_z' : float
+        Corresponding z-scores, against 0 and 1, respectively.
+    'selection_coef_p', 'gain_ratio_p' : float
+        Corresponding two-sided p-values, by normal approximation.
+    'num_bootstrap_degenerate' : integer
+        Replicates excluded for resampling no carriers of the trait, or of
+        its neutral reference.
 
     Notes
     -----
@@ -222,24 +250,29 @@ def alifestd_tgs_allmdc_estimate_polars(
     and origin time, mark both, measuring branch lengths from each node's
     stem node, as fit (see `alifestd_mark_stem_node_id_polars`):
 
-        df = alifestd_mark_stem_node_id_polars(df).with_columns(
-            branch_length=pl.col("origin_time")
-            - pl.col("origin_time").gather(pl.col("stem_node_id")),
-        )
-        df = alifestd_mark_clade_size_classes_polars(
-            df, weight_by=neutral_traits, min_class_weight=20
-        )
-        df = alifestd_mark_joint_quantile_bins_polars(
-            df,
-            bin_by=["branch_length", "origin_time"],
-            partition_by="clade_size_class",
-        )
-        alifestd_tgs_allmdc_estimate_polars(
-            df,
-            trait_transitions=trait_transitions,
-            neutral_traits=neutral_traits,
-            calibration_partition_by="clade_size_class",
-            calibration_compare_by_bins="joint_quantile_bin",
+        estimates_df = (
+            alifestd_mark_stem_node_id_polars(df)
+            .with_columns(
+                branch_length=pl.col("origin_time")
+                - pl.col("origin_time").gather(pl.col("stem_node_id")),
+            )
+            .pipe(
+                alifestd_mark_clade_size_classes_polars,
+                weight_by=neutral_traits,
+                min_class_weight=20,
+            )
+            .pipe(
+                alifestd_mark_joint_quantile_bins_polars,
+                bin_by=["branch_length", "origin_time"],
+                partition_by="clade_size_class",
+            )
+            .pipe(
+                alifestd_tgs_allmdc_estimate_polars,
+                trait_transitions=trait_transitions,
+                neutral_traits=neutral_traits,
+                calibration_partition_by="clade_size_class",
+                calibration_compare_by_bins="joint_quantile_bin",
+            )
         )
 
     Survival durations take the tree's branch lengths at face value, so
@@ -249,14 +282,16 @@ def alifestd_tgs_allmdc_estimate_polars(
     unaffected, so disagreement between the two may suggest such
     distortion.
 
-    Nested exposure episodes share leaves, so their outcomes are not
-    independent, but the likelihood treats them as independent (a composite
-    likelihood). So, `selection_coef_lrt_naive` and `gain_ratio_lrt_naive`
-    are not calibrated as chi-squared statistics, and every bootstrap
-    statistic (standard errors, z-scores, and p-values), as replicates
-    resample episodes independently, is likely overconfident. No bootstrap
-    that accounts for nesting (e.g., resampling whole clades) is yet
-    provided.
+    Warnings
+    --------
+    Statistical inference tends to overestimate significance. Nested
+    exposure episodes share leaves, so their outcomes are not independent.
+    However, likelihood testing treats them as independent (i.e., composite
+    likelihood), so `selection_coef_lrt_naive` and `gain_ratio_lrt_naive`
+    are not calibrated as chi-squared statistics. Likewise, bootstrap
+    sampling assumes episodes are independent, so its replicates may be
+    underdispersed, making standard errors too small and z-scores and
+    p-values overconfident.
 
     See Also
     --------
@@ -285,7 +320,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     )
     return tgs_impl(
         exposure_df,
-        counts_df=tgs_count_episodes(
+        counts_df=tgs_count_exposure_episodes(
             trait_names=trait_names, exposure_df=exposure_df
         ),
         trait_names=trait_names,

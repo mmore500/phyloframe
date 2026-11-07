@@ -13,7 +13,7 @@ from ._tgs_calc_trait_selection_lrts import (
     tgs_calc_trait_selection_lrts,
 )
 from ._tgs_calc_trait_states import tgs_calc_trait_states
-from ._tgs_count_episodes import tgs_count_episodes
+from ._tgs_count_exposure_episodes import tgs_count_exposure_episodes
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_fit import TgsFitResult, tgs_fit, tgs_fit_trait
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
@@ -33,11 +33,10 @@ from ._tgs_select_trait_episodes import (
 )
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 from ._tgs_validate_args import tgs_validate_args
-from ._tgs_warn_excluded_replicates import tgs_warn_excluded_replicates
 
 __all__ = [
     "TgsFitResult",
-    "tgs_count_episodes",
+    "tgs_count_exposure_episodes",
     "tgs_bootstrap_trait_fits",
     "tgs_build_estimates_df",
     "tgs_build_exposure_df_polars",
@@ -63,5 +62,4 @@ __all__ = [
     "tgs_count_exposure_traits",
     "tgs_select_trait_episodes",
     "tgs_validate_args",
-    "tgs_warn_excluded_replicates",
 ]

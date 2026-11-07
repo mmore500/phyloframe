@@ -81,7 +81,7 @@ def tgs_impl(
         Values by which calibration bins are compared.
     `counts_df` columns
         Trait name, 'trait', then per-trait counts, e.g., as for
-        `tgs_count_episodes`.
+        `tgs_count_exposure_episodes`.
 
     Output Schema
     -------------
