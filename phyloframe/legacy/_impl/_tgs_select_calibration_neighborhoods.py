@@ -25,7 +25,7 @@ def tgs_select_calibration_neighborhoods(
 
     Returns the bin-by-bin membership matrix of calibration neighborhoods,
     the bins whose neutral trait gains calibrate each bin's branch lengths
-    (see `tgs_calc_calibration_rescaling_factors`): each bin's nearest bins by
+    (see `tgs_calc_calibration_rescaling`): each bin's nearest bins by
     `bin_coords`, of the size, among `neighborhood_fractions`, that best
     predicts each held-out neutral trait's gains when calibrating against
     the other neutral traits (see `tgs_calc_heldout_nll`), given `trait_bin_counts_df` (see

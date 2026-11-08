@@ -5,8 +5,8 @@ from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_build_exposure_df import tgs_build_exposure_df
 from ._tgs_build_exposure_df_polars import tgs_build_exposure_df_polars
-from ._tgs_calc_calibration_rescaling_factors import (
-    tgs_calc_calibration_rescaling_factors,
+from ._tgs_calc_calibration_rescaling import (
+    tgs_calc_calibration_rescaling,
 )
 from ._tgs_calc_heldout_nll import tgs_calc_heldout_nll
 from ._tgs_calc_nll import tgs_calc_nll
@@ -48,7 +48,7 @@ __all__ = [
     "tgs_bootstrap_trait_fits",
     "tgs_build_estimates_df",
     "tgs_build_exposure_df_polars",
-    "tgs_calc_calibration_rescaling_factors",
+    "tgs_calc_calibration_rescaling",
     "tgs_build_exposure_df",
     "tgs_calc_trait_gain_ratio_lrts",
     "tgs_calc_trait_selection_lrt",

@@ -1,42 +1,47 @@
-import typing
-
-import numpy as np
 import polars as pl
 
 
-def tgs_assign_calibration_bins(
-    exposure_df: pl.DataFrame,
-) -> typing.Tuple[np.ndarray, typing.List[int]]:
+def tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns each exposure episode's calibration bin, numbering the
-    distinct (`calibration_partition`, `calibration_bin`) pairs of
-    `exposure_df` consecutively, partition-major, so that each partition's
-    bins are contiguous, and the partition bounds: each partition's first
-    bin, then the number of bins. A missing column counts as all 0, so
-    without either, every episode is in one bin.
+    Returns each exposure episode's calibration bin and partition, one row
+    per row of `exposure_df`, numbering distinct (`calibration_partition`,
+    `calibration_bin`) pairs consecutively, partition-major, so that each
+    partition's bins are contiguous; see Input and Output Schema.
 
     Raises ValueError if `exposure_df` has no exposure episodes.
+
+    Input Schema
+    ------------
+    'calibration_partition' : integer, optional
+        Each episode's calibration partition id; if missing, all 0.
+    'calibration_bin' : integer, optional
+        Each episode's calibration bin id; if missing, all 0. So, without
+        either column, every episode is in one bin.
+
+    Output Schema
+    -------------
+    'bin' : integer
+        Calibration bin index, from 0, over (partition, bin) pairs, sorted.
+    'partition' : integer
+        Calibration partition index, from 0, over partitions, sorted.
     """
-    num_episodes = len(exposure_df)
-    if not num_episodes:
+    if exposure_df.is_empty():
         raise ValueError("phylogeny_df has no exposure episodes to fit")
 
-    pairs, bins = np.unique(
-        np.column_stack(
-            [
-                (
-                    exposure_df[column].to_numpy()
-                    if column in exposure_df.columns
-                    else np.zeros(num_episodes, dtype=np.int64)
-                )
-                for column in ("calibration_partition", "calibration_bin")
-            ],
+    pairs = pl.struct(
+        *(
+            (
+                pl.col(column)
+                if column in exposure_df.columns
+                else pl.repeat(0, pl.len()).alias(column)
+            )
+            for column in ("calibration_partition", "calibration_bin")
         ),
-        axis=0,
-        return_inverse=True,
     )
-    __, partition_starts = np.unique(pairs[:, 0], return_index=True)
-    return bins.ravel(), [*partition_starts.tolist(), len(pairs)]
+    return exposure_df.select(
+        bin=pairs.rank("dense") - 1,
+        partition=pairs.struct[0].rank("dense") - 1,
+    ).cast(pl.Int64)

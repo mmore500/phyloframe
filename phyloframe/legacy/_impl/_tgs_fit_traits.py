@@ -9,8 +9,8 @@ from scipy import sparse
 
 from ..._auxlib._identity import identity
 from ..._auxlib._log_memory_usage import log_memory_usage
-from ._tgs_calc_calibration_rescaling_factors import (
-    tgs_calc_calibration_rescaling_factors,
+from ._tgs_calc_calibration_rescaling import (
+    tgs_calc_calibration_rescaling,
 )
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
@@ -42,7 +42,7 @@ def tgs_fit_traits(
 
     Fits each trait to `exposure_df`'s exposure episodes, each weighted by
     `weights` (e.g., bootstrap draw counts): calibrates branch lengths by
-    calibration bin (see `tgs_calc_calibration_rescaling_factors`), merges episodes of
+    calibration bin (see `tgs_calc_calibration_rescaling`), merges episodes of
     similar calibrated length (see `tgs_merge_episodes`), and fits gain
     rate and selection coefficient (see `tgs_fit_trait_partitions`).
 
@@ -102,7 +102,7 @@ def tgs_fit_traits(
             exposure_df=exposure_df,
             trait=trait,
             bins=bins,
-            calibration_factors=tgs_calc_calibration_rescaling_factors(
+            calibration_factors=tgs_calc_calibration_rescaling(
                 trait_bin_counts_df=trait_bin_counts_df,
                 trait=trait,
                 neutral_traits=neutral_traits,

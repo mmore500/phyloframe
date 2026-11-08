@@ -62,40 +62,82 @@ def _tgs_slice_partition_bins(
 def tgs_select_partitioned_calibration_neighborhoods(
     exposure_df: pl.DataFrame,
     *,
-    bins: np.ndarray,
-    partition_bounds: typing.Sequence[int],
+    bins_df: pl.DataFrame,
     neighborhood_fractions: typing.Sequence[float],
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
-) -> typing.Tuple[sparse.csr_matrix, typing.Optional[pl.DataFrame]]:
+) -> typing.Tuple[sparse.csr_matrix, pl.DataFrame]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns the bin-by-bin membership matrix of calibration neighborhoods,
-    selected separately within each partition (see
-    `tgs_select_calibration_neighborhoods`), so that neighborhoods never
-    span partitions, given each exposure episode's bin and the partition
-    bounds (see `tgs_assign_calibration_bins`). With one bin, returns one
-    neighborhood, i.e., no calibration.
+    Selects calibration neighborhoods separately within each partition
+    (see `tgs_select_calibration_neighborhoods`), so that neighborhoods
+    never span partitions. Returns a sparse 0/1 bin-by-bin matrix whose row
+    `i` marks the calibration bins in bin `i`'s neighborhood, i.e., those
+    whose neutral trait gains calibrate bin `i`'s branch lengths; with one
+    bin, that bin alone, i.e., no calibration. Also returns per-(trait,
+    bin) exposure counts (see `tgs_count_traits`), which it needs for
+    selection, for reuse by the point estimate; see Input and Output
+    Schema.
 
-    Also returns the per-(trait, bin) exposure counts (see
-    `tgs_count_traits`) it computed, for reuse by the point estimate; None
-    with one bin.
+    Input Schema
+    ------------
+    `exposure_df` columns (see `tgs_build_exposure_df_polars`):
+
+    'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
+        Whether the episode started without, and whether it gained, the
+        trait.
+    'branch_length' : float
+        Episode length.
+    'calibration_compare_by_{name}' : numeric
+        Values by which calibration bins are compared.
+
+    `bins_df` columns, one row per episode (see
+    `tgs_assign_calibration_bins`):
+
+    'bin' : integer
+        Calibration bin index, partition-major.
+    'partition' : integer
+        Calibration partition index.
+
+    Output Schema
+    -------------
+    Per-(trait, bin) counts, as for `tgs_count_traits`:
+
+    'trait' : integer
+        Trait index.
+    'bin' : integer
+        Calibration bin index.
+    'num_trials' : float
+        Exposure episodes of the trait in the bin.
+    'num_successes' : float
+        Of those, the number that gained the trait.
+    'length_sum' : float
+        Their summed branch length.
     """
-    num_bins = partition_bounds[-1]
-    if num_bins == 1:  # one neighborhood of all episodes, i.e., no calibration
-        return sparse.identity(1, format="csr"), None
-
-    bin_coords = _tgs_calc_calibration_bin_coords(
-        exposure_df, bins=bins, num_bins=num_bins
-    )
+    bins = bins_df["bin"].to_numpy()
+    num_bins = int(bins.max()) + 1
     trait_bin_counts_df = tgs_count_traits(
         exposure_df=exposure_df,
         bins=bins,
         num_bins=num_bins,
         weights=np.ones(len(exposure_df)),
+    )
+    if num_bins == 1:  # one neighborhood of all episodes, i.e., no calibration
+        return sparse.identity(1, format="csr"), trait_bin_counts_df
+
+    # each partition's first bin, then the number of bins
+    bin_partitions = (
+        bins_df.group_by("bin").agg(pl.col("partition").first()).sort("bin")
+    )["partition"].to_numpy()
+    partition_bounds = [
+        *np.searchsorted(bin_partitions, np.unique(bin_partitions)).tolist(),
+        num_bins,
+    ]
+    bin_coords = _tgs_calc_calibration_bin_coords(
+        exposure_df, bins=bins, num_bins=num_bins
     )
     calibration_neighborhoods = sparse.block_diag(
         [

@@ -93,15 +93,15 @@ def tgs_estimate_tgs_from_exposures(
         Replicates excluded for an undefined selection coefficient or gain
         ratio.
     """
-    bins, partition_bounds = tgs_assign_calibration_bins(exposure_df)
-    num_episodes, num_bins = len(exposure_df), partition_bounds[-1]
+    bins_df = tgs_assign_calibration_bins(exposure_df)
+    bins = bins_df["bin"].to_numpy()
+    num_episodes, num_bins = len(exposure_df), int(bins.max()) + 1
     (
         calibration_neighborhoods,
         trait_bin_counts_df,
     ) = tgs_select_partitioned_calibration_neighborhoods(
         exposure_df,
-        bins=bins,
-        partition_bounds=partition_bounds,
+        bins_df=bins_df,
         neighborhood_fractions=calibrate_neighborhood_fractions,
         neutral_traits=neutral_traits,
         trait_names=trait_names,

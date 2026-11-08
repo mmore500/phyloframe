@@ -6,8 +6,8 @@ import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ._tgs_calc_calibration_rescaling_factors import (
-    tgs_calc_calibration_rescaling_factors,
+from ._tgs_calc_calibration_rescaling import (
+    tgs_calc_calibration_rescaling,
 )
 
 
@@ -41,7 +41,7 @@ def tgs_calc_heldout_nll(
     assert trait in neutral_traits
     calibrated_lengths = (
         mean_bin_branch_lengths
-        * tgs_calc_calibration_rescaling_factors(
+        * tgs_calc_calibration_rescaling(
             trait_bin_counts_df=trait_bin_counts_df,
             trait=trait,
             neutral_traits=neutral_traits,
