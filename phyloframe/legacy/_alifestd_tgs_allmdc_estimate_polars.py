@@ -325,7 +325,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     )
     return tgs_estimate_tgs_from_exposures(
         exposure_df,
-        counts_df=tgs_tally_exposure_episodes(
+        episode_tallies_df=tgs_tally_exposure_episodes(
             trait_names=trait_names, exposure_df=exposure_df
         ),
         trait_names=trait_names,

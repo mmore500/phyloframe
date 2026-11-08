@@ -344,7 +344,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
     return tgs_estimate_tgs_from_exposures(
         exposure_df,
-        counts_df=tgs_tally_exposure_episodes(
+        episode_tallies_df=tgs_tally_exposure_episodes(
             trait_names=trait_names, exposure_df=exposure_df
         ).select("trait", "num_leaf_episodes", "num_leaf_gains"),
         trait_names=trait_names,

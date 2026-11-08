@@ -7,7 +7,7 @@ from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 
 
 def tgs_build_estimates_df(
-    counts_df: pl.DataFrame,
+    episode_tallies_df: pl.DataFrame,
     *,
     point_estimate_df: pl.DataFrame,
     bootstrap_fits_df: typing.Optional[pl.DataFrame],
@@ -16,7 +16,8 @@ def tgs_build_estimates_df(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns one row per trait, joining `counts_df`'s per-trait counts,
+    Returns one row per trait, joining `episode_tallies_df`'s per-trait
+    exposure episode and gain tallies (see `tgs_tally_exposure_episodes`),
     `point_estimate_df`'s estimates, and bootstrap summaries of
     `bootstrap_fits_df`; see Output Schema.
 
@@ -66,7 +67,7 @@ def tgs_build_estimates_df(
     """
     estimates_df = pl.concat(
         [
-            counts_df,
+            episode_tallies_df,
             point_estimate_df.select(
                 "gain_rate",
                 "selection_coef",

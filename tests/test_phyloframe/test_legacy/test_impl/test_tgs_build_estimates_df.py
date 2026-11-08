@@ -4,7 +4,7 @@ import polars as pl
 from phyloframe.legacy._impl import tgs_build_estimates_df
 
 
-def _counts() -> pl.DataFrame:
+def _episode_tallies() -> pl.DataFrame:
     return pl.DataFrame({"trait": ["a", "b"], "num_leaf_episodes": [10, 20]})
 
 
@@ -33,7 +33,7 @@ _COLUMNS = [
 
 def test_no_bootstrap():
     out = tgs_build_estimates_df(
-        _counts(),
+        _episode_tallies(),
         point_estimate_df=_point(),
         bootstrap_fits_df=None,
     )
@@ -52,7 +52,7 @@ def test_summary_appended():
         for replicate, delta in enumerate((-0.01, 0.0, 0.01))
     )
     out = tgs_build_estimates_df(
-        _counts(),
+        _episode_tallies(),
         point_estimate_df=point,
         bootstrap_fits_df=replicate_fits,
     )
