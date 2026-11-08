@@ -90,9 +90,8 @@ def test_cli_matches_function(input_pqt, tmp_path):
         seed=1,
     )
     result_df = pd.read_parquet(output_file)
-    assert result_df["replicate"].tolist() == [
-        r for r in range(3) for __ in range(5)
-    ]
+    assert result_df["trait"].tolist() == ["focal", *NEUTRAL_TRAITS]
+    assert "selection_coef_se" in result_df.columns
     pd.testing.assert_frame_equal(
         result_df, expected.to_pandas(), check_dtype=False
     )

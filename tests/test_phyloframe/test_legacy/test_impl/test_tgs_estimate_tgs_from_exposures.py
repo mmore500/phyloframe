@@ -105,3 +105,24 @@ def test_no_episodes_raises():
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
         _impl(exposure_df)
+
+
+def test_bootstrap():
+    exposure_df = simulate_allmdc_exposure_df(4_000, num_neutral=3)
+    point = _impl(exposure_df)
+    res = _impl(exposure_df, num_bootstrap=3, seed=1)
+    assert res.columns == [
+        *point.columns,
+        "selection_coef_se",
+        "selection_coef_z",
+        "selection_coef_p",
+        "log_gain_ratio_se",
+        "gain_ratio_z",
+        "gain_ratio_p",
+        "num_bootstrap_degenerate",
+    ]
+    # bootstrapping leaves point estimates unchanged
+    pltest.assert_frame_equal(res.select(point.columns), point)
+    assert res["selection_coef_se"].is_finite().all()
+    pltest.assert_frame_equal(res, _impl(exposure_df, num_bootstrap=3, seed=1))
+    assert not res.equals(_impl(exposure_df, num_bootstrap=3, seed=2))

@@ -14,8 +14,8 @@ def tgs_bootstrap_trait_fits(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    """Implementation detail for `alifestd_tgs_pendantmdc_bootstrap_polars`
+    and `alifestd_tgs_allmdc_bootstrap_polars`. Acronym tgs stands for trait
     gain/selection.
 
     Returns per-trait fits to bootstrap resamples of `num_items` exposure

@@ -3,8 +3,6 @@ import typing
 import pandas as pd
 import polars as pl
 
-from phyloframe.legacy import alifestd_tgs_summarize_bootstrap_polars
-
 
 def run_tgs_estimate(
     estimator: typing.Callable,
@@ -16,18 +14,16 @@ def run_tgs_estimate(
     parallel_backend: typing.Optional[str] = None,
     **kwargs,
 ) -> pd.DataFrame:
-    """Run a tgs estimator, returning pandas; with `num_bootstrap`, also run
-    its bootstrap counterpart and append the bootstrap summary."""
-    estimates_df = estimator(phylogeny_df, **kwargs)
+    """Run a tgs estimator, returning pandas; with `num_bootstrap`, run its
+    bootstrap counterpart instead, for bootstrap summary columns too."""
     if num_bootstrap:
-        estimates_df = alifestd_tgs_summarize_bootstrap_polars(
-            estimates_df,
-            bootstrapper(
-                phylogeny_df,
-                **kwargs,
-                num_bootstrap=num_bootstrap,
-                seed=seed,
-                parallel_backend=parallel_backend,
-            ),
+        estimates_df = bootstrapper(
+            phylogeny_df,
+            **kwargs,
+            num_bootstrap=num_bootstrap,
+            seed=seed,
+            parallel_backend=parallel_backend,
         )
+    else:
+        estimates_df = estimator(phylogeny_df, **kwargs)
     return estimates_df.to_pandas()

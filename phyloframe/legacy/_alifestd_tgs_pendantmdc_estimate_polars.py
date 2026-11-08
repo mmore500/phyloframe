@@ -24,7 +24,7 @@ from ._impl import (
 )
 
 
-def _alifestd_tgs_pendantmdc_build_exposure_df(
+def _alifestd_tgs_pendantmdc_estimate(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions: typing.Sequence[str],
@@ -35,12 +35,21 @@ def _alifestd_tgs_pendantmdc_build_exposure_df(
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
     length_rtol: float,
-) -> typing.Tuple[typing.List[str], typing.List[int], pl.DataFrame]:
+    loss_rate: float,
+    selection_coef_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
+    progress_wrap: typing.Callable,
+    num_bootstrap: int = 0,
+    seed: typing.Optional[int] = None,
+    parallel_backend: typing.Optional[str] = None,
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_pendantmdc_bootstrap_polars`.
 
-    Validates arguments and returns trait names, neutral trait indices,
-    and the exposure table to fit (see `tgs_build_exposure_df_polars`).
+    Validates arguments, builds the exposure table to fit (see
+    `tgs_build_exposure_df_polars`), and returns per-trait estimates, with
+    bootstrap summary columns given `num_bootstrap` (see
+    `tgs_estimate_tgs_from_exposures`).
     """
     trait_names, neutral_traits = tgs_validate_args(
         trait_transitions=trait_transitions,
@@ -60,7 +69,24 @@ def _alifestd_tgs_pendantmdc_build_exposure_df(
     )
     # leaf pendant branches only
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
-    return trait_names, neutral_traits, exposure_df
+    return tgs_estimate_tgs_from_exposures(
+        exposure_df,
+        counts_df=tgs_tally_exposure_episodes(
+            trait_names=trait_names, exposure_df=exposure_df
+        ).select("trait", "num_leaf_episodes", "num_leaf_gains"),
+        trait_names=trait_names,
+        neutral_traits=neutral_traits,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        length_rtol=length_rtol,
+        loss_rate=loss_rate,
+        selection_coef_starts=selection_coef_starts,
+        growth_exponent_bound=growth_exponent_bound,
+        progress_wrap=progress_wrap,
+        num_bootstrap=num_bootstrap,
+        seed=seed,
+        parallel_backend=parallel_backend,
+    )
 
 
 @warn_experimental
@@ -329,8 +355,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     See Also
     --------
     alifestd_tgs_pendantmdc_bootstrap_polars :
-        Bootstrap replicate fits, for standard errors (see
-        `alifestd_tgs_summarize_bootstrap_polars`).
+        These estimates, with bootstrap standard errors and p-values.
     alifestd_mark_joint_quantile_bins_polars :
         Marks joint quantile bins, e.g., as calibration bins.
     alifestd_mask_trait_singletons_polars :
@@ -338,28 +363,13 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     alifestd_tgs_allmdc_estimate_polars :
         MDCs of every size, not only leaf pendant branches.
     """
-    (
-        trait_names,
-        neutral_traits,
-        exposure_df,
-    ) = _alifestd_tgs_pendantmdc_build_exposure_df(
+    return _alifestd_tgs_pendantmdc_estimate(
         phylogeny_df,
         trait_transitions=trait_transitions,
         neutral_traits=neutral_traits,
         calibration_partition_by=calibration_partition_by,
         calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
-        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
-        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
-        length_rtol=length_rtol,
-    )
-    return tgs_estimate_tgs_from_exposures(
-        exposure_df,
-        counts_df=tgs_tally_exposure_episodes(
-            trait_names=trait_names, exposure_df=exposure_df
-        ).select("trait", "num_leaf_episodes", "num_leaf_gains"),
-        trait_names=trait_names,
-        neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,

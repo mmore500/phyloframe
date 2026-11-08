@@ -42,8 +42,9 @@ def tgs_summarize_bootstrap(
     point_estimate_df: pl.DataFrame,
     bootstrap_fits_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_summarize_bootstrap_polars`.
-    Acronym tgs stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_bootstrap_polars`
+    and `alifestd_tgs_allmdc_bootstrap_polars`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns bootstrap standard errors, z-scores, and p-values, one row per
     trait, given point estimates and replicate fits (see

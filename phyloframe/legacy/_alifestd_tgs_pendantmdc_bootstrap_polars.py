@@ -18,11 +18,8 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_tgs_pendantmdc_estimate_polars import (
     _add_parser_arguments,
-    _alifestd_tgs_pendantmdc_build_exposure_df,
+    _alifestd_tgs_pendantmdc_estimate,
     _cli_kwargs,
-)
-from ._impl._tgs_bootstrap_tgs_from_exposures import (
-    tgs_bootstrap_tgs_from_exposures,
 )
 
 
@@ -58,16 +55,18 @@ def alifestd_tgs_pendantmdc_bootstrap_polars(
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
-    """Fit each trait's gain rate and selection coefficient to bootstrap
-    resamples of leaves, as for `alifestd_tgs_pendantmdc_estimate_polars`.
+    """Estimate per-trait gain rate and selection coefficient, as for
+    `alifestd_tgs_pendantmdc_estimate_polars`, with bootstrap standard errors,
+    z-scores, and p-values.
 
-    Each replicate resamples leaves with replacement and refits. Calibration
-    is set up once, from the original leaves, as for the point estimate, so
-    calibration neighborhood size is held constant across replicates. Pass
-    the result, with the point estimates from
-    `alifestd_tgs_pendantmdc_estimate_polars` run with the same arguments, to
-    `alifestd_tgs_summarize_bootstrap_polars` for standard errors, z-scores,
-    and p-values.
+    Each replicate resamples leaves with replacement and refits.
+    Calibration is set up once, from the original leaves, and shared by
+    the point estimate and every replicate, so calibration neighborhood
+    size is held constant across replicates.
+
+    Replicates resampling no carriers of a trait, or of its neutral
+    reference, leave its selection coefficient or gain ratio undefined, so
+    are excluded from that trait's statistics, with a warning.
 
     Parameters
     ----------
@@ -86,12 +85,13 @@ def alifestd_tgs_pendantmdc_bootstrap_polars(
         Replicate fits are mostly GIL-bound Python (scipy's optimizer loop),
         so "loky" is typically faster.
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display progress over replicates.
+        Pass tqdm or equivalent to display progress over traits, for the
+        point estimate, and over replicates.
 
     Returns
     -------
     polars.DataFrame
-        One row per replicate and trait; see Output Schema.
+        One row per trait; see Output Schema.
 
     Raises
     ------
@@ -99,40 +99,38 @@ def alifestd_tgs_pendantmdc_bootstrap_polars(
 
     Output Schema
     -------------
-    'replicate' : integer
-        Bootstrap replicate index.
-    'trait' : string
-        Trait, named by its `trait_transitions` column.
-    'gain_rate' : float
-        The replicate's fitted gain rate.
-    'selection_coef' : float
-        The replicate's fitted selection coefficient; nan without carriers.
-    'selection_coef_lrt_naive' : float
-        The replicate's likelihood-ratio statistic for selection
-        coefficient = 0.
-    'gain_ratio' : float
-        The replicate's gain rate relative to the mean gain rate of the
-        other neutral traits.
-    'gain_ratio_lrt_naive' : float
-        The replicate's likelihood-ratio statistic for gain ratio = 1.
+    `alifestd_tgs_pendantmdc_estimate_polars` columns, then:
+
+    'selection_coef_se' : float
+        Bootstrap standard error of the selection coefficient, over
+        replicates with a defined selection coefficient; nan with fewer
+        than two.
+    'selection_coef_z' : float
+        Selection coefficient over its standard error.
+    'selection_coef_p' : float
+        Two-sided normal p-value of `selection_coef_z`.
+    'log_gain_ratio_se' : float
+        Bootstrap standard error of the log gain ratio, over replicates
+        with a defined gain ratio; nan with fewer than two.
+    'gain_ratio_z' : float
+        Log gain ratio over its standard error.
+    'gain_ratio_p' : float
+        Two-sided normal p-value of `gain_ratio_z`.
+    'num_bootstrap_degenerate' : integer
+        Replicates excluded for an undefined selection coefficient or gain
+        ratio.
 
     Warnings
     --------
-    Replicates resample leaves independently, ignoring correlation through
-    shared ancestry, so their spread may understate uncertainty.
+    Replicates resample leaves independently, ignoring correlation
+    through shared ancestry, so standard errors may be too small.
 
     See Also
     --------
     alifestd_tgs_pendantmdc_estimate_polars :
-        Point estimates.
-    alifestd_tgs_summarize_bootstrap_polars :
-        Standard errors, z-scores, and p-values from these replicates.
+        Point estimates only.
     """
-    (
-        trait_names,
-        neutral_traits,
-        exposure_df,
-    ) = _alifestd_tgs_pendantmdc_build_exposure_df(
+    return _alifestd_tgs_pendantmdc_estimate(
         phylogeny_df,
         trait_transitions=trait_transitions,
         neutral_traits=neutral_traits,
@@ -142,21 +140,13 @@ def alifestd_tgs_pendantmdc_bootstrap_polars(
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,
-    )
-    return tgs_bootstrap_tgs_from_exposures(
-        exposure_df,
-        trait_names=trait_names,
-        neutral_traits=neutral_traits,
-        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
-        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
-        length_rtol=length_rtol,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
+        progress_wrap=progress_wrap,
         num_bootstrap=num_bootstrap,
         seed=seed,
         parallel_backend=parallel_backend,
-        progress_wrap=progress_wrap,
     )
 
 
@@ -164,25 +154,28 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Fit each trait's gain rate and selection coefficient to bootstrap resamples
-of leaves, as for phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars,
-which takes the same input columns and options.
+Estimate per-trait gain rate and selection coefficient, as for
+phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars, which takes the same
+input columns and options, with bootstrap standard errors, z-scores, and
+p-values from refitting to resamples of leaves.
 
 Output Schema
 =============
-One row per replicate and trait, not a phylogeny.
+One row per trait, not a phylogeny: the estimator's columns, then
 
-'replicate' : integer
-    Bootstrap replicate index.
+'selection_coef_se', 'log_gain_ratio_se' : float
+    Bootstrap standard errors of the selection coefficient and log gain
+    ratio.
 
-'trait' : string
-    Trait, named by its transition column.
+'selection_coef_z', 'gain_ratio_z' : float
+    Selection coefficient and log gain ratio over their standard errors.
 
-'gain_rate', 'selection_coef', 'gain_ratio' : float
-    The replicate's fitted gain rate, selection coefficient, and gain ratio.
+'selection_coef_p', 'gain_ratio_p' : float
+    Two-sided normal p-values of the z-scores.
 
-'selection_coef_lrt_naive', 'gain_ratio_lrt_naive' : float
-    The replicate's naive likelihood-ratio statistics.
+'num_bootstrap_degenerate' : integer
+    Replicates excluded for an undefined selection coefficient or gain
+    ratio.
 
 Additional Notes
 ================
@@ -193,7 +186,7 @@ Additional Notes
 See Also
 ========
 phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars :
-    Point estimates.
+    Point estimates only.
 """
 
 

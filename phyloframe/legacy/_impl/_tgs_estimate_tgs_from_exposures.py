@@ -1,12 +1,15 @@
+import functools
 import logging
 import typing
 
 import numpy as np
 import polars as pl
 
+from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_prepare_trait_fits import tgs_prepare_trait_fits
+from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 
 
 def tgs_estimate_tgs_from_exposures(
@@ -22,10 +25,13 @@ def tgs_estimate_tgs_from_exposures(
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
     progress_wrap: typing.Callable,
+    num_bootstrap: int = 0,
+    seed: typing.Optional[int] = None,
+    parallel_backend: typing.Optional[str] = None,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`,
+    `alifestd_tgs_allmdc_estimate_polars`, and their bootstrap counterparts.
+    Acronym tgs stands for trait gain/selection.
 
     Estimates each trait's gain rate and selection coefficient from the
     exposure episodes of `exposure_df` (see `tgs_build_exposure_df`),
@@ -35,6 +41,13 @@ def tgs_estimate_tgs_from_exposures(
     per-trait counts; see `tgs_build_estimates_df`. Takes validated
     arguments, with `neutral_traits` as indices and `trait_names` as labels
     (see `tgs_validate_args`).
+
+    With `num_bootstrap`, also refits each trait to that many bootstrap
+    resamples of episodes (see `tgs_bootstrap_trait_fits`), with progress
+    over replicates also wrapped by `progress_wrap`, and appends standard
+    errors, z-scores, and p-values (see `tgs_summarize_bootstrap`).
+    Calibration is set up once, from unweighted episodes, so the point
+    estimate and every replicate share it.
     """
     fit_kwargs, trait_bin_counts_df = tgs_prepare_trait_fits(
         exposure_df,
@@ -51,7 +64,7 @@ def tgs_estimate_tgs_from_exposures(
         f"- tgs: fitting {len(trait_names)} traits to {len(exposure_df)} "
         "exposure episodes...",
     )
-    return tgs_build_estimates_df(
+    estimates_df = tgs_build_estimates_df(
         counts_df,
         point_estimate_df=tgs_fit_traits(
             weights=np.ones(len(exposure_df)),
@@ -59,4 +72,26 @@ def tgs_estimate_tgs_from_exposures(
             trait_bin_counts_df=trait_bin_counts_df,
             **fit_kwargs,
         ),
+    )
+    if not num_bootstrap:
+        return estimates_df
+
+    logging.info(f"- tgs: fitting {num_bootstrap} bootstrap replicates...")
+    bootstrap_fits_df = tgs_bootstrap_trait_fits(
+        do_fit=functools.partial(tgs_fit_traits, **fit_kwargs),
+        num_items=len(exposure_df),
+        num_bootstrap=num_bootstrap,
+        seed=seed,
+        parallel_backend=parallel_backend,
+        progress_wrap=progress_wrap,
+    )
+    return pl.concat(
+        [
+            estimates_df,
+            tgs_summarize_bootstrap(
+                point_estimate_df=estimates_df,
+                bootstrap_fits_df=bootstrap_fits_df,
+            ),
+        ],
+        how="horizontal",
     )
