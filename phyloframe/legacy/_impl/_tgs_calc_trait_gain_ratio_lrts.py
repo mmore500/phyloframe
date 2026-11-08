@@ -72,10 +72,11 @@ def tgs_calc_trait_gain_ratio_lrts(
     Returns, per trait, the likelihood-ratio test (LRT) statistic for gain
     ratio = 1, a profile likelihood test: twice the increase in negative
     log likelihood from holding the trait's gain rate at the mean fitted
-    gain rate of its neutral reference, i.e., `gain_rate / gain_ratio`,
+    gain rate of its neutral reference, `gain_rate_neutral`,
     and refitting the selection coefficient alone; see Output Schema.
-    `fits_df` holds each trait's fitted `gain_rate`, `selection_coef`, and
-    `gain_ratio`, and `trait_nll_kwargs` each trait's `tgs_calc_nll`
+    `fits_df` holds each trait's fitted `gain_rate` and `selection_coef`,
+    and its neutral reference's `gain_rate_neutral`, and `trait_nll_kwargs`
+    each trait's `tgs_calc_nll`
     arguments but the rate parameters.
 
     The statistic naively treats the reference gain rate as known, and
@@ -90,8 +91,9 @@ def tgs_calc_trait_gain_ratio_lrts(
         Fitted gain rate.
     'selection_coef' : float
         Fitted selection coefficient.
-    'gain_ratio' : float
-        Gain rate relative to the trait's neutral reference.
+    'gain_rate_neutral' : float
+        Mean gain rate of the trait's neutral reference; nan if undefined
+        (see `tgs_calc_neutral_reference_gain_rates`).
 
     Output Schema
     -------------
@@ -115,13 +117,7 @@ def tgs_calc_trait_gain_ratio_lrts(
                 ),
             }
             for trait, (nll_kwargs, fit) in enumerate(
-                zip(
-                    trait_nll_kwargs,
-                    fits_df.with_columns(
-                        gain_rate_neutral=pl.col("gain_rate")
-                        / pl.col("gain_ratio"),
-                    ).iter_rows(named=True),
-                )
+                zip(trait_nll_kwargs, fits_df.iter_rows(named=True))
             )
         ],
         schema={"trait": pl.Int64, "gain_ratio_lrt_naive": pl.Float64},

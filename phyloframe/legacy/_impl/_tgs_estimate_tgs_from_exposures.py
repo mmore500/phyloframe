@@ -102,6 +102,7 @@ def tgs_estimate_tgs_from_exposures(
     ) = tgs_select_partitioned_calibration_neighborhoods(
         exposure_df,
         bins_df=bins_df,
+        num_bins=num_bins,
         neighborhood_fractions=calibrate_neighborhood_fractions,
         neutral_traits=neutral_traits,
         trait_names=trait_names,

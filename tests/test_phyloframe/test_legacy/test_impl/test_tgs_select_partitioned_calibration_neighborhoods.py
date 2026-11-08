@@ -17,6 +17,7 @@ def _select(exposure_df: pl.DataFrame):
         *tgs_select_partitioned_calibration_neighborhoods(
             exposure_df,
             bins_df=bins_df,
+            num_bins=bins_df["bin"].max() + 1,
             neighborhood_fractions=(0.25, 1.0),
             neutral_traits=[1, 2, 3],
             trait_names=["focal", "a", "b", "c"],

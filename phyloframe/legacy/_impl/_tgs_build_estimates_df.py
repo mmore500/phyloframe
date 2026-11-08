@@ -64,7 +64,7 @@ def tgs_build_estimates_df(
         Replicates excluded for an undefined selection coefficient or gain
         ratio.
     """
-    return pl.concat(
+    estimates_df = pl.concat(
         [
             counts_df,
             point_estimate_df.select(
@@ -74,13 +74,16 @@ def tgs_build_estimates_df(
                 "selection_coef_lrt_naive",
                 "gain_ratio_lrt_naive",
             ),
+        ],
+        how="horizontal",
+    )
+    return pl.concat(
+        [
+            estimates_df,
             opyt.apply_if_or_else(
                 bootstrap_fits_df,
                 lambda df: tgs_summarize_bootstrap(
-                    point_estimate_df=point_estimate_df.with_columns(
-                        counts_df["trait"]
-                    ),
-                    bootstrap_fits_df=df,
+                    point_estimate_df=estimates_df, bootstrap_fits_df=df
                 ),
                 pl.DataFrame,
             ),

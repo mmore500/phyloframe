@@ -1,5 +1,6 @@
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 
 from .._alifestd_mark_lineage_delta_asexual import (
     _alifestd_mark_lineage_delta_asexual_fast_path,
@@ -54,7 +55,6 @@ def tgs_build_exposure_df(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
     """
     ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
     origin_time = phylogeny_df["origin_time"].to_numpy().astype(np.float64)
-    num_traits = sum(c.endswith("_state") for c in phylogeny_df.columns)
     branch_length = _alifestd_mark_lineage_delta_asexual_fast_path(
         ancestor_ids, origin_time
     )
@@ -79,6 +79,7 @@ def tgs_build_exposure_df(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
             ancestor_ids
         )[keep],
     }
+    num_traits = phylogeny_df.select(cs.matches(r"^trait\d+_state$")).width
     for i in range(num_traits):
         states = phylogeny_df[f"trait{i}_state"].to_numpy()
         deltas = _alifestd_mark_lineage_delta_asexual_fast_path(

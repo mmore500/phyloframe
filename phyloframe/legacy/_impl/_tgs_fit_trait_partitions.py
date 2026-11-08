@@ -3,12 +3,12 @@ import typing
 import polars as pl
 
 from ..._auxlib._identity import identity
+from ._tgs_calc_neutral_reference_gain_rates import (
+    tgs_calc_neutral_reference_gain_rates,
+)
 from ._tgs_calc_trait_gain_ratio_lrts import tgs_calc_trait_gain_ratio_lrts
 from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrts
 from ._tgs_fit import tgs_fit_trait
-from ._tgs_normalize_gain_rates_to_neutral import (
-    tgs_normalize_gain_rates_to_neutral,
-)
 
 
 def tgs_fit_trait_partitions(
@@ -42,7 +42,7 @@ def tgs_fit_trait_partitions(
         `tgs_calc_trait_selection_lrts`.
     'gain_ratio' : float
         Gain rate relative to the mean gain rate of the trait's neutral
-        reference; see `tgs_normalize_gain_rates_to_neutral`.
+        reference; see `tgs_calc_neutral_reference_gain_rates`.
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1; see
         `tgs_calc_trait_gain_ratio_lrts`.
@@ -59,13 +59,16 @@ def tgs_fit_trait_partitions(
         schema={"gain_rate": pl.Float64, "selection_coef": pl.Float64},
     )
     # normalize each gain rate by the mean gain rate of its neutral reference;
-    # undefined without neutral reference traits, or if none gained the trait
+    # undefined (nan) without neutral reference traits, or if none gained the
+    # trait
     fits_df = fits_df.with_columns(
         trait=pl.int_range(pl.len(), dtype=pl.Int64),
-        gain_ratio=tgs_normalize_gain_rates_to_neutral(
+        gain_rate_neutral=tgs_calc_neutral_reference_gain_rates(
             gain_rates=fits_df["gain_rate"].to_numpy(),
             neutral_traits=neutral_traits,
         ),
+    ).with_columns(
+        gain_ratio=pl.col("gain_rate") / pl.col("gain_rate_neutral")
     )
     lrt_kwargs = dict(
         fits_df=fits_df, trait_nll_kwargs=trait_nll_kwargs, loss_rate=loss_rate
