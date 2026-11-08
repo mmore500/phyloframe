@@ -61,7 +61,6 @@ def tgs_fit_coarsened_traits(
     # undefined (nan) without neutral reference traits, or if none gained the
     # trait
     fits_df = fits_df.with_columns(
-        trait_id=pl.int_range(pl.len(), dtype=pl.Int64),
         gain_rate_neutral=tgs_calc_neutral_reference_gain_rates(
             gain_rates=fits_df["gain_rate"].to_numpy(),
             neutral_traits=neutral_traits,
@@ -72,24 +71,19 @@ def tgs_fit_coarsened_traits(
     lrt_kwargs = dict(
         fits_df=fits_df, trait_nll_kwargs=trait_nll_kwargs, loss_rate=loss_rate
     )
-    return (
-        fits_df.join(
+    return pl.concat(
+        [
+            fits_df,
             tgs_calc_trait_selection_lrts(**lrt_kwargs),
-            on="trait_id",
-            maintain_order="left",
-        )
-        .join(
             tgs_calc_trait_gain_ratio_lrts(
                 **lrt_kwargs, selection_coef_starts=selection_coef_starts
             ),
-            on="trait_id",
-            maintain_order="left",
-        )
-        .select(
-            "gain_rate",
-            "selection_coef",
-            "selection_coef_lrt_naive",
-            "gain_ratio",
-            "gain_ratio_lrt_naive",
-        )
+        ],
+        how="horizontal",
+    ).select(
+        "gain_rate",
+        "selection_coef",
+        "selection_coef_lrt_naive",
+        "gain_ratio",
+        "gain_ratio_lrt_naive",
     )

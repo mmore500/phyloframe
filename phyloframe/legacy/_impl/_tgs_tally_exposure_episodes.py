@@ -25,7 +25,7 @@ def _tgs_tally_trait_exposure_episodes(
         Of those, the number that gained the trait.
     """
     starts_absent = pl.col(f"trait{trait_id}_starts_absent")
-    gain = starts_absent & pl.col(f"trait{trait_id}_gain")
+    gain = pl.col(f"trait{trait_id}_gain")  # only possible if starts absent
     is_leaf = pl.col("clade_size") == 1
     return exposure_df.select(
         mask.cast(pl.Int64).sum().alias(name)
@@ -66,23 +66,7 @@ def tgs_tally_exposure_episodes(
         Of those, the number that gained the trait.
     """
     return pl.concat(
-        [
-            pl.DataFrame(
-                schema=dict.fromkeys(  # RE empty edge case
-                    [
-                        "num_leaf_episodes",
-                        "num_leaf_gains",
-                        "num_inner_episodes",
-                        "num_inner_gains",
-                    ],
-                    pl.Int64,
-                ),
-            ),
-            *(  # one trait at a time reduces peak memory
-                _tgs_tally_trait_exposure_episodes(
-                    exposure_df, trait_id=trait_id
-                )
-                for trait_id in range(len(trait_names))
-            ),
-        ],
+        # one trait at a time reduces peak memory
+        _tgs_tally_trait_exposure_episodes(exposure_df, trait_id=trait_id)
+        for trait_id in range(len(trait_names))
     ).select(pl.Series("trait", list(trait_names), dtype=pl.String), pl.all())

@@ -96,28 +96,27 @@ def tgs_calc_trait_gain_ratio_lrts(
 
     Output Schema
     -------------
-    'trait_id' : integer
-        Trait index.
+    One row per trait, in `fits_df` row order:
+
     'gain_ratio_lrt_naive' : float
         The statistic; nan if the gain ratio is undefined, or the trait has
         no gains.
     """
     return pl.DataFrame(
-        [
-            {
-                "trait_id": trait_id,
-                "gain_ratio_lrt_naive": _tgs_calc_trait_gain_ratio_lrt(
+        {
+            "gain_ratio_lrt_naive": [
+                _tgs_calc_trait_gain_ratio_lrt(
                     nll_kwargs=nll_kwargs,
                     gain_rate_trait=fit["gain_rate"],
                     gain_rate_neutral=fit["gain_rate_neutral"],
                     selection_coef=fit["selection_coef"],
                     loss_rate=loss_rate,
                     selection_coef_starts=selection_coef_starts,
-                ),
-            }
-            for trait_id, (nll_kwargs, fit) in enumerate(
-                zip(trait_nll_kwargs, fits_df.iter_rows(named=True))
-            )
-        ],
-        schema={"trait_id": pl.Int64, "gain_ratio_lrt_naive": pl.Float64},
+                )
+                for nll_kwargs, fit in zip(
+                    trait_nll_kwargs, fits_df.iter_rows(named=True)
+                )
+            ],
+        },
+        schema={"gain_ratio_lrt_naive": pl.Float64},
     )

@@ -84,25 +84,24 @@ def tgs_calc_trait_selection_lrts(
 
     Output Schema
     -------------
-    'trait_id' : integer
-        Trait index.
+    One row per trait, in `fits_df` row order:
+
     'selection_coef_lrt_naive' : float
         The statistic; nan if the trait has no gains.
     """
     return pl.DataFrame(
-        [
-            {
-                "trait_id": trait_id,
-                "selection_coef_lrt_naive": _tgs_calc_trait_selection_lrt(
+        {
+            "selection_coef_lrt_naive": [
+                _tgs_calc_trait_selection_lrt(
                     nll_kwargs=nll_kwargs,
                     gain_rate=fit["gain_rate"],
                     selection_coef=fit["selection_coef"],
                     loss_rate=loss_rate,
-                ),
-            }
-            for trait_id, (nll_kwargs, fit) in enumerate(
-                zip(trait_nll_kwargs, fits_df.iter_rows(named=True))
-            )
-        ],
-        schema={"trait_id": pl.Int64, "selection_coef_lrt_naive": pl.Float64},
+                )
+                for nll_kwargs, fit in zip(
+                    trait_nll_kwargs, fits_df.iter_rows(named=True)
+                )
+            ],
+        },
+        schema={"selection_coef_lrt_naive": pl.Float64},
     )
