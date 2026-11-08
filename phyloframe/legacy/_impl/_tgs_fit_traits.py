@@ -43,9 +43,8 @@ def _tgs_coarsen_episodes(
     survival_duration_indices: np.ndarray,
     num_survival_durations: int,
 ) -> typing.Tuple[pl.DataFrame, scipy_sparse.csr_matrix]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Coarsens `trait_id`'s exposure episodes (rows of `exposure_df` starting
     without the trait; see `_tgs_build_exposure_df`), pooling those whose
@@ -160,9 +159,8 @@ def tgs_fit_traits(
     progress_wrap: typing.Callable,
     trait_bin_counts_df: typing.Optional[pl.DataFrame],
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Fits each trait to `exposure_df`'s exposure episodes, each weighted by
     `weights` (e.g., bootstrap draw counts): calibrates branch lengths by

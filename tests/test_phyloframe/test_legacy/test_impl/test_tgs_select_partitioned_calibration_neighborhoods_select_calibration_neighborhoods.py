@@ -10,11 +10,11 @@ from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods i
     _tgs_select_calibration_neighborhoods,
 )
 
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 
 def test_select(caplog):
-    exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
+    exposure_df = simulate_exposure_df(8_000, num_neutral=3)
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
     coordinates = [
         exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")

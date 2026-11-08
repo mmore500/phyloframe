@@ -113,8 +113,7 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     Notes
     -----
-    For calibration bins of `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`, see their Notes.
+    For calibration bins of `alifestd_tgs_estimate_polars`, see its Notes.
 
     See Also
     --------

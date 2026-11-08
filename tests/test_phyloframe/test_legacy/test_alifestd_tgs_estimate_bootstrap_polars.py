@@ -7,11 +7,11 @@ import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_tgs_allmdc_estimate_bootstrap_polars,
-    alifestd_tgs_allmdc_estimate_polars,
+    alifestd_tgs_estimate_bootstrap_polars,
+    alifestd_tgs_estimate_polars,
 )
 
-from .test_alifestd_tgs_allmdc_estimate_polars import (
+from .test_alifestd_tgs_estimate_polars import (
     _estimate_from_masks,
     _make_cherries,
     _make_cherries_polars,
@@ -24,7 +24,7 @@ def _estimate_bootstrap_from_masks(
 ) -> pd.DataFrame:
     return _estimate_from_masks(
         phylogeny_df,
-        estimator=alifestd_tgs_allmdc_estimate_bootstrap_polars,
+        estimator=alifestd_tgs_estimate_bootstrap_polars,
         **kwargs,
     )
 
@@ -35,8 +35,8 @@ def test_point_columns_match_point_estimate():
         trait_transitions=["focal", "n1", "n2", "n3", "n4"],
         neutral_traits=["n1", "n2", "n3", "n4"],
     )
-    point = alifestd_tgs_allmdc_estimate_polars(df_pl, **kwargs)
-    res = alifestd_tgs_allmdc_estimate_bootstrap_polars(
+    point = alifestd_tgs_estimate_polars(df_pl, **kwargs)
+    res = alifestd_tgs_estimate_bootstrap_polars(
         df_pl, num_bootstrap=2, seed=1, **kwargs
     )
     assert res.columns[: point.width] == point.columns
@@ -98,7 +98,7 @@ def test_empty(apply: typing.Callable):
         ),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
-        alifestd_tgs_allmdc_estimate_bootstrap_polars(
+        alifestd_tgs_estimate_bootstrap_polars(
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],

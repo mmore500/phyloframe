@@ -14,7 +14,7 @@ from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
     _tgs_build_exposure_df,
 )
 
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 _TRAIT_NAMES = ["focal", "a", "b", "c"]
 
@@ -52,7 +52,7 @@ def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
 
 def _binned_exposure_df() -> pl.DataFrame:
     return alifestd_mark_joint_quantile_bins_polars(
-        simulate_allmdc_exposure_df(8_000, num_neutral=3),
+        simulate_exposure_df(8_000, num_neutral=3),
         bin_by=["branch_length", "origin_time"],
         max_num_bins=16,
         mark_as="calibration_bin",
@@ -64,7 +64,7 @@ def _binned_exposure_df() -> pl.DataFrame:
 
 
 def test_uncalibrated():
-    exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
+    exposure_df = simulate_exposure_df(8_000, num_neutral=3)
     res = _impl(exposure_df)
     assert res["trait"].to_list() == _TRAIT_NAMES
     assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)

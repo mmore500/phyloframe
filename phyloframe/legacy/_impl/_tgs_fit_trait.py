@@ -17,8 +17,8 @@ def tgs_fit_trait(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
 ) -> typing.Dict[str, float]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`, via `tgs_fit_coarsened_traits`.
+    """Implementation detail for `alifestd_tgs_estimate_polars`, via
+    `tgs_fit_coarsened_traits`.
     Acronym tgs stands for trait gain/selection.
 
     Maximum likelihood fit of one binary trait's gain rate and selection

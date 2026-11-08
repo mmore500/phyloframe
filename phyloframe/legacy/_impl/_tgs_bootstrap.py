@@ -48,7 +48,8 @@ def _tgs_summarize_bootstrap(
     point_estimate_df: pl.DataFrame,
     bootstrap_fits_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars`.
+    """Implementation detail for
+    `alifestd_tgs_estimate_bootstrap_polars`.
     Acronym tgs stands for trait gain/selection.
 
     Returns bootstrap standard errors, z-scores, and p-values, one row per
@@ -166,9 +167,8 @@ def _tgs_bootstrap_trait_fits(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns per-trait fits to bootstrap resamples of `num_items` exposure
     episodes, from `do_fit` (e.g., a `functools.partial` of
@@ -230,12 +230,11 @@ def tgs_bootstrap(
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
     """Implementation detail for
-    `alifestd_tgs_pendantmdc_estimate_bootstrap_polars` and
-    `alifestd_tgs_allmdc_estimate_bootstrap_polars`. Acronym tgs stands for
+    `alifestd_tgs_estimate_bootstrap_polars`. Acronym tgs stands for
     trait gain/selection.
 
     Point estimates `phylogeny_df` with `estimate_impl` (e.g., the private
-    implementation of `alifestd_tgs_pendantmdc_estimate_polars`), called
+    implementation of `alifestd_tgs_estimate_polars`), called
     with `estimate_kwargs`, then refits it to `num_bootstrap` resamples of
     the point estimate's exposure episodes, reusing its exposure table and
     holding its calibration neighborhoods fixed; see

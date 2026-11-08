@@ -13,6 +13,7 @@ def _build(phylogeny_df, **kwargs) -> pl.DataFrame:
             "calibration_partition_by": None,
             "calibration_compare_by_bins": None,
             "calibration_compare_by_vals": ["branch_length"],
+            "episode_mask": None,
             **kwargs,
         },
     )

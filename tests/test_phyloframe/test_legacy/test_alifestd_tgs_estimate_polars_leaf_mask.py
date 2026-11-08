@@ -6,8 +6,10 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_tgs_pendantmdc_estimate_polars,
+    alifestd_mark_leaves_polars,
+    alifestd_tgs_estimate_polars,
     alifestd_to_working_format,
+    alifestd_try_add_ancestor_id_col_polars,
 )
 from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods import (
     _tgs_select_calibration_neighborhoods,
@@ -16,12 +18,28 @@ from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods i
 from ._impl import add_trait_transitions, mark_tgs_calibration_columns
 
 
-def _estimate_pendantmdc(
+def _with_leaf_mask(phylogeny_df):
+    """Mark leaves, `is_leaf`, to mask exposure episodes to leaf pendant
+    branches; unchanged if not asexual, so the estimator raises."""
+    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+    if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
+        return phylogeny_df
+    return alifestd_mark_leaves_polars(phylogeny_df)
+
+
+def _estimate_leaves(phylogeny_df, **kwargs):
+    """Estimate from leaf pendant branches only, via `episode_mask`."""
+    return alifestd_tgs_estimate_polars(
+        _with_leaf_mask(phylogeny_df), episode_mask="is_leaf", **kwargs
+    )
+
+
+def _estimate_pandas(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     calibrate: bool = False,
     calibrate_max_num_bins: int = 4096,
-    estimator: typing.Callable = alifestd_tgs_pendantmdc_estimate_polars,
+    estimator: typing.Callable = _estimate_leaves,
     **kwargs,
 ) -> pd.DataFrame:
     """Run the polars estimator on a pandas phylogeny, returning pandas. If
@@ -52,7 +70,7 @@ def _estimate_from_masks(
         phylogeny_df, trait_masks, trait_names
     )
     kwargs["neutral_traits"] = [names[i] for i in neutral_traits]
-    return _estimate_pendantmdc(
+    return _estimate_pandas(
         phylogeny_df, mutate, trait_transitions=names, **kwargs
     )
 
@@ -246,7 +264,7 @@ def test_input_not_mutated():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     original_df = phylogeny_df.copy()
-    _estimate_pendantmdc(
+    _estimate_pandas(
         phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
     )
     pd.testing.assert_frame_equal(phylogeny_df, original_df)
@@ -260,7 +278,7 @@ def _make_cherries_with_transitions(num_cherries: int = 100):
 def test_missing_transitions_column_raises():
     phylogeny_df, names = _make_cherries_with_transitions()
     with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
-        _estimate_pendantmdc(
+        _estimate_pandas(
             phylogeny_df,
             trait_transitions=["absent", *names[1:]],
             neutral_traits=names[1:],
@@ -271,7 +289,7 @@ def test_float_transitions_raise():
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
     with pytest.raises(NotImplementedError):
-        _estimate_pendantmdc(
+        _estimate_pandas(
             phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
         )
 
@@ -281,7 +299,7 @@ def test_invalid_transitions_raise(value: int):
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df.loc[5, names[0]] = value
     with pytest.raises(ValueError):
-        _estimate_pendantmdc(
+        _estimate_pandas(
             phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
         )
 
@@ -292,7 +310,7 @@ def test_repeated_gain_raises():
     phylogeny_df["trait"] = 0
     phylogeny_df.loc[[1, 2], "trait"] = 1
     with pytest.raises(ValueError):
-        _estimate_pendantmdc(
+        _estimate_pandas(
             phylogeny_df,
             trait_transitions=["trait", *names[1:]],
             neutral_traits=names[1:],
@@ -305,7 +323,7 @@ def test_losses_not_supported():
     phylogeny_df.loc[1, "trait"] = 1
     phylogeny_df.loc[2, "trait"] = -1
     with pytest.raises(NotImplementedError, match="loss"):
-        _estimate_pendantmdc(
+        _estimate_pandas(
             phylogeny_df,
             trait_transitions=["trait", *names[1:]],
             neutral_traits=names[1:],
@@ -315,7 +333,7 @@ def test_losses_not_supported():
 def test_trait_named_by_columns():
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
-    res = _estimate_pendantmdc(
+    res = _estimate_pandas(
         phylogeny_df,
         trait_transitions=list("abcde"),
         neutral_traits=["b", "c"],
@@ -391,7 +409,7 @@ def test_neutral_trait_not_among_transitions_raises():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     with pytest.raises(ValueError):
-        _estimate_pendantmdc(
+        _estimate_pandas(
             phylogeny_df, trait_transitions=names, neutral_traits=["absent"]
         )
 
@@ -400,7 +418,7 @@ def test_neutral_trait_index_raises():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     with pytest.raises(TypeError):
-        _estimate_pendantmdc(
+        _estimate_pandas(
             phylogeny_df, trait_transitions=names, neutral_traits=[1]
         )
 
@@ -556,7 +574,7 @@ def test_empty(apply: typing.Callable):
         ),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
-        alifestd_tgs_pendantmdc_estimate_polars(
+        _estimate_leaves(
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],
@@ -566,9 +584,7 @@ def test_empty(apply: typing.Callable):
 def test_expression_transitions_raise():
     df_pl = _make_cherries_polars(500)
     with pytest.raises(TypeError):
-        alifestd_tgs_pendantmdc_estimate_polars(
-            df_pl, trait_transitions=["focal", pl.col("n1")]
-        )
+        _estimate_leaves(df_pl, trait_transitions=["focal", pl.col("n1")])
 
 
 @pytest.mark.parametrize(
@@ -584,7 +600,7 @@ def test_expression_transitions_raise():
 )
 def test_unsupported(df_pl: pl.DataFrame):
     with pytest.raises(NotImplementedError, match="not supported"):
-        alifestd_tgs_pendantmdc_estimate_polars(
+        _estimate_leaves(
             df_pl.with_columns(a=pl.lit(0), b=pl.lit(0), c=pl.lit(0)),
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],
@@ -596,7 +612,7 @@ def test_null_transitions_raise():
         focal=pl.when(pl.col("id") == 5).then(None).otherwise(pl.col("focal"))
     )
     with pytest.raises(NotImplementedError, match="null"):
-        alifestd_tgs_pendantmdc_estimate_polars(
+        _estimate_leaves(
             df_pl,
             trait_transitions=["focal", "n1", "n2"],
             neutral_traits=["n1", "n2"],
@@ -605,7 +621,7 @@ def test_null_transitions_raise():
 
 def test_ancestor_list_column():
     df_pl = _make_cherries_polars(2_000)
-    expected = alifestd_tgs_pendantmdc_estimate_polars(
+    expected = _estimate_leaves(
         df_pl,
         trait_transitions=["focal", "n1", "n2"],
         neutral_traits=["n1", "n2"],
@@ -615,7 +631,7 @@ def test_ancestor_list_column():
         .then(pl.lit("[none]"))
         .otherwise(pl.format("[{}]", pl.col("ancestor_id"))),
     )
-    res = alifestd_tgs_pendantmdc_estimate_polars(
+    res = _estimate_leaves(
         with_list,
         trait_transitions=["focal", "n1", "n2"],
         neutral_traits=["n1", "n2"],
@@ -647,13 +663,13 @@ def test_unifurcation_transitions_credit_merged_branch():
         [knuckled.assign(**{names[0]: 0}), knuckles], ignore_index=True
     )
     kwargs = dict(trait_transitions=names, neutral_traits=names[1:])
-    res_below = alifestd_tgs_pendantmdc_estimate_polars(
+    res_below = _estimate_leaves(
         pl.from_pandas(alifestd_to_working_format(below)).drop(
             "ancestor_list", strict=False
         ),
         **kwargs,
     )
-    res_above = alifestd_tgs_pendantmdc_estimate_polars(
+    res_above = _estimate_leaves(
         pl.from_pandas(alifestd_to_working_format(above)).drop(
             "ancestor_list", strict=False
         ),

@@ -5,16 +5,17 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_tgs_allmdc_estimate_polars,
+    alifestd_mark_leaves_polars,
+    alifestd_tgs_estimate_polars,
 )
-from phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars import (
+from phyloframe.legacy._alifestd_tgs_estimate_polars import (
     _create_parser,
 )
 
 from ._impl import mark_tgs_calibration_columns
-from .test_alifestd_tgs_allmdc_estimate_polars import _make_cherries_polars
+from .test_alifestd_tgs_estimate_polars import _make_cherries_polars
 
-MODULE = "phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars"
+MODULE = "phyloframe.legacy._alifestd_tgs_estimate_polars"
 NEUTRAL_TRAITS = ["n1", "n2", "n3", "n4"]
 
 
@@ -128,7 +129,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
         check=True,
         input=input_pqt.encode(),
     )
-    expected = alifestd_tgs_allmdc_estimate_polars(
+    expected = alifestd_tgs_estimate_polars(
         pl.read_parquet(input_pqt),
         trait_transitions=["focal", "n1", "n2"],
         neutral_traits=["n1", "n2"],
@@ -141,6 +142,44 @@ def test_cli_matches_function(input_pqt, tmp_path):
         selection_coef_starts=(0.0, -0.5),
         growth_exponent_bound=300.0,
     )
+    pd.testing.assert_frame_equal(
+        pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False
+    )
+
+
+def test_cli_episode_mask_matches_function(input_pqt, tmp_path):
+    masked_pqt = str(tmp_path / "masked.pqt")
+    alifestd_mark_leaves_polars(pl.read_parquet(input_pqt)).write_parquet(
+        masked_pqt
+    )
+    output_file = str(tmp_path / "output.pqt")
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--trait-transitions",
+            "focal",
+            "n1",
+            "n2",
+            "--neutral-traits",
+            "n1",
+            "n2",
+            "--episode-mask",
+            "is_leaf",
+            "--eager-write",
+            output_file,
+        ],
+        check=True,
+        input=masked_pqt.encode(),
+    )
+    expected = alifestd_tgs_estimate_polars(
+        pl.read_parquet(masked_pqt),
+        trait_transitions=["focal", "n1", "n2"],
+        neutral_traits=["n1", "n2"],
+        episode_mask="is_leaf",
+    )
+    assert (expected["num_inner_episodes"] == 0).all()
     pd.testing.assert_frame_equal(
         pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False
     )

@@ -16,21 +16,22 @@ from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
-from ._alifestd_tgs_pendantmdc_estimate_polars import (
+from ._alifestd_tgs_estimate_polars import (
     _add_estimate_arguments,
-    _alifestd_tgs_pendantmdc_estimate_polars_impl,
+    _alifestd_tgs_estimate_polars_impl,
     _get_estimate_kwargs,
 )
 from ._impl import tgs_bootstrap
 
 
 @warn_experimental
-def alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
+def alifestd_tgs_estimate_bootstrap_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions: typing.Sequence[str],
     neutral_traits: typing.Sequence[str],
     num_bootstrap: int,
+    episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
     calibration_compare_by_vals: typing.Sequence[str] = (
@@ -56,13 +57,13 @@ def alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
-    """Estimate per-trait gain rate and selection coefficient from leaf pendant
-    branches, as `alifestd_tgs_pendantmdc_estimate_polars` does, with
+    """Estimate per-trait gain rate and selection coefficient from mutationally
+    defined clades (MDCs), as `alifestd_tgs_estimate_polars` does, with
     bootstrap standard errors, z-scores, and p-values.
 
-    Bootstrap replicates resample leaves' pendant branches with replacement
-    and refit, holding calibration neighborhoods fixed at those of the point
-    estimate.
+    Bootstrap replicates resample the fit exposure episodes (see
+    `episode_mask`) with replacement and refit, holding calibration neighborhoods fixed at those
+    of the point estimate.
 
     Only supports asexual phylogenies.
 
@@ -70,7 +71,7 @@ def alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
     ----------
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format; see Input
-        Schema of `alifestd_tgs_pendantmdc_estimate_polars`.
+        Schema of `alifestd_tgs_estimate_polars`.
     num_bootstrap : int
         Number of bootstrap replicates; must be positive. Standard guidance
         suggests about 200 replicates for standard errors (Efron and
@@ -87,7 +88,7 @@ def alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
         Pass tqdm or equivalent to display progress over traits, for the
         point estimate, and over bootstrap replicates.
 
-    Other parameters are as for `alifestd_tgs_pendantmdc_estimate_polars`.
+    Other parameters are as for `alifestd_tgs_estimate_polars`.
 
     Returns
     -------
@@ -98,12 +99,12 @@ def alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
     ------
     ValueError
         If `num_bootstrap` is not positive, or as for
-        `alifestd_tgs_pendantmdc_estimate_polars`.
+        `alifestd_tgs_estimate_polars`.
 
     Output Schema
     -------------
     One row per trait, with the columns of
-    `alifestd_tgs_pendantmdc_estimate_polars`'s Output Schema, then:
+    `alifestd_tgs_estimate_polars`'s Output Schema, then:
 
     'selection_coef_se', 'log_gain_ratio_se' : float
         Bootstrap standard errors (se), i.e., standard deviations across
@@ -118,25 +119,24 @@ def alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
 
     Warnings
     --------
-    Bootstrap sampling assumes leaves are independent, but they are
-    correlated through shared ancestry, so replicates may be
-    underdispersed, making standard errors too small and z-scores and
-    p-values overconfident. See also Warnings of
-    `alifestd_tgs_pendantmdc_estimate_polars`.
+    Bootstrap sampling assumes exposure episodes are independent, but
+    nested episodes share leaves, so replicates may be underdispersed,
+    making standard errors too small and z-scores and p-values
+    overconfident. See also Warnings of
+    `alifestd_tgs_estimate_polars`.
 
     See Also
     --------
-    alifestd_tgs_pendantmdc_estimate_polars :
+    alifestd_tgs_estimate_polars :
         Point estimates only.
-    alifestd_tgs_allmdc_estimate_bootstrap_polars :
-        MDCs of every size, not only leaf pendant branches.
     """
     return tgs_bootstrap(
-        _alifestd_tgs_pendantmdc_estimate_polars_impl,
+        _alifestd_tgs_estimate_polars_impl,
         phylogeny_df,
         estimate_kwargs=dict(
             trait_transitions=trait_transitions,
             neutral_traits=neutral_traits,
+            episode_mask=episode_mask,
             calibration_partition_by=calibration_partition_by,
             calibration_compare_by_bins=calibration_compare_by_bins,
             calibration_compare_by_vals=calibration_compare_by_vals,
@@ -158,21 +158,21 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Estimate per-trait gain rate and selection coefficient from how often leaves
-carry each trait as a function of pendant branch length, with bootstrap
-standard errors, z-scores, and p-values.
+Estimate per-trait gain rate and selection coefficient from mutationally
+defined clades, with bootstrap standard errors, z-scores, and
+p-values.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
 
 Input schema is as for
-phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars.
+phyloframe.legacy._alifestd_tgs_estimate_polars.
 
 
 Output Schema
 =============
 One row per trait, not a phylogeny, with the columns of
-phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars, then:
+phyloframe.legacy._alifestd_tgs_estimate_polars, then:
 
 'selection_coef_se', 'log_gain_ratio_se' : float
     Bootstrap standard errors of the selection coefficient and log gain
@@ -194,7 +194,7 @@ Additional Notes
 
 See Also
 ========
-phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars :
+phyloframe.legacy._alifestd_tgs_estimate_polars :
     Point estimates only.
 """
 
@@ -209,7 +209,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser = _add_parser_base(
         parser=parser,
         dfcli_module=(
-            "phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_bootstrap_polars"
+            "phyloframe.legacy._alifestd_tgs_estimate_bootstrap_polars"
         ),
         dfcli_version=get_phyloframe_version(),
     )
@@ -243,20 +243,20 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_bootstrap_polars",
+            "phyloframe.legacy._alifestd_tgs_estimate_bootstrap_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_tgs_pendantmdc_estimate_bootstrap_polars,
+                    alifestd_tgs_estimate_bootstrap_polars,
                     **_get_estimate_kwargs(args),
                     num_bootstrap=args.num_bootstrap,
                     seed=args.bootstrap_seed,
                     parallel_backend=args.parallel_backend,
                     progress_wrap=functools.partial(
                         tqdm,
-                        desc="alifestd_tgs_pendantmdc_estimate_bootstrap_polars",
+                        desc="alifestd_tgs_estimate_bootstrap_polars",
                     ),
                 ),
             )

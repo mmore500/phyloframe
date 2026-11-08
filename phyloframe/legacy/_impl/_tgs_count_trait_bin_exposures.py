@@ -55,9 +55,8 @@ def tgs_count_trait_bin_exposures(
     num_bins: int,
     weights: np.ndarray,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns each trait's exposure counts in each calibration bin, one row
     per trait and bin, trait-major, given each row of `exposure_df` (see

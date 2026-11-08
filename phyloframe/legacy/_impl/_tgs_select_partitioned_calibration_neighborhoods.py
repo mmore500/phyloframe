@@ -81,9 +81,8 @@ def _tgs_select_calibration_neighborhoods(
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
 ) -> sparse.spmatrix:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns the bin-by-bin membership matrix of calibration neighborhoods,
     the bins whose neutral trait gains calibrate each bin's branch lengths
@@ -196,9 +195,8 @@ def tgs_select_partitioned_calibration_neighborhoods(
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
 ) -> typing.Tuple[sparse.csr_matrix, pl.DataFrame]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Selects calibration neighborhoods separately within each partition
     (see `_tgs_select_calibration_neighborhoods`), so that neighborhoods

@@ -8,11 +8,11 @@ from phyloframe.legacy._impl import tgs_fit_traits
 from phyloframe.legacy._impl._tgs_bootstrap import _tgs_bootstrap_trait_fits
 
 from ._make_tgs_fit_kwargs import make_tgs_fit_kwargs
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 
 def test_replicate():
-    exposure_df = simulate_allmdc_exposure_df(4_000)
+    exposure_df = simulate_exposure_df(4_000)
     kwargs = dict(
         do_fit=functools.partial(
             tgs_fit_traits,

@@ -16,12 +16,12 @@ from phyloframe.legacy._impl._tgs_minimize_nll import (
     tgs_pick_selection_rescale,
 )
 
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 
 @pytest.fixture(scope="module")
 def fixture():
-    exposure_df = simulate_allmdc_exposure_df()
+    exposure_df = simulate_exposure_df()
     distinct_survival_durations, survival_duration_indices = np.unique(
         exposure_df["survival_duration"].to_numpy(), return_inverse=True
     )

@@ -43,9 +43,8 @@ def tgs_tally_exposure_episodes(
     trait_names: typing.Sequence[str],
     exposure_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns one row per trait, with counts of its exposure episodes in
     `exposure_df` (see `_tgs_build_exposure_df`); see Output Schema.

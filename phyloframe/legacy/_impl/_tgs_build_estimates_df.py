@@ -6,9 +6,8 @@ def tgs_build_estimates_df(
     *,
     fits_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns one row per trait, joining `episode_tallies_df`'s per-trait
     exposure episode and gain tallies (see `tgs_tally_exposure_episodes`)
@@ -23,10 +22,10 @@ def tgs_build_estimates_df(
         the trait.
     'num_leaf_gains' : integer
         Of those, the number that gained the trait.
-    'num_inner_episodes' : integer, allmdc only
+    'num_inner_episodes' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
-    'num_inner_gains' : integer, allmdc only
+    'num_inner_gains' : integer
         Of those, the number that gained the trait.
     'gain_rate' : float
         Estimated rate of trait gain, per unit branch length.

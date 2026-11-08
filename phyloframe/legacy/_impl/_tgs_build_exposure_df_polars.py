@@ -37,9 +37,8 @@ from .._alifestd_try_add_ancestor_id_col_polars import (
 
 
 def _tgs_build_exposure_df(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns the exposure table of `phylogeny_df`, a phylogeny with
     contiguous, topologically sorted ids and no unifurcations, with one row
@@ -120,9 +119,8 @@ def _tgs_calc_trait_states(
     trait_name: str,
     trait_transitions: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Takes a phylogeny with contiguous, topologically sorted ids and one
     trait's transitions (see `alifestd_mark_lineage_delta_asexual`).
@@ -297,6 +295,22 @@ def _tgs_validate_calibration_cols(
         )
 
 
+def _tgs_apply_episode_mask(
+    exposure_df: pl.DataFrame, *, mask: pl.Series
+) -> pl.DataFrame:
+    """Implementation detail for `tgs_build_exposure_df_polars`.
+
+    Returns the rows of `exposure_df` where boolean `mask`, the episode mask
+    column at each episode's end node, is true.
+    """
+    if mask.dtype != pl.Boolean or mask.has_nulls():
+        raise NotImplementedError(
+            f"episode mask column {mask.name} must be boolean, without null "
+            "values",
+        )
+    return exposure_df.filter(mask)
+
+
 def tgs_build_exposure_df_polars(
     phylogeny_df: pl.DataFrame,
     *,
@@ -305,16 +319,17 @@ def tgs_build_exposure_df_polars(
     calibration_partition_by: typing.Optional[str],
     calibration_compare_by_bins: typing.Optional[str],
     calibration_compare_by_vals: typing.Sequence[str],
+    episode_mask: typing.Optional[str],
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Sums each trait's transitions into node states (see
     `_tgs_calc_trait_states`), collapses unifurcations, and returns the
     phylogeny's exposure table, one row per exposure episode candidate,
-    i.e., per non-root node's branch; see Output Schema. `caller` names the
-    calling function in error messages.
+    i.e., per non-root node's branch, kept if `episode_mask`, if given, is
+    true at its end node; see Output Schema. `caller` names the calling
+    function in error messages.
 
     Raises ValueError if `phylogeny_df` is empty.
 
@@ -333,6 +348,8 @@ def tgs_build_exposure_df_polars(
     `calibration_compare_by_vals` columns : numeric, optional
         Values by which calibration bins are compared, unless exposure
         table columns (see below).
+    `episode_mask` column : boolean, optional
+        Whether to keep the exposure episode ending at each node.
 
     Output Schema
     -------------
@@ -381,7 +398,10 @@ def tgs_build_exposure_df_polars(
         selected = _tgs_select_columns(
             phylogeny_df,
             trait_transition_cols=trait_transition_cols,
-            calibration_cols=[*calibration_cols.values()],
+            calibration_cols=[
+                *calibration_cols.values(),
+                *([episode_mask] if episode_mask is not None else []),
+            ],
         )
         if selected.is_empty():
             raise ValueError("phylogeny_df has no exposure episodes to fit")
@@ -400,7 +420,11 @@ def tgs_build_exposure_df_polars(
     # without roots, rows match exposure_df's; its own columns take
     # precedence
     node_df = collapsed.filter(pl.col("ancestor_id") != pl.col("id")).select(
-        cs.by_name(*calibration_cols.values(), require_all=False)
+        cs.by_name(
+            *calibration_cols.values(),
+            *([episode_mask] if episode_mask is not None else []),
+            require_all=False,
+        )
         - cs.by_name(exposure_df.columns, require_all=False),
     )
     del collapsed
@@ -420,6 +444,10 @@ def tgs_build_exposure_df_polars(
             pl.col(col).alias(name) for name, col in calibration_cols.items()
         ),
     )
+    if episode_mask is not None:
+        exposure_df = _tgs_apply_episode_mask(
+            exposure_df, mask=source_df[episode_mask]
+        )
     del source_df
     gc.collect()
     log_memory_usage(logging.info)

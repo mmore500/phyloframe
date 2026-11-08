@@ -66,9 +66,8 @@ def _tgs_calc_trait_gain_ratio_lrts(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns, per trait, the likelihood-ratio test (LRT) statistic for gain
     ratio = 1, a profile likelihood test: twice the increase in negative
@@ -175,9 +174,8 @@ def _tgs_calc_trait_selection_lrts(
     trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
     loss_rate: float,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns, per trait, the likelihood-ratio test (LRT) statistic for
     selection coefficient = 0: twice the increase in negative log
@@ -248,9 +246,8 @@ def _tgs_calc_neutral_reference_gain_rates(
     gain_rates: np.ndarray,
     neutral_traits: typing.Sequence[int],
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns each trait's neutral reference gain rate, the mean gain rate of
     the neutral traits other than itself, against which its gain ratio is
@@ -286,9 +283,8 @@ def tgs_fit_coarsened_traits(
     selection_coef_starts: typing.Sequence[float],
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Fits each trait's gain rate and selection coefficient, given each
     trait's `tgs_calc_nll` arguments but the rate parameters,

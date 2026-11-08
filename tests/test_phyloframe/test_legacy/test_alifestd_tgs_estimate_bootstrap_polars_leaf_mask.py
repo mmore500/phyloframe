@@ -8,17 +8,23 @@ import polars.testing as pltest
 import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
-from phyloframe.legacy import (
-    alifestd_tgs_pendantmdc_estimate_bootstrap_polars,
-    alifestd_tgs_pendantmdc_estimate_polars,
-)
+from phyloframe.legacy import alifestd_tgs_estimate_bootstrap_polars
 
-from .test_alifestd_tgs_pendantmdc_estimate_polars import (
+from .test_alifestd_tgs_estimate_polars_leaf_mask import (
     _estimate_from_masks,
+    _estimate_leaves,
     _make_cherries,
     _make_cherries_polars,
+    _with_leaf_mask,
     apply_params,
 )
+
+
+def _estimate_leaves_bootstrap(phylogeny_df, **kwargs):
+    """Bootstrap-estimate from leaf pendant branches only."""
+    return alifestd_tgs_estimate_bootstrap_polars(
+        _with_leaf_mask(phylogeny_df), episode_mask="is_leaf", **kwargs
+    )
 
 
 def _estimate_bootstrap_from_masks(
@@ -26,7 +32,7 @@ def _estimate_bootstrap_from_masks(
 ) -> pd.DataFrame:
     return _estimate_from_masks(
         phylogeny_df,
-        estimator=alifestd_tgs_pendantmdc_estimate_bootstrap_polars,
+        estimator=_estimate_leaves_bootstrap,
         **kwargs,
     )
 
@@ -37,10 +43,8 @@ def test_point_columns_match_point_estimate():
         trait_transitions=["focal", "n1", "n2", "n3", "n4"],
         neutral_traits=["n1", "n2", "n3", "n4"],
     )
-    point = alifestd_tgs_pendantmdc_estimate_polars(df_pl, **kwargs)
-    res = alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
-        df_pl, num_bootstrap=2, seed=1, **kwargs
-    )
+    point = _estimate_leaves(df_pl, **kwargs)
+    res = _estimate_leaves_bootstrap(df_pl, num_bootstrap=2, seed=1, **kwargs)
     assert res.columns[: point.width] == point.columns
     pltest.assert_frame_equal(res.select(point.columns), point)
 
@@ -48,7 +52,7 @@ def test_point_columns_match_point_estimate():
 @pytest.mark.parametrize("num_bootstrap", [0, -1])
 def test_num_bootstrap_not_positive_raises(num_bootstrap: int):
     with pytest.raises(ValueError, match="num_bootstrap"):
-        alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
+        _estimate_leaves_bootstrap(
             _make_cherries_polars(100),
             trait_transitions=["focal", "n1", "n2"],
             neutral_traits=["n1", "n2"],
@@ -214,7 +218,7 @@ def test_empty(apply: typing.Callable):
         ),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
-        alifestd_tgs_pendantmdc_estimate_bootstrap_polars(
+        _estimate_leaves_bootstrap(
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],

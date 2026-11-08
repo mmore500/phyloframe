@@ -9,7 +9,7 @@ from phyloframe.legacy._impl._tgs_estimate_tgs_from_exposures import (
     _tgs_assign_calibration_bins,
 )
 
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 
 def _select(exposure_df: pl.DataFrame):
@@ -29,7 +29,7 @@ def _select(exposure_df: pl.DataFrame):
 
 
 def test_block_diagonal():
-    exposure_df = simulate_allmdc_exposure_df(4_000, num_neutral=3)
+    exposure_df = simulate_exposure_df(4_000, num_neutral=3)
     exposure_df = alifestd_mark_joint_quantile_bins_polars(
         exposure_df,
         bin_by=["branch_length", "origin_time"],
@@ -52,7 +52,7 @@ def test_block_diagonal():
 
 
 def test_one_bin_is_uncalibrated():
-    exposure_df = simulate_allmdc_exposure_df(400)
+    exposure_df = simulate_exposure_df(400)
     __, neighborhoods, trait_bin_counts_df = _select(exposure_df)
     assert neighborhoods.toarray().tolist() == [[1.0]]
     assert trait_bin_counts_df["bin"].unique().to_list() == [0]

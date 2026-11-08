@@ -101,7 +101,7 @@ def alifestd_mark_clade_size_classes_polars(
     always class 0.
 
     For example, pass this column as `calibration_partition_by` to
-    `alifestd_tgs_allmdc_estimate_polars`, which then calibrates within
+    `alifestd_tgs_estimate_polars`, which then calibrates within
     each class separately, as neutral traits' gain rates per unit branch
     length may differ between small and large clades (e.g., between leaves
     and inner nodes). Calibrating within a class requires that class to hold
@@ -163,7 +163,7 @@ def alifestd_mark_clade_size_classes_polars(
         Marks clade sizes.
     alifestd_mark_joint_quantile_bins_polars :
         Bins nodes within these classes, e.g., for calibration.
-    alifestd_tgs_allmdc_estimate_polars :
+    alifestd_tgs_estimate_polars :
         Calibrates within these classes, e.g., with `weight_by` its
         `neutral_traits`.
     """

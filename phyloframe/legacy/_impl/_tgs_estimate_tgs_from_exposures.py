@@ -15,9 +15,8 @@ from ._tgs_select_partitioned_calibration_neighborhoods import (
 
 
 def _tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns each exposure episode's calibration bin and partition, one row
     per row of `exposure_df`, numbering distinct (`calibration_partition`,
@@ -81,8 +80,8 @@ def tgs_estimate_tgs_from_exposures(
     growth_exponent_bound: float,
     progress_wrap: typing.Callable,
 ) -> typing.Dict[str, typing.Any]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`, and their bootstrap variants.
+    """Implementation detail for `alifestd_tgs_estimate_polars` and
+    `alifestd_tgs_estimate_bootstrap_polars`.
     Acronym tgs stands for trait gain/selection.
 
     Fits each trait's gain rate and selection coefficient once to the
