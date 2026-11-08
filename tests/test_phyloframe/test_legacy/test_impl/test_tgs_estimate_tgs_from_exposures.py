@@ -7,9 +7,11 @@ from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
     tgs_build_estimates_df,
-    tgs_build_exposure_df,
     tgs_estimate_tgs_from_exposures,
     tgs_tally_exposure_episodes,
+)
+from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
+    _tgs_build_exposure_df,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -131,7 +133,7 @@ def test_partitions_separate_neighborhoods():
 
 
 def test_no_episodes_raises():
-    exposure_df = tgs_build_exposure_df(
+    exposure_df = _tgs_build_exposure_df(
         pl.DataFrame(
             {
                 "ancestor_id": [0],

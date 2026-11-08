@@ -48,7 +48,7 @@ def tgs_tally_exposure_episodes(
     gain/selection.
 
     Returns one row per trait, with counts of its exposure episodes in
-    `exposure_df` (see `tgs_build_exposure_df`); see Output Schema.
+    `exposure_df` (see `_tgs_build_exposure_df`); see Output Schema.
 
     Output Schema
     -------------

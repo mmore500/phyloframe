@@ -61,7 +61,7 @@ def tgs_count_trait_bin_exposures(
 
     Returns each trait's exposure counts in each calibration bin, one row
     per trait and bin, trait-major, given each row of `exposure_df` (see
-    `tgs_build_exposure_df`), its `bins` index, and its `weights` (e.g.,
+    `_tgs_build_exposure_df`), its `bins` index, and its `weights` (e.g.,
     bootstrap draw counts); see Output Schema.
 
     Output Schema

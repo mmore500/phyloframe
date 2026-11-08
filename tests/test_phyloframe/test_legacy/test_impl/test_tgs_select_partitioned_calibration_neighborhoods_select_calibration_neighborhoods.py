@@ -5,9 +5,9 @@ import polars as pl
 
 from phyloframe._auxlib._calc_group_means import calc_group_means
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
-from phyloframe.legacy._impl import (
-    tgs_count_trait_bin_exposures,
-    tgs_select_calibration_neighborhoods,
+from phyloframe.legacy._impl import tgs_count_trait_bin_exposures
+from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods import (
+    _tgs_select_calibration_neighborhoods,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -26,7 +26,7 @@ def test_select(caplog):
     )["joint_quantile_bin"].to_numpy()
     num_bins = bins.max() + 1
     with caplog.at_level(logging.INFO):
-        res = tgs_select_calibration_neighborhoods(
+        res = _tgs_select_calibration_neighborhoods(
             bin_coords=calc_group_means(
                 bins, np.column_stack(coordinates), num_groups=num_bins
             ),

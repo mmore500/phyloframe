@@ -1,12 +1,10 @@
 import numpy as np
 import polars as pl
 
-from phyloframe.legacy._impl import (
-    tgs_calc_trait_selection_lrts,
-    tgs_fit_trait,
-)
-from phyloframe.legacy._impl._tgs_calc_trait_selection_lrts import (
+from phyloframe.legacy._impl import tgs_fit_trait
+from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_selection_lrt,
+    _tgs_calc_trait_selection_lrts,
 )
 
 
@@ -53,7 +51,7 @@ def test_trait_selection_lrts():
             for kwargs in trait_nll_kwargs
         ],
     )
-    res = tgs_calc_trait_selection_lrts(
+    res = _tgs_calc_trait_selection_lrts(
         fits_df=fits_df, trait_nll_kwargs=trait_nll_kwargs, loss_rate=0.0
     )
     assert res.columns == ["trait_id", "selection_coef_lrt_naive"]

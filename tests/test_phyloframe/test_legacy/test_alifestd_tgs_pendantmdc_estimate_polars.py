@@ -9,7 +9,9 @@ from phyloframe.legacy import (
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
 )
-from phyloframe.legacy._impl import tgs_select_calibration_neighborhoods
+from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods import (
+    _tgs_select_calibration_neighborhoods,
+)
 
 from ._impl import add_trait_transitions, mark_tgs_calibration_columns
 
@@ -347,7 +349,7 @@ def test_tgs_select_calibration_neighborhoods():
             "length_sum": 1000.0,
         },
     )
-    res = tgs_select_calibration_neighborhoods(
+    res = _tgs_select_calibration_neighborhoods(
         bin_coords=bin_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
         trait_bin_counts_df=counts,

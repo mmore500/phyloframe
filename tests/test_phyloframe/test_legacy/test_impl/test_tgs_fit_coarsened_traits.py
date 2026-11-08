@@ -4,13 +4,13 @@ import pytest
 from phyloframe._auxlib._identity import identity
 from phyloframe.legacy._impl import (
     tgs_calc_nll,
-    tgs_coarsen_episodes,
     tgs_fit_coarsened_traits,
     tgs_fit_trait,
 )
-from phyloframe.legacy._impl._tgs_calc_trait_selection_lrts import (
+from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_selection_lrt,
 )
+from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
 from phyloframe.legacy._impl._tgs_minimize_nll import (
     tgs_pick_log_gain_rate_start,
     tgs_pick_selection_rescale,
@@ -28,7 +28,7 @@ def fixture():
     # each trait's `tgs_calc_nll` arguments, but the rate parameters
     trait_nll_kwargs = []
     for trait in range(3):
-        coarsened_df, shares = tgs_coarsen_episodes(
+        coarsened_df, shares = _tgs_coarsen_episodes(
             exposure_df=exposure_df,
             trait_id=trait,
             bins=np.zeros(len(exposure_df), dtype=np.int64),

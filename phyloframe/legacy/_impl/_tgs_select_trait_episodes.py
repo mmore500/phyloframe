@@ -7,7 +7,7 @@ def tgs_count_exposure_traits(exposure_df: pl.DataFrame) -> int:
     gain/selection.
 
     Returns the number of traits in `exposure_df` (see
-    `tgs_build_exposure_df`).
+    `_tgs_build_exposure_df`).
     """
     return (
         pl.Series(exposure_df.columns, dtype=pl.String)
@@ -25,7 +25,7 @@ def tgs_select_trait_episodes(
     gain/selection.
 
     Returns one row per exposure episode of `trait_id` with positive
-    weight, i.e., per branch of `exposure_df` (see `tgs_build_exposure_df`)
+    weight, i.e., per branch of `exposure_df` (see `_tgs_build_exposure_df`)
     starting without the trait, given each branch's `weights` (e.g.,
     bootstrap draw counts); see Output Schema. Callers process one trait at
     a time, so that episode tables scale with branches, not branches times

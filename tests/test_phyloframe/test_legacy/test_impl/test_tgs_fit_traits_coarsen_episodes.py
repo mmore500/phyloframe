@@ -2,7 +2,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl import tgs_coarsen_episodes
+from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
 
 
 def _exposure_df() -> pl.DataFrame:
@@ -20,7 +20,7 @@ def _exposure_df() -> pl.DataFrame:
 
 def _coarsen(trait: int, **kwargs):
     distinct, indices = np.unique([0.0, 0.0, 0.0, 5.0], return_inverse=True)
-    return tgs_coarsen_episodes(
+    return _tgs_coarsen_episodes(
         **{
             **dict(
                 exposure_df=_exposure_df(),

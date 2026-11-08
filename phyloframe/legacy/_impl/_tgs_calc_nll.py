@@ -76,7 +76,7 @@ def tgs_calc_nll(
 
     Input Schema
     ------------
-    `coarsened_df` columns, e.g., from `tgs_coarsen_episodes`:
+    `coarsened_df` columns, e.g., from `_tgs_coarsen_episodes`:
 
     'num_trials' : float
         (Weighted) count of the coarsened row's exposure episodes.

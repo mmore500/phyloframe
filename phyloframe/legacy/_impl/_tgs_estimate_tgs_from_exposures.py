@@ -4,14 +4,66 @@ import typing
 
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._log_memory_usage import log_memory_usage
-from ._tgs_assign_calibration_bins import tgs_assign_calibration_bins
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_select_partitioned_calibration_neighborhoods import (
     tgs_select_partitioned_calibration_neighborhoods,
 )
+
+
+def _tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
+
+    Returns each exposure episode's calibration bin and partition, one row
+    per row of `exposure_df`, numbering distinct (`calibration_partition`,
+    `calibration_bin`) pairs consecutively, partition-major, so that each
+    partition's bins are contiguous; see Input and Output Schema.
+
+    Raises ValueError if `exposure_df` has no exposure episodes.
+
+    Input Schema
+    ------------
+    'calibration_partition' : integer, optional
+        Each episode's calibration partition id; if missing, all 0.
+    'calibration_bin' : integer, optional
+        Each episode's calibration bin id; if missing, all 0. So, without
+        either column, every episode is in one bin.
+
+    Output Schema
+    -------------
+    'exposure_id' : integer
+        Id of the episode, its row index in `exposure_df`.
+    'bin' : integer
+        Calibration bin index, from 0, over (partition, bin) pairs, sorted.
+    'partition' : integer
+        Calibration partition index, from 0, over partitions, sorted.
+    """
+    if exposure_df.is_empty():
+        raise ValueError("phylogeny_df has no exposure episodes to fit")
+
+    calibration_df = exposure_df.select(
+        exposure_id=pl.int_range(pl.len(), dtype=pl.Int64),
+        # defaults, overwritten by `exposure_df`'s columns, if any
+        calibration_partition=pl.lit(0),
+        calibration_bin=pl.lit(0),
+    ).with_columns(
+        exposure_df.select(
+            cs.by_name(
+                "calibration_partition", "calibration_bin", require_all=False
+            ),
+        ),
+    )
+    return calibration_df.select(
+        "exposure_id",
+        bin=pl.struct("calibration_partition", "calibration_bin").rank("dense")
+        - 1,
+        partition=pl.col("calibration_partition").rank("dense") - 1,
+    ).cast(pl.Int64)
 
 
 def tgs_estimate_tgs_from_exposures(
@@ -34,8 +86,8 @@ def tgs_estimate_tgs_from_exposures(
     Acronym tgs stands for trait gain/selection.
 
     Fits each trait's gain rate and selection coefficient once to the
-    exposure episodes of `exposure_df` (see `tgs_build_exposure_df`):
-    assigns episodes to calibration bins (see `tgs_assign_calibration_bins`),
+    exposure episodes of `exposure_df` (see `_tgs_build_exposure_df`):
+    assigns episodes to calibration bins (see `_tgs_assign_calibration_bins`),
     selects calibration neighborhoods within partitions (see
     `tgs_select_partitioned_calibration_neighborhoods`), and fits (see
     `tgs_fit_traits`). Takes validated arguments, with `neutral_traits` as
@@ -54,7 +106,7 @@ def tgs_estimate_tgs_from_exposures(
     ------------
     'branch_length' : float
         Branch length of each exposure table row (see
-        `tgs_build_exposure_df`).
+        `_tgs_build_exposure_df`).
     'survival_duration' : float
         Time from the branch's end node to the latest leaf below it.
     'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
@@ -69,7 +121,7 @@ def tgs_estimate_tgs_from_exposures(
     # weighted fit must reuse a point estimate's
     assert len({x is None for x in (calibration_neighborhoods, weights)}) == 1
 
-    bins_df = tgs_assign_calibration_bins(exposure_df)
+    bins_df = _tgs_assign_calibration_bins(exposure_df)
     bins = bins_df["bin"].to_numpy()
     num_episodes, num_bins = len(exposure_df), bins_df["bin"].n_unique()
     trait_bin_counts_df = None  # counted with `weights` by tgs_fit_traits

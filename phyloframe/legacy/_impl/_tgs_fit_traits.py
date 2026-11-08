@@ -6,15 +6,140 @@ import numpy as np
 import opytional as opyt
 import polars as pl
 from scipy import sparse
+import scipy.sparse as scipy_sparse
 
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
-from ._tgs_coarsen_episodes import tgs_coarsen_episodes
 from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
 from ._tgs_fit_coarsened_traits import tgs_fit_coarsened_traits
-from ._tgs_select_trait_episodes import tgs_count_exposure_traits
+from ._tgs_select_trait_episodes import (
+    tgs_count_exposure_traits,
+    tgs_select_trait_episodes,
+)
+
+
+def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
+    """Implementation detail for `_tgs_coarsen_episodes`.
+
+    Returns each nonnegative value's cell of a log-scale grid with ratio 1 +
+    `rtol`; zero values get a cell of their own.
+    """
+    cells = np.full(len(values), np.iinfo(np.int64).min)
+    is_positive = values > 0
+    cells[is_positive] = np.round(np.log(values[is_positive]) / np.log1p(rtol))
+    return cells
+
+
+def _tgs_coarsen_episodes(
+    *,
+    exposure_df: pl.DataFrame,
+    trait_id: int,
+    bins: np.ndarray,
+    calibration_factors: np.ndarray,
+    weights: np.ndarray,
+    length_rtol: float,
+    survival_duration_indices: np.ndarray,
+    num_survival_durations: int,
+) -> typing.Tuple[pl.DataFrame, scipy_sparse.csr_matrix]:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
+
+    Coarsens `trait_id`'s exposure episodes (rows of `exposure_df` starting
+    without the trait; see `_tgs_build_exposure_df`), pooling those whose
+    calibrated branch lengths and survival durations both agree within
+    relative tolerance `length_rtol`, i.e., fall in the same cell of a
+    log-scale grid with ratio 1 + `length_rtol` (0 for no coarsening), so
+    that pooled episodes have nearly the same chance of gain, and
+    coarsening loses little information about which episodes gained the
+    trait. Each episode's
+    length is calibrated by its calibration bin's factor,
+    `calibration_factors[bin]`.
+
+    Returns `coarsened_df`, one row per grid cell with episodes
+    (see Output Schema), and `survival_shares`, a sparse matrix with a row
+    per `coarsened_df` row and a column per distinct survival duration
+    (episodes' `survival_duration_indices`), giving the share of the row's
+    episodes with each.
+
+    Output Schema
+    -------------
+    'num_trials' : float
+        Weighted (by `weights`) count of the row's pooled episodes.
+    'num_successes' : float
+        Of those, the weighted count that gained the trait.
+    'length' : float
+        Their weighted mean calibrated branch length.
+    """
+    episodes_df = tgs_select_trait_episodes(
+        exposure_df,
+        trait_id=trait_id,
+        weights=pl.Series(weights, dtype=pl.Float64),
+    )
+    episodes = episodes_df["exposure_id"].to_numpy()
+    lengths = (
+        exposure_df["branch_length"].to_numpy()[episodes]
+        * calibration_factors[bins[episodes]]
+    )
+    survival_durations = exposure_df["survival_duration"].to_numpy()[episodes]
+    if length_rtol > 0:
+        length_cells = _calc_log_grid_cells(lengths, rtol=length_rtol)
+        survival_cells = _calc_log_grid_cells(
+            survival_durations, rtol=length_rtol
+        )
+    else:
+        length_cells = np.arange(len(lengths))
+        survival_cells = np.zeros(len(lengths), dtype=np.int64)
+    episode_weights = episodes_df["weight"].to_numpy()
+    episode_df = pl.DataFrame(
+        {
+            "length_cell": length_cells,
+            "survival_cell": survival_cells,
+            "weight": episode_weights,
+            "gain": episodes_df["gain"],
+            "length": lengths,
+        },
+    ).with_columns(
+        # each episode's coarsened row, numbering keys in sorted order
+        row=pl.struct("length_cell", "survival_cell").rank("dense")
+        - 1,
+    )
+    # copied into episode_df; free before aggregating
+    del episodes_df, lengths, survival_durations, length_cells, survival_cells
+    row_sums_df = (
+        episode_df.group_by("row")
+        .agg(
+            num_trials=pl.col("weight").sum(),
+            num_successes=pl.col("weight").filter(pl.col("gain")).sum(),
+            length=(pl.col("weight") * pl.col("length")).sum(),
+        )
+        .sort("row")
+    )
+    # normalize each row's episode weight over survival durations by its
+    # total weight, num_trials, into shares summing to 1, so that
+    # `tgs_calc_nll`'s shares @ exp(rate * distinct durations) is the row's
+    # mean survival factor, exp(rate * u), not a sum growing with its
+    # episode count
+    survival_shares = scipy_sparse.diags(
+        1 / row_sums_df["num_trials"].to_numpy()
+    ) @ scipy_sparse.csr_matrix(
+        (
+            episode_weights,
+            (
+                episode_df["row"].to_numpy(),
+                survival_duration_indices[episodes],
+            ),
+        ),
+        shape=(len(row_sums_df), num_survival_durations),
+    )
+    coarsened_df = row_sums_df.select(
+        "num_trials",
+        "num_successes",
+        pl.col("length") / pl.col("num_trials"),
+    )
+    return coarsened_df, survival_shares
 
 
 def tgs_fit_traits(
@@ -42,7 +167,7 @@ def tgs_fit_traits(
     Fits each trait to `exposure_df`'s exposure episodes, each weighted by
     `weights` (e.g., bootstrap draw counts): calibrates branch lengths by
     calibration bin (see `tgs_calc_calibration_rescaling`), pools episodes
-    of similar calibrated length (see `tgs_coarsen_episodes`), and fits gain
+    of similar calibrated length (see `_tgs_coarsen_episodes`), and fits gain
     rate and selection coefficient (see `tgs_fit_coarsened_traits`).
 
     Coarsens one trait at a time, each wrapped in `progress_wrap` (e.g.,
@@ -100,7 +225,7 @@ def tgs_fit_traits(
     for trait_id in progress_wrap(
         range(tgs_count_exposure_traits(exposure_df))
     ):
-        coarsened_df, survival_shares = tgs_coarsen_episodes(
+        coarsened_df, survival_shares = _tgs_coarsen_episodes(
             exposure_df=exposure_df,
             trait_id=trait_id,
             bins=bins,

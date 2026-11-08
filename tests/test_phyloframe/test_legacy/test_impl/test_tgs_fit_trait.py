@@ -4,7 +4,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl._tgs_calc_trait_selection_lrts import (
+from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_selection_lrt,
 )
 from phyloframe.legacy._impl._tgs_fit_trait import tgs_fit_trait

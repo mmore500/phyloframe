@@ -19,11 +19,155 @@ from .._alifestd_has_contiguous_ids_polars import (
 from .._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
+from .._alifestd_mark_lineage_cumsum_asexual import (
+    _alifestd_mark_lineage_cumsum_asexual_fast_path,
+)
+from .._alifestd_mark_lineage_delta_asexual import (
+    _alifestd_mark_lineage_delta_asexual_fast_path,
+)
+from .._alifestd_mark_max_descendant_origin_time_asexual import (
+    _alifestd_mark_max_descendant_origin_time_asexual_fast_path,
+)
+from .._alifestd_mark_num_leaves_asexual import (
+    _alifestd_mark_num_leaves_asexual_fast_path,
+)
 from .._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._tgs_build_exposure_df import tgs_build_exposure_df
-from ._tgs_calc_trait_states import tgs_calc_trait_states
+
+
+def _tgs_build_exposure_df(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
+
+    Returns the exposure table of `phylogeny_df`, a phylogeny with
+    contiguous, topologically sorted ids and no unifurcations, with one row
+    per branch, i.e., per non-root node; see Input Schema and Output
+    Schema.
+
+    Raises ValueError if a non-root node's branch has zero, negative, or
+    undefined (nan) length.
+
+    Input Schema
+    ------------
+    'ancestor_id' : integer
+        Parent's id (or own, for a root).
+    'origin_time' : float
+        Time of each node's origin.
+    'trait{i}_state' : integer, per trait `i`
+        Whether the node has trait `i` (0 or 1).
+
+    Output Schema
+    -------------
+    'origin_time' : float
+        Origin time of the branch's end node.
+    'branch_length' : float
+        Branch length.
+    'survival_duration' : float
+        Time from the end node to the latest leaf below it (0 for a leaf),
+        for which a trait gained on the branch must persist to be seen at
+        every leaf of its clade.
+    'clade_size' : integer
+        Number of leaves below the end node (1 for a leaf).
+    'trait{i}_starts_absent' : boolean, per trait `i`
+        Whether the branch started without the trait (i.e., its parent
+        lacks it), so could gain it on the branch.
+    'trait{i}_gain' : boolean, per trait `i`
+        Whether the branch gained the trait.
+    """
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
+    origin_time = phylogeny_df["origin_time"].to_numpy().astype(np.float64)
+    branch_length = _alifestd_mark_lineage_delta_asexual_fast_path(
+        ancestor_ids, origin_time
+    )
+    # a root has no parent, so no branch over which to gain a trait
+    keep = ancestor_ids != np.arange(len(ancestor_ids))
+    (bad_ids,) = np.nonzero(keep & ~(branch_length > 0))  # nan is bad
+    if len(bad_ids):
+        raise ValueError(
+            "branch lengths must be positive, but non-root nodes (e.g., ids "
+            f"{bad_ids[:5].tolist()}) have zero, negative, or undefined (nan) "
+            "branch length; a parent with unknown (nan) origin_time, such "
+            "as a root, leaves its children's branch lengths undefined",
+        )
+    latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
+        ancestor_ids, origin_time
+    )
+    columns = {
+        "origin_time": origin_time[keep],
+        "branch_length": branch_length[keep],
+        "survival_duration": (latest_ot - origin_time)[keep],
+        "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
+            ancestor_ids
+        )[keep],
+    }
+    num_traits = phylogeny_df.select(cs.matches(r"^trait\d+_state$")).width
+    for i in range(num_traits):
+        states = phylogeny_df[f"trait{i}_state"].to_numpy()
+        deltas = _alifestd_mark_lineage_delta_asexual_fast_path(
+            ancestor_ids, states
+        )
+        # a node's parent's state is its state minus its delta
+        columns[f"trait{i}_starts_absent"] = (states - deltas == 0)[keep]
+        columns[f"trait{i}_gain"] = (deltas == 1)[keep]
+    return pl.DataFrame(columns)
+
+
+def _tgs_calc_trait_states(
+    *,
+    ancestor_ids: np.ndarray,
+    trait_name: str,
+    trait_transitions: np.ndarray,
+) -> np.ndarray:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
+
+    Takes a phylogeny with contiguous, topologically sorted ids and one
+    trait's transitions (see `alifestd_mark_lineage_delta_asexual`).
+    Returns each node's state, summing transitions from its root down, after
+    checking that transitions are +1, -1, or 0, that none are losses (not
+    yet supported), that roots lack the trait (zero root transitions), and
+    that states stay 0 or 1.
+    """
+    trait_transitions = np.asarray(trait_transitions)
+    if not (
+        np.issubdtype(trait_transitions.dtype, np.integer)
+        or trait_transitions.dtype == np.bool_
+    ):
+        raise NotImplementedError(
+            f"trait transitions {trait_name} must have integer dtype, got "
+            f"{trait_transitions.dtype}",
+        )
+    trait_transitions = trait_transitions.astype(np.int64)
+    if not np.isin(trait_transitions, (-1, 0, 1)).all():
+        raise ValueError(
+            f"trait transitions {trait_name} must be +1, -1, or 0",
+        )
+    if (trait_transitions == -1).any():
+        raise NotImplementedError(
+            f"trait transitions {trait_name} include losses (-1), which are "
+            "not yet supported",
+        )
+    ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
+    if trait_transitions[ancestor_ids == np.arange(len(ancestor_ids))].any():
+        raise NotImplementedError(
+            f"trait {trait_name} is present at a root (nonzero root "
+            "transition); traits present at a root, so at every node absent "
+            "loss, are uninformative, so drop them",
+        )
+    states = _alifestd_mark_lineage_cumsum_asexual_fast_path(
+        ancestor_ids,
+        trait_transitions,
+        reverse=False,
+    )
+    if not np.isin(states, (0, 1)).all():
+        raise ValueError(
+            f"trait transitions {trait_name} give states other than 0 and 1, "
+            "e.g., from duplicate gains along a lineage",
+        )
+    return states
 
 
 def _tgs_get_cols_with_nulls(
@@ -80,7 +224,7 @@ def _tgs_calc_states(
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
     Returns each trait's state at every node, summing its transitions (see
-    `tgs_calc_trait_states`).
+    `_tgs_calc_trait_states`).
     """
     cols_with_nulls = _tgs_get_cols_with_nulls(
         selected, cols=trait_transition_cols
@@ -91,7 +235,7 @@ def _tgs_calc_states(
         )
     ancestor_ids = selected["ancestor_id"].to_numpy()
     return [
-        tgs_calc_trait_states(
+        _tgs_calc_trait_states(
             ancestor_ids=ancestor_ids,
             trait_transitions=selected[column].to_numpy(),
             trait_name=column,
@@ -167,7 +311,7 @@ def tgs_build_exposure_df_polars(
     gain/selection.
 
     Sums each trait's transitions into node states (see
-    `tgs_calc_trait_states`), collapses unifurcations, and returns the
+    `_tgs_calc_trait_states`), collapses unifurcations, and returns the
     phylogeny's exposure table, one row per exposure episode candidate,
     i.e., per non-root node's branch; see Output Schema. `caller` names the
     calling function in error messages.
@@ -252,7 +396,7 @@ def tgs_build_exposure_df_polars(
         gc.collect()
         log_memory_usage(logging.info)
 
-    exposure_df = tgs_build_exposure_df(collapsed)
+    exposure_df = _tgs_build_exposure_df(collapsed)
     # without roots, rows match exposure_df's; its own columns take
     # precedence
     node_df = collapsed.filter(pl.col("ancestor_id") != pl.col("id")).select(

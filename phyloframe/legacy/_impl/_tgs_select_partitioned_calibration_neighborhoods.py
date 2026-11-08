@@ -1,18 +1,153 @@
 import gc
 import logging
 import typing
+import warnings
 
 import numpy as np
 import polars as pl
 import polars.selectors as cs
 from scipy import sparse
 
+from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ..._auxlib._calc_group_means import calc_group_means
+from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ..._auxlib._log_memory_usage import log_memory_usage
-from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
-from ._tgs_select_calibration_neighborhoods import (
-    tgs_select_calibration_neighborhoods,
+from ._tgs_calc_calibration_rescaling import (
+    tgs_calc_calibration_rescaling,
 )
+from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
+
+
+def _tgs_calc_heldout_nll(
+    *,
+    calibration_neighborhoods: sparse.spmatrix,
+    trait_bin_counts_df: pl.DataFrame,
+    trait_id: int,
+    trait_name: str,
+    neutral_traits: typing.Sequence[int],
+    max_rate_ratio: float,
+) -> float:
+    """Implementation detail for `_tgs_select_calibration_neighborhoods`.
+    Acronym tgs stands for trait gain/selection.
+
+    Returns the negative log likelihood of held-out neutral `trait_id`'s gains
+    under no selection, with each bin's mean branch length calibrated
+    against the other neutral traits only; 0 if it has no gains or no
+    calibrated exposure, so scores the same for every neighborhood size.
+    """
+    trait_counts_df = trait_bin_counts_df.filter(
+        pl.col("trait_id") == trait_id
+    )
+    num_trials = trait_counts_df["num_trials"].to_numpy()
+    num_successes = trait_counts_df["num_successes"].to_numpy()
+    mean_bin_branch_lengths = np.divide(
+        trait_counts_df["length_sum"].to_numpy(),
+        num_trials,
+        out=np.zeros(num_trials.shape),
+        where=num_trials > 0,
+    )
+    # held out from its own calibration, against the other neutral traits
+    assert trait_id in neutral_traits
+    calibrated_lengths = (
+        mean_bin_branch_lengths
+        * tgs_calc_calibration_rescaling(
+            trait_bin_counts_df=trait_bin_counts_df,
+            trait_id=trait_id,
+            neutral_traits=neutral_traits,
+            calibration_neighborhoods=calibration_neighborhoods,
+            max_rate_ratio=max_rate_ratio,
+        )
+    )
+    exposure = (num_trials * calibrated_lengths).sum()
+    if not (num_successes.any() and exposure):
+        warnings.warn(
+            f"neutral trait {trait_name} has no gains or no calibrated "
+            "exposure, so it does not inform the choice of calibration "
+            "neighborhood size.",
+        )
+        return 0.0
+    gain_rate = num_successes.sum() / exposure  # neutral fit, to first order
+    return calc_binomial_nll_proxy(
+        num_trials, num_successes, gain_rate * calibrated_lengths
+    )[0]
+
+
+def _tgs_select_calibration_neighborhoods(
+    *,
+    bin_coords: np.ndarray,
+    neighborhood_fractions: typing.Sequence[float],
+    trait_bin_counts_df: pl.DataFrame,
+    neutral_traits: typing.Sequence[int],
+    trait_names: typing.Sequence[str],
+    max_rate_ratio: float,
+) -> sparse.spmatrix:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
+    gain/selection.
+
+    Returns the bin-by-bin membership matrix of calibration neighborhoods,
+    the bins whose neutral trait gains calibrate each bin's branch lengths
+    (see `tgs_calc_calibration_rescaling`): each bin's nearest bins by
+    `bin_coords`, of the size, among `neighborhood_fractions`, that best
+    predicts each held-out neutral trait's gains when calibrating against
+    the other neutral traits (see `_tgs_calc_heldout_nll`), given
+    `trait_bin_counts_df` (see `tgs_count_trait_bin_exposures`). Warns about any
+    neighborhoods without neutral gains.
+    """
+
+    def score(fraction: float) -> typing.Tuple[float, sparse.spmatrix]:
+        # each bin's nearest bins, itself included, together holding about
+        # `fraction` of bins
+        calibration_neighborhoods = calc_knn_neighborhoods(
+            bin_coords,
+            num_neighbors=int(np.ceil(fraction * len(bin_coords))),
+        )
+        # holding out each neutral trait in turn
+        nll = sum(
+            _tgs_calc_heldout_nll(
+                calibration_neighborhoods=calibration_neighborhoods,
+                trait_bin_counts_df=trait_bin_counts_df,
+                trait_id=trait_id,
+                trait_name=trait_names[trait_id],
+                neutral_traits=neutral_traits,
+                max_rate_ratio=max_rate_ratio,
+            )
+            for trait_id in neutral_traits
+        )
+        logging.info(
+            "- tgs: calibration neighborhoods of "
+            f"{fraction:.1%} of bins give "
+            f"held-out neutral negative log likelihood {nll:.1f}",
+        )
+        return nll, calibration_neighborhoods
+
+    # first (smallest-index) candidate among ties; nan scores lose
+    best_nll, best_neighborhoods, best_fraction = min(
+        ((*score(fraction), fraction) for fraction in neighborhood_fractions),
+        key=lambda candidate: (np.isnan(candidate[0]), candidate[0]),
+    )
+
+    neutral_gains = (
+        trait_bin_counts_df.filter(pl.col("trait_id").is_in(neutral_traits))
+        .group_by("bin")
+        .agg(pl.col("num_successes").sum())
+        .sort("bin")["num_successes"]
+        .to_numpy()
+    )
+    num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
+    logging.info(
+        "- tgs: selected calibration "
+        f"neighborhoods of {best_fraction:.1%} of {len(bin_coords)} "
+        f"bins, {num_empty} without neutral trait gains",
+    )
+    if num_empty:
+        warnings.warn(
+            f"{num_empty} of {len(bin_coords)} calibration "
+            "neighborhoods contain no neutral trait gains, so branches "
+            "there get zero effective length; more neutral traits or "
+            "leaves would help.",
+        )
+    return best_neighborhoods
 
 
 def _tgs_calc_calibration_bin_coords(
@@ -66,7 +201,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
     gain/selection.
 
     Selects calibration neighborhoods separately within each partition
-    (see `tgs_select_calibration_neighborhoods`), so that neighborhoods
+    (see `_tgs_select_calibration_neighborhoods`), so that neighborhoods
     never span partitions. Returns a sparse 0/1 bin-by-bin matrix whose row
     `i` marks the calibration bins in bin `i`'s neighborhood, i.e., those
     whose neutral trait gains calibrate bin `i`'s branch lengths; with one
@@ -88,7 +223,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
         Values by which calibration bins are compared.
 
     `bins_df` columns, one row per episode (see
-    `tgs_assign_calibration_bins`):
+    `_tgs_assign_calibration_bins`):
 
     'bin' : integer
         Calibration bin index, partition-major.
@@ -133,7 +268,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
     )
     calibration_neighborhoods = sparse.block_diag(
         [
-            tgs_select_calibration_neighborhoods(
+            _tgs_select_calibration_neighborhoods(
                 bin_coords=bin_coords[begin:end],
                 neighborhood_fractions=neighborhood_fractions,
                 trait_bin_counts_df=_tgs_slice_partition_bins(

@@ -23,7 +23,7 @@ def tgs_fit_trait(
 
     Maximum likelihood fit of one binary trait's gain rate and selection
     coefficient to its coarsened exposure episodes,
-    `nll_kwargs["coarsened_df"]` (see `tgs_coarsen_episodes`), minimizing
+    `nll_kwargs["coarsened_df"]` (see `_tgs_coarsen_episodes`), minimizing
     `tgs_calc_nll(**nll_kwargs, ...)` from each of `selection_coef_starts`
     (in units of 1 / mean branch length) and keeping the best fit. Without
     gains, skips fitting, giving zero gain rate and undefined (nan)

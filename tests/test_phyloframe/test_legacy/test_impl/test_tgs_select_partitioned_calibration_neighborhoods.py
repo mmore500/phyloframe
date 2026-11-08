@@ -3,15 +3,17 @@ import polars as pl
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
-    tgs_assign_calibration_bins,
     tgs_select_partitioned_calibration_neighborhoods,
+)
+from phyloframe.legacy._impl._tgs_estimate_tgs_from_exposures import (
+    _tgs_assign_calibration_bins,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
 
 
 def _select(exposure_df: pl.DataFrame):
-    bins_df = tgs_assign_calibration_bins(exposure_df)
+    bins_df = _tgs_assign_calibration_bins(exposure_df)
     return (
         bins_df,
         *tgs_select_partitioned_calibration_neighborhoods(
