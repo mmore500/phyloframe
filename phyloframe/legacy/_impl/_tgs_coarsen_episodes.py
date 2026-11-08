@@ -65,7 +65,7 @@ def tgs_coarsen_episodes(
         trait_id=trait_id,
         weights=pl.Series(weights, dtype=pl.Float64),
     )
-    episodes = episodes_df["exposure_row"].to_numpy()
+    episodes = episodes_df["exposure_id"].to_numpy()
     lengths = (
         exposure_df["branch_length"].to_numpy()[episodes]
         * calibration_factors[bins[episodes]]

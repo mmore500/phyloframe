@@ -33,15 +33,15 @@ def tgs_select_trait_episodes(
 
     Output Schema
     -------------
-    'exposure_row' : integer
-        Row index of the episode's branch in `exposure_df`.
+    'exposure_id' : integer
+        Id of the episode, its row index in `exposure_df`.
     'gain' : boolean
         Whether the branch gained the trait.
     'weight' : float
         The branch's weight.
     """
     return exposure_df.select(
-        pl.int_range(pl.len(), dtype=pl.Int64).alias("exposure_row"),
+        pl.int_range(pl.len(), dtype=pl.Int64).alias("exposure_id"),
         pl.col(f"trait{trait_id}_gain").alias("gain"),
         pl.lit(weights, dtype=pl.Float64).alias("weight"),
     ).filter(

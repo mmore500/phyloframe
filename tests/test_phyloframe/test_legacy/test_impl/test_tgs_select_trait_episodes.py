@@ -29,7 +29,7 @@ def test_episodes():
         _exposure_df(), trait_id=0, weights=weights
     )
     assert res.schema == pl.Schema(
-        {"exposure_row": pl.Int64, "gain": pl.Boolean, "weight": pl.Float64}
+        {"exposure_id": pl.Int64, "gain": pl.Boolean, "weight": pl.Float64}
     )
     # branches starting without the trait only
     assert res.rows() == [(0, True, 1.0), (2, False, 1.0)]
@@ -43,7 +43,7 @@ def test_zero_weight_dropped():
     res = tgs_select_trait_episodes(
         _exposure_df(), trait_id=1, weights=pl.Series([1.0, 0.0, 3.0])
     )
-    assert res["exposure_row"].to_list() == [0, 2]
+    assert res["exposure_id"].to_list() == [0, 2]
 
 
 def test_empty():

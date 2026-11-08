@@ -36,8 +36,8 @@ def _tgs_count_bin_exposures_of_trait(
             exposure_df, trait_id=trait_id, weights=weights
         )
         .with_columns(
-            bin=pl.lit(bins).gather("exposure_row"),
-            length=pl.lit(exposure_df["branch_length"]).gather("exposure_row"),
+            bin=pl.lit(bins).gather("exposure_id"),
+            length=pl.lit(exposure_df["branch_length"]).gather("exposure_id"),
         )
         .group_by("bin")
         .agg(

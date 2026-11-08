@@ -24,8 +24,8 @@ def tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
 
     Output Schema
     -------------
-    'exposure_row' : integer
-        Row index of the episode in `exposure_df`.
+    'exposure_id' : integer
+        Id of the episode, its row index in `exposure_df`.
     'bin' : integer
         Calibration bin index, from 0, over (partition, bin) pairs, sorted.
     'partition' : integer
@@ -35,7 +35,7 @@ def tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
         raise ValueError("phylogeny_df has no exposure episodes to fit")
 
     calibration_df = exposure_df.select(
-        exposure_row=pl.int_range(pl.len(), dtype=pl.Int64),
+        exposure_id=pl.int_range(pl.len(), dtype=pl.Int64),
         # defaults, overwritten by `exposure_df`'s columns, if any
         calibration_partition=pl.lit(0),
         calibration_bin=pl.lit(0),
@@ -47,7 +47,7 @@ def tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
         ),
     )
     return calibration_df.select(
-        "exposure_row",
+        "exposure_id",
         bin=pl.struct("calibration_partition", "calibration_bin").rank("dense")
         - 1,
         partition=pl.col("calibration_partition").rank("dense") - 1,
