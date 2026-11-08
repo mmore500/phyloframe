@@ -1,4 +1,5 @@
 import polars as pl
+import polars.selectors as cs
 
 
 def tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
@@ -23,6 +24,8 @@ def tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
 
     Output Schema
     -------------
+    'exposure_id' : integer
+        Id of the episode, its row index in `exposure_df`.
     'bin' : integer
         Calibration bin index, from 0, over (partition, bin) pairs, sorted.
     'partition' : integer
@@ -31,17 +34,21 @@ def tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
     if exposure_df.is_empty():
         raise ValueError("phylogeny_df has no exposure episodes to fit")
 
-    pairs = pl.struct(
-        *(
-            (
-                pl.col(column)
-                if column in exposure_df.columns
-                else pl.repeat(0, pl.len()).alias(column)
-            )
-            for column in ("calibration_partition", "calibration_bin")
+    calibration_df = exposure_df.select(
+        exposure_id=pl.int_range(pl.len(), dtype=pl.Int64),
+        # defaults, overwritten by `exposure_df`'s columns, if any
+        calibration_partition=pl.lit(0),
+        calibration_bin=pl.lit(0),
+    ).with_columns(
+        exposure_df.select(
+            cs.by_name(
+                "calibration_partition", "calibration_bin", require_all=False
+            ),
         ),
     )
-    return exposure_df.select(
-        bin=pairs.rank("dense") - 1,
-        partition=pairs.struct[0].rank("dense") - 1,
+    return calibration_df.select(
+        "exposure_id",
+        bin=pl.struct("calibration_partition", "calibration_bin").rank("dense")
+        - 1,
+        partition=pl.col("calibration_partition").rank("dense") - 1,
     ).cast(pl.Int64)

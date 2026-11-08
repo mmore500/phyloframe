@@ -15,7 +15,7 @@ def tgs_calc_heldout_nll(
     *,
     calibration_neighborhoods: sparse.spmatrix,
     trait_bin_counts_df: pl.DataFrame,
-    trait: int,
+    trait_id: int,
     trait_name: str,
     neutral_traits: typing.Sequence[int],
     max_rate_ratio: float,
@@ -23,12 +23,14 @@ def tgs_calc_heldout_nll(
     """Implementation detail for `tgs_select_calibration_neighborhoods`.
     Acronym tgs stands for trait gain/selection.
 
-    Returns the negative log likelihood of held-out neutral `trait`'s gains
+    Returns the negative log likelihood of held-out neutral `trait_id`'s gains
     under no selection, with each bin's mean branch length calibrated
     against the other neutral traits only; 0 if it has no gains or no
     calibrated exposure, so scores the same for every neighborhood size.
     """
-    trait_counts_df = trait_bin_counts_df.filter(pl.col("trait") == trait)
+    trait_counts_df = trait_bin_counts_df.filter(
+        pl.col("trait_id") == trait_id
+    )
     num_trials = trait_counts_df["num_trials"].to_numpy()
     num_successes = trait_counts_df["num_successes"].to_numpy()
     mean_bin_branch_lengths = np.divide(
@@ -38,12 +40,12 @@ def tgs_calc_heldout_nll(
         where=num_trials > 0,
     )
     # held out from its own calibration, against the other neutral traits
-    assert trait in neutral_traits
+    assert trait_id in neutral_traits
     calibrated_lengths = (
         mean_bin_branch_lengths
         * tgs_calc_calibration_rescaling(
             trait_bin_counts_df=trait_bin_counts_df,
-            trait=trait,
+            trait_id=trait_id,
             neutral_traits=neutral_traits,
             calibration_neighborhoods=calibration_neighborhoods,
             max_rate_ratio=max_rate_ratio,

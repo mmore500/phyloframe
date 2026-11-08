@@ -8,24 +8,24 @@ from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 
 
-def tgs_calc_trait_selection_lrt(
+def _tgs_calc_trait_selection_lrt(
     *,
     nll_kwargs: typing.Dict[str, typing.Any],
     gain_rate: float,
     selection_coef: float,
     loss_rate: float,
 ) -> float:
-    """Implementation detail for `tgs_fit` and
-    `tgs_calc_trait_selection_lrts`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `tgs_calc_trait_selection_lrts`. Acronym
+    tgs stands for trait gain/selection.
 
     Returns one trait's selection likelihood-ratio statistic (see
     `tgs_calc_trait_selection_lrts`), given its fitted `gain_rate` and
     `selection_coef`, or nan if it has no gains.
     """
+    # without gains, the selection coefficient is undefined, so untestable
     if not gain_rate > 0:
         return np.nan
-    selection_rescale = tgs_pick_selection_rescale(nll_kwargs["partitions"])
+    selection_rescale = tgs_pick_selection_rescale(nll_kwargs["coarsened_df"])
     free_nll, __, __ = tgs_calc_nll(
         **nll_kwargs,
         gain_rate=gain_rate,
@@ -70,8 +70,8 @@ def tgs_calc_trait_selection_lrts(
     fitted `gain_rate` and `selection_coef`, and `trait_nll_kwargs` each
     trait's `tgs_calc_nll` arguments but the rate parameters.
 
-    The statistic naively treats exposure episodes (or merged rows of
-    them) as independent, so overstates significance.
+    The statistic naively treats exposure episodes as independent, so
+    overstates significance.
 
     Input Schema
     ------------
@@ -84,7 +84,7 @@ def tgs_calc_trait_selection_lrts(
 
     Output Schema
     -------------
-    'trait' : integer
+    'trait_id' : integer
         Trait index.
     'selection_coef_lrt_naive' : float
         The statistic; nan if the trait has no gains.
@@ -92,17 +92,17 @@ def tgs_calc_trait_selection_lrts(
     return pl.DataFrame(
         [
             {
-                "trait": trait,
-                "selection_coef_lrt_naive": tgs_calc_trait_selection_lrt(
+                "trait_id": trait_id,
+                "selection_coef_lrt_naive": _tgs_calc_trait_selection_lrt(
                     nll_kwargs=nll_kwargs,
                     gain_rate=fit["gain_rate"],
                     selection_coef=fit["selection_coef"],
                     loss_rate=loss_rate,
                 ),
             }
-            for trait, (nll_kwargs, fit) in enumerate(
+            for trait_id, (nll_kwargs, fit) in enumerate(
                 zip(trait_nll_kwargs, fits_df.iter_rows(named=True))
             )
         ],
-        schema={"trait": pl.Int64, "selection_coef_lrt_naive": pl.Float64},
+        schema={"trait_id": pl.Int64, "selection_coef_lrt_naive": pl.Float64},
     )

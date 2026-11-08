@@ -4,7 +4,7 @@ import polars as pl
 from phyloframe.legacy._impl import (
     tgs_calc_neutral_reference_gain_rates,
     tgs_calc_trait_gain_ratio_lrts,
-    tgs_fit,
+    tgs_fit_trait,
 )
 
 
@@ -23,23 +23,28 @@ def _simulate(gain_rate: float, seed: int):
 
 
 def _fit_traits(gain_rates):
-    trait_partitions = [
+    trait_coarsened_dfs = [
         _simulate(g, seed) for seed, g in enumerate(gain_rates)
+    ]
+    trait_nll_kwargs = [
+        dict(
+            coarsened_df=coarsened_df,
+            growth_exponent_bound=600.0,
+            survival_shares=None,
+            distinct_survival_durations=None,
+        )
+        for coarsened_df in trait_coarsened_dfs
     ]
     fits = pl.DataFrame(
         [
-            tgs_fit(
-                num_trials=partitions["num_trials"],
-                num_successes=partitions["num_successes"],
-                pendant_length=partitions["length"],
-            )._asdict()
-            for partitions in trait_partitions
+            tgs_fit_trait(
+                nll_kwargs=nll_kwargs,
+                loss_rate=0.0,
+                selection_coef_starts=(0.0, -0.3, -1.8),
+            )
+            for nll_kwargs in trait_nll_kwargs
         ],
     )
-    trait_nll_kwargs = [
-        dict(partitions=partitions, growth_exponent_bound=600.0)
-        for partitions in trait_partitions
-    ]
     return fits, trait_nll_kwargs
 
 
@@ -56,7 +61,7 @@ def _lrts(fits, trait_nll_kwargs, *, neutral_traits, **kwargs):
         loss_rate=0.0,
         **kwargs,
     )
-    assert res["trait"].to_list() == list(range(len(fits)))
+    assert res["trait_id"].to_list() == list(range(len(fits)))
     return res["gain_ratio_lrt_naive"].to_numpy()
 
 
@@ -92,21 +97,24 @@ def test_matches_free_fit_at_reference_rate():
 
 
 def test_undefined_without_reference_or_gains():
-    fits, trait_nll_kwargs = _fit_traits([1e-4, 1e-4])
-    lrts = _lrts(
-        fits,
-        trait_nll_kwargs,
-        neutral_traits=[],
-        selection_coef_starts=(0.0,),
-    )
-    assert np.isnan(lrts).all()
+    fits, trait_nll_kwargs = _fit_traits([1e-4, 1e-4, 1e-4])
     # without gains, a trait's fitted gain rate is 0
     lrts = _lrts(
-        fits.with_columns(gain_rate=pl.Series([0.0, fits["gain_rate"][1]])),
+        fits.with_columns(
+            gain_rate=pl.Series([fits["gain_rate"][0], 0.0, 0.0])
+        ),
         trait_nll_kwargs,
-        neutral_traits=[1],
+        neutral_traits=[1, 2],
         selection_coef_starts=(0.0,),
     )
-    # trait 0 has no gains; trait 1 is the only neutral trait, so has no
-    # reference
+    # traits 1 and 2 have no gains, so no trait has a reference
     assert np.isnan(lrts).all()
+    lrts = _lrts(
+        fits.with_columns(gain_rate=pl.Series([0.0, *fits["gain_rate"][1:]])),
+        trait_nll_kwargs,
+        neutral_traits=[1, 2],
+        selection_coef_starts=(0.0,),
+    )
+    # trait 0 has no gains
+    assert np.isnan(lrts[0])
+    assert np.isfinite(lrts[1:]).all()

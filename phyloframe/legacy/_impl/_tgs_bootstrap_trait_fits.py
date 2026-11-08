@@ -27,11 +27,11 @@ def tgs_bootstrap_trait_fits(
     -------------
     'replicate' : integer
         Bootstrap replicate index.
-    'trait_index' : integer
+    'trait_id' : integer
         Trait index.
     `do_fit` columns
         The replicate's fit of the trait, e.g., as for
-        `tgs_fit_trait_partitions`.
+        `tgs_fit_coarsened_traits`.
     """
     replicate_fits = run_weighted_bootstrap(
         do_fit,
@@ -44,7 +44,7 @@ def tgs_bootstrap_trait_fits(
     return pl.concat(
         fit_df.select(
             pl.lit(replicate, dtype=pl.Int64).alias("replicate"),
-            pl.int_range(pl.len(), dtype=pl.Int64).alias("trait_index"),
+            pl.int_range(pl.len(), dtype=pl.Int64).alias("trait_id"),
             pl.all(),
         )
         for replicate, fit_df in enumerate(replicate_fits)

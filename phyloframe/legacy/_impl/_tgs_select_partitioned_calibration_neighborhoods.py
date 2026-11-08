@@ -9,7 +9,7 @@ from scipy import sparse
 
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._log_memory_usage import log_memory_usage
-from ._tgs_count_traits import tgs_count_traits
+from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
@@ -42,7 +42,7 @@ def _tgs_slice_partition_bins(
     `tgs_select_partitioned_calibration_neighborhoods`.
 
     Returns the rows of `trait_bin_counts_df`, per-trait exposure counts in
-    each calibration bin (see `tgs_count_traits`), for one partition's
+    each calibration bin (see `tgs_count_trait_bin_exposures`), for one partition's
     bins, `begin` up to `end`, with bins renumbered from 0 to match that
     partition's own bin coordinates.
     """
@@ -71,7 +71,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
     `i` marks the calibration bins in bin `i`'s neighborhood, i.e., those
     whose neutral trait gains calibrate bin `i`'s branch lengths; with one
     bin, that bin alone, i.e., no calibration. Also returns per-(trait,
-    bin) exposure counts (see `tgs_count_traits`), which it needs for
+    bin) exposure counts (see `tgs_count_trait_bin_exposures`), which it needs for
     selection, for reuse by the point estimate; see Input and Output
     Schema.
 
@@ -97,9 +97,9 @@ def tgs_select_partitioned_calibration_neighborhoods(
 
     Output Schema
     -------------
-    Per-(trait, bin) counts, as for `tgs_count_traits`:
+    Per-(trait, bin) counts, as for `tgs_count_trait_bin_exposures`:
 
-    'trait' : integer
+    'trait_id' : integer
         Trait index.
     'bin' : integer
         Calibration bin index.
@@ -111,7 +111,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
         Their summed branch length.
     """
     bins = bins_df["bin"].to_numpy()
-    trait_bin_counts_df = tgs_count_traits(
+    trait_bin_counts_df = tgs_count_trait_bin_exposures(
         exposure_df=exposure_df,
         bins=bins,
         num_bins=num_bins,

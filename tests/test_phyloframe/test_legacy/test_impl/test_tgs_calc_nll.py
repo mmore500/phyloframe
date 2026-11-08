@@ -17,14 +17,14 @@ def _data():
     lengths = rng.uniform(1, 20, 6)
     shares = rng.random((6, 3))
     shares /= shares.sum(axis=1, keepdims=True)
-    partitions = pl.DataFrame(
+    coarsened_df = pl.DataFrame(
         {"num_trials": n, "num_successes": k, "length": lengths}
     )
-    data = dict(partitions=partitions, survival_shares=shares)
+    data = dict(coarsened_df=coarsened_df, survival_shares=shares)
     return data, np.array([0.0, 5.0, 30.0])
 
 
-def _pendant_partitions(gain_rate: float, selection_coef: float, seed: int):
+def _pendant_coarsened_df(gain_rate: float, selection_coef: float, seed: int):
     rng = np.random.default_rng(seed)
     length = np.linspace(0.5, 60.0, 120)
     num_trials = np.full_like(length, 20_000)
@@ -42,12 +42,14 @@ def _pendant_partitions(gain_rate: float, selection_coef: float, seed: int):
     )
 
 
-def _pendant_nll(partitions, log_gain_rate, rate):
+def _pendant_nll(coarsened_df, log_gain_rate, rate):
     return tgs_calc_nll(
         gain_rate=np.exp(log_gain_rate),
         growth_rate=rate,
-        partitions=partitions,
+        coarsened_df=coarsened_df,
         growth_exponent_bound=600.0,
+        survival_shares=None,
+        distinct_survival_durations=None,
     )
 
 
@@ -61,15 +63,15 @@ def test_matches_pendant_without_survival_duration():
         distinct_survival_durations=np.array([0.0]),
         growth_exponent_bound=600.0,
     )
-    expected = _pendant_nll(data["partitions"], np.log(1e-3), -0.05)
+    expected = _pendant_nll(data["coarsened_df"], np.log(1e-3), -0.05)
     np.testing.assert_allclose(res, expected)
 
 
 def test_survival_discounts():
     data, times = _data()
-    n, k, lengths = data["partitions"].to_numpy().T
+    n, k, lengths = data["coarsened_df"].to_numpy().T
     shares = data["survival_shares"]
-    # equivalent to scaling each partition's success probability
+    # equivalent to scaling each coarsened row's success probability
     rate = -0.05
     factor = shares @ np.exp(rate * times)
     nll, __, __ = tgs_calc_nll(
@@ -105,30 +107,30 @@ def test_gradient(rate: float):
 
 @pytest.mark.parametrize("rate", [-0.1, -1e-8, 0.0, 1e-8, 0.05])
 def test_pendant_gradient(rate: float):
-    partitions = _pendant_partitions(1e-3, -0.05, seed=3)
+    coarsened_df = _pendant_coarsened_df(1e-3, -0.05, seed=3)
 
     def nll(params):
-        return _pendant_nll(partitions, *params)[0]
+        return _pendant_nll(coarsened_df, *params)[0]
 
     params = np.array([np.log(1e-3), rate])
     expected = optimize.approx_fprime(params, nll, [1e-6, 1e-9])
     np.testing.assert_allclose(
-        _pendant_nll(partitions, *params)[1:], expected, rtol=1e-4
+        _pendant_nll(coarsened_df, *params)[1:], expected, rtol=1e-4
     )
 
 
 def test_continuous_at_zero_rate():
-    partitions = _pendant_partitions(1e-3, 0.0, seed=4)
-    at_zero = _pendant_nll(partitions, np.log(1e-3), 0.0)
-    near_zero = _pendant_nll(partitions, np.log(1e-3), 1e-12)
+    coarsened_df = _pendant_coarsened_df(1e-3, 0.0, seed=4)
+    at_zero = _pendant_nll(coarsened_df, np.log(1e-3), 0.0)
+    near_zero = _pendant_nll(coarsened_df, np.log(1e-3), 1e-12)
     np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)
 
 
 def test_finite_for_extreme_rate():
     # optimizer trial steps far into positive selection must not overflow
-    partitions = _pendant_partitions(1e-3, -0.05, seed=7)
+    coarsened_df = _pendant_coarsened_df(1e-3, -0.05, seed=7)
     with np.errstate(over="raise", invalid="raise"):
-        res = _pendant_nll(partitions, np.log(1e-3), 1e3)
+        res = _pendant_nll(coarsened_df, np.log(1e-3), 1e3)
     assert np.isfinite(res).all()
 
 
@@ -139,8 +141,10 @@ def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
         tgs_calc_nll(
             gain_rate=1e-3,
             growth_rate=-0.05,
-            partitions=data["partitions"],
+            coarsened_df=data["coarsened_df"],
             growth_exponent_bound=growth_exponent_bound,
+            survival_shares=None,
+            distinct_survival_durations=None,
         )
 
 

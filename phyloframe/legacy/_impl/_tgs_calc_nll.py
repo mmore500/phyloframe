@@ -51,17 +51,17 @@ def tgs_calc_nll(
     *,
     gain_rate: float,
     growth_rate: float,
-    partitions: pl.DataFrame,
+    coarsened_df: pl.DataFrame,
     growth_exponent_bound: float,
-    survival_shares: typing.Optional[sparse.csr_matrix] = None,
-    distinct_survival_durations: typing.Optional[np.ndarray] = None,
+    survival_shares: typing.Optional[sparse.csr_matrix],
+    distinct_survival_durations: typing.Optional[np.ndarray],
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
     Returns negative log likelihood (up to a constant) of one trait's
-    `partitions` (see Input Schema), and its derivatives with respect to log
+    `coarsened_df` (see Input Schema), and its derivatives with respect to log
     gain rate and to `growth_rate`, r, the carrier growth rate (selection
     coefficient minus loss rate). A branch of length `t` gains the trait
     with probability
@@ -76,10 +76,10 @@ def tgs_calc_nll(
 
     Input Schema
     ------------
-    `partitions` columns, e.g., from `tgs_merge_episodes`:
+    `coarsened_df` columns, e.g., from `tgs_coarsen_episodes`:
 
     'num_trials' : float
-        (Weighted) count of the partition's exposure episodes.
+        (Weighted) count of the coarsened row's exposure episodes.
     'num_successes' : float
         Of those, the (weighted) count that gained the trait.
     'length' : float
@@ -88,7 +88,7 @@ def tgs_calc_nll(
     if not growth_exponent_bound < np.log(np.finfo(np.float64).max):
         raise ValueError("growth exponent bound overflows float64")
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
-        length=partitions["length"].to_numpy(),
+        length=coarsened_df["length"].to_numpy(),
         growth_rate=growth_rate,
         growth_exponent_bound=growth_exponent_bound,
     )
@@ -97,7 +97,7 @@ def tgs_calc_nll(
         survival, survival_deriv = 1.0, 0.0
     else:
         # chance a carrier lineage persists until its clade's last leaf is
-        # sampled, averaged over each partition's branches
+        # sampled, averaged over each coarsened row's branches
         survival_factors = np.exp(
             np.minimum(
                 growth_rate * distinct_survival_durations,
@@ -111,8 +111,8 @@ def tgs_calc_nll(
 
     p = gain_rate * effective_length * survival
     nll, dnll_dp = calc_binomial_nll_proxy(
-        partitions["num_trials"].to_numpy(),
-        partitions["num_successes"].to_numpy(),
+        coarsened_df["num_trials"].to_numpy(),
+        coarsened_df["num_successes"].to_numpy(),
         p,
     )
 

@@ -46,7 +46,7 @@ def test_summary_appended():
     replicate_fits = pl.concat(
         point.select(
             pl.lit(replicate).alias("replicate"),
-            pl.int_range(pl.len()).alias("trait_index"),
+            pl.int_range(pl.len()).alias("trait_id"),
             pl.all(),
         ).with_columns(pl.col("selection_coef") + delta)
         for replicate, delta in enumerate((-0.01, 0.0, 0.01))

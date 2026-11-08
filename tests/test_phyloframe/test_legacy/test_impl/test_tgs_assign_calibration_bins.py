@@ -15,6 +15,7 @@ def test_partition_major_numbering():
     # pairs (3, 5), (7, 0), (7, 1), in order
     assert res["bin"].to_list() == [2, 0, 1, 0, 2]
     assert res["partition"].to_list() == [1, 0, 1, 0, 1]
+    assert res["exposure_id"].to_list() == [0, 1, 2, 3, 4]
 
 
 @pytest.mark.parametrize("columns", [{}, {"calibration_bin": [4, 4, 9]}])

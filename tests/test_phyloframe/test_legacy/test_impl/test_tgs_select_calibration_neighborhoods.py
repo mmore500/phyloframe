@@ -6,7 +6,7 @@ import polars as pl
 from phyloframe._auxlib._calc_group_means import calc_group_means
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
-    tgs_count_traits,
+    tgs_count_trait_bin_exposures,
     tgs_select_calibration_neighborhoods,
 )
 
@@ -31,7 +31,7 @@ def test_select(caplog):
                 bins, np.column_stack(coordinates), num_groups=num_bins
             ),
             neighborhood_fractions=(0.25, 1.0),
-            trait_bin_counts_df=tgs_count_traits(
+            trait_bin_counts_df=tgs_count_trait_bin_exposures(
                 exposure_df=exposure_df,
                 bins=bins,
                 num_bins=num_bins,

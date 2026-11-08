@@ -28,7 +28,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
     """
     if not (gain_rate_trait > 0 and np.isfinite(gain_rate_neutral)):
         return np.nan
-    selection_rescale = tgs_pick_selection_rescale(nll_kwargs["partitions"])
+    selection_rescale = tgs_pick_selection_rescale(nll_kwargs["coarsened_df"])
     free_nll, __, __ = tgs_calc_nll(
         **nll_kwargs,
         gain_rate=gain_rate_trait,
@@ -80,8 +80,7 @@ def tgs_calc_trait_gain_ratio_lrts(
     arguments but the rate parameters.
 
     The statistic naively treats the reference gain rate as known, and
-    exposure episodes (or merged rows of them) as independent, so
-    overstates significance.
+    exposure episodes as independent, so overstates significance.
 
     Input Schema
     ------------
@@ -97,7 +96,7 @@ def tgs_calc_trait_gain_ratio_lrts(
 
     Output Schema
     -------------
-    'trait' : integer
+    'trait_id' : integer
         Trait index.
     'gain_ratio_lrt_naive' : float
         The statistic; nan if the gain ratio is undefined, or the trait has
@@ -106,7 +105,7 @@ def tgs_calc_trait_gain_ratio_lrts(
     return pl.DataFrame(
         [
             {
-                "trait": trait,
+                "trait_id": trait_id,
                 "gain_ratio_lrt_naive": _tgs_calc_trait_gain_ratio_lrt(
                     nll_kwargs=nll_kwargs,
                     gain_rate_trait=fit["gain_rate"],
@@ -116,9 +115,9 @@ def tgs_calc_trait_gain_ratio_lrts(
                     selection_coef_starts=selection_coef_starts,
                 ),
             }
-            for trait, (nll_kwargs, fit) in enumerate(
+            for trait_id, (nll_kwargs, fit) in enumerate(
                 zip(trait_nll_kwargs, fits_df.iter_rows(named=True))
             )
         ],
-        schema={"trait": pl.Int64, "gain_ratio_lrt_naive": pl.Float64},
+        schema={"trait_id": pl.Int64, "gain_ratio_lrt_naive": pl.Float64},
     )

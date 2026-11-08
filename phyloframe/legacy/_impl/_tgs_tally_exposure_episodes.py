@@ -4,11 +4,11 @@ import polars as pl
 
 
 def _tgs_tally_trait_exposure_episodes(
-    exposure_df: pl.DataFrame, *, trait: int
+    exposure_df: pl.DataFrame, *, trait_id: int
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_tally_exposure_episodes`.
 
-    Returns `trait`'s leaf and inner exposure episode and gain counts, as one
+    Returns `trait_id`'s leaf and inner exposure episode and gain counts, as one
     row; see Output Schema.
 
     Output Schema
@@ -24,8 +24,8 @@ def _tgs_tally_trait_exposure_episodes(
     'num_inner_gains' : integer
         Of those, the number that gained the trait.
     """
-    starts_absent = pl.col(f"trait{trait}_starts_absent")
-    gain = starts_absent & pl.col(f"trait{trait}_gain")
+    starts_absent = pl.col(f"trait{trait_id}_starts_absent")
+    gain = starts_absent & pl.col(f"trait{trait_id}_gain")
     is_leaf = pl.col("clade_size") == 1
     return exposure_df.select(
         mask.cast(pl.Int64).sum().alias(name)
@@ -79,8 +79,10 @@ def tgs_tally_exposure_episodes(
                 ),
             ),
             *(  # one trait at a time reduces peak memory
-                _tgs_tally_trait_exposure_episodes(exposure_df, trait=trait)
-                for trait in range(len(trait_names))
+                _tgs_tally_trait_exposure_episodes(
+                    exposure_df, trait_id=trait_id
+                )
+                for trait_id in range(len(trait_names))
             ),
         ],
     ).select(pl.Series("trait", list(trait_names), dtype=pl.String), pl.all())

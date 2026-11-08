@@ -3,6 +3,7 @@ import polars as pl
 import polars.testing as pltest
 import pytest
 
+from phyloframe._auxlib._identity import identity
 from phyloframe.legacy._impl import tgs_fit_traits
 
 from ._make_tgs_fit_kwargs import make_tgs_fit_kwargs
@@ -13,7 +14,10 @@ def _fit(exposure_df, weights=None, **kwargs):
     if weights is None:
         weights = np.ones(len(exposure_df))
     return tgs_fit_traits(
-        weights=weights, **make_tgs_fit_kwargs(exposure_df, **kwargs)
+        weights=weights,
+        progress_wrap=identity,
+        trait_bin_counts_df=None,
+        **make_tgs_fit_kwargs(exposure_df, **kwargs),
     )
 
 
