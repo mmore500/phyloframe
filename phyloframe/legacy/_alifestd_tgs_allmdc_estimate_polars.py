@@ -179,8 +179,8 @@ def alifestd_tgs_allmdc_estimate_polars(
         If a column is missing.
     NotImplementedError
         If fewer than two neutral traits are given, or for unsupported input
-        (see Input Schema), e.g., a non-asexual phylogeny, null values, or
-        trait losses.
+        (see Input Schema), e.g., a non-asexual phylogeny, null values,
+        trait losses, or a trait present at a root.
 
     Input Schema
     ------------
@@ -257,14 +257,10 @@ def alifestd_tgs_allmdc_estimate_polars(
             .with_columns(
                 branch_length=pl.col("origin_time")
                 - pl.col("origin_time").gather(pl.col("stem_node_id")),
-                # neutral gains; a root's transition is its initial state
-                neutral_gains=pl.when(pl.col("ancestor_id") != pl.col("id"))
-                .then(pl.sum_horizontal(neutral_traits))
-                .otherwise(0),
             )
             .pipe(
                 alifestd_mark_clade_size_classes_polars,
-                weight_by=["neutral_gains"],
+                weight_by=neutral_traits,  # neutral gains
                 min_class_weight=20,
             )
             .pipe(

@@ -200,11 +200,10 @@ def test_counts():
     res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=np.array(
-            [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0], [0, 0, 1, 1, 1]]
-            + [[0, 0, 0, 0, 0]] * 2,
+            [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0]] + [[0, 0, 0, 0, 0]] * 2,
             dtype=bool,
         ),
-        neutral_traits=[3, 4],
+        neutral_traits=[2, 3],
     )
     # trait 0: gained on branch 1, whose clade carries it at both leaves,
     # so leaves 2 and 3 started with it; leaf 4 started without it
@@ -225,16 +224,16 @@ def test_counts():
         1,
         0,
     ]
-    # trait 2: every leaf carries it, so it predates every branch
-    assert res.loc[2, ["num_leaf_episodes", "num_leaf_gains"]].tolist() == [
-        0,
-        0,
-    ]
-    assert res.loc[2, ["num_inner_episodes", "num_inner_gains"]].tolist() == [
-        0,
-        0,
-    ]
-    assert np.isnan(res.loc[2, "selection_coef"])
+
+
+def test_root_present_trait_raises():
+    phylogeny_df, traits = _make_cherries(100)
+    # every leaf carries trait 0, so the root does too
+    traits[0] = traits[0] | ~np.isin(
+        phylogeny_df["id"], phylogeny_df["ancestor_id"]
+    )
+    with pytest.raises(NotImplementedError, match="present at a root"):
+        _estimate_from_masks(phylogeny_df, trait_masks=traits)
 
 
 def test_row_order_invariant():

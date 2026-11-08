@@ -190,8 +190,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         If a column is missing.
     NotImplementedError
         If fewer than two neutral traits are given, or for unsupported input
-        (see Input Schema), e.g., a non-asexual phylogeny, null values, or
-        trait losses.
+        (see Input Schema), e.g., a non-asexual phylogeny, null values,
+        trait losses, or a trait present at a root.
 
     Input Schema
     ------------
@@ -204,7 +204,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     `trait_transitions` columns : integer
         Each node's trait state transition on the branch from its parent:
         +1 for a gain, -1 for a loss (not yet supported), 0 for none, and,
-        at a root, its initial state; see Notes.
+        at a root, its initial state, which must be 0 (a trait present at a
+        root is uninformative, so not supported); see Notes.
     `calibration_partition_by`, `calibration_compare_by_bins` columns : integer, optional
         Each node's calibration partition and bin ids, for the exposure
         episode ending at it; see Parameters.
@@ -252,8 +253,9 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     Notes
     -----
     Trait transitions can be made from trait states at every node with
-    `alifestd_mark_lineage_delta_polars`, with `basal_value=False`; for leaf
-    data, see `alifestd_mask_trait_mdcs_strict_polars`.
+    `alifestd_mark_lineage_delta_polars`, with `basal_value=False`, so that
+    a trait present at a root is caught rather than silently read as absent;
+    for leaf data, see `alifestd_mask_trait_mdcs_strict_polars`.
 
     Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`),
     so pendant branches span from leaves to their stem node, the nearest

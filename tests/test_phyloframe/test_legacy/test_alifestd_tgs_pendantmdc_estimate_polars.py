@@ -143,26 +143,27 @@ def test_row_order_invariant():
 
 
 def test_drops_inherited_and_rootward():
-    #     0
-    #     1
+    #       0
+    #     1   4
     #   2   3
     phylogeny_df = pd.DataFrame(
         {
-            "id": [0, 1, 2, 3],
-            "ancestor_id": [0, 0, 1, 1],
-            "origin_time": [0.0, 1.0, 2.0, 4.0],
+            "id": [0, 1, 2, 3, 4],
+            "ancestor_id": [0, 0, 1, 1, 0],
+            "origin_time": [0.0, 1.0, 2.0, 4.0, 3.0],
         },
     )
     res = _estimate_from_masks(
         phylogeny_df,
         trait_masks=np.array(
-            [[0, 0, 1, 1], [0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+            [[0, 0, 1, 1, 0], [0, 0, 1, 0, 0]] + [[0, 0, 0, 0, 0]] * 2,
             dtype=bool,
         ),
         neutral_traits=[2, 3],
     )
-    # both leaves carry trait 0 from above their parent, so both drop
-    assert res["num_leaf_episodes"].tolist() == [0, 2, 2, 2]
+    # leaves 2 and 3 carry trait 0 from above their parent, so both drop;
+    # leaf 4 starts without it
+    assert res["num_leaf_episodes"].tolist() == [1, 3, 3, 3]
     assert res["num_leaf_gains"].tolist() == [0, 1, 0, 0]
     assert np.isnan(res.loc[0, "selection_coef"])
     # the neutral traits never gain, so gain ratios are undefined
@@ -240,7 +241,7 @@ def test_nan_origin_time_ignored():
     )
     res = _estimate_from_masks(
         nan_df,
-        trait_masks=np.hstack([traits, np.ones((5, 1), dtype=bool)]),
+        trait_masks=np.hstack([traits, np.zeros((5, 1), dtype=bool)]),
         **kwargs,
     )
     pd.testing.assert_frame_equal(res, expected)

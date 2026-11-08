@@ -19,7 +19,8 @@ def tgs_calc_trait_states(
     trait's transitions (see `alifestd_mark_lineage_delta_asexual`).
     Returns each node's state, summing transitions from its root down, after
     checking that transitions are +1, -1, or 0, that none are losses (not
-    yet supported), and that states stay 0 or 1.
+    yet supported), that roots lack the trait (zero root transitions), and
+    that states stay 0 or 1.
     """
     trait_transitions = np.asarray(trait_transitions)
     if not (
@@ -40,8 +41,15 @@ def tgs_calc_trait_states(
             f"trait transitions {trait_name} include losses (-1), which are "
             "not yet supported",
         )
+    ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
+    if trait_transitions[ancestor_ids == np.arange(len(ancestor_ids))].any():
+        raise NotImplementedError(
+            f"trait {trait_name} is present at a root (nonzero root "
+            "transition); traits present at a root, so at every node absent "
+            "loss, are uninformative, so drop them",
+        )
     states = _alifestd_mark_lineage_cumsum_asexual_fast_path(
-        np.asarray(ancestor_ids, dtype=np.int64),
+        ancestor_ids,
         trait_transitions,
         reverse=False,
     )

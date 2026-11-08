@@ -38,13 +38,14 @@ def test_prepare(lazy: bool):
 
 def test_traits_numbered_in_order():
     res = tgs_build_exposure_df_polars(
-        _make_tree().with_columns(u=pl.Series([1, 0, 0, 0])),
+        _make_tree().with_columns(u=pl.Series([0, 0, 1, 0])),
         trait_transitions=["t", "u"],
         caller="x",
     )
-    # u is present from the root, so never starts absent
-    assert not res["trait1_starts_absent"].any()
-    assert res["trait0_gain"].any()
+    # t is gained on the branch to leaf 3 (origin 5), u on that to leaf 2
+    by_time = res.sort("origin_time")
+    assert by_time["trait0_gain"].to_list() == [False, True]
+    assert by_time["trait1_gain"].to_list() == [True, False]
 
 
 def test_empty():

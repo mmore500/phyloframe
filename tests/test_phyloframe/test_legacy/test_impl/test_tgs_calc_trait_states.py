@@ -13,7 +13,6 @@ _ANCESTOR_IDS = np.array([0, 0, 0, 1])
     "transitions, expected",
     [
         ([0, 1, 0, 0], [0, 1, 0, 1]),
-        ([1, 0, 0, 0], [1, 1, 1, 1]),
         ([0, 0, 1, 0], [0, 0, 1, 0]),
         (np.array([0, 1, 0, 0], dtype=np.int8), [0, 1, 0, 1]),
         (np.array([False, True, False, False]), [0, 1, 0, 1]),
@@ -35,6 +34,7 @@ def test_states(transitions, expected):
         (np.array([0, 2, 0, 0]), ValueError),
         (np.array([0, 1, 0, 1]), ValueError),  # state 2 at node 3
         (np.array([1, -1, 0, 0]), NotImplementedError),  # loss
+        (np.array([1, 0, 0, 0]), NotImplementedError),  # present at root
     ],
 )
 def test_invalid(transitions, error):
