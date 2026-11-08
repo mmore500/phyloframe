@@ -10,7 +10,8 @@ from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 def make_tgs_fit_kwargs(
     exposure_df: pl.DataFrame, *, calibrate: bool = False, **kwargs
 ) -> typing.Dict[str, typing.Any]:
-    """Arguments for `tgs_fit_traits`, but `weights`, treating traits after
+    """Arguments for `tgs_fit_traits`, but `weights`, `progress_wrap`, and
+    `trait_bin_counts_df`, treating traits after
     the first as neutral. If `calibrate`, bins episodes into 64
     equal-occupancy bins by branch length and origin time, each its own
     calibration neighborhood; else, one bin.

@@ -92,7 +92,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     pendant gains across calibration bins of leaves (see
     `calibration_compare_by_bins`).
 
-    See `tgs_fit` for the model and its relation to BiSSE.
+    See `tgs_fit_trait` for the model and its relation to BiSSE.
 
     Only supports asexual phylogenies.
 
@@ -148,8 +148,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         with little exposure; uncapped by default. Must be positive.
     length_rtol : float, default 1e-2
         Relative tolerance within which leaves' calibrated pendant lengths
-        must agree for them to be merged for fitting, bounding fit cost; 0
-        for no merging.
+        must agree for them to be pooled for fitting, bounding fit cost; 0
+        for no pooling.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling leaves with replacement
         and refitting, for standard errors, z-scores, and p-values.
@@ -160,11 +160,11 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Starting values for the selection coefficient, in units of 1 / mean
-        pendant length; the best of the resulting fits is kept. See `tgs_fit`.
+        pendant length; the best of the resulting fits is kept. See `tgs_fit_trait`.
     growth_exponent_bound : float, default 600.0
         Bound on carrier growth exponents, the selection coefficient minus
         loss rate, times pendant length, keeping optimizer trial steps
-        finite. See `tgs_fit`.
+        finite. See `tgs_fit_trait`.
     seed : int, optional
         Seed for bootstrap resampling.
     parallel_backend : str, optional
@@ -325,7 +325,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         MDCs of every size, not only leaf pendant branches.
     """
     trait_names, neutral_traits = tgs_validate_args(
-        trait_transitions=trait_transitions,
+        trait_transition_cols=trait_transitions,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
@@ -334,7 +334,7 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     )
     exposure_df = tgs_build_exposure_df_polars(
         phylogeny_df,
-        trait_transitions=trait_transitions,
+        trait_transition_cols=trait_transitions,
         caller="alifestd_tgs_pendantmdc_estimate_polars",
         calibration_partition_by=calibration_partition_by,
         calibration_compare_by_bins=calibration_compare_by_bins,
@@ -506,7 +506,7 @@ def _create_parser() -> argparse.ArgumentParser:
         default=1e-2,
         type=float,
         help=(
-            "Relative tolerance for merging calibrated branch lengths for "
+            "Relative tolerance for pooling calibrated branch lengths for "
             "fitting (default: 1e-2)."
         ),
     )

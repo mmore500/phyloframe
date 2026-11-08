@@ -4,6 +4,20 @@ import pytest
 from phyloframe.legacy._impl import tgs_build_exposure_df_polars
 
 
+def _build(phylogeny_df, **kwargs) -> pl.DataFrame:
+    return tgs_build_exposure_df_polars(
+        phylogeny_df,
+        **{
+            "trait_transition_cols": ["t"],
+            "caller": "test",
+            "calibration_partition_by": None,
+            "calibration_compare_by_bins": None,
+            "calibration_compare_by_vals": ["branch_length"],
+            **kwargs,
+        },
+    )
+
+
 def _make_tree() -> pl.DataFrame:
     #     0
     #   1   2
@@ -22,8 +36,10 @@ def _make_tree() -> pl.DataFrame:
 @pytest.mark.parametrize("lazy", [False, True])
 def test_prepare(lazy: bool):
     df_pl = _make_tree()
-    res = tgs_build_exposure_df_polars(
-        df_pl.lazy() if lazy else df_pl, trait_transitions=["t"], caller="x"
+    res = _build(
+        df_pl.lazy() if lazy else df_pl,
+        trait_transition_cols=["t"],
+        caller="x",
     )
     # unifurcation 1 is bypassed, so leaf 3 hangs from root 0, and the
     # gain into 1 is credited to the merged branch
@@ -37,9 +53,9 @@ def test_prepare(lazy: bool):
 
 
 def test_traits_numbered_in_order():
-    res = tgs_build_exposure_df_polars(
+    res = _build(
         _make_tree().with_columns(u=pl.Series([0, 0, 1, 0])),
-        trait_transitions=["t", "u"],
+        trait_transition_cols=["t", "u"],
         caller="x",
     )
     # t is gained on the branch to leaf 3 (origin 5), u on that to leaf 2
@@ -57,14 +73,8 @@ def test_empty():
             "t": pl.Series([], dtype=pl.Int8),
         },
     )
-    res = tgs_build_exposure_df_polars(
-        df_pl, trait_transitions=["t"], caller="test"
-    )
-    assert isinstance(res, pl.DataFrame)
-    assert res.is_empty()
-    assert {"branch_length", "trait0_starts_absent", "trait0_gain"} <= set(
-        res.columns
-    )
+    with pytest.raises(ValueError, match="no exposure episodes"):
+        _build(df_pl)
 
 
 def test_null_transitions_raise():
@@ -72,16 +82,12 @@ def test_null_transitions_raise():
         t=pl.Series([None, 1, 0, 0], dtype=pl.Int8)
     )
     with pytest.raises(NotImplementedError):
-        tgs_build_exposure_df_polars(
-            df_pl, trait_transitions=["t"], caller="test"
-        )
+        _build(df_pl, trait_transition_cols=["t"], caller="test")
 
 
 def test_missing_column_raises():
     with pytest.raises(pl.exceptions.ColumnNotFoundError):
-        tgs_build_exposure_df_polars(
-            _make_tree(), trait_transitions=["x"], caller="test"
-        )
+        _build(_make_tree(), trait_transition_cols=["x"], caller="test")
 
 
 def test_calibration_columns():
@@ -91,16 +97,15 @@ def test_calibration_columns():
         v=pl.Series([0.0, 0.0, 0.5, 1.5]),
         branch_length=pl.Series([9.0] * 4),
     )
-    res = tgs_build_exposure_df_polars(
+    res = _build(
         df_pl,
-        trait_transitions=["t"],
+        trait_transition_cols=["t"],
         caller="test",
         calibration_partition_by="p",
         calibration_compare_by_bins="b",
         calibration_compare_by_vals=["v", "branch_length"],
     )
     by_time = res.sort("origin_time")
-    assert by_time["node_id"].to_list() == [2, 3]
     assert by_time["calibration_partition"].to_list() == [7, 8]
     assert by_time["calibration_bin"].to_list() == [3, 4]
     assert by_time["calibration_compare_by_v"].to_list() == [0.5, 1.5]
@@ -124,16 +129,14 @@ def test_invalid_calibration_column_raises(kwargs: dict):
         v=pl.Series([0.0, 0.0, 0.5, 1.5]), s=pl.Series(["a"] * 4)
     )
     with pytest.raises(NotImplementedError, match="calibration column"):
-        tgs_build_exposure_df_polars(
-            df_pl, trait_transitions=["t"], caller="test", **kwargs
-        )
+        _build(df_pl, trait_transition_cols=["t"], caller="test", **kwargs)
 
 
 def test_missing_calibration_column_raises():
     with pytest.raises(pl.exceptions.ColumnNotFoundError):
-        tgs_build_exposure_df_polars(
+        _build(
             _make_tree(),
-            trait_transitions=["t"],
+            trait_transition_cols=["t"],
             caller="test",
             calibration_compare_by_bins="x",
         )
@@ -144,14 +147,13 @@ def test_stem_node_branch_lengths_match():
     from phyloframe.legacy import alifestd_mark_stem_node_id_polars
 
     df_pl = _make_tree()
-    res = tgs_build_exposure_df_polars(
-        df_pl, trait_transitions=["t"], caller="test"
-    )
+    res = _build(df_pl, trait_transition_cols=["t"], caller="test")
     marked = alifestd_mark_stem_node_id_polars(df_pl).with_columns(
         branch_length=pl.col("origin_time")
         - pl.col("origin_time").gather(pl.col("stem_node_id")),
     )
+    # surviving nodes 2 and 3, in origin time order
     assert (
-        marked["branch_length"].gather(res["node_id"].to_numpy()).to_list()
-        == res["branch_length"].to_list()
+        marked["branch_length"].gather([2, 3]).to_list()
+        == res.sort("origin_time")["branch_length"].to_list()
     )

@@ -14,7 +14,10 @@ def test_replicate():
     exposure_df = simulate_allmdc_exposure_df(4_000)
     kwargs = dict(
         do_fit=functools.partial(
-            tgs_fit_traits, **make_tgs_fit_kwargs(exposure_df)
+            tgs_fit_traits,
+            progress_wrap=identity,
+            trait_bin_counts_df=None,
+            **make_tgs_fit_kwargs(exposure_df),
         ),
         num_items=len(exposure_df),
         num_bootstrap=2,
@@ -26,6 +29,6 @@ def test_replicate():
     other = tgs_bootstrap_trait_fits(seed=2, **kwargs)
     assert len(fits) == 2 * 3
     assert fits["replicate"].to_list() == [0, 0, 0, 1, 1, 1]
-    assert fits["trait_index"].to_list() == [0, 1, 2] * 2
+    assert fits["trait_id"].to_list() == [0, 1, 2] * 2
     pltest.assert_frame_equal(fits, again)
     assert not np.allclose(fits["gain_rate"], other["gain_rate"])

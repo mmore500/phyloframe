@@ -7,36 +7,36 @@ from scipy import optimize
 from ._tgs_calc_nll import tgs_calc_nll
 
 
-def _tgs_calc_exposure(partitions: pl.DataFrame) -> float:
+def _tgs_calc_exposure(coarsened_df: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
-    Returns the total branch length of `partitions`' episodes.
+    Returns the total branch length of `coarsened_df`' episodes.
     """
-    return (partitions["num_trials"] * partitions["length"]).sum()
+    return (coarsened_df["num_trials"] * coarsened_df["length"]).sum()
 
 
-def tgs_pick_selection_rescale(partitions: pl.DataFrame) -> float:
+def tgs_pick_selection_rescale(coarsened_df: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
     Picks the rate by which to rescale the selection coefficient for
     optimization (see `tgs_minimize_nll`): 1 / mean branch length of
-    `partitions`' episodes, a typical rate.
+    `coarsened_df`' episodes, a typical rate.
     """
-    return partitions["num_trials"].sum() / _tgs_calc_exposure(partitions)
+    return coarsened_df["num_trials"].sum() / _tgs_calc_exposure(coarsened_df)
 
 
-def tgs_pick_log_gain_rate_start(partitions: pl.DataFrame) -> float:
+def tgs_pick_log_gain_rate_start(coarsened_df: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
     Picks the starting point for fitting the log gain rate:
-    log(gains per unit branch length) of `partitions`, the log gain rate
+    log(gains per unit branch length) of `coarsened_df`, the log gain rate
     under no selection.
     """
     return np.log(
-        partitions["num_successes"].sum() / _tgs_calc_exposure(partitions)
+        coarsened_df["num_successes"].sum() / _tgs_calc_exposure(coarsened_df)
     )
 
 

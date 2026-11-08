@@ -29,7 +29,7 @@ def tgs_select_calibration_neighborhoods(
     `bin_coords`, of the size, among `neighborhood_fractions`, that best
     predicts each held-out neutral trait's gains when calibrating against
     the other neutral traits (see `tgs_calc_heldout_nll`), given
-    `trait_bin_counts_df` (see `tgs_count_traits`). Warns about any
+    `trait_bin_counts_df` (see `tgs_count_trait_bin_exposures`). Warns about any
     neighborhoods without neutral gains.
     """
 
@@ -45,12 +45,12 @@ def tgs_select_calibration_neighborhoods(
             tgs_calc_heldout_nll(
                 calibration_neighborhoods=calibration_neighborhoods,
                 trait_bin_counts_df=trait_bin_counts_df,
-                trait=trait,
-                trait_name=trait_names[trait],
+                trait_id=trait_id,
+                trait_name=trait_names[trait_id],
                 neutral_traits=neutral_traits,
                 max_rate_ratio=max_rate_ratio,
             )
-            for trait in neutral_traits
+            for trait_id in neutral_traits
         )
         logging.info(
             "- tgs: calibration neighborhoods of "
@@ -66,7 +66,7 @@ def tgs_select_calibration_neighborhoods(
     )
 
     neutral_gains = (
-        trait_bin_counts_df.filter(pl.col("trait").is_in(neutral_traits))
+        trait_bin_counts_df.filter(pl.col("trait_id").is_in(neutral_traits))
         .group_by("bin")
         .agg(pl.col("num_successes").sum())
         .sort("bin")["num_successes"]

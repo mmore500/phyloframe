@@ -8,16 +8,16 @@ from ._tgs_select_trait_episodes import (
 )
 
 
-def _tgs_count_exposures_per_trait_bin(
+def _tgs_count_bin_exposures_of_trait(
     *,
     exposure_df: pl.DataFrame,
-    trait: int,
+    trait_id: int,
     bins: pl.Series,
     weights: pl.Series,
 ) -> pl.DataFrame:
-    """Implementation detail for `tgs_count_traits`.
+    """Implementation detail for `tgs_count_trait_bin_exposures`.
 
-    Returns `trait`'s (weighted) exposure counts per calibration bin with
+    Returns `trait_id`'s (weighted) exposure counts per calibration bin with
     episodes; see Output Schema.
 
     Output Schema
@@ -32,7 +32,9 @@ def _tgs_count_exposures_per_trait_bin(
         Weighted sum of those episodes' branch lengths.
     """
     return (
-        tgs_select_trait_episodes(exposure_df, trait=trait, weights=weights)
+        tgs_select_trait_episodes(
+            exposure_df, trait_id=trait_id, weights=weights
+        )
         .with_columns(
             bin=pl.lit(bins).gather("exposure_row"),
             length=pl.lit(exposure_df["branch_length"]).gather("exposure_row"),
@@ -46,7 +48,7 @@ def _tgs_count_exposures_per_trait_bin(
     )
 
 
-def tgs_count_traits(
+def tgs_count_trait_bin_exposures(
     *,
     exposure_df: pl.DataFrame,
     bins: np.ndarray,
@@ -64,7 +66,7 @@ def tgs_count_traits(
 
     Output Schema
     -------------
-    'trait' : integer
+    'trait_id' : integer
         Trait index.
     'bin' : integer
         Calibration bin index, from 0 to `num_bins` - 1.
@@ -85,7 +87,7 @@ def tgs_count_traits(
         [
             pl.DataFrame(
                 schema={  # RE empty edge case
-                    "trait": pl.Int64,
+                    "trait_id": pl.Int64,
                     "bin": pl.Int64,
                     "num_trials": pl.Float64,
                     "num_successes": pl.Float64,
@@ -94,8 +96,8 @@ def tgs_count_traits(
             ),
             *(  # one trait at a time reduces peak memory
                 bin_df.join(
-                    _tgs_count_exposures_per_trait_bin(
-                        trait=trait, **trait_bin_kwargs
+                    _tgs_count_bin_exposures_of_trait(
+                        trait_id=trait_id, **trait_bin_kwargs
                     ),
                     on="bin",
                     how="left",
@@ -103,9 +105,10 @@ def tgs_count_traits(
                 # zero counts for bins without the trait's exposure
                 # episodes, e.g., a bin whose branches all carry the trait
                 .with_columns(cs.float().fill_null(0.0)).select(
-                    pl.lit(trait, dtype=pl.Int64).alias("trait"), pl.all()
+                    pl.lit(trait_id, dtype=pl.Int64).alias("trait_id"),
+                    pl.all(),
                 )
-                for trait in range(tgs_count_exposure_traits(exposure_df))
+                for trait_id in range(tgs_count_exposure_traits(exposure_df))
             ),
         ],
-    ).sort("trait", "bin")
+    ).sort("trait_id", "bin")

@@ -2,22 +2,21 @@ import typing
 
 import polars as pl
 
-from ..._auxlib._identity import identity
 from ._tgs_calc_neutral_reference_gain_rates import (
     tgs_calc_neutral_reference_gain_rates,
 )
 from ._tgs_calc_trait_gain_ratio_lrts import tgs_calc_trait_gain_ratio_lrts
 from ._tgs_calc_trait_selection_lrts import tgs_calc_trait_selection_lrts
-from ._tgs_fit import tgs_fit_trait
+from ._tgs_fit_trait import tgs_fit_trait
 
 
-def tgs_fit_trait_partitions(
+def tgs_fit_coarsened_traits(
     *,
     trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
     neutral_traits: typing.Sequence[int],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
-    progress_wrap: typing.Callable = identity,
+    progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -25,7 +24,7 @@ def tgs_fit_trait_partitions(
 
     Fits each trait's gain rate and selection coefficient, given each
     trait's `tgs_calc_nll` arguments but the rate parameters,
-    `trait_nll_kwargs`, e.g., its partitions from `tgs_merge_episodes` (see
+    `trait_nll_kwargs`, e.g., its coarsened episodes from `tgs_coarsen_episodes` (see
     Input Schema of `tgs_calc_nll`).
 
     Fits one trait at a time, wrapped in `progress_wrap` (e.g., tqdm).
@@ -62,7 +61,7 @@ def tgs_fit_trait_partitions(
     # undefined (nan) without neutral reference traits, or if none gained the
     # trait
     fits_df = fits_df.with_columns(
-        trait=pl.int_range(pl.len(), dtype=pl.Int64),
+        trait_id=pl.int_range(pl.len(), dtype=pl.Int64),
         gain_rate_neutral=tgs_calc_neutral_reference_gain_rates(
             gain_rates=fits_df["gain_rate"].to_numpy(),
             neutral_traits=neutral_traits,
@@ -76,14 +75,14 @@ def tgs_fit_trait_partitions(
     return (
         fits_df.join(
             tgs_calc_trait_selection_lrts(**lrt_kwargs),
-            on="trait",
+            on="trait_id",
             maintain_order="left",
         )
         .join(
             tgs_calc_trait_gain_ratio_lrts(
                 **lrt_kwargs, selection_coef_starts=selection_coef_starts
             ),
-            on="trait",
+            on="trait_id",
             maintain_order="left",
         )
         .select(

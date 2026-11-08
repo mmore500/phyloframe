@@ -5,7 +5,7 @@ import numpy as np
 
 def tgs_validate_args(
     *,
-    trait_transitions: typing.Sequence[str],
+    trait_transition_cols: typing.Sequence[str],
     neutral_traits: typing.Sequence[str],
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
@@ -17,12 +17,12 @@ def tgs_validate_args(
     gain/selection.
 
     Validates arguments shared by the trait gain/selection estimators.
-    Returns trait names, i.e., the transition column names, and
+    Returns trait names, i.e., `trait_transition_cols`, and
     `neutral_traits`, given as names among them, as sorted, distinct
     indices.
     """
     for name, value in (
-        ("trait_transitions", trait_transitions),
+        ("trait_transitions", trait_transition_cols),
         ("neutral_traits", neutral_traits),
     ):
         if isinstance(value, str):
@@ -30,8 +30,8 @@ def tgs_validate_args(
                 f"{name} must be a sequence of column names, not a single "
                 f"string; did you mean [{value!r}]?",
             )
-    trait_transitions = list(trait_transitions)
-    for column in trait_transitions:
+    trait_transition_cols = list(trait_transition_cols)
+    for column in trait_transition_cols:
         if not isinstance(column, str):
             raise TypeError(
                 "trait_transitions must be column names, got "
@@ -43,12 +43,14 @@ def tgs_validate_args(
                 "neutral_traits must be trait_transitions column names, got "
                 f"{type(trait).__name__}",
             )
-        if trait not in trait_transitions:
+        if trait not in trait_transition_cols:
             raise ValueError(
                 f"neutral trait {trait!r} is not among trait_transitions",
             )
     neutral_traits = (
-        np.unique([trait_transitions.index(trait) for trait in neutral_traits])
+        np.unique(
+            [trait_transition_cols.index(trait) for trait in neutral_traits]
+        )
         .astype(int)
         .tolist()
     )
@@ -79,4 +81,4 @@ def tgs_validate_args(
         )
     if not len(calibration_compare_by_vals):
         raise ValueError("calibration_compare_by_vals must be nonempty")
-    return trait_transitions, neutral_traits
+    return trait_transition_cols, neutral_traits

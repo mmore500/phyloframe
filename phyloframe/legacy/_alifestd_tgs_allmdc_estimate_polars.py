@@ -138,7 +138,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     length_rtol : float, default 1e-2
         Relative tolerance within which exposure episodes' calibrated branch
         lengths and survival durations must both agree for them to be
-        merged for fitting, bounding fit cost; 0 for no merging.
+        pooled for fitting, bounding fit cost; 0 for no pooling.
     num_bootstrap : int, default 0
         Number of bootstrap replicates, resampling exposure episodes with
         replacement and refitting, for standard errors, z-scores, and
@@ -149,11 +149,11 @@ def alifestd_tgs_allmdc_estimate_polars(
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Starting values for the selection coefficient, in units of 1 / mean
-        branch length; the best of the resulting fits is kept. See `tgs_fit`.
+        branch length; the best of the resulting fits is kept. See `tgs_fit_trait`.
     growth_exponent_bound : float, default 600.0
         Bound on carrier growth exponents, such as the selection coefficient
         minus loss rate, times branch length, keeping optimizer trial steps
-        finite. See `tgs_fit`.
+        finite. See `tgs_fit_trait`.
     seed : int, default None
         Seed for bootstrap resampling; if None, drawn from numpy's global
         random state.
@@ -308,7 +308,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         Leaf pendant branches only.
     """
     trait_names, neutral_traits = tgs_validate_args(
-        trait_transitions=trait_transitions,
+        trait_transition_cols=trait_transitions,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
@@ -317,7 +317,7 @@ def alifestd_tgs_allmdc_estimate_polars(
     )
     exposure_df = tgs_build_exposure_df_polars(
         phylogeny_df,
-        trait_transitions=trait_transitions,
+        trait_transition_cols=trait_transitions,
         caller="alifestd_tgs_allmdc_estimate_polars",
         calibration_partition_by=calibration_partition_by,
         calibration_compare_by_bins=calibration_compare_by_bins,
@@ -472,7 +472,7 @@ def _create_parser() -> argparse.ArgumentParser:
         default=1e-2,
         type=float,
         help=(
-            "Relative tolerance for merging calibrated branch lengths for "
+            "Relative tolerance for pooling calibrated branch lengths for "
             "fitting (default: 1e-2)."
         ),
     )

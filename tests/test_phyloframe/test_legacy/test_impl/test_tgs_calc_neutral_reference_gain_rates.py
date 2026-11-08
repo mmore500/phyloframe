@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from phyloframe.legacy._impl import tgs_calc_neutral_reference_gain_rates
 
@@ -13,11 +14,15 @@ def test_leave_one_out():
 
 def test_undefined():
     res = tgs_calc_neutral_reference_gain_rates(
-        gain_rates=np.array([4.0, 0.0]), neutral_traits=[1]
+        gain_rates=np.array([4.0, 0.0, 0.0]), neutral_traits=[1, 2]
     )
-    # trait 0's reference never gains; trait 1 has no reference
+    # no trait's reference gains
     assert np.isnan(res).all()
-    res = tgs_calc_neutral_reference_gain_rates(
-        gain_rates=np.array([4.0]), neutral_traits=[]
-    )
-    assert np.isnan(res).all()
+
+
+@pytest.mark.parametrize("neutral_traits", [[], [1], [1, 1]])
+def test_too_few_neutral_traits_raises(neutral_traits):
+    with pytest.raises(ValueError, match="at least two"):
+        tgs_calc_neutral_reference_gain_rates(
+            gain_rates=np.array([4.0, 1.0]), neutral_traits=neutral_traits
+        )

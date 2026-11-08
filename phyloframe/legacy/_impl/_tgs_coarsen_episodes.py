@@ -8,7 +8,7 @@ from ._tgs_select_trait_episodes import tgs_select_trait_episodes
 
 
 def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
-    """Implementation detail for `tgs_merge_episodes`.
+    """Implementation detail for `tgs_coarsen_episodes`.
 
     Returns each nonnegative value's cell of a log-scale grid with ratio 1 +
     `rtol`; zero values get a cell of their own.
@@ -19,10 +19,10 @@ def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
     return cells
 
 
-def tgs_merge_episodes(
+def tgs_coarsen_episodes(
     *,
     exposure_df: pl.DataFrame,
-    trait: int,
+    trait_id: int,
     bins: np.ndarray,
     calibration_factors: np.ndarray,
     weights: np.ndarray,
@@ -34,33 +34,36 @@ def tgs_merge_episodes(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Merges `trait`'s exposure episodes (rows of `exposure_df` starting
-    without the trait; see `tgs_build_exposure_df`) whose calibrated branch
-    lengths and survival durations both agree within relative tolerance
-    `length_rtol`, i.e., fall in the same cell of a log-scale grid with
-    ratio 1 + `length_rtol` (0 for no merging), so that merged episodes
-    have nearly the same chance of gain, and merging loses little
-    information about which episodes gained the trait. Each episode's
+    Coarsens `trait_id`'s exposure episodes (rows of `exposure_df` starting
+    without the trait; see `tgs_build_exposure_df`), pooling those whose
+    calibrated branch lengths and survival durations both agree within
+    relative tolerance `length_rtol`, i.e., fall in the same cell of a
+    log-scale grid with ratio 1 + `length_rtol` (0 for no coarsening), so
+    that pooled episodes have nearly the same chance of gain, and
+    coarsening loses little information about which episodes gained the
+    trait. Each episode's
     length is calibrated by its calibration bin's factor,
     `calibration_factors[bin]`.
 
-    Returns `partition_df`, one row per merged length cell with episodes
+    Returns `coarsened_df`, one row per grid cell with episodes
     (see Output Schema), and `survival_shares`, a sparse matrix with a row
-    per `partition_df` row and a column per distinct survival duration
+    per `coarsened_df` row and a column per distinct survival duration
     (episodes' `survival_duration_indices`), giving the share of the row's
     episodes with each.
 
     Output Schema
     -------------
     'num_trials' : float
-        Weighted (by `weights`) count of the row's merged episodes.
+        Weighted (by `weights`) count of the row's pooled episodes.
     'num_successes' : float
         Of those, the weighted count that gained the trait.
     'length' : float
         Their weighted mean calibrated branch length.
     """
     episodes_df = tgs_select_trait_episodes(
-        exposure_df, trait=trait, weights=pl.Series(weights, dtype=pl.Float64)
+        exposure_df,
+        trait_id=trait_id,
+        weights=pl.Series(weights, dtype=pl.Float64),
     )
     episodes = episodes_df["exposure_row"].to_numpy()
     lengths = (
@@ -86,7 +89,7 @@ def tgs_merge_episodes(
             "length": lengths,
         },
     ).with_columns(
-        # each episode's merged row, numbering keys in sorted order
+        # each episode's coarsened row, numbering keys in sorted order
         row=pl.struct("length_cell", "survival_cell").rank("dense")
         - 1,
     )
@@ -118,9 +121,9 @@ def tgs_merge_episodes(
         ),
         shape=(len(row_sums_df), num_survival_durations),
     )
-    partition_df = row_sums_df.select(
+    coarsened_df = row_sums_df.select(
         "num_trials",
         "num_successes",
         pl.col("length") / pl.col("num_trials"),
     )
-    return partition_df, survival_shares
+    return coarsened_df, survival_shares

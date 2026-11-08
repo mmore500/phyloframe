@@ -7,14 +7,13 @@ import opytional as opyt
 import polars as pl
 from scipy import sparse
 
-from ..._auxlib._identity import identity
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
-from ._tgs_count_traits import tgs_count_traits
-from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
-from ._tgs_merge_episodes import tgs_merge_episodes
+from ._tgs_coarsen_episodes import tgs_coarsen_episodes
+from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
+from ._tgs_fit_coarsened_traits import tgs_fit_coarsened_traits
 from ._tgs_select_trait_episodes import tgs_count_exposure_traits
 
 
@@ -33,8 +32,8 @@ def tgs_fit_traits(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
-    progress_wrap: typing.Callable = identity,
-    trait_bin_counts_df: typing.Optional[pl.DataFrame] = None,
+    progress_wrap: typing.Callable,
+    trait_bin_counts_df: typing.Optional[pl.DataFrame],
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -42,15 +41,16 @@ def tgs_fit_traits(
 
     Fits each trait to `exposure_df`'s exposure episodes, each weighted by
     `weights` (e.g., bootstrap draw counts): calibrates branch lengths by
-    calibration bin (see `tgs_calc_calibration_rescaling`), merges episodes of
-    similar calibrated length (see `tgs_merge_episodes`), and fits gain
-    rate and selection coefficient (see `tgs_fit_trait_partitions`).
+    calibration bin (see `tgs_calc_calibration_rescaling`), pools episodes
+    of similar calibrated length (see `tgs_coarsen_episodes`), and fits gain
+    rate and selection coefficient (see `tgs_fit_coarsened_traits`).
 
-    Merges, then fits, one trait at a time, each wrapped in `progress_wrap`
-    (e.g., tqdm), so that episode tables scale with branches, not branches
-    times traits; every trait's merged partitions, far fewer with merging
+    Coarsens one trait at a time, each wrapped in `progress_wrap` (e.g.,
+    tqdm), so that episode tables scale with branches, not branches times
+    traits; every trait's coarsened episodes, far fewer with coarsening
     (`length_rtol` > 0), are kept for fitting. Pass `trait_bin_counts_df`
-    (see `tgs_count_traits`) if already computed for these `weights`.
+    (see `tgs_count_trait_bin_exposures`) if already computed for these
+    `weights`.
     Returns one row per trait; see Input and Output Schema.
 
     Input Schema
@@ -67,7 +67,7 @@ def tgs_fit_traits(
 
     `trait_bin_counts_df` columns, optional:
 
-    'trait', 'bin' : integer
+    'trait_id', 'bin' : integer
         Trait and calibration bin indices, one row per pair, trait-major.
     'num_trials', 'num_successes', 'length_sum' : float
         (Weighted) count of the trait's exposure episodes in the bin, of
@@ -89,7 +89,7 @@ def tgs_fit_traits(
     """
     trait_bin_counts_df = opyt.or_else(
         trait_bin_counts_df,
-        lambda: tgs_count_traits(
+        lambda: tgs_count_trait_bin_exposures(
             exposure_df=exposure_df,
             bins=bins,
             num_bins=num_bins,
@@ -97,14 +97,16 @@ def tgs_fit_traits(
         ),
     )
     trait_nll_kwargs = []  # each trait's, but the rate parameters
-    for trait in progress_wrap(range(tgs_count_exposure_traits(exposure_df))):
-        partitions, survival_shares = tgs_merge_episodes(
+    for trait_id in progress_wrap(
+        range(tgs_count_exposure_traits(exposure_df))
+    ):
+        coarsened_df, survival_shares = tgs_coarsen_episodes(
             exposure_df=exposure_df,
-            trait=trait,
+            trait_id=trait_id,
             bins=bins,
             calibration_factors=tgs_calc_calibration_rescaling(
                 trait_bin_counts_df=trait_bin_counts_df,
-                trait=trait,
+                trait_id=trait_id,
                 neutral_traits=neutral_traits,
                 calibration_neighborhoods=calibration_neighborhoods,
                 max_rate_ratio=calibrate_max_rate_ratio,
@@ -116,7 +118,7 @@ def tgs_fit_traits(
         )
         trait_nll_kwargs.append(
             dict(
-                partitions=partitions,
+                coarsened_df=coarsened_df,
                 growth_exponent_bound=growth_exponent_bound,
                 survival_shares=survival_shares,
                 distinct_survival_durations=distinct_survival_durations,
@@ -125,7 +127,7 @@ def tgs_fit_traits(
     # called per bootstrap replicate, so log at debug level
     gc.collect()
     log_memory_usage(logging.debug)
-    return tgs_fit_trait_partitions(
+    return tgs_fit_coarsened_traits(
         trait_nll_kwargs=trait_nll_kwargs,
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,

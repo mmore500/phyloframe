@@ -6,6 +6,7 @@ import typing
 import numpy as np
 import polars as pl
 
+from ..._auxlib._identity import identity
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_assign_calibration_bins import tgs_assign_calibration_bins
 from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
@@ -95,7 +96,7 @@ def tgs_estimate_tgs_from_exposures(
     """
     bins_df = tgs_assign_calibration_bins(exposure_df)
     bins = bins_df["bin"].to_numpy()
-    num_episodes, num_bins = len(exposure_df), int(bins.max()) + 1
+    num_episodes, num_bins = len(exposure_df), bins_df["bin"].n_unique()
     (
         calibration_neighborhoods,
         trait_bin_counts_df,
@@ -147,7 +148,12 @@ def tgs_estimate_tgs_from_exposures(
             f"- tgs: fitting {num_bootstrap} bootstrap replicates...",
         )
         bootstrap_fits_df = tgs_bootstrap_trait_fits(
-            do_fit=functools.partial(tgs_fit_traits, **fit_kwargs),
+            do_fit=functools.partial(
+                tgs_fit_traits,
+                progress_wrap=identity,
+                trait_bin_counts_df=None,  # counted per replicate
+                **fit_kwargs,
+            ),
             num_items=num_episodes,
             num_bootstrap=num_bootstrap,
             seed=seed,

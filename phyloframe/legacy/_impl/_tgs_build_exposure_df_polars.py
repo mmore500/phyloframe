@@ -4,6 +4,7 @@ import typing
 
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 
 from ..._auxlib._log_memory_usage import log_memory_usage
 from .._alifestd_assign_contiguous_ids_polars import (
@@ -24,26 +25,43 @@ from .._alifestd_try_add_ancestor_id_col_polars import (
 from ._tgs_build_exposure_df import tgs_build_exposure_df
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 
-# columns of `tgs_build_exposure_df` usable as `calibration_compare_by_vals`
-_EXPOSURE_COLUMNS = frozenset(
-    ("origin_time", "branch_length", "survival_duration", "clade_size"),
-)
+
+def _tgs_get_cols_with_nulls(
+    df: pl.DataFrame, *, cols: typing.Sequence[str]
+) -> typing.List[str]:
+    """Implementation detail for `tgs_build_exposure_df_polars`.
+
+    Returns those of `df`'s `cols` with null values.
+    """
+    return (
+        df.select(pl.col([*dict.fromkeys(cols)]).has_nulls())
+        .unpivot()
+        .filter("value")["variable"]
+        .to_list()
+    )
 
 
 def _tgs_select_columns(
     phylogeny_df: pl.DataFrame,
     *,
-    columns: typing.Sequence[str],
+    trait_transition_cols: typing.Sequence[str],
+    calibration_cols: typing.Sequence[str],
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
     Returns `phylogeny_df`'s `id`, `ancestor_id`, `origin_time`, and
-    `columns`, collected, checking that ids are contiguous and topologically
-    sorted.
+    `trait_transition_cols`, and those of `calibration_cols` it has,
+    collected, checking that ids are contiguous and topologically sorted.
     """
     selected = (
         phylogeny_df.lazy()
-        .select("id", "ancestor_id", "origin_time", *columns)
+        .select(
+            cs.by_name(
+                "id", "ancestor_id", "origin_time", *trait_transition_cols
+            )
+            # absent calibration columns may be exposure table columns
+            | cs.by_name(*calibration_cols, require_all=False),
+        )
         .collect()
     )
     if not selected.is_empty():
@@ -57,47 +75,46 @@ def _tgs_select_columns(
 
 
 def _tgs_calc_states(
-    selected: pl.DataFrame, *, trait_transitions: typing.Sequence[str]
+    selected: pl.DataFrame, *, trait_transition_cols: typing.Sequence[str]
 ) -> typing.List[np.ndarray]:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
     Returns each trait's state at every node, summing its transitions (see
     `tgs_calc_trait_states`).
     """
-    ancestor_ids = selected["ancestor_id"].to_numpy()
-    states = []
-    for column in trait_transitions:
-        if selected[column].has_nulls():
-            raise NotImplementedError(
-                f"null values in trait transitions {column} not supported",
-            )
-        states.append(
-            tgs_calc_trait_states(
-                ancestor_ids=ancestor_ids,
-                trait_transitions=selected[column].to_numpy(),
-                trait_name=column,
-            ),
+    cols_with_nulls = _tgs_get_cols_with_nulls(
+        selected, cols=trait_transition_cols
+    )
+    if cols_with_nulls:
+        raise NotImplementedError(
+            f"null values in trait transitions {cols_with_nulls} not supported",
         )
-    return states
+    ancestor_ids = selected["ancestor_id"].to_numpy()
+    return [
+        tgs_calc_trait_states(
+            ancestor_ids=ancestor_ids,
+            trait_transitions=selected[column].to_numpy(),
+            trait_name=column,
+        )
+        for column in trait_transition_cols
+    ]
 
 
 def _tgs_collapse_unifurcations(
-    phylogeny_df: pl.DataFrame,
+    selected: pl.DataFrame,
     *,
+    trait_transition_cols: typing.Sequence[str],
     states: typing.Sequence[np.ndarray],
-    columns: typing.Sequence[str],
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
-    Returns `selected`'s `columns` with unifurcations collapsed and ids made
-    contiguous, carrying each node's original id, `__alifestd_tgs_node_id`,
-    and trait states, `trait{i}_state`.
+    Returns `selected`, with trait transitions replaced by trait states,
+    `trait{i}_state`, and unifurcations collapsed and ids made contiguous.
     """
     return (
-        phylogeny_df.select("id", "ancestor_id", "origin_time", *columns)
+        selected.drop(trait_transition_cols)
         .with_columns(
-            pl.col("id").alias("__alifestd_tgs_node_id"),
-            *(pl.Series(f"trait{i}_state", s) for i, s in enumerate(states)),
+            pl.Series(f"trait{i}_state", s) for i, s in enumerate(states)
         )
         .pipe(
             alifestd_collapse_unifurcations_polars,
@@ -107,28 +124,43 @@ def _tgs_collapse_unifurcations(
     )
 
 
-def _tgs_get_integer_column(values: pl.Series, *, column: str) -> pl.Series:
+def _tgs_validate_calibration_cols(
+    exposure_df: pl.DataFrame,
+    *,
+    integer_cols: typing.Sequence[str],
+    numeric_cols: typing.Sequence[str],
+) -> None:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
-    Returns calibration column `values`, checking they are integers without
-    nulls.
+    Checks that `exposure_df`'s calibration columns are integer,
+    `integer_cols`, or numeric, `numeric_cols`, without null values.
     """
-    if not values.dtype.is_integer() or values.has_nulls():
+    invalid_cols = {
+        *exposure_df.select(pl.col(integer_cols))
+        .select(~cs.integer())
+        .columns,
+        *exposure_df.select(pl.col(numeric_cols))
+        .select(~cs.numeric())
+        .columns,
+        *_tgs_get_cols_with_nulls(
+            exposure_df, cols=[*integer_cols, *numeric_cols]
+        ),
+    }
+    if invalid_cols:
         raise NotImplementedError(
-            f"calibration column {column} must be integer, without null "
-            "values",
+            f"calibration columns {sorted(invalid_cols)} must be "
+            "numeric (integer, for partitions and bins), without null values",
         )
-    return values
 
 
 def tgs_build_exposure_df_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_transitions: typing.Sequence[str],
+    trait_transition_cols: typing.Sequence[str],
     caller: str,
-    calibration_partition_by: typing.Optional[str] = None,
-    calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Sequence[str] = (),
+    calibration_partition_by: typing.Optional[str],
+    calibration_compare_by_bins: typing.Optional[str],
+    calibration_compare_by_vals: typing.Sequence[str],
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -140,6 +172,8 @@ def tgs_build_exposure_df_polars(
     i.e., per non-root node's branch; see Output Schema. `caller` names the
     calling function in error messages.
 
+    Raises ValueError if `phylogeny_df` is empty.
+
     Input Schema
     ------------
     'id' : integer
@@ -148,7 +182,7 @@ def tgs_build_exposure_df_polars(
         Parent's taxon identifier (or own, for a root).
     'origin_time' : float
         Time of each taxon's origin.
-    `trait_transitions` columns : integer
+    `trait_transition_cols` columns : integer
         Each node's trait state transition from its parent.
     `calibration_partition_by`, `calibration_compare_by_bins` columns : integer, optional
         Each node's calibration partition and bin.
@@ -170,8 +204,6 @@ def tgs_build_exposure_df_polars(
         Whether the episode started without the trait.
     'trait{i}_gain' : boolean, per trait `i`
         Whether the episode gained the trait.
-    'node_id' : integer
-        Id of the episode's end node in `phylogeny_df`.
     'calibration_partition' : integer, optional
         The end node's `calibration_partition_by` value, if given.
     'calibration_bin' : integer, optional
@@ -181,15 +213,19 @@ def tgs_build_exposure_df_polars(
         columns (e.g., `branch_length`, `clade_size`) if there, else from
         `phylogeny_df`'s, at the end node.
     """
-    extra_columns = sorted(
-        {
-            calibration_partition_by,
-            calibration_compare_by_bins,
-            *calibration_compare_by_vals,
-        }
-        - _EXPOSURE_COLUMNS
-        - {None},
-    )
+    # output column name: source column name
+    calibration_cols = {
+        name: col
+        for name, col in (
+            ("calibration_partition", calibration_partition_by),
+            ("calibration_bin", calibration_compare_by_bins),
+            *(
+                (f"calibration_compare_by_{col}", col)
+                for col in calibration_compare_by_vals
+            ),
+        )
+        if col is not None
+    }
     # affinity RE https://github.com/pola-rs/polars/issues/30408
     # TODO: drop the engine affinity for polars>2.1.0
     with pl.Config(engine_affinity="in-memory"):
@@ -199,64 +235,48 @@ def tgs_build_exposure_df_polars(
                 f"{caller} only supports asexual phylogenies.",
             )
         selected = _tgs_select_columns(
-            phylogeny_df, columns=[*trait_transitions, *extra_columns]
+            phylogeny_df,
+            trait_transition_cols=trait_transition_cols,
+            calibration_cols=[*calibration_cols.values()],
         )
         if selected.is_empty():
-            return tgs_build_exposure_df(
-                pl.DataFrame(
-                    schema={
-                        "ancestor_id": pl.Int64,
-                        "origin_time": pl.Float64,
-                        **{
-                            f"trait{i}_state": pl.Int64
-                            for i in range(len(trait_transitions))
-                        },
-                    },
-                ),
-            )
-        states = _tgs_calc_states(
-            selected, trait_transitions=trait_transitions
-        )
+            raise ValueError("phylogeny_df has no exposure episodes to fit")
         collapsed = _tgs_collapse_unifurcations(
-            selected, states=states, columns=extra_columns
+            selected,
+            trait_transition_cols=trait_transition_cols,
+            states=_tgs_calc_states(
+                selected, trait_transition_cols=trait_transition_cols
+            ),
         )
-        del selected, states
+        del selected
         gc.collect()
         log_memory_usage(logging.info)
 
-    exposure_df = tgs_build_exposure_df(
-        collapsed.select(
-            "ancestor_id",
-            "origin_time",
-            *(f"trait{i}_state" for i in range(len(trait_transitions))),
+    exposure_df = tgs_build_exposure_df(collapsed)
+    # without roots, rows match exposure_df's; its own columns take
+    # precedence
+    node_df = collapsed.filter(pl.col("ancestor_id") != pl.col("id")).select(
+        cs.by_name(*calibration_cols.values(), require_all=False)
+        - cs.by_name(exposure_df.columns, require_all=False),
+    )
+    del collapsed
+    source_df = pl.concat([exposure_df, node_df], how="horizontal")
+    del node_df
+    _tgs_validate_calibration_cols(
+        source_df,
+        integer_cols=[
+            col
+            for col in (calibration_partition_by, calibration_compare_by_bins)
+            if col is not None
+        ],
+        numeric_cols=calibration_compare_by_vals,
+    )
+    exposure_df = exposure_df.with_columns(
+        source_df.select(
+            pl.col(col).alias(name) for name, col in calibration_cols.items()
         ),
     )
-    # without roots, rows match exposure_df's
-    collapsed = collapsed.filter(pl.col("ancestor_id") != pl.col("id"))
-    columns = {"node_id": collapsed["__alifestd_tgs_node_id"]}
-    if calibration_partition_by is not None:
-        columns["calibration_partition"] = _tgs_get_integer_column(
-            collapsed[calibration_partition_by],
-            column=calibration_partition_by,
-        )
-    if calibration_compare_by_bins is not None:
-        columns["calibration_bin"] = _tgs_get_integer_column(
-            collapsed[calibration_compare_by_bins],
-            column=calibration_compare_by_bins,
-        )
-    for column in calibration_compare_by_vals:
-        if column in _EXPOSURE_COLUMNS:
-            values = exposure_df[column]
-        else:
-            values = collapsed[column]
-            if not values.dtype.is_numeric() or values.has_nulls():
-                raise NotImplementedError(
-                    f"calibration column {column} must be numeric, without "
-                    "null values",
-                )
-        columns[f"calibration_compare_by_{column}"] = values
-    exposure_df = exposure_df.with_columns(**columns)
-    del collapsed, columns
+    del source_df
     gc.collect()
     log_memory_usage(logging.info)
     return exposure_df

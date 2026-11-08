@@ -1,7 +1,7 @@
 import numpy as np
 import polars as pl
 
-from phyloframe.legacy._impl import tgs_count_traits
+from phyloframe.legacy._impl import tgs_count_trait_bin_exposures
 
 
 def _exposure_df() -> pl.DataFrame:
@@ -17,13 +17,13 @@ def _exposure_df() -> pl.DataFrame:
 
 
 def test_counts():
-    res = tgs_count_traits(
+    res = tgs_count_trait_bin_exposures(
         exposure_df=_exposure_df(),
         bins=np.array([0, 0, 1, 1]),
         num_bins=3,
         weights=np.array([1.0, 2.0, 1.0, 1.0]),
     )
-    assert res.select("trait", "bin").rows() == [
+    assert res.select("trait_id", "bin").rows() == [
         (t, b) for t in range(2) for b in range(3)
     ]
     np.testing.assert_array_equal(res["num_trials"], [3, 1, 0, 3, 2, 0])
@@ -32,14 +32,14 @@ def test_counts():
 
 
 def test_no_traits():
-    res = tgs_count_traits(
+    res = tgs_count_trait_bin_exposures(
         exposure_df=pl.DataFrame({"branch_length": [1.0, 2.0]}),
         bins=np.array([0, 1]),
         num_bins=2,
         weights=np.ones(2),
     )
     assert res.columns == [
-        "trait",
+        "trait_id",
         "bin",
         "num_trials",
         "num_successes",

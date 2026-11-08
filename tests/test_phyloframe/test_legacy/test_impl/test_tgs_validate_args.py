@@ -13,7 +13,7 @@ _KWARGS = dict(
 
 def test_names():
     names, neutral = tgs_validate_args(
-        trait_transitions=["a", "b", "c"],
+        trait_transition_cols=["a", "b", "c"],
         neutral_traits=("b", "c"),
         **_KWARGS,
     )
@@ -24,7 +24,7 @@ def test_names():
 def test_non_column_raises():
     with pytest.raises(TypeError):
         tgs_validate_args(
-            trait_transitions=["a", np.zeros(3, dtype=np.int8)],
+            trait_transition_cols=["a", np.zeros(3, dtype=np.int8)],
             neutral_traits=(),
             **_KWARGS,
         )
@@ -32,7 +32,7 @@ def test_non_column_raises():
 
 def test_neutral_traits_normalized():
     names, neutral = tgs_validate_args(
-        trait_transitions=["a", "b", "c", "d"],
+        trait_transition_cols=["a", "b", "c", "d"],
         neutral_traits=["d", "b", "d"],
         **_KWARGS,
     )
@@ -42,7 +42,7 @@ def test_neutral_traits_normalized():
 def test_neutral_trait_index_raises():
     with pytest.raises(TypeError):
         tgs_validate_args(
-            trait_transitions=["a", "b"], neutral_traits=[1], **_KWARGS
+            trait_transition_cols=["a", "b"], neutral_traits=[1], **_KWARGS
         )
 
 
@@ -50,7 +50,7 @@ def test_neutral_trait_index_raises():
 def test_too_few_neutral_traits(neutral_traits):
     with pytest.raises(NotImplementedError, match="at least two"):
         tgs_validate_args(
-            trait_transitions=["a", "b", "c"],
+            trait_transition_cols=["a", "b", "c"],
             neutral_traits=neutral_traits,
             **_KWARGS,
         )
@@ -75,7 +75,7 @@ def test_invalid(kwargs: dict):
     with pytest.raises(ValueError):
         tgs_validate_args(
             **{
-                "trait_transitions": ["a", "b", "c"],
+                "trait_transition_cols": ["a", "b", "c"],
                 "neutral_traits": ("b", "c"),
                 **_KWARGS,
                 **kwargs,
@@ -86,10 +86,10 @@ def test_invalid(kwargs: dict):
 @pytest.mark.parametrize(
     "kwargs",
     [
-        dict(trait_transitions="a", neutral_traits=()),
-        dict(trait_transitions=["a", "b"], neutral_traits="a"),
+        dict(trait_transition_cols="a", neutral_traits=()),
+        dict(trait_transition_cols=["a", "b"], neutral_traits="a"),
         dict(
-            trait_transitions=["a", "b", "c"],
+            trait_transition_cols=["a", "b", "c"],
             neutral_traits=["b", "c"],
             calibration_compare_by_vals="origin_time",
         ),
