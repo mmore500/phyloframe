@@ -1,5 +1,6 @@
 """Implementation helpers."""
 
+from ._tgs_assign_calibration_bins import tgs_assign_calibration_bins
 from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_build_exposure_df import tgs_build_exposure_df
@@ -16,7 +17,7 @@ from ._tgs_calc_trait_selection_lrts import (
 )
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 from ._tgs_count_traits import tgs_count_traits
-from ._tgs_estimate_from_exposures import tgs_estimate_from_exposures
+from ._tgs_estimate_tgs_from_exposures import tgs_estimate_tgs_from_exposures
 from ._tgs_fit import TgsFitResult, tgs_fit, tgs_fit_trait
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_fit_traits import tgs_fit_traits
@@ -28,6 +29,9 @@ from ._tgs_normalize_gain_rates_to_neutral import (
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
+from ._tgs_select_partitioned_calibration_neighborhoods import (
+    tgs_select_partitioned_calibration_neighborhoods,
+)
 from ._tgs_select_trait_episodes import (
     tgs_count_exposure_traits,
     tgs_select_trait_episodes,
@@ -38,6 +42,8 @@ from ._tgs_validate_args import tgs_validate_args
 
 __all__ = [
     "TgsFitResult",
+    "tgs_assign_calibration_bins",
+    "tgs_select_partitioned_calibration_neighborhoods",
     "tgs_tally_exposure_episodes",
     "tgs_bootstrap_trait_fits",
     "tgs_build_estimates_df",
@@ -55,7 +61,7 @@ __all__ = [
     "tgs_fit_trait",
     "tgs_fit_trait_partitions",
     "tgs_fit_traits",
-    "tgs_estimate_from_exposures",
+    "tgs_estimate_tgs_from_exposures",
     "tgs_merge_episodes",
     "tgs_minimize_nll",
     "tgs_normalize_gain_rates_to_neutral",
