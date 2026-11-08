@@ -21,7 +21,7 @@ def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
         exposure_df,
         **{
             **dict(
-                counts_df=tgs_tally_exposure_episodes(
+                episode_tallies_df=tgs_tally_exposure_episodes(
                     trait_names=_TRAIT_NAMES, exposure_df=exposure_df
                 ),
                 trait_names=_TRAIT_NAMES,

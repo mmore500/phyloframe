@@ -20,7 +20,7 @@ from ._tgs_select_partitioned_calibration_neighborhoods import (
 def tgs_estimate_tgs_from_exposures(
     exposure_df: pl.DataFrame,
     *,
-    counts_df: pl.DataFrame,
+    episode_tallies_df: pl.DataFrame,
     trait_names: typing.Sequence[str],
     neutral_traits: typing.Sequence[int],
     calibrate_neighborhood_fractions: typing.Sequence[float],
@@ -44,8 +44,8 @@ def tgs_estimate_tgs_from_exposures(
     selects calibration neighborhoods within partitions (see
     `tgs_select_partitioned_calibration_neighborhoods`), fits point
     estimates and any bootstrap replicates (see `tgs_fit_traits`), and
-    returns per-trait estimates following `counts_df`'s per-trait counts
-    (see `tgs_build_estimates_df`). Takes
+    returns per-trait estimates following `episode_tallies_df`'s per-trait
+    exposure episode and gain tallies (see `tgs_build_estimates_df`). Takes
     validated arguments, with `neutral_traits` as indices and `trait_names`
     as labels (see `tgs_validate_args`); see Input and Output Schema.
 
@@ -63,14 +63,14 @@ def tgs_estimate_tgs_from_exposures(
         The branch's calibration partition and bin.
     'calibration_compare_by_{name}' : numeric, optional
         Values by which calibration bins are compared.
-    `counts_df` columns
-        Trait name, 'trait', then per-trait counts, e.g., as for
-        `tgs_tally_exposure_episodes`.
+    `episode_tallies_df` columns
+        Trait name, 'trait', then its exposure episode and gain tallies,
+        e.g., from `tgs_tally_exposure_episodes`.
 
     Output Schema
     -------------
-    `counts_df` columns
-        Trait name, 'trait', then per-trait counts.
+    `episode_tallies_df` columns
+        Trait name, 'trait', then its exposure episode and gain tallies.
     'gain_rate' : float
         Fitted gain rate, per unit branch length; 0 without gains.
     'selection_coef' : float
@@ -163,7 +163,7 @@ def tgs_estimate_tgs_from_exposures(
         gc.collect()
         log_memory_usage(logging.info)
     return tgs_build_estimates_df(
-        counts_df,
+        episode_tallies_df,
         point_estimate_df=point_estimate_df,
         bootstrap_fits_df=bootstrap_fits_df,
     )
