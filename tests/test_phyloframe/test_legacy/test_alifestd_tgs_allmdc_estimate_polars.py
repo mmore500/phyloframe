@@ -37,11 +37,12 @@ def _estimate(
 
 
 def _estimate_allmdc(
-    phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    estimator: typing.Callable = alifestd_tgs_allmdc_estimate_polars,
+    **kwargs,
 ) -> pd.DataFrame:
-    return _estimate(
-        alifestd_tgs_allmdc_estimate_polars, phylogeny_df, **kwargs
-    )
+    return _estimate(estimator, phylogeny_df, **kwargs)
 
 
 def _estimate_pendantmdc(
@@ -130,8 +131,6 @@ def test_recovers_gain_selection(calibrate: bool):
         trait_names=["focal", "n1", "n2", "n3", "n4"],
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
-        num_bootstrap=10,
-        seed=1,
     )
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_inner_episodes"] == 40_000).all()
@@ -140,9 +139,6 @@ def test_recovers_gain_selection(calibrate: bool):
     focal = res.iloc[0]
     assert focal["gain_ratio"] == pytest.approx(2.0, rel=0.25)
     assert focal["selection_coef"] == pytest.approx(-0.05, abs=0.02)
-    assert focal["gain_ratio_p"] < 1e-3
-    assert focal["selection_coef_p"] < 1e-3
-    assert np.isfinite(res["selection_coef_se"]).all()
     assert not any("shift" in c for c in res.columns)
 
     neutral = res.iloc[1:]
@@ -423,7 +419,6 @@ def test_empty(apply: typing.Callable):
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],
-            num_bootstrap=2,
         )
 
 

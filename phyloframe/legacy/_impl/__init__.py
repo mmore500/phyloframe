@@ -1,6 +1,7 @@
 """Implementation helpers."""
 
 from ._tgs_assign_calibration_bins import tgs_assign_calibration_bins
+from ._tgs_bootstrap import tgs_bootstrap
 from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
 from ._tgs_build_estimates_df import tgs_build_estimates_df
 from ._tgs_build_exposure_df import tgs_build_exposure_df
@@ -43,6 +44,7 @@ __all__ = [
     "tgs_assign_calibration_bins",
     "tgs_select_partitioned_calibration_neighborhoods",
     "tgs_tally_exposure_episodes",
+    "tgs_bootstrap",
     "tgs_bootstrap_trait_fits",
     "tgs_build_estimates_df",
     "tgs_build_exposure_df_polars",

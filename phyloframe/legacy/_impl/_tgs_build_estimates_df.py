@@ -1,25 +1,18 @@
-import typing
-
-import opytional as opyt
 import polars as pl
-
-from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
 
 
 def tgs_build_estimates_df(
     episode_tallies_df: pl.DataFrame,
     *,
-    point_estimate_df: pl.DataFrame,
-    bootstrap_fits_df: typing.Optional[pl.DataFrame],
+    fits_df: pl.DataFrame,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
     Returns one row per trait, joining `episode_tallies_df`'s per-trait
-    exposure episode and gain tallies (see `tgs_tally_exposure_episodes`),
-    `point_estimate_df`'s estimates, and bootstrap summaries of
-    `bootstrap_fits_df`; see Output Schema.
+    exposure episode and gain tallies (see `tgs_tally_exposure_episodes`)
+    and `fits_df`'s estimates (see `tgs_fit_traits`); see Output Schema.
 
     Output Schema
     -------------
@@ -47,46 +40,16 @@ def tgs_build_estimates_df(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1.
 
-    With `bootstrap_fits_df`, also:
-
-    'selection_coef_se' : float
-        Bootstrap standard error of the selection coefficient.
-    'selection_coef_z' : float
-        Selection coefficient over its standard error.
-    'selection_coef_p' : float
-        Two-sided normal p-value of `selection_coef_z`.
-    'log_gain_ratio_se' : float
-        Bootstrap standard error of the log gain ratio.
-    'gain_ratio_z' : float
-        Log gain ratio over its standard error.
-    'gain_ratio_p' : float
-        Two-sided normal p-value of `gain_ratio_z`.
-    'num_bootstrap_degenerate' : integer
-        Replicates excluded for an undefined selection coefficient or gain
-        ratio.
     """
-    estimates_df = pl.concat(
+    return pl.concat(
         [
             episode_tallies_df,
-            point_estimate_df.select(
+            fits_df.select(
                 "gain_rate",
                 "selection_coef",
                 "gain_ratio",
                 "selection_coef_lrt_naive",
                 "gain_ratio_lrt_naive",
-            ),
-        ],
-        how="horizontal",
-    )
-    return pl.concat(
-        [
-            estimates_df,
-            opyt.apply_if_or_else(
-                bootstrap_fits_df,
-                lambda df: tgs_summarize_bootstrap(
-                    point_estimate_df=estimates_df, bootstrap_fits_df=df
-                ),
-                pl.DataFrame,
             ),
         ],
         how="horizontal",

@@ -1,4 +1,3 @@
-import numpy as np
 import polars as pl
 
 from phyloframe.legacy._impl import tgs_build_estimates_df
@@ -31,30 +30,8 @@ _COLUMNS = [
 ]
 
 
-def test_no_bootstrap():
-    out = tgs_build_estimates_df(
-        _episode_tallies(),
-        point_estimate_df=_point(),
-        bootstrap_fits_df=None,
-    )
+def test_joins_tallies_and_fits():
+    out = tgs_build_estimates_df(_episode_tallies(), fits_df=_point())
     assert out.columns == _COLUMNS
+    assert out["trait"].to_list() == ["a", "b"]
     assert out["gain_ratio"].to_list() == [0.5, 2.0]
-
-
-def test_summary_appended():
-    point = _point()
-    replicate_fits = pl.concat(
-        point.select(
-            pl.lit(replicate).alias("replicate"),
-            pl.int_range(pl.len()).alias("trait_id"),
-            pl.all(),
-        ).with_columns(pl.col("selection_coef") + delta)
-        for replicate, delta in enumerate((-0.01, 0.0, 0.01))
-    )
-    out = tgs_build_estimates_df(
-        _episode_tallies(),
-        point_estimate_df=point,
-        bootstrap_fits_df=replicate_fits,
-    )
-    assert out.columns[: len(_COLUMNS)] == _COLUMNS
-    np.testing.assert_allclose(out["selection_coef_se"], 0.01)

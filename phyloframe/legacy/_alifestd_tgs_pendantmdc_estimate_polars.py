@@ -8,6 +8,7 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
+from scipy import sparse
 from tqdm import tqdm
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -17,6 +18,7 @@ from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
+    tgs_build_estimates_df,
     tgs_build_exposure_df_polars,
     tgs_estimate_tgs_from_exposures,
     tgs_tally_exposure_episodes,
@@ -48,12 +50,9 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     ),
     calibrate_max_rate_ratio: float = np.inf,
     length_rtol: float = 1e-2,
-    num_bootstrap: int = 0,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     growth_exponent_bound: float = 600.0,
-    seed: typing.Optional[int] = None,
-    parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and selection coefficient from leaf pendant
@@ -150,12 +149,6 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Relative tolerance within which leaves' calibrated pendant lengths
         must agree for them to be pooled for fitting, bounding fit cost; 0
         for no pooling.
-    num_bootstrap : int, default 0
-        Number of bootstrap replicates, resampling leaves with replacement
-        and refitting, for standard errors, z-scores, and p-values.
-        Standard guidance suggests about 200 replicates for standard errors
-        (Efron and Tibshirani 1993, An Introduction to the Bootstrap).
-        Calibration neighborhood size is held constant.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
@@ -165,15 +158,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Bound on carrier growth exponents, the selection coefficient minus
         loss rate, times pendant length, keeping optimizer trial steps
         finite. See `tgs_fit_trait`.
-    seed : int, optional
-        Seed for bootstrap resampling.
-    parallel_backend : str, optional
-        joblib backend to run bootstrap replicates in parallel, e.g., "loky"
-        (processes) or "threading". Replicate fits are mostly GIL-bound
-        Python (scipy's optimizer loop), so "loky" is typically faster.
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display progress over traits, for the
-        point estimate, and over bootstrap replicates.
+        Pass tqdm or equivalent to display progress over traits.
 
     Returns
     -------
@@ -237,19 +223,6 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1 (see Warnings).
 
-    With bootstrap replicates, also:
-
-    'selection_coef_se', 'log_gain_ratio_se' : float
-        Bootstrap standard errors (se), i.e., standard deviations across
-        replicates, of the selection coefficient and log gain ratio.
-    'selection_coef_z', 'gain_ratio_z' : float
-        Corresponding z-scores, against 0 and 1, respectively.
-    'selection_coef_p', 'gain_ratio_p' : float
-        Corresponding two-sided p-values, by normal approximation.
-    'num_bootstrap_degenerate' : integer
-        Replicates excluded for resampling no carriers of the trait, or of
-        its neutral reference.
-
     Notes
     -----
     Trait transitions can be made from trait states at every node with
@@ -311,9 +284,9 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     as independent, and the gain ratio's test treats the neutral reference
     rate as known, so `selection_coef_lrt_naive` and `gain_ratio_lrt_naive`
     overstate significance; consider dividing each by its mean over neutral
-    traits before a chi-squared test with one degree of freedom. Likewise,
-    bootstrap sampling assumes leaves are independent, so its replicates may
-    be underdispersed, making standard errors too small.
+    traits before a chi-squared test with one degree of freedom. For
+    bootstrap standard errors, z-scores, and p-values, see
+    `alifestd_tgs_pendantmdc_estimate_bootstrap_polars`.
 
     See Also
     --------
@@ -323,7 +296,71 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         Marks leaves dropped for each trait.
     alifestd_tgs_allmdc_estimate_polars :
         MDCs of every size, not only leaf pendant branches.
+    alifestd_tgs_pendantmdc_estimate_bootstrap_polars :
+        Adds bootstrap standard errors, z-scores, and p-values.
     """
+    return _alifestd_tgs_pendantmdc_estimate_polars_impl(
+        phylogeny_df,
+        exposure_df=None,
+        calibration_neighborhoods=None,
+        weights=None,
+        progress_wrap=progress_wrap,
+        trait_transitions=trait_transitions,
+        neutral_traits=neutral_traits,
+        calibration_partition_by=calibration_partition_by,
+        calibration_compare_by_bins=calibration_compare_by_bins,
+        calibration_compare_by_vals=calibration_compare_by_vals,
+        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
+        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        length_rtol=length_rtol,
+        loss_rate=loss_rate,
+        selection_coef_starts=selection_coef_starts,
+        growth_exponent_bound=growth_exponent_bound,
+    )["estimates_df"]
+
+
+def _alifestd_tgs_pendantmdc_estimate_polars_impl(
+    phylogeny_df: typing.Optional[pl.DataFrame],
+    *,
+    exposure_df: typing.Optional[pl.DataFrame],
+    calibration_neighborhoods: typing.Optional[sparse.spmatrix],
+    weights: typing.Optional[np.ndarray],
+    progress_wrap: typing.Callable,
+    trait_transitions: typing.Sequence[str],
+    neutral_traits: typing.Sequence[str],
+    calibration_partition_by: typing.Optional[str],
+    calibration_compare_by_bins: typing.Optional[str],
+    calibration_compare_by_vals: typing.Sequence[str],
+    calibrate_neighborhood_fractions: typing.Sequence[float],
+    calibrate_max_rate_ratio: float,
+    length_rtol: float,
+    loss_rate: float,
+    selection_coef_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
+) -> typing.Dict[str, typing.Any]:
+    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
+    `alifestd_tgs_pendantmdc_estimate_bootstrap_polars`.
+
+    For a point estimate, pass `phylogeny_df`, with `exposure_df`,
+    `calibration_neighborhoods`, and `weights` None. For a bootstrap
+    replicate, pass `phylogeny_df` None, with a point estimate's
+    `exposure_df` and `calibration_neighborhoods`, and the replicate's
+    episode `weights`. Returns a dict of `estimates_df` (see Output Schema
+    of `alifestd_tgs_pendantmdc_estimate_polars`), `fits_df` (see
+    `tgs_estimate_tgs_from_exposures`), `exposure_df`, and
+    `calibration_neighborhoods`.
+    """
+    # all or none of a point estimate's results, so not partially reused
+    assert (
+        len(
+            {
+                x is None
+                for x in (exposure_df, calibration_neighborhoods, weights)
+            }
+        )
+        == 1
+    )
+    assert (phylogeny_df is None) != (exposure_df is None)
     trait_names, neutral_traits = tgs_validate_args(
         trait_transition_cols=trait_transitions,
         neutral_traits=neutral_traits,
@@ -332,33 +369,45 @@ def alifestd_tgs_pendantmdc_estimate_polars(
         length_rtol=length_rtol,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
-    exposure_df = tgs_build_exposure_df_polars(
-        phylogeny_df,
-        trait_transition_cols=trait_transitions,
-        caller="alifestd_tgs_pendantmdc_estimate_polars",
-        calibration_partition_by=calibration_partition_by,
-        calibration_compare_by_bins=calibration_compare_by_bins,
-        calibration_compare_by_vals=calibration_compare_by_vals,
-    )
-    # leaf pendant branches only
-    exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
-    return tgs_estimate_tgs_from_exposures(
+    if exposure_df is None:
+        exposure_df = tgs_build_exposure_df_polars(
+            phylogeny_df,
+            trait_transition_cols=trait_transitions,
+            caller="alifestd_tgs_pendantmdc_estimate_polars",
+            calibration_partition_by=calibration_partition_by,
+            calibration_compare_by_bins=calibration_compare_by_bins,
+            calibration_compare_by_vals=calibration_compare_by_vals,
+        ).filter(
+            pl.col("clade_size") == 1  # leaf pendant branches only
+        )
+        logging.info(
+            f"- tgs: fitting {len(trait_names)} traits to "
+            f"{len(exposure_df)} exposure episodes...",
+        )
+    fit = tgs_estimate_tgs_from_exposures(
         exposure_df,
-        episode_tallies_df=tgs_tally_exposure_episodes(
-            trait_names=trait_names, exposure_df=exposure_df
-        ).select("trait", "num_leaf_episodes", "num_leaf_gains"),
+        calibration_neighborhoods=calibration_neighborhoods,
+        weights=weights,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,
-        num_bootstrap=num_bootstrap,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
-        seed=seed,
-        parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
+    )
+    return dict(
+        estimates_df=tgs_build_estimates_df(
+            tgs_tally_exposure_episodes(
+                trait_names=trait_names, exposure_df=exposure_df
+            ).select("trait", "num_leaf_episodes", "num_leaf_gains"),
+            fits_df=fit["fits_df"],
+        ),
+        fits_df=fit["fits_df"],
+        exposure_df=exposure_df,
+        calibration_neighborhoods=fit["calibration_neighborhoods"],
     )
 
 
@@ -420,10 +469,6 @@ One row per trait, not a phylogeny.
     Naive likelihood-ratio statistics for selection coefficient = 0 and for
     gain ratio = 1.
 
-With `--num-bootstrap`, also 'selection_coef_se', 'selection_coef_z',
-'selection_coef_p', 'log_gain_ratio_se', 'gain_ratio_z', 'gain_ratio_p', and
-'num_bootstrap_degenerate'; see the Python docstring.
-
 
 Additional Notes
 ================
@@ -435,6 +480,9 @@ See Also
 ========
 phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars :
     MDCs of every size, not only leaf pendant branches.
+
+phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_bootstrap_polars :
+    Adds bootstrap standard errors, z-scores, and p-values.
 """
 
 
@@ -452,6 +500,17 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
         dfcli_version=get_phyloframe_version(),
     )
+    return _add_estimate_arguments(parser)
+
+
+def _add_estimate_arguments(
+    parser: argparse.ArgumentParser,
+) -> argparse.ArgumentParser:
+    """Implementation detail for `_create_parser` here and in
+    `_alifestd_tgs_pendantmdc_estimate_bootstrap_polars`.
+
+    Adds the estimate's arguments, but bootstrap ones, to `parser`.
+    """
     parser.add_argument(
         "--trait-transitions",
         nargs="+",
@@ -531,18 +590,6 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--num-bootstrap",
-        default=0,
-        type=int,
-        help="Number of bootstrap replicates (default: 0).",
-    )
-    parser.add_argument(
-        "--bootstrap-seed",
-        default=None,
-        type=int,
-        help="Seed for bootstrap resampling (default: None).",
-    )
-    parser.add_argument(
         "--loss-rate",
         default=0.0,
         type=float,
@@ -564,13 +611,31 @@ def _create_parser() -> argparse.ArgumentParser:
         type=float,
         help="Bound on carrier growth exponents (default: 600.0).",
     )
-    parser.add_argument(
-        "--parallel-backend",
-        default=None,
-        type=str,
-        help="joblib parallel backend for bootstrap (default: None).",
-    )
     return parser
+
+
+def _get_estimate_kwargs(
+    args: argparse.Namespace,
+) -> typing.Dict[str, typing.Any]:
+    """Implementation detail for the CLI here and in
+    `_alifestd_tgs_pendantmdc_estimate_bootstrap_polars`.
+
+    Returns the estimate's keyword arguments, but bootstrap ones and
+    `progress_wrap`, from parsed `args` (see `_add_estimate_arguments`).
+    """
+    return dict(
+        trait_transitions=args.trait_transitions,
+        neutral_traits=args.neutral_traits,
+        calibrate_neighborhood_fractions=args.calibrate_neighborhood_fractions,
+        calibration_partition_by=args.calibration_partition_by,
+        calibration_compare_by_bins=args.calibration_compare_by_bins,
+        calibration_compare_by_vals=args.calibration_compare_by_vals,
+        length_rtol=args.length_rtol,
+        calibrate_max_rate_ratio=args.calibrate_max_rate_ratio,
+        loss_rate=args.loss_rate,
+        selection_coef_starts=args.selection_coef_starts,
+        growth_exponent_bound=args.growth_exponent_bound,
+    )
 
 
 if __name__ == "__main__":
@@ -588,26 +653,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_tgs_pendantmdc_estimate_polars,
-                    trait_transitions=args.trait_transitions,
-                    neutral_traits=args.neutral_traits,
-                    calibrate_neighborhood_fractions=(
-                        args.calibrate_neighborhood_fractions
-                    ),
-                    calibration_partition_by=args.calibration_partition_by,
-                    calibration_compare_by_bins=(
-                        args.calibration_compare_by_bins
-                    ),
-                    calibration_compare_by_vals=(
-                        args.calibration_compare_by_vals
-                    ),
-                    length_rtol=args.length_rtol,
-                    calibrate_max_rate_ratio=args.calibrate_max_rate_ratio,
-                    num_bootstrap=args.num_bootstrap,
-                    seed=args.bootstrap_seed,
-                    loss_rate=args.loss_rate,
-                    selection_coef_starts=args.selection_coef_starts,
-                    growth_exponent_bound=args.growth_exponent_bound,
-                    parallel_backend=args.parallel_backend,
+                    **_get_estimate_kwargs(args),
                     progress_wrap=functools.partial(
                         tqdm, desc="alifestd_tgs_pendantmdc_estimate_polars"
                     ),

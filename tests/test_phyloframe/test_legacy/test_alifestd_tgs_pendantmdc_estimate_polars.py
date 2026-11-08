@@ -1,12 +1,10 @@
 import typing
-import warnings
 
 import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
 from phyloframe.legacy import (
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
@@ -21,6 +19,7 @@ def _estimate_pendantmdc(
     mutate: bool = False,
     calibrate: bool = False,
     calibrate_max_num_bins: int = 4096,
+    estimator: typing.Callable = alifestd_tgs_pendantmdc_estimate_polars,
     **kwargs,
 ) -> pd.DataFrame:
     """Run the polars estimator on a pandas phylogeny, returning pandas. If
@@ -33,7 +32,7 @@ def _estimate_pendantmdc(
             max_num_bins=calibrate_max_num_bins,
         )
         kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
-    return alifestd_tgs_pendantmdc_estimate_polars(df_pl, **kwargs).to_pandas()
+    return estimator(df_pl, **kwargs).to_pandas()
 
 
 def _estimate_from_masks(
@@ -104,8 +103,6 @@ def test_recovers_gain_selection(calibrate: bool):
         trait_names=["focal", "n1", "n2", "n3", "n4"],
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
-        num_bootstrap=20,
-        seed=1,
     )
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_leaf_episodes"] <= 80_000).all()
@@ -113,16 +110,12 @@ def test_recovers_gain_selection(calibrate: bool):
     focal = res.iloc[0]
     assert focal["gain_ratio"] == pytest.approx(2.0, rel=0.2)
     assert focal["selection_coef"] == pytest.approx(-0.05, abs=0.02)
-    assert focal["selection_coef_p"] < 1e-3
-    assert focal["gain_ratio_p"] < 1e-3
 
     neutral = res.iloc[1:]
     # gain rate trades off against the selection coefficient, so with ~2k
     # carriers per trait, neutral gain ratios scatter by ~20%
     assert neutral["gain_ratio"].tolist() == pytest.approx([1.0] * 4, rel=0.3)
     assert (neutral["selection_coef"].abs() < 0.02).all()
-    assert np.isfinite(res["selection_coef_se"]).all()
-    assert np.isfinite(res["log_gain_ratio_se"]).all()
 
 
 def test_row_order_invariant():
@@ -328,82 +321,6 @@ def test_trait_named_by_columns():
     assert res["trait"].tolist() == list("abcde")
 
 
-@pytest.mark.parametrize("parallel_backend", ["threading", "loky"])
-def test_parallel_backend_matches_serial(parallel_backend: str):
-    phylogeny_df, traits = _make_cherries(2_000)
-    kwargs = dict(
-        trait_masks=traits,
-        neutral_traits=[1, 2, 3, 4],
-        num_bootstrap=4,
-        seed=1,
-    )
-    expected = _estimate_from_masks(phylogeny_df, **kwargs)
-    res = _estimate_from_masks(
-        phylogeny_df, parallel_backend=parallel_backend, **kwargs
-    )
-    pd.testing.assert_frame_equal(res, expected)
-
-
-def test_seed_reproducible():
-    phylogeny_df, traits = _make_cherries(2_000)
-
-    def run(seed):
-        return _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            num_bootstrap=4,
-            seed=seed,
-        )
-
-    np.random.seed(5)
-    expected_state = np.random.get_state()[1].copy()
-    res1, res2, res3 = run(1), run(1), run(2)
-    # seeded runs leave global rng state untouched
-    np.testing.assert_array_equal(np.random.get_state()[1], expected_state)
-    pd.testing.assert_frame_equal(res1, res2)
-    assert not res1["selection_coef_se"].equals(res3["selection_coef_se"])
-
-
-def test_bootstrap_without_degenerate_replicates():
-    phylogeny_df, traits = _make_cherries(2_000)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")  # no degenerate-replicate warning
-        warnings.filterwarnings("ignore", category=ExperimentalWarning)
-        res = _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            num_bootstrap=4,
-            seed=1,
-        )
-    assert np.isfinite(res["log_gain_ratio_se"]).all()
-    assert np.isfinite(res["selection_coef_se"]).all()
-    assert (res["num_bootstrap_degenerate"] == 0).all()
-
-
-def test_bootstrap_rare_trait():
-    phylogeny_df, traits = _make_cherries(20_000)
-    rare = np.zeros_like(traits[0])
-    rare[np.flatnonzero(traits[1])[0]] = True
-    with pytest.warns(UserWarning, match="bootstrap") as record:
-        res = _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=[rare, *traits[1:]],
-            neutral_traits=[1, 2, 3, 4],
-            num_bootstrap=50,
-            seed=1,
-        )
-    # with a single carrier, replicates often resample no carriers
-    num_degenerate = res.loc[0, "num_bootstrap_degenerate"]
-    assert 0 < num_degenerate < 50
-    assert any(
-        f"0 ({num_degenerate} of 50)" in str(warning.message)
-        for warning in record
-    )
-    assert (res.loc[1:, "num_bootstrap_degenerate"] == 0).all()
-    assert np.isfinite(res["selection_coef_se"]).all()
-    assert np.isfinite(res["log_gain_ratio_se"]).all()
-
-
 def test_calibration_warns_without_neutral_gains():
     phylogeny_df, traits = _make_cherries(2_000)
     rare = np.zeros_like(traits[1:3])
@@ -466,45 +383,6 @@ def test_neighborhood_fractions_single_candidate():
         calibrate_neighborhood_fractions=[0.1],
     )
     assert np.isfinite(res["selection_coef"]).all()
-
-
-def test_parallel_backend_matches_serial_many_replicates():
-    # more replicates than joblib dispatches up front, so later replicates
-    # are dispatched from joblib's callback thread
-    phylogeny_df, traits = _make_cherries(500)
-    kwargs = dict(
-        trait_masks=traits,
-        neutral_traits=[1, 2, 3, 4],
-        num_bootstrap=96,
-        seed=1,
-    )
-    expected = _estimate_from_masks(phylogeny_df, **kwargs)
-    for backend in ("threading", "loky"):
-        res = _estimate_from_masks(
-            phylogeny_df, parallel_backend=backend, **kwargs
-        )
-        pd.testing.assert_frame_equal(res, expected)
-
-
-def test_bootstrap_neutral_reference_without_carriers():
-    # neutral traits with one carrier each, so some replicates resample no
-    # carriers of the focal trait's whole neutral reference
-    phylogeny_df, traits = _make_cherries(20_000)
-    rare = np.zeros_like(traits[1:3])
-    rare[0, np.flatnonzero(traits[1])[:1]] = True
-    rare[1, np.flatnonzero(traits[2])[:1]] = True
-    with pytest.warns(UserWarning, match="neutral reference"):
-        res = _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=[traits[0], *rare],
-            neutral_traits=[1, 2],
-            num_bootstrap=50,
-            seed=1,
-        )
-    # the focal trait always has carriers, but its reference sometimes not
-    assert np.isfinite(res.loc[0, "selection_coef_se"])
-    assert 0 < res.loc[0, "num_bootstrap_degenerate"] < 50
-    assert np.isfinite(res.loc[0, "log_gain_ratio_se"])
 
 
 def test_neutral_trait_not_among_transitions_raises():
@@ -680,7 +558,6 @@ def test_empty(apply: typing.Callable):
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],
-            num_bootstrap=2,
         )
 
 
