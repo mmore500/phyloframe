@@ -21,10 +21,10 @@ from .._alifestd_is_topologically_sorted_polars import (
 from .._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._tgs_calc_exposure_df import tgs_calc_exposure_df
+from ._tgs_build_exposure_df import tgs_build_exposure_df
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 
-# columns of `tgs_calc_exposure_df` usable as `calibration_compare_by_vals`
+# columns of `tgs_build_exposure_df` usable as `calibration_compare_by_vals`
 _EXPOSURE_COLUMNS = frozenset(
     ("origin_time", "branch_length", "survival_duration", "clade_size"),
 )
@@ -34,24 +34,13 @@ def _tgs_select_columns(
     phylogeny_df: pl.DataFrame,
     *,
     columns: typing.Sequence[str],
-    caller: str,
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
     Returns `phylogeny_df`'s `id`, `ancestor_id`, `origin_time`, and
-    `columns`, collected, checking that it is asexual, with contiguous,
-    topologically sorted ids.
+    `columns`, collected, checking that ids are contiguous and topologically
+    sorted.
     """
-    phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    if "ancestor_id" not in schema_names:
-        raise NotImplementedError(
-            f"{caller} only supports asexual phylogenies.",
-        )
-    for column in columns:
-        if column not in schema_names:
-            raise ValueError(f"phylogeny_df has no column {column}")
-
     selected = (
         phylogeny_df.lazy()
         .select("id", "ancestor_id", "origin_time", *columns)
@@ -85,7 +74,7 @@ def _tgs_calc_states(
         states.append(
             tgs_calc_trait_states(
                 ancestor_ids=ancestor_ids,
-                transitions=selected[column].to_numpy(),
+                trait_transitions=selected[column].to_numpy(),
                 trait_name=column,
             ),
         )
@@ -93,7 +82,7 @@ def _tgs_calc_states(
 
 
 def _tgs_collapse_unifurcations(
-    selected: pl.DataFrame,
+    phylogeny_df: pl.DataFrame,
     *,
     states: typing.Sequence[np.ndarray],
     columns: typing.Sequence[str],
@@ -102,25 +91,19 @@ def _tgs_collapse_unifurcations(
 
     Returns `selected`'s `columns` with unifurcations collapsed and ids made
     contiguous, carrying each node's original id, `__alifestd_tgs_node_id`,
-    and trait states, `__alifestd_tgs_state{i}`.
+    and trait states, `trait{i}_state`.
     """
     return (
-        alifestd_assign_contiguous_ids_polars(
-            alifestd_collapse_unifurcations_polars(
-                selected.select(
-                    "id", "ancestor_id", "origin_time", *columns
-                ).with_columns(
-                    pl.col("id").alias("__alifestd_tgs_node_id"),
-                    *(
-                        pl.Series(f"__alifestd_tgs_state{i}", s)
-                        for i, s in enumerate(states)
-                    ),
-                ),
-                ignore_topological_sensitivity=True,
-            ),
+        phylogeny_df.select("id", "ancestor_id", "origin_time", *columns)
+        .with_columns(
+            pl.col("id").alias("__alifestd_tgs_node_id"),
+            *(pl.Series(f"trait{i}_state", s) for i, s in enumerate(states)),
         )
-        .lazy()
-        .collect()
+        .pipe(
+            alifestd_collapse_unifurcations_polars,
+            ignore_topological_sensitivity=True,
+        )
+        .pipe(alifestd_assign_contiguous_ids_polars)
     )
 
 
@@ -198,36 +181,38 @@ def tgs_build_exposure_df_polars(
         columns (e.g., `branch_length`, `clade_size`) if there, else from
         `phylogeny_df`'s, at the end node.
     """
-    compare_columns = sorted(
-        set(calibration_compare_by_vals) - _EXPOSURE_COLUMNS
-    )
     extra_columns = sorted(
         {
-            *(
-                c
-                for c in (
-                    calibration_partition_by,
-                    calibration_compare_by_bins,
-                )
-                if c is not None
-            ),
-            *compare_columns,
-        },
+            calibration_partition_by,
+            calibration_compare_by_bins,
+            *calibration_compare_by_vals,
+        }
+        - _EXPOSURE_COLUMNS
+        - {None},
     )
     # affinity RE https://github.com/pola-rs/polars/issues/30408
     # TODO: drop the engine affinity for polars>2.1.0
     with pl.Config(engine_affinity="in-memory"):
+        phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
+        if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
+            raise NotImplementedError(
+                f"{caller} only supports asexual phylogenies.",
+            )
         selected = _tgs_select_columns(
-            phylogeny_df,
-            columns=[*trait_transitions, *extra_columns],
-            caller=caller,
+            phylogeny_df, columns=[*trait_transitions, *extra_columns]
         )
         if selected.is_empty():
-            return tgs_calc_exposure_df(
-                ancestor_ids=np.zeros(0, dtype=np.int64),
-                origin_time=np.zeros(0),
-                trait_states=[np.zeros(0, dtype=np.int64)]
-                * len(trait_transitions),
+            return tgs_build_exposure_df(
+                pl.DataFrame(
+                    schema={
+                        "ancestor_id": pl.Int64,
+                        "origin_time": pl.Float64,
+                        **{
+                            f"trait{i}_state": pl.Int64
+                            for i in range(len(trait_transitions))
+                        },
+                    },
+                ),
             )
         states = _tgs_calc_states(
             selected, trait_transitions=trait_transitions
@@ -239,17 +224,15 @@ def tgs_build_exposure_df_polars(
         gc.collect()
         log_memory_usage(logging.info)
 
-    ancestor_ids = collapsed["ancestor_id"].to_numpy()
-    exposure_df = tgs_calc_exposure_df(
-        ancestor_ids=ancestor_ids,
-        origin_time=collapsed["origin_time"].to_numpy(),
-        trait_states=[
-            collapsed[f"__alifestd_tgs_state{i}"].to_numpy()
-            for i in range(len(trait_transitions))
-        ],
+    exposure_df = tgs_build_exposure_df(
+        collapsed.select(
+            "ancestor_id",
+            "origin_time",
+            *(f"trait{i}_state" for i in range(len(trait_transitions))),
+        ),
     )
-    is_root = ancestor_ids == np.arange(len(ancestor_ids))
-    collapsed = collapsed.filter(~is_root)  # rows now match exposure_df's
+    # without roots, rows match exposure_df's
+    collapsed = collapsed.filter(pl.col("ancestor_id") != pl.col("id"))
     columns = {"node_id": collapsed["__alifestd_tgs_node_id"]}
     if calibration_partition_by is not None:
         columns["calibration_partition"] = _tgs_get_integer_column(

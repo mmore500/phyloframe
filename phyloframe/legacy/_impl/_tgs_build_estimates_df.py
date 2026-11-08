@@ -1,5 +1,6 @@
 import typing
 
+import opytional as opyt
 import polars as pl
 
 from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
@@ -10,7 +11,6 @@ def tgs_build_estimates_df(
     *,
     point_estimate_df: pl.DataFrame,
     bootstrap_fits_df: typing.Optional[pl.DataFrame],
-    num_bootstrap: int,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
@@ -24,12 +24,12 @@ def tgs_build_estimates_df(
     -------------
     'trait' : string
         Trait name.
-    'num_leaves' : integer
+    'num_leaf_episodes' : integer
         Leaf exposure episodes, i.e., leaf branches that started without
         the trait.
-    'num_trait_present' : integer
+    'num_leaf_gains' : integer
         Of those, the number that gained the trait.
-    'num_inner_branches' : integer, allmdc only
+    'num_inner_episodes' : integer, allmdc only
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
     'num_inner_gains' : integer, allmdc only
@@ -46,7 +46,7 @@ def tgs_build_estimates_df(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1.
 
-    With `num_bootstrap` replicates, also:
+    With `bootstrap_fits_df`, also:
 
     'selection_coef_se' : float
         Bootstrap standard error of the selection coefficient.
@@ -64,7 +64,7 @@ def tgs_build_estimates_df(
         Replicates excluded for an undefined selection coefficient or gain
         ratio.
     """
-    estimates_df = pl.concat(
+    return pl.concat(
         [
             counts_df,
             point_estimate_df.select(
@@ -74,17 +74,15 @@ def tgs_build_estimates_df(
                 "selection_coef_lrt_naive",
                 "gain_ratio_lrt_naive",
             ),
-        ],
-        how="horizontal",
-    )
-    if not num_bootstrap:
-        return estimates_df
-    return pl.concat(
-        [
-            estimates_df,
-            tgs_summarize_bootstrap(
-                point_estimate_df=estimates_df,
-                bootstrap_fits_df=bootstrap_fits_df,
+            opyt.apply_if_or_else(
+                bootstrap_fits_df,
+                lambda df: tgs_summarize_bootstrap(
+                    point_estimate_df=point_estimate_df.with_columns(
+                        counts_df["trait"]
+                    ),
+                    bootstrap_fits_df=df,
+                ),
+                pl.DataFrame,
             ),
         ],
         how="horizontal",

@@ -11,9 +11,9 @@ from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 def _tgs_calc_trait_gain_ratio_lrt(
     *,
     nll_kwargs: typing.Dict[str, typing.Any],
-    gain_rate: float,
+    gain_rate_trait: float,
+    gain_rate_neutral: float,
     selection_coef: float,
-    gain_ratio: float,
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
 ) -> float:
@@ -21,23 +21,24 @@ def _tgs_calc_trait_gain_ratio_lrt(
     tgs stands for trait gain/selection.
 
     Returns one trait's gain ratio likelihood-ratio statistic (see
-    `tgs_calc_trait_gain_ratio_lrts`), or nan if its gain ratio is
+    `tgs_calc_trait_gain_ratio_lrts`), given its fitted gain rate,
+    `gain_rate_trait`, and selection coefficient, and the mean gain rate of
+    its neutral reference, `gain_rate_neutral`; nan if its gain ratio is
     undefined.
     """
-    if not np.isfinite(gain_ratio) or not gain_rate > 0:
+    if not (gain_rate_trait > 0 and np.isfinite(gain_rate_neutral)):
         return np.nan
     selection_rescale = tgs_pick_selection_rescale(nll_kwargs["partitions"])
     free_nll, __, __ = tgs_calc_nll(
         **nll_kwargs,
-        log_gain_rate=np.log(gain_rate),
-        rate=selection_coef - loss_rate,
+        gain_rate=gain_rate_trait,
+        growth_rate=selection_coef - loss_rate,
     )
-    reference_log_gain_rate = np.log(gain_rate / gain_ratio)
     null = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
         # from the free fit, then from each of `selection_coef_starts`
         starts=[
-            (reference_log_gain_rate, start)
+            (np.log(gain_rate_neutral), start)
             for start in (
                 selection_coef / selection_rescale,
                 *selection_coef_starts,
@@ -106,15 +107,21 @@ def tgs_calc_trait_gain_ratio_lrts(
                 "trait": trait,
                 "gain_ratio_lrt_naive": _tgs_calc_trait_gain_ratio_lrt(
                     nll_kwargs=nll_kwargs,
-                    gain_rate=fit["gain_rate"],
+                    gain_rate_trait=fit["gain_rate"],
+                    gain_rate_neutral=fit["gain_rate_neutral"],
                     selection_coef=fit["selection_coef"],
-                    gain_ratio=fit["gain_ratio"],
                     loss_rate=loss_rate,
                     selection_coef_starts=selection_coef_starts,
                 ),
             }
             for trait, (nll_kwargs, fit) in enumerate(
-                zip(trait_nll_kwargs, fits_df.iter_rows(named=True))
+                zip(
+                    trait_nll_kwargs,
+                    fits_df.with_columns(
+                        gain_rate_neutral=pl.col("gain_rate")
+                        / pl.col("gain_ratio"),
+                    ).iter_rows(named=True),
+                )
             )
         ],
         schema={"trait": pl.Int64, "gain_ratio_lrt_naive": pl.Float64},

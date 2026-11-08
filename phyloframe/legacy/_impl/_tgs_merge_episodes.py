@@ -38,7 +38,7 @@ def tgs_merge_episodes(
     gain/selection.
 
     Merges `trait`'s exposure episodes (rows of `exposure_df` starting
-    without the trait; see `tgs_calc_exposure_df`) whose calibrated branch
+    without the trait; see `tgs_build_exposure_df`) whose calibrated branch
     lengths and survival durations both agree within relative tolerance
     `length_rtol`, i.e., fall in the same cell of a log-scale grid with
     ratio 1 + `length_rtol` (0 for no merging), so that merged episodes

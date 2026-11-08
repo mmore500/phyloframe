@@ -28,8 +28,8 @@ def tgs_calc_trait_selection_lrt(
     selection_rescale = tgs_pick_selection_rescale(nll_kwargs["partitions"])
     free_nll, __, __ = tgs_calc_nll(
         **nll_kwargs,
-        log_gain_rate=np.log(gain_rate),
-        rate=selection_coef - loss_rate,
+        gain_rate=gain_rate,
+        growth_rate=selection_coef - loss_rate,
     )
     # under the null hypothesis of no selection, refit the log gain rate
     # alone, with selection held at 0; one start, from the free fit,

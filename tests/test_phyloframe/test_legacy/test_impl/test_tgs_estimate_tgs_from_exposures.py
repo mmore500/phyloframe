@@ -6,9 +6,9 @@ import pytest
 from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
-    tgs_calc_exposure_df,
-    tgs_count_exposure_episodes,
-    tgs_impl,
+    tgs_build_exposure_df,
+    tgs_estimate_tgs_from_exposures,
+    tgs_tally_exposure_episodes,
 )
 
 from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
@@ -17,11 +17,11 @@ _TRAIT_NAMES = ["focal", "a", "b", "c"]
 
 
 def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
-    return tgs_impl(
+    return tgs_estimate_tgs_from_exposures(
         exposure_df,
         **{
             **dict(
-                counts_df=tgs_count_exposure_episodes(
+                counts_df=tgs_tally_exposure_episodes(
                     trait_names=_TRAIT_NAMES, exposure_df=exposure_df
                 ),
                 trait_names=_TRAIT_NAMES,
@@ -98,10 +98,14 @@ def test_partitions_separate_neighborhoods():
 
 
 def test_no_episodes_raises():
-    exposure_df = tgs_calc_exposure_df(
-        ancestor_ids=np.array([0]),
-        origin_time=np.array([0.0]),
-        trait_states=[np.array([0])] * 4,
+    exposure_df = tgs_build_exposure_df(
+        pl.DataFrame(
+            {
+                "ancestor_id": [0],
+                "origin_time": [0.0],
+                **{f"trait{i}_state": [0] for i in range(4)},
+            },
+        ),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
         _impl(exposure_df)

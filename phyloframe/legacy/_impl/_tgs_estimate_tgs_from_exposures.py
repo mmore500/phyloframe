@@ -5,37 +5,18 @@ import typing
 
 import numpy as np
 import polars as pl
-import polars.selectors as cs
-from scipy import sparse
 
-from ..._auxlib._calc_group_means import calc_group_means
-from ..._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ..._auxlib._log_memory_usage import log_memory_usage
+from ._tgs_assign_calibration_bins import tgs_assign_calibration_bins
 from ._tgs_bootstrap_trait_fits import tgs_bootstrap_trait_fits
 from ._tgs_build_estimates_df import tgs_build_estimates_df
-from ._tgs_count_traits import tgs_count_traits
 from ._tgs_fit_traits import tgs_fit_traits
-from ._tgs_select_calibration_neighborhoods import (
-    tgs_select_calibration_neighborhoods,
+from ._tgs_select_partitioned_calibration_neighborhoods import (
+    tgs_select_partitioned_calibration_neighborhoods,
 )
 
 
-def _slice_bins(
-    trait_bin_counts_df: pl.DataFrame, begin: int, end: int
-) -> pl.DataFrame:
-    """Implementation detail for `tgs_impl`.
-
-    Returns the rows of `trait_bin_counts_df`, per-trait exposure counts in
-    each calibration bin (see `tgs_count_traits`), for one partition's
-    bins, `begin` up to `end`, with bins renumbered from 0 to match that
-    partition's own bin coordinates.
-    """
-    return trait_bin_counts_df.filter(
-        pl.col("bin").is_between(begin, end - 1)
-    ).with_columns(pl.col("bin") - begin)
-
-
-def tgs_impl(
+def tgs_estimate_tgs_from_exposures(
     exposure_df: pl.DataFrame,
     *,
     counts_df: pl.DataFrame,
@@ -56,12 +37,14 @@ def tgs_impl(
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Fits each trait to the exposure episodes of `exposure_df` (see
-    `tgs_calc_exposure_df`), calibrating by its `calibration_bin` column,
-    if any, comparing bins by their mean ranks in its
-    `calibration_compare_by_*` columns, only within the same
-    `calibration_partition`, and returns per-trait estimates following
-    `counts_df`'s per-trait counts (see `tgs_build_estimates_df`). Takes
+    Estimates each trait's gain rate and selection coefficient from the
+    exposure episodes of `exposure_df` (see `tgs_build_exposure_df`):
+    assigns episodes to calibration bins (see `tgs_assign_calibration_bins`),
+    selects calibration neighborhoods within partitions (see
+    `tgs_select_partitioned_calibration_neighborhoods`), fits point
+    estimates and any bootstrap replicates (see `tgs_fit_traits`), and
+    returns per-trait estimates following `counts_df`'s per-trait counts
+    (see `tgs_build_estimates_df`). Takes
     validated arguments, with `neutral_traits` as indices and `trait_names`
     as labels (see `tgs_validate_args`); see Input and Output Schema.
 
@@ -69,7 +52,7 @@ def tgs_impl(
     ------------
     'branch_length' : float
         Branch length of each exposure table row (see
-        `tgs_calc_exposure_df`).
+        `tgs_build_exposure_df`).
     'survival_duration' : float
         Time from the branch's end node to the latest leaf below it.
     'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
@@ -81,7 +64,7 @@ def tgs_impl(
         Values by which calibration bins are compared.
     `counts_df` columns
         Trait name, 'trait', then per-trait counts, e.g., as for
-        `tgs_count_exposure_episodes`.
+        `tgs_tally_exposure_episodes`.
 
     Output Schema
     -------------
@@ -110,78 +93,20 @@ def tgs_impl(
         Replicates excluded for an undefined selection coefficient or gain
         ratio.
     """
-    num_episodes = len(exposure_df)
-    if not num_episodes:
-        raise ValueError("phylogeny_df has no exposure episodes to fit")
-
-    # number (partition, bin) pairs consecutively, partition-major, so that
-    # each partition's bins are contiguous; a missing column counts as 0, so
-    # without either, every episode is in one bin
-    pairs, bins = np.unique(
-        np.column_stack(
-            [
-                (
-                    exposure_df[column].to_numpy()
-                    if column in exposure_df.columns
-                    else np.zeros(num_episodes, dtype=np.int64)
-                )
-                for column in ("calibration_partition", "calibration_bin")
-            ],
-        ),
-        axis=0,
-        return_inverse=True,
+    bins_df = tgs_assign_calibration_bins(exposure_df)
+    bins = bins_df["bin"].to_numpy()
+    num_episodes, num_bins = len(exposure_df), int(bins.max()) + 1
+    (
+        calibration_neighborhoods,
+        trait_bin_counts_df,
+    ) = tgs_select_partitioned_calibration_neighborhoods(
+        exposure_df,
+        bins_df=bins_df,
+        neighborhood_fractions=calibrate_neighborhood_fractions,
+        neutral_traits=neutral_traits,
+        trait_names=trait_names,
+        max_rate_ratio=calibrate_max_rate_ratio,
     )
-    bins = bins.ravel()
-    num_bins = len(pairs)
-    trait_bin_counts_df = None  # reused by the point estimate, if computed
-    if num_bins > 1:
-        compare_by_df = exposure_df.select(
-            cs.starts_with("calibration_compare_by_")
-        )
-        # each episode's rank by each compare-by column, averaged per bin;
-        # constant columns carry no distance
-        episode_ranks = calc_tiebroken_ranks(
-            [
-                compare_by_df[column].to_numpy()
-                for column in compare_by_df.columns
-                if compare_by_df[column].n_unique() > 1
-            ]
-            or [compare_by_df[compare_by_df.columns[0]].to_numpy()]
-        )
-        bin_coords = calc_group_means(
-            bins, episode_ranks / num_episodes, num_groups=num_bins
-        )
-        del compare_by_df, episode_ranks
-        trait_bin_counts_df = tgs_count_traits(
-            exposure_df=exposure_df,
-            bins=bins,
-            num_bins=num_bins,
-            weights=np.ones(num_episodes),
-        )
-        # neighborhoods never span partitions, selected separately within
-        # each
-        __, partition_starts = np.unique(pairs[:, 0], return_index=True)
-        partition_bounds = [*partition_starts, num_bins]
-        calibration_neighborhoods = sparse.block_diag(
-            [
-                tgs_select_calibration_neighborhoods(
-                    bin_coords=bin_coords[begin:end],
-                    neighborhood_fractions=calibrate_neighborhood_fractions,
-                    trait_bin_counts_df=_slice_bins(
-                        trait_bin_counts_df, begin, end
-                    ),
-                    neutral_traits=neutral_traits,
-                    trait_names=trait_names,
-                    max_rate_ratio=calibrate_max_rate_ratio,
-                )
-                for begin, end in zip(partition_bounds, partition_bounds[1:])
-            ],
-            format="csr",
-        )
-        gc.collect()
-        log_memory_usage(logging.info)
-    else:  # one neighborhood of all episodes, i.e., no calibration
-        calibration_neighborhoods = sparse.identity(1, format="csr")
 
     distinct_survival_durations, survival_duration_indices = np.unique(
         exposure_df["survival_duration"].to_numpy(), return_inverse=True
@@ -217,7 +142,9 @@ def tgs_impl(
     log_memory_usage(logging.info)
     bootstrap_fits_df = None
     if num_bootstrap:
-        logging.info(f"- tgs: fitting {num_bootstrap} bootstrap replicates...")
+        logging.info(
+            f"- tgs: fitting {num_bootstrap} bootstrap replicates...",
+        )
         bootstrap_fits_df = tgs_bootstrap_trait_fits(
             do_fit=functools.partial(tgs_fit_traits, **fit_kwargs),
             num_items=num_episodes,
@@ -232,5 +159,4 @@ def tgs_impl(
         counts_df,
         point_estimate_df=point_estimate_df,
         bootstrap_fits_df=bootstrap_fits_df,
-        num_bootstrap=num_bootstrap,
     )

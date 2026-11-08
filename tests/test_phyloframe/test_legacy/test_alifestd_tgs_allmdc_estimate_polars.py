@@ -134,7 +134,7 @@ def test_recovers_gain_selection(calibrate: bool):
         seed=1,
     )
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
-    assert (res["num_inner_branches"] == 40_000).all()
+    assert (res["num_inner_episodes"] == 40_000).all()
     assert (res["num_inner_gains"] > 0).all()
 
     focal = res.iloc[0]
@@ -177,13 +177,13 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
     )
     res = _estimate_allmdc(phylogeny_df, **kwargs)
     expected = _estimate_pendantmdc(phylogeny_df, **kwargs)
-    for column in ("num_leaves", "num_trait_present"):
+    for column in ("num_leaf_episodes", "num_leaf_gains"):
         assert res[column].tolist() == expected[column].tolist()
     for column in ("gain_rate", "selection_coef", "gain_ratio"):
         assert res[column].to_numpy() == pytest.approx(
             expected[column].to_numpy(), rel=1e-4, abs=1e-8
         )
-    assert (res["num_inner_branches"] == 0).all()
+    assert (res["num_inner_episodes"] == 0).all()
 
 
 def test_counts():
@@ -208,20 +208,29 @@ def test_counts():
     )
     # trait 0: gained on branch 1, whose clade carries it at both leaves,
     # so leaves 2 and 3 started with it; leaf 4 started without it
-    assert res.loc[0, ["num_leaves", "num_trait_present"]].tolist() == [1, 0]
-    assert res.loc[0, ["num_inner_branches", "num_inner_gains"]].tolist() == [
+    assert res.loc[0, ["num_leaf_episodes", "num_leaf_gains"]].tolist() == [
+        1,
+        0,
+    ]
+    assert res.loc[0, ["num_inner_episodes", "num_inner_gains"]].tolist() == [
         1,
         1,
     ]
     # trait 1: gained on leaf 2's pendant branch only
-    assert res.loc[1, ["num_leaves", "num_trait_present"]].tolist() == [3, 1]
-    assert res.loc[1, ["num_inner_branches", "num_inner_gains"]].tolist() == [
+    assert res.loc[1, ["num_leaf_episodes", "num_leaf_gains"]].tolist() == [
+        3,
+        1,
+    ]
+    assert res.loc[1, ["num_inner_episodes", "num_inner_gains"]].tolist() == [
         1,
         0,
     ]
     # trait 2: every leaf carries it, so it predates every branch
-    assert res.loc[2, ["num_leaves", "num_trait_present"]].tolist() == [0, 0]
-    assert res.loc[2, ["num_inner_branches", "num_inner_gains"]].tolist() == [
+    assert res.loc[2, ["num_leaf_episodes", "num_leaf_gains"]].tolist() == [
+        0,
+        0,
+    ]
+    assert res.loc[2, ["num_inner_episodes", "num_inner_gains"]].tolist() == [
         0,
         0,
     ]
@@ -304,7 +313,7 @@ def _make_cherries_with_transitions(num_cherries: int = 100):
 
 def test_missing_transitions_column_raises():
     phylogeny_df, names = _make_cherries_with_transitions()
-    with pytest.raises(ValueError, match="no column absent"):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
         _estimate_allmdc(
             phylogeny_df,
             trait_transitions=["absent", *names[1:]],
@@ -314,7 +323,7 @@ def test_missing_transitions_column_raises():
 
 def test_missing_calibration_column_raises():
     phylogeny_df, names = _make_cherries_with_transitions()
-    with pytest.raises(ValueError, match="no column absent"):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
         _estimate_allmdc(
             phylogeny_df,
             trait_transitions=names,

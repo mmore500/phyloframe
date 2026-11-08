@@ -22,7 +22,7 @@ _ANCESTOR_IDS = np.array([0, 0, 0, 1])
 def test_states(transitions, expected):
     res = tgs_calc_trait_states(
         ancestor_ids=_ANCESTOR_IDS,
-        transitions=np.asarray(transitions),
+        trait_transitions=np.asarray(transitions),
         trait_name="t",
     )
     assert res.tolist() == expected
@@ -40,5 +40,7 @@ def test_states(transitions, expected):
 def test_invalid(transitions, error):
     with pytest.raises(error):
         tgs_calc_trait_states(
-            ancestor_ids=_ANCESTOR_IDS, transitions=transitions, trait_name="t"
+            ancestor_ids=_ANCESTOR_IDS,
+            trait_transitions=transitions,
+            trait_name="t",
         )

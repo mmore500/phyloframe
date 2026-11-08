@@ -64,13 +64,12 @@ def test_calc_scales(fixture):
 def test_true_parameters_fit_better(fixture):
     nll_kwargs = _nll_kwargs(fixture, 0)
     nll, dlog_gain, drate = tgs_calc_nll(
-        **nll_kwargs, log_gain_rate=np.log(2e-3), rate=-0.05
+        **nll_kwargs, gain_rate=2e-3, growth_rate=-0.05
     )
     assert np.isfinite([nll, dlog_gain, drate]).all()
     # the true parameters fit better than a far-off gain rate
     assert (
-        nll
-        < tgs_calc_nll(**nll_kwargs, log_gain_rate=np.log(2e-2), rate=-0.05)[0]
+        nll < tgs_calc_nll(**nll_kwargs, gain_rate=2e-2, growth_rate=-0.05)[0]
     )
 
 

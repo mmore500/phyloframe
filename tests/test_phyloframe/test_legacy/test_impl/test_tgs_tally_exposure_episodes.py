@@ -1,6 +1,6 @@
 import polars as pl
 
-from phyloframe.legacy._impl import tgs_count_exposure_episodes
+from phyloframe.legacy._impl import tgs_tally_exposure_episodes
 
 
 def test_count():
@@ -13,24 +13,24 @@ def test_count():
             "trait1_gain": [False] * 5,
         },
     )
-    res = tgs_count_exposure_episodes(
+    res = tgs_tally_exposure_episodes(
         trait_names=["a", "b"], exposure_df=exposure_df
     )
     assert res.columns == [
         "trait",
-        "num_leaves",
-        "num_trait_present",
-        "num_inner_branches",
+        "num_leaf_episodes",
+        "num_leaf_gains",
+        "num_inner_episodes",
         "num_inner_gains",
     ]
-    assert res["num_leaves"].to_list() == [3, 1]
-    assert res["num_trait_present"].to_list() == [1, 0]
-    assert res["num_inner_branches"].to_list() == [2, 1]
+    assert res["num_leaf_episodes"].to_list() == [3, 1]
+    assert res["num_leaf_gains"].to_list() == [1, 0]
+    assert res["num_inner_episodes"].to_list() == [2, 1]
     assert res["num_inner_gains"].to_list() == [1, 0]
 
 
 def test_no_traits():
-    res = tgs_count_exposure_episodes(
+    res = tgs_tally_exposure_episodes(
         trait_names=[], exposure_df=pl.DataFrame({"clade_size": [1, 2]})
     )
     assert res.columns[0] == "trait"

@@ -3,12 +3,15 @@ import logging
 import typing
 
 import numpy as np
+import opytional as opyt
 import polars as pl
 from scipy import sparse
 
 from ..._auxlib._identity import identity
 from ..._auxlib._log_memory_usage import log_memory_usage
-from ._tgs_calc_calibration_factors import tgs_calc_calibration_factors
+from ._tgs_calc_calibration_rescaling import (
+    tgs_calc_calibration_rescaling,
+)
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_merge_episodes import tgs_merge_episodes
@@ -39,7 +42,7 @@ def tgs_fit_traits(
 
     Fits each trait to `exposure_df`'s exposure episodes, each weighted by
     `weights` (e.g., bootstrap draw counts): calibrates branch lengths by
-    calibration bin (see `tgs_calc_calibration_factors`), merges episodes of
+    calibration bin (see `tgs_calc_calibration_rescaling`), merges episodes of
     similar calibrated length (see `tgs_merge_episodes`), and fits gain
     rate and selection coefficient (see `tgs_fit_trait_partitions`).
 
@@ -84,20 +87,22 @@ def tgs_fit_traits(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1.
     """
-    if trait_bin_counts_df is None:
-        trait_bin_counts_df = tgs_count_traits(
+    trait_bin_counts_df = opyt.or_else(
+        trait_bin_counts_df,
+        lambda: tgs_count_traits(
             exposure_df=exposure_df,
             bins=bins,
             num_bins=num_bins,
             weights=weights,
-        )
+        ),
+    )
     trait_nll_kwargs = []  # each trait's, but the rate parameters
     for trait in progress_wrap(range(tgs_count_exposure_traits(exposure_df))):
         partitions, survival_shares = tgs_merge_episodes(
             exposure_df=exposure_df,
             trait=trait,
             bins=bins,
-            calibration_factors=tgs_calc_calibration_factors(
+            calibration_factors=tgs_calc_calibration_rescaling(
                 trait_bin_counts_df=trait_bin_counts_df,
                 trait=trait,
                 neutral_traits=neutral_traits,

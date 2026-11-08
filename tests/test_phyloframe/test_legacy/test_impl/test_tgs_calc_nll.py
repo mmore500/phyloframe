@@ -44,8 +44,8 @@ def _pendant_partitions(gain_rate: float, selection_coef: float, seed: int):
 
 def _pendant_nll(partitions, log_gain_rate, rate):
     return tgs_calc_nll(
-        log_gain_rate=log_gain_rate,
-        rate=rate,
+        gain_rate=np.exp(log_gain_rate),
+        growth_rate=rate,
         partitions=partitions,
         growth_exponent_bound=600.0,
     )
@@ -55,8 +55,8 @@ def test_matches_pendant_without_survival_duration():
     data, __ = _data()
     data["survival_shares"] = np.ones((6, 1))
     res = tgs_calc_nll(
-        log_gain_rate=np.log(1e-3),
-        rate=-0.05,
+        gain_rate=1e-3,
+        growth_rate=-0.05,
         **data,
         distinct_survival_durations=np.array([0.0]),
         growth_exponent_bound=600.0,
@@ -73,8 +73,8 @@ def test_survival_discounts():
     rate = -0.05
     factor = shares @ np.exp(rate * times)
     nll, __, __ = tgs_calc_nll(
-        log_gain_rate=np.log(1e-3),
-        rate=rate,
+        gain_rate=1e-3,
+        growth_rate=rate,
         **data,
         distinct_survival_durations=times,
         growth_exponent_bound=600.0,
@@ -90,8 +90,8 @@ def test_gradient(rate: float):
 
     def f(params):
         return tgs_calc_nll(
-            log_gain_rate=params[0],
-            rate=params[1],
+            gain_rate=np.exp(params[0]),
+            growth_rate=params[1],
             **data,
             distinct_survival_durations=times,
             growth_exponent_bound=600.0,
@@ -137,8 +137,8 @@ def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
     data, times = _data()
     with pytest.raises(ValueError, match="growth exponent bound"):
         tgs_calc_nll(
-            log_gain_rate=np.log(1e-3),
-            rate=-0.05,
+            gain_rate=1e-3,
+            growth_rate=-0.05,
             partitions=data["partitions"],
             growth_exponent_bound=growth_exponent_bound,
         )
@@ -150,7 +150,7 @@ def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
 def test_effective_length(rate: float):
     length = np.array([0.01, 1.0, 7.0, 30.0])
     res, res_deriv = _tgs_calc_effective_length(
-        length=length, rate=rate, growth_exponent_bound=600.0
+        length=length, growth_rate=rate, growth_exponent_bound=600.0
     )
     # exact values, from the series sums over j >= 1 of
     # rate**(j - 1) * t**j / j!, and over j >= 2 of its derivative,

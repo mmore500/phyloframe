@@ -18,8 +18,8 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
     tgs_build_exposure_df_polars,
-    tgs_count_exposure_episodes,
-    tgs_impl,
+    tgs_estimate_tgs_from_exposures,
+    tgs_tally_exposure_episodes,
     tgs_validate_args,
 )
 
@@ -173,8 +173,9 @@ def alifestd_tgs_allmdc_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes (i.e., branches to fit), if an
-        argument is invalid, or if a column is missing or has invalid
-        values.
+        argument is invalid, or if a column has invalid values.
+    polars.exceptions.ColumnNotFoundError
+        If a column is missing.
     NotImplementedError
         If fewer than two neutral traits are given, or for unsupported input
         (see Input Schema), e.g., a non-asexual phylogeny, null values, or
@@ -204,12 +205,12 @@ def alifestd_tgs_allmdc_estimate_polars(
 
     'trait' : string
         Trait, named by its `trait_transitions` column.
-    'num_leaves' : integer
+    'num_leaf_episodes' : integer
         Leaf exposure episodes, i.e., leaf branches that started without
         the trait.
-    'num_trait_present' : integer
+    'num_leaf_gains' : integer
         Of those, the number that gained the trait.
-    'num_inner_branches' : integer
+    'num_inner_episodes' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
     'num_inner_gains' : integer
@@ -318,9 +319,9 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
-    return tgs_impl(
+    return tgs_estimate_tgs_from_exposures(
         exposure_df,
-        counts_df=tgs_count_exposure_episodes(
+        counts_df=tgs_tally_exposure_episodes(
             trait_names=trait_names, exposure_df=exposure_df
         ),
         trait_names=trait_names,
@@ -382,7 +383,7 @@ Input Schema: Optional Columns
 Output Schema
 =============
 As for phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars, with also
-'num_inner_branches' and 'num_inner_gains' : integer, the inner exposure
+'num_inner_episodes' and 'num_inner_gains' : integer, the inner exposure
 episodes and how many gained the trait.
 
 

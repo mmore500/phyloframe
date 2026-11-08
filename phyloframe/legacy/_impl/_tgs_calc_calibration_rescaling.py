@@ -9,7 +9,7 @@ from ..._auxlib._calc_neighborhood_rate_ratios import (
 )
 
 
-def tgs_calc_calibration_factors(
+def tgs_calc_calibration_rescaling(
     *,
     trait_bin_counts_df: pl.DataFrame,
     trait: int,

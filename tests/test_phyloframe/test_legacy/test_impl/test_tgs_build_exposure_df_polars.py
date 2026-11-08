@@ -77,7 +77,7 @@ def test_null_transitions_raise():
 
 
 def test_missing_column_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
         tgs_build_exposure_df_polars(
             _make_tree(), trait_transitions=["x"], caller="test"
         )
@@ -129,7 +129,7 @@ def test_invalid_calibration_column_raises(kwargs: dict):
 
 
 def test_missing_calibration_column_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
         tgs_build_exposure_df_polars(
             _make_tree(),
             trait_transitions=["t"],
