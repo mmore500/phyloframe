@@ -9,6 +9,9 @@ from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
 from ._tgs_calc_heldout_nll import tgs_calc_heldout_nll
+from ._tgs_calc_neutral_reference_gain_rates import (
+    tgs_calc_neutral_reference_gain_rates,
+)
 from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_calc_trait_gain_ratio_lrts import tgs_calc_trait_gain_ratio_lrts
 from ._tgs_calc_trait_selection_lrts import (
@@ -23,9 +26,6 @@ from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_fit_traits import tgs_fit_traits
 from ._tgs_merge_episodes import tgs_merge_episodes
 from ._tgs_minimize_nll import tgs_minimize_nll
-from ._tgs_normalize_gain_rates_to_neutral import (
-    tgs_normalize_gain_rates_to_neutral,
-)
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
 )
@@ -64,7 +64,7 @@ __all__ = [
     "tgs_estimate_tgs_from_exposures",
     "tgs_merge_episodes",
     "tgs_minimize_nll",
-    "tgs_normalize_gain_rates_to_neutral",
+    "tgs_calc_neutral_reference_gain_rates",
     "tgs_select_calibration_neighborhoods",
     "tgs_summarize_bootstrap",
     "tgs_count_exposure_traits",

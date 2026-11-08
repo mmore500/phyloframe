@@ -63,6 +63,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
     exposure_df: pl.DataFrame,
     *,
     bins_df: pl.DataFrame,
+    num_bins: int,
     neighborhood_fractions: typing.Sequence[float],
     neutral_traits: typing.Sequence[int],
     trait_names: typing.Sequence[str],
@@ -118,7 +119,6 @@ def tgs_select_partitioned_calibration_neighborhoods(
         Their summed branch length.
     """
     bins = bins_df["bin"].to_numpy()
-    num_bins = int(bins.max()) + 1
     trait_bin_counts_df = tgs_count_traits(
         exposure_df=exposure_df,
         bins=bins,
@@ -128,14 +128,14 @@ def tgs_select_partitioned_calibration_neighborhoods(
     if num_bins == 1:  # one neighborhood of all episodes, i.e., no calibration
         return sparse.identity(1, format="csr"), trait_bin_counts_df
 
-    # each partition's first bin, then the number of bins
-    bin_partitions = (
-        bins_df.group_by("bin").agg(pl.col("partition").first()).sort("bin")
-    )["partition"].to_numpy()
-    partition_bounds = [
-        *np.searchsorted(bin_partitions, np.unique(bin_partitions)).tolist(),
-        num_bins,
-    ]
+    # each partition's bins, contiguous as numbered partition-major
+    partition_bin_ranges = (
+        bins_df.group_by("partition")
+        .agg(begin=pl.col("bin").min(), end=pl.col("bin").max() + 1)
+        .sort("partition")
+        .select("begin", "end")
+        .iter_rows()
+    )
     bin_coords = _tgs_calc_calibration_bin_coords(
         exposure_df, bins=bins, num_bins=num_bins
     )
@@ -151,7 +151,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
                 trait_names=trait_names,
                 max_rate_ratio=max_rate_ratio,
             )
-            for begin, end in zip(partition_bounds, partition_bounds[1:])
+            for begin, end in partition_bin_ranges
         ],
         format="csr",
     )

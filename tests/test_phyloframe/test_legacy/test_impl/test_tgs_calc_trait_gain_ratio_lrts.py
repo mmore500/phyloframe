@@ -2,9 +2,9 @@ import numpy as np
 import polars as pl
 
 from phyloframe.legacy._impl import (
+    tgs_calc_neutral_reference_gain_rates,
     tgs_calc_trait_gain_ratio_lrts,
     tgs_fit,
-    tgs_normalize_gain_rates_to_neutral,
 )
 
 
@@ -45,7 +45,7 @@ def _fit_traits(gain_rates):
 
 def _lrts(fits, trait_nll_kwargs, *, neutral_traits, **kwargs):
     fits = fits.with_columns(
-        gain_ratio=tgs_normalize_gain_rates_to_neutral(
+        gain_rate_neutral=tgs_calc_neutral_reference_gain_rates(
             gain_rates=fits["gain_rate"].to_numpy(),
             neutral_traits=neutral_traits,
         ),
