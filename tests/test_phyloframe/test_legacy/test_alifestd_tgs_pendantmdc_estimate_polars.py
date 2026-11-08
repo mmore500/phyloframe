@@ -108,7 +108,7 @@ def test_recovers_gain_selection(calibrate: bool):
         seed=1,
     )
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
-    assert (res["num_leaves"] <= 80_000).all()
+    assert (res["num_leaf_episodes"] <= 80_000).all()
 
     focal = res.iloc[0]
     assert focal["gain_ratio"] == pytest.approx(2.0, rel=0.2)
@@ -162,8 +162,8 @@ def test_drops_inherited_and_rootward():
         neutral_traits=[2, 3],
     )
     # both leaves carry trait 0 from above their parent, so both drop
-    assert res["num_leaves"].tolist() == [0, 2, 2, 2]
-    assert res["num_trait_present"].tolist() == [0, 1, 0, 0]
+    assert res["num_leaf_episodes"].tolist() == [0, 2, 2, 2]
+    assert res["num_leaf_gains"].tolist() == [0, 1, 0, 0]
     assert np.isnan(res.loc[0, "selection_coef"])
     # the neutral traits never gain, so gain ratios are undefined
     assert np.isnan(res["gain_ratio"]).all()
@@ -263,7 +263,7 @@ def _make_cherries_with_transitions(num_cherries: int = 100):
 
 def test_missing_transitions_column_raises():
     phylogeny_df, names = _make_cherries_with_transitions()
-    with pytest.raises(ValueError, match="no column absent"):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
         _estimate_pendantmdc(
             phylogeny_df,
             trait_transitions=["absent", *names[1:]],
@@ -780,4 +780,4 @@ def test_unifurcation_transitions_credit_merged_branch():
         **kwargs,
     )
     assert res_below.equals(res_above)
-    assert res_below["num_trait_present"][0] == traits[0].sum()
+    assert res_below["num_leaf_gains"][0] == traits[0].sum()

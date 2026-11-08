@@ -6,7 +6,9 @@ import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ._tgs_calc_calibration_factors import tgs_calc_calibration_factors
+from ._tgs_calc_calibration_rescaling_factors import (
+    tgs_calc_calibration_rescaling_factors,
+)
 
 
 def tgs_calc_heldout_nll(
@@ -27,29 +29,35 @@ def tgs_calc_heldout_nll(
     calibrated exposure, so scores the same for every neighborhood size.
     """
     trait_counts_df = trait_bin_counts_df.filter(pl.col("trait") == trait)
-    n = trait_counts_df["num_trials"].to_numpy()
-    k = trait_counts_df["num_successes"].to_numpy()
-    mean_lengths = np.divide(  # HEY! name this mean_XXX_lengths what is XXX?
+    num_trials = trait_counts_df["num_trials"].to_numpy()
+    num_successes = trait_counts_df["num_successes"].to_numpy()
+    mean_bin_branch_lengths = np.divide(
         trait_counts_df["length_sum"].to_numpy(),
-        n,
-        out=np.zeros(n.shape),
-        where=n > 0,
+        num_trials,
+        out=np.zeros(num_trials.shape),
+        where=num_trials > 0,
     )
-    assert trait not in neutral_traits
-    calibrated_lengths = mean_lengths * tgs_calc_calibration_factors(
-        trait_bin_counts_df=trait_bin_counts_df,
-        trait=trait,
-        neutral_traits=neutral_traits,
-        calibration_neighborhoods=calibration_neighborhoods,
-        max_rate_ratio=max_rate_ratio,
+    # held out from its own calibration, against the other neutral traits
+    assert trait in neutral_traits
+    calibrated_lengths = (
+        mean_bin_branch_lengths
+        * tgs_calc_calibration_rescaling_factors(
+            trait_bin_counts_df=trait_bin_counts_df,
+            trait=trait,
+            neutral_traits=neutral_traits,
+            calibration_neighborhoods=calibration_neighborhoods,
+            max_rate_ratio=max_rate_ratio,
+        )
     )
-    exposure = (n * calibrated_lengths).sum()
-    if not (k.any() and exposure):
+    exposure = (num_trials * calibrated_lengths).sum()
+    if not (num_successes.any() and exposure):
         warnings.warn(
             f"neutral trait {trait_name} has no gains or no calibrated "
             "exposure, so it does not inform the choice of calibration "
             "neighborhood size.",
         )
         return 0.0
-    gain_rate = k.sum() / exposure  # neutral fit, to first order
-    return calc_binomial_nll_proxy(n, k, gain_rate * calibrated_lengths)[0]
+    gain_rate = num_successes.sum() / exposure  # neutral fit, to first order
+    return calc_binomial_nll_proxy(
+        num_trials, num_successes, gain_rate * calibrated_lengths
+    )[0]

@@ -6,14 +6,14 @@ import polars as pl
 def _tgs_tally_trait_exposure_episodes(
     exposure_df: pl.DataFrame, *, trait: int
 ) -> pl.DataFrame:
-    """Implementation detail for `tgs_count_exposure_episodes`.
+    """Implementation detail for `tgs_tally_exposure_episodes`.
 
     Returns `trait`'s leaf and inner exposure episode and gain counts, as one
     row; see Output Schema.
 
     Output Schema
     -------------
-    'num_leaf_episodes' : integer   # HEY! update the code to match
+    'num_leaf_episodes' : integer
         Leaf exposure episodes, i.e., leaf branches that started without
         the trait.
     'num_leaf_gains' : integer
@@ -30,15 +30,15 @@ def _tgs_tally_trait_exposure_episodes(
     return exposure_df.select(
         mask.cast(pl.Int64).sum().alias(name)
         for name, mask in dict(
-            num_leaves=starts_absent & is_leaf,
-            num_trait_present=gain & is_leaf,
-            num_inner_branches=starts_absent & ~is_leaf,
+            num_leaf_episodes=starts_absent & is_leaf,
+            num_leaf_gains=gain & is_leaf,
+            num_inner_episodes=starts_absent & ~is_leaf,
             num_inner_gains=gain & ~is_leaf,
         ).items()
     )
 
 
-def tgs_tally_exposure_episodes(  # HEY! rename file and tests too
+def tgs_tally_exposure_episodes(
     *,
     trait_names: typing.Sequence[str],
     exposure_df: pl.DataFrame,
@@ -48,18 +48,18 @@ def tgs_tally_exposure_episodes(  # HEY! rename file and tests too
     gain/selection.
 
     Returns one row per trait, with counts of its exposure episodes in
-    `exposure_df` (see `tgs_calc_exposure_df`); see Output Schema.
+    `exposure_df` (see `tgs_build_exposure_df`); see Output Schema.
 
     Output Schema
     -------------
     'trait' : string
         Trait name, from `trait_names`.
-    'num_leaves' : integer
+    'num_leaf_episodes' : integer
         Leaf exposure episodes, i.e., leaf branches that started without
         the trait.
-    'num_trait_present' : integer
+    'num_leaf_gains' : integer
         Of those, the number that gained the trait.
-    'num_inner_branches' : integer
+    'num_inner_episodes' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
     'num_inner_gains' : integer
@@ -70,9 +70,9 @@ def tgs_tally_exposure_episodes(  # HEY! rename file and tests too
             pl.DataFrame(
                 schema=dict.fromkeys(  # RE empty edge case
                     [
-                        "num_leaves",
-                        "num_trait_present",
-                        "num_inner_branches",
+                        "num_leaf_episodes",
+                        "num_leaf_gains",
+                        "num_inner_episodes",
                         "num_inner_gains",
                     ],
                     pl.Int64,

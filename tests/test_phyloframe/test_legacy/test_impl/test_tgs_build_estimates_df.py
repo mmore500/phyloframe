@@ -5,7 +5,7 @@ from phyloframe.legacy._impl import tgs_build_estimates_df
 
 
 def _counts() -> pl.DataFrame:
-    return pl.DataFrame({"trait": ["a", "b"], "num_leaves": [10, 20]})
+    return pl.DataFrame({"trait": ["a", "b"], "num_leaf_episodes": [10, 20]})
 
 
 def _point() -> pl.DataFrame:
@@ -22,7 +22,7 @@ def _point() -> pl.DataFrame:
 
 _COLUMNS = [
     "trait",
-    "num_leaves",
+    "num_leaf_episodes",
     "gain_rate",
     "selection_coef",
     "gain_ratio",

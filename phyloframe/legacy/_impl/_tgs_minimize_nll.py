@@ -53,7 +53,7 @@ def tgs_minimize_nll(
     `tgs_calc_trait_selection_lrts`, and `tgs_calc_trait_gain_ratio_lrts`.
     Acronym tgs stands for trait gain/selection.
 
-    Minimizes `tgs_calc_nll(**nll_kwargs, log_gain_rate=..., rate=...)` by
+    Minimizes `tgs_calc_nll(**nll_kwargs, gain_rate=..., growth_rate=...)` by
     L-BFGS-B over log gain rate if `fit_gain` and selection coefficient if
     `fit_selection`, holding the others at their `starts` values. Starts from
     each of `starts` and returns the best fit, preferring converged ones, with
@@ -75,8 +75,8 @@ def tgs_minimize_nll(
         log_gain_rate, rescaled_selection = params
         res, dlog_gain, drate = tgs_calc_nll(
             **nll_kwargs,
-            log_gain_rate=log_gain_rate,
-            rate=rescaled_selection * selection_rescale - loss_rate,
+            gain_rate=np.exp(log_gain_rate),
+            growth_rate=rescaled_selection * selection_rescale - loss_rate,
         )
         return res, np.array([dlog_gain, drate * selection_rescale])[is_free]
 

@@ -2,7 +2,7 @@ import numpy as np
 import polars as pl
 from scipy import sparse
 
-from phyloframe.legacy._impl import tgs_calc_calibration_factors
+from phyloframe.legacy._impl import tgs_calc_calibration_rescaling_factors
 
 
 def _counts(num_successes) -> pl.DataFrame:
@@ -29,13 +29,13 @@ def test_rate_ratios_of_other_neutral_traits():
         max_rate_ratio=np.inf,
     )
     for trait in range(3):
-        res = tgs_calc_calibration_factors(trait=trait, **kwargs)
+        res = tgs_calc_calibration_rescaling_factors(trait=trait, **kwargs)
         np.testing.assert_allclose(res, [2 / 3, 4 / 3])
 
 
 def test_one_neighborhood_is_uncalibrated():
     counts = _counts([[5, 5], [10, 20], [10, 20]])
-    res = tgs_calc_calibration_factors(
+    res = tgs_calc_calibration_rescaling_factors(
         trait_bin_counts_df=counts,
         trait=0,
         neutral_traits=[1, 2],
@@ -47,7 +47,7 @@ def test_one_neighborhood_is_uncalibrated():
 
 def test_max_rate_ratio_caps():
     counts = _counts([[5, 5], [1, 99], [1, 99]])
-    res = tgs_calc_calibration_factors(
+    res = tgs_calc_calibration_rescaling_factors(
         trait_bin_counts_df=counts,
         trait=0,
         neutral_traits=[1, 2],

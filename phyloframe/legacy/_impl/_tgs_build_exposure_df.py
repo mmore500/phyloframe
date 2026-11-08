@@ -1,5 +1,3 @@
-import typing
-
 import numpy as np
 import polars as pl
 
@@ -14,25 +12,27 @@ from .._alifestd_mark_num_leaves_asexual import (
 )
 
 
-def tgs_build_exposure_df(  # HEY! rename file and tests too
-    *,
-    ancestor_ids: np.ndarray,
-    origin_time: np.ndarray,
-    trait_states: typing.Sequence[
-        np.ndarray
-    ],  # HEY! unclear what this is, can it be a dataframe instead? could this all just be one dataframe param?
-) -> pl.DataFrame:
+def tgs_build_exposure_df(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
     `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
     gain/selection.
 
-    Takes a phylogeny with contiguous, topologically sorted ids and no
-    unifurcations, and each trait's state (0 or 1) at every node. Returns
-    the exposure table, one row per branch, i.e., per non-root node; see
-    Output Schema.
+    Returns the exposure table of `phylogeny_df`, a phylogeny with
+    contiguous, topologically sorted ids and no unifurcations, with one row
+    per branch, i.e., per non-root node; see Input Schema and Output
+    Schema.
 
     Raises ValueError if a non-root node's branch has zero, negative, or
     undefined (nan) length.
+
+    Input Schema
+    ------------
+    'ancestor_id' : integer
+        Parent's id (or own, for a root).
+    'origin_time' : float
+        Time of each node's origin.
+    'trait{i}_state' : integer, per trait `i`
+        Whether the node has trait `i` (0 or 1).
 
     Output Schema
     -------------
@@ -52,13 +52,14 @@ def tgs_build_exposure_df(  # HEY! rename file and tests too
     'trait{i}_gain' : boolean, per trait `i`
         Whether the branch gained the trait.
     """
-    ancestor_ids = np.asarray(ancestor_ids, dtype=np.int64)
-    origin_time = np.asarray(origin_time, dtype=np.float64)
+    ancestor_ids = phylogeny_df["ancestor_id"].to_numpy().astype(np.int64)
+    origin_time = phylogeny_df["origin_time"].to_numpy().astype(np.float64)
+    num_traits = sum(c.endswith("_state") for c in phylogeny_df.columns)
     branch_length = _alifestd_mark_lineage_delta_asexual_fast_path(
         ancestor_ids, origin_time
     )
-    # HEY! why are we excluding roots?
-    keep = ancestor_ids != np.arange(len(ancestor_ids))  # excludes roots
+    # a root has no parent, so no branch over which to gain a trait
+    keep = ancestor_ids != np.arange(len(ancestor_ids))
     (bad_ids,) = np.nonzero(keep & ~(branch_length > 0))  # nan is bad
     if len(bad_ids):
         raise ValueError(
@@ -74,11 +75,12 @@ def tgs_build_exposure_df(  # HEY! rename file and tests too
         "origin_time": origin_time[keep],
         "branch_length": branch_length[keep],
         "survival_duration": (latest_ot - origin_time)[keep],
-        "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(ancestor_ids)[
-            keep
-        ],
+        "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
+            ancestor_ids
+        )[keep],
     }
-    for i, states in enumerate(trait_states):
+    for i in range(num_traits):
+        states = phylogeny_df[f"trait{i}_state"].to_numpy()
         deltas = _alifestd_mark_lineage_delta_asexual_fast_path(
             ancestor_ids, states
         )

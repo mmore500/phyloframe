@@ -28,7 +28,7 @@ def tgs_calc_trait_states(
     ):
         raise NotImplementedError(
             f"trait transitions {trait_name} must have integer dtype, got "
-            f"{transitions.dtype}",
+            f"{trait_transitions.dtype}",
         )
     trait_transitions = trait_transitions.astype(np.int64)
     if not np.isin(trait_transitions, (-1, 0, 1)).all():

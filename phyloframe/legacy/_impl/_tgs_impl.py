@@ -57,7 +57,7 @@ def tgs_impl(
     gain/selection.
 
     Fits each trait to the exposure episodes of `exposure_df` (see
-    `tgs_calc_exposure_df`), calibrating by its `calibration_bin` column,
+    `tgs_build_exposure_df`), calibrating by its `calibration_bin` column,
     if any, comparing bins by their mean ranks in its
     `calibration_compare_by_*` columns, only within the same
     `calibration_partition`, and returns per-trait estimates following
@@ -69,7 +69,7 @@ def tgs_impl(
     ------------
     'branch_length' : float
         Branch length of each exposure table row (see
-        `tgs_calc_exposure_df`).
+        `tgs_build_exposure_df`).
     'survival_duration' : float
         Time from the branch's end node to the latest leaf below it.
     'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
@@ -81,7 +81,7 @@ def tgs_impl(
         Values by which calibration bins are compared.
     `counts_df` columns
         Trait name, 'trait', then per-trait counts, e.g., as for
-        `tgs_count_exposure_episodes`.
+        `tgs_tally_exposure_episodes`.
 
     Output Schema
     -------------

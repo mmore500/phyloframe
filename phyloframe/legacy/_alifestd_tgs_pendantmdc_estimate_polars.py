@@ -18,8 +18,8 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
     tgs_build_exposure_df_polars,
-    tgs_count_exposure_episodes,
     tgs_impl,
+    tgs_tally_exposure_episodes,
     tgs_validate_args,
 )
 
@@ -184,8 +184,9 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes (i.e., leaf pendant branches to fit),
-        if an argument is invalid, or if a column is missing or has invalid
-        values.
+        if an argument is invalid, or if a column has invalid values.
+    polars.exceptions.ColumnNotFoundError
+        If a column is missing.
     NotImplementedError
         If fewer than two neutral traits are given, or for unsupported input
         (see Input Schema), e.g., a non-asexual phylogeny, null values, or
@@ -215,9 +216,9 @@ def alifestd_tgs_pendantmdc_estimate_polars(
 
     'trait' : string
         Trait, named by its `trait_transitions` column.
-    'num_leaves' : integer
+    'num_leaf_episodes' : integer
         Leaf pendant branches that started without the trait.
-    'num_trait_present' : integer
+    'num_leaf_gains' : integer
         Of those, the number that gained the trait.
     'gain_rate' : float
         Estimated rate of trait gain, per unit pendant length.
@@ -337,9 +338,9 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
     return tgs_impl(
         exposure_df,
-        counts_df=tgs_count_exposure_episodes(
+        counts_df=tgs_tally_exposure_episodes(
             trait_names=trait_names, exposure_df=exposure_df
-        ).select("trait", "num_leaves", "num_trait_present"),
+        ).select("trait", "num_leaf_episodes", "num_leaf_gains"),
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
@@ -401,7 +402,7 @@ One row per trait, not a phylogeny.
 'trait' : string
     Trait, named by its transition column.
 
-'num_leaves', 'num_trait_present' : integer
+'num_leaf_episodes', 'num_leaf_gains' : integer
     Leaf pendant branches that started without the trait, and of those, the
     number that gained it.
 

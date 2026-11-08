@@ -1,7 +1,23 @@
 import numpy as np
+import polars as pl
 import pytest
 
-from phyloframe.legacy._impl import tgs_calc_exposure_df
+from phyloframe.legacy._impl import tgs_build_exposure_df
+
+
+def _exposure_df(*, ancestor_ids, origin_time, trait_states):
+    return tgs_build_exposure_df(
+        pl.DataFrame(
+            {
+                "ancestor_id": ancestor_ids,
+                "origin_time": origin_time,
+                **{
+                    f"trait{i}_state": states
+                    for i, states in enumerate(trait_states)
+                },
+            },
+        ),
+    )
 
 
 def test_branches():
@@ -15,7 +31,7 @@ def test_branches():
         np.array([0, 0, 1, 1, 1, 0, 0]),  # gained on the branch into 2
         np.array([1, 1, 1, 1, 1, 1, 1]),  # present from the root
     ]
-    res = tgs_calc_exposure_df(
+    res = _exposure_df(
         ancestor_ids=ancestor_ids,
         origin_time=origin_time,
         trait_states=trait_states,
@@ -35,7 +51,7 @@ def test_branches():
 @pytest.mark.parametrize("bad_origin_time", [0.0, -1.0, np.nan])
 def test_nonpositive_length_raises(bad_origin_time: float):
     with pytest.raises(ValueError):
-        tgs_calc_exposure_df(
+        _exposure_df(
             ancestor_ids=np.array([0, 0, 0]),
             origin_time=np.array([0.0, bad_origin_time, 1.0]),
             trait_states=[np.array([0, 0, 1])],
@@ -43,7 +59,7 @@ def test_nonpositive_length_raises(bad_origin_time: float):
 
 
 def test_root_length_ignored():
-    res = tgs_calc_exposure_df(
+    res = _exposure_df(
         ancestor_ids=np.array([0, 0, 2]),
         origin_time=np.array([0.0, 1.0, np.nan]),
         trait_states=[np.array([0, 1, 0])],
