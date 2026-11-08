@@ -18,7 +18,7 @@ from .._auxlib._log_context_duration import log_context_duration
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
     tgs_build_exposure_df_polars,
-    tgs_impl,
+    tgs_estimate_from_exposures,
     tgs_tally_exposure_episodes,
     tgs_validate_args,
 )
@@ -319,7 +319,7 @@ def alifestd_tgs_allmdc_estimate_polars(
         calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
-    return tgs_impl(
+    return tgs_estimate_from_exposures(
         exposure_df,
         counts_df=tgs_tally_exposure_episodes(
             trait_names=trait_names, exposure_df=exposure_df

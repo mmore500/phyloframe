@@ -23,7 +23,7 @@ from ._tgs_select_calibration_neighborhoods import (
 def _slice_bins(
     trait_bin_counts_df: pl.DataFrame, begin: int, end: int
 ) -> pl.DataFrame:
-    """Implementation detail for `tgs_impl`.
+    """Implementation detail for `tgs_estimate_from_exposures`.
 
     Returns the rows of `trait_bin_counts_df`, per-trait exposure counts in
     each calibration bin (see `tgs_count_traits`), for one partition's
@@ -35,7 +35,7 @@ def _slice_bins(
     ).with_columns(pl.col("bin") - begin)
 
 
-def tgs_impl(
+def tgs_estimate_from_exposures(
     exposure_df: pl.DataFrame,
     *,
     counts_df: pl.DataFrame,

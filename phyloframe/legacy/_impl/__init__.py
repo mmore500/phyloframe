@@ -16,10 +16,10 @@ from ._tgs_calc_trait_selection_lrts import (
 )
 from ._tgs_calc_trait_states import tgs_calc_trait_states
 from ._tgs_count_traits import tgs_count_traits
+from ._tgs_estimate_from_exposures import tgs_estimate_from_exposures
 from ._tgs_fit import TgsFitResult, tgs_fit, tgs_fit_trait
 from ._tgs_fit_trait_partitions import tgs_fit_trait_partitions
 from ._tgs_fit_traits import tgs_fit_traits
-from ._tgs_impl import tgs_impl
 from ._tgs_merge_episodes import tgs_merge_episodes
 from ._tgs_minimize_nll import tgs_minimize_nll
 from ._tgs_normalize_gain_rates_to_neutral import (
@@ -55,7 +55,7 @@ __all__ = [
     "tgs_fit_trait",
     "tgs_fit_trait_partitions",
     "tgs_fit_traits",
-    "tgs_impl",
+    "tgs_estimate_from_exposures",
     "tgs_merge_episodes",
     "tgs_minimize_nll",
     "tgs_normalize_gain_rates_to_neutral",

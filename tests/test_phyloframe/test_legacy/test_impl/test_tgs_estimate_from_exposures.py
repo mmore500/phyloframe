@@ -7,7 +7,7 @@ from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
     tgs_build_exposure_df,
-    tgs_impl,
+    tgs_estimate_from_exposures,
     tgs_tally_exposure_episodes,
 )
 
@@ -17,7 +17,7 @@ _TRAIT_NAMES = ["focal", "a", "b", "c"]
 
 
 def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
-    return tgs_impl(
+    return tgs_estimate_from_exposures(
         exposure_df,
         **{
             **dict(
