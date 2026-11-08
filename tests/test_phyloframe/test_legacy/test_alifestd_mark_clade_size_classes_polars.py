@@ -157,7 +157,7 @@ def test_polars_empty():
         (dict(size_ratio=1.0), ValueError),
         (dict(min_class_weight=-1), ValueError),
         (dict(min_num_classes=0), ValueError),
-        (dict(weight_by=["absent"]), ValueError),
+        (dict(weight_by=["absent"]), pl.exceptions.ColumnNotFoundError),
         (dict(weight_by="n1"), TypeError),
     ],
 )

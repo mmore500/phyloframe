@@ -153,8 +153,9 @@ def alifestd_mark_clade_size_classes_polars(
         not topologically sorted, or a `weight_by` column has null values.
     ValueError
         If `size_ratio` does not exceed 1, if `min_class_weight` is negative,
-        if `min_num_classes` is less than 1, or if a `weight_by` column is
-        missing.
+        or if `min_num_classes` is less than 1.
+    polars.exceptions.ColumnNotFoundError
+        If a `weight_by` column is missing.
 
     See Also
     --------
@@ -189,10 +190,6 @@ def alifestd_mark_clade_size_classes_polars(
             "alifestd_mark_clade_size_classes_polars only supports asexual "
             "phylogenies.",
         )
-    for column in weight_by:
-        if column not in schema_names:
-            raise ValueError(f"phylogeny_df has no column {column}")
-
     selected = (
         phylogeny_df.lazy()
         .select(

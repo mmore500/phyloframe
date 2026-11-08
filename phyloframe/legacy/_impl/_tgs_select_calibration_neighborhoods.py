@@ -28,13 +28,14 @@ def tgs_select_calibration_neighborhoods(
     (see `tgs_calc_calibration_rescaling`): each bin's nearest bins by
     `bin_coords`, of the size, among `neighborhood_fractions`, that best
     predicts each held-out neutral trait's gains when calibrating against
-    the other neutral traits (see `tgs_calc_heldout_nll`), given `trait_bin_counts_df` (see
-    `tgs_count_traits`). Warns about any neighborhoods without neutral gains.
+    the other neutral traits (see `tgs_calc_heldout_nll`), given
+    `trait_bin_counts_df` (see `tgs_count_traits`). Warns about any
+    neighborhoods without neutral gains.
     """
-    best_nll, best_neighborhoods, best_fraction = np.inf, None, np.nan
-    for fraction in neighborhood_fractions:
-        # each bin's nearest bins, itself included, together
-        # holding about `fraction` of bins
+
+    def score(fraction: float) -> typing.Tuple[float, sparse.spmatrix]:
+        # each bin's nearest bins, itself included, together holding about
+        # `fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
             bin_coords,
             num_neighbors=int(np.ceil(fraction * len(bin_coords))),
@@ -56,9 +57,13 @@ def tgs_select_calibration_neighborhoods(
             f"{fraction:.1%} of bins give "
             f"held-out neutral negative log likelihood {nll:.1f}",
         )
-        if nll < best_nll:
-            best_nll, best_neighborhoods = nll, calibration_neighborhoods
-            best_fraction = fraction
+        return nll, calibration_neighborhoods
+
+    # first (smallest-index) candidate among ties; nan scores lose
+    best_nll, best_neighborhoods, best_fraction = min(
+        ((*score(fraction), fraction) for fraction in neighborhood_fractions),
+        key=lambda candidate: (np.isnan(candidate[0]), candidate[0]),
+    )
 
     neutral_gains = (
         trait_bin_counts_df.filter(pl.col("trait").is_in(neutral_traits))

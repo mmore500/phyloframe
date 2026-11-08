@@ -1,12 +1,9 @@
-import gc
-import logging
 import typing
 
 import numpy as np
 import polars as pl
 import scipy.sparse as scipy_sparse
 
-from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_select_trait_episodes import tgs_select_trait_episodes
 
 
@@ -95,8 +92,6 @@ def tgs_merge_episodes(
     )
     # copied into episode_df; free before aggregating
     del episodes_df, lengths, survival_durations, length_cells, survival_cells
-    gc.collect()
-    log_memory_usage(logging.info)
     row_sums_df = (
         episode_df.group_by("row")
         .agg(

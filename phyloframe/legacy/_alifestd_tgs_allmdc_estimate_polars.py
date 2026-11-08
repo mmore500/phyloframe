@@ -276,6 +276,9 @@ def alifestd_tgs_allmdc_estimate_polars(
             )
         )
 
+    The joint quantile bins reject null or nan values, so fill or drop rows
+    with an unknown `origin_time` (e.g., a disconnected root) first.
+
     Survival durations take the tree's branch lengths at face value, so
     distortion of inner branch lengths (e.g., from reconstruction) also
     distorts the survival term, which neutral calibration does not correct.
@@ -426,12 +429,12 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--neutral-traits",
-        nargs="*",
-        default=[],
+        nargs="+",
+        required=True,
         type=str,
         help=(
-            "Names of trait transition columns of traits known to be neutral "
-            "(default: none)."
+            "Names of trait transition columns of traits known to be neutral; "
+            "at least two."
         ),
     )
     parser.add_argument(

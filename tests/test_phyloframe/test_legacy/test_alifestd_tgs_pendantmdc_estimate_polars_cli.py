@@ -30,7 +30,17 @@ def input_pqt(tmp_path):
 
 def test_cli_help():
     subprocess.run(  # nosec B603
-        ["python3", "-m", MODULE, "--trait-transitions", "focal", "--help"],
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--trait-transitions",
+            "focal",
+            "--neutral-traits",
+            "n1",
+            "n2",
+            "--help",
+        ],
         check=True,
     )
 

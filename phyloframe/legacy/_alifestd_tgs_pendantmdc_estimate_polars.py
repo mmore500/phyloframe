@@ -283,6 +283,9 @@ def alifestd_tgs_pendantmdc_estimate_polars(
             )
         )
 
+    The joint quantile bins reject null or nan values, so fill or drop rows
+    with an unknown `origin_time` (e.g., a disconnected root) first.
+
     To exclude some leaves, e.g., those originating before a given time,
     prune them first: mark the leaves to keep in a boolean column, and pass
     it as `criterion` to `alifestd_prune_extinct_lineages_polars`. Pruning a
@@ -458,12 +461,12 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--neutral-traits",
-        nargs="*",
-        default=[],
+        nargs="+",
+        required=True,
         type=str,
         help=(
-            "Names of trait transition columns of traits known to be neutral "
-            "(default: none)."
+            "Names of trait transition columns of traits known to be neutral; "
+            "at least two."
         ),
     )
     parser.add_argument(
