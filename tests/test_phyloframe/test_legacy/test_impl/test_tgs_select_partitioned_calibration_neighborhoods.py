@@ -54,3 +54,28 @@ def test_one_bin_is_uncalibrated():
     __, neighborhoods, counts_df = _select(exposure_df)
     assert neighborhoods.toarray().tolist() == [[1.0]]
     assert counts_df["bin"].unique().to_list() == [0]
+
+
+def test_bin_coords_ignore_row_order():
+    from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods import (  # noqa: E501
+        _tgs_calc_calibration_bin_coords,
+    )
+
+    rng = np.random.default_rng(1)
+    exposure_df = pl.DataFrame(
+        {
+            "calibration_compare_by_x": rng.integers(0, 3, 200),  # ties
+            "calibration_compare_by_c": np.ones(200),  # constant
+        },
+    )
+    bins = rng.integers(0, 8, 200)
+    expected = _tgs_calc_calibration_bin_coords(
+        exposure_df, bins=bins, num_bins=8
+    )
+    order = rng.permutation(200)
+    res = _tgs_calc_calibration_bin_coords(
+        exposure_df[order], bins=bins[order], num_bins=8
+    )
+    np.testing.assert_allclose(res, expected)
+    # the constant column places every bin alike
+    assert np.ptp(res[:, 1]) == 0

@@ -8,7 +8,6 @@ import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._calc_group_means import calc_group_means
-from ..._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_count_traits import tgs_count_traits
 from ._tgs_select_calibration_neighborhoods import (
@@ -24,20 +23,13 @@ def _tgs_calc_calibration_bin_coords(
 
     Returns each calibration bin's coordinates for nearest-neighbor
     comparison: its episodes' mean ranks, scaled to (0, 1], by each
-    `calibration_compare_by_*` column of `exposure_df`; constant columns
-    carry no distance, so are dropped.
+    `calibration_compare_by_*` column of `exposure_df`. Tied episodes share
+    their average rank, so coordinates do not depend on row order, and a
+    constant column places every bin alike, adding no distance.
     """
-    compare_by_df = exposure_df.select(
-        cs.starts_with("calibration_compare_by_")
-    )
-    episode_ranks = calc_tiebroken_ranks(
-        [
-            compare_by_df[column].to_numpy()
-            for column in compare_by_df.columns
-            if compare_by_df[column].n_unique() > 1
-        ]
-        or [compare_by_df[compare_by_df.columns[0]].to_numpy()]
-    )
+    episode_ranks = exposure_df.select(
+        cs.starts_with("calibration_compare_by_").rank("average")
+    ).to_numpy()
     return calc_group_means(
         bins, episode_ranks / len(exposure_df), num_groups=num_bins
     )
