@@ -61,7 +61,7 @@ def _lrts(fits, trait_nll_kwargs, *, neutral_traits, **kwargs):
         loss_rate=0.0,
         **kwargs,
     )
-    assert len(res) == len(fits)
+    assert res["trait_id"].to_list() == list(range(len(fits)))
     return res["gain_ratio_lrt_naive"].to_numpy()
 
 

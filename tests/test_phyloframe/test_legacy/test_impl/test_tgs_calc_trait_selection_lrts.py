@@ -56,8 +56,8 @@ def test_trait_selection_lrts():
     res = tgs_calc_trait_selection_lrts(
         fits_df=fits_df, trait_nll_kwargs=trait_nll_kwargs, loss_rate=0.0
     )
-    assert res.columns == ["selection_coef_lrt_naive"]
-    assert len(res) == 3
+    assert res.columns == ["trait_id", "selection_coef_lrt_naive"]
+    assert res["trait_id"].to_list() == [0, 1, 2]
     lrts = res["selection_coef_lrt_naive"].to_numpy()
     # matches each trait's statistic alone
     np.testing.assert_allclose(
