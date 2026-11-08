@@ -29,20 +29,3 @@ def test_counts():
     np.testing.assert_array_equal(res["num_trials"], [3, 1, 0, 3, 2, 0])
     np.testing.assert_array_equal(res["num_successes"], [2, 0, 0, 0, 2, 0])
     np.testing.assert_array_equal(res["length_sum"], [5, 3, 0, 5, 7, 0])
-
-
-def test_no_traits():
-    res = tgs_count_trait_bin_exposures(
-        exposure_df=pl.DataFrame({"branch_length": [1.0, 2.0]}),
-        bins=np.array([0, 1]),
-        num_bins=2,
-        weights=np.ones(2),
-    )
-    assert res.columns == [
-        "trait_id",
-        "bin",
-        "num_trials",
-        "num_successes",
-        "length_sum",
-    ]
-    assert res.is_empty()

@@ -84,31 +84,18 @@ def tgs_count_trait_bin_exposures(
         weights=pl.Series(weights, dtype=pl.Float64),
     )
     return pl.concat(
-        [
-            pl.DataFrame(
-                schema={  # RE empty edge case
-                    "trait_id": pl.Int64,
-                    "bin": pl.Int64,
-                    "num_trials": pl.Float64,
-                    "num_successes": pl.Float64,
-                    "length_sum": pl.Float64,
-                },
+        # one trait at a time reduces peak memory
+        bin_df.join(
+            _tgs_count_bin_exposures_of_trait(
+                trait_id=trait_id, **trait_bin_kwargs
             ),
-            *(  # one trait at a time reduces peak memory
-                bin_df.join(
-                    _tgs_count_bin_exposures_of_trait(
-                        trait_id=trait_id, **trait_bin_kwargs
-                    ),
-                    on="bin",
-                    how="left",
-                )
-                # zero counts for bins without the trait's exposure
-                # episodes, e.g., a bin whose branches all carry the trait
-                .with_columns(cs.float().fill_null(0.0)).select(
-                    pl.lit(trait_id, dtype=pl.Int64).alias("trait_id"),
-                    pl.all(),
-                )
-                for trait_id in range(tgs_count_exposure_traits(exposure_df))
-            ),
-        ],
+            on="bin",
+            how="left",
+        )
+        # zero counts for bins without the trait's exposure episodes, e.g.,
+        # a bin whose branches all carry the trait
+        .with_columns(cs.float().fill_null(0.0)).select(
+            pl.lit(trait_id, dtype=pl.Int64).alias("trait_id"), pl.all()
+        )
+        for trait_id in range(tgs_count_exposure_traits(exposure_df))
     ).sort("trait_id", "bin")
