@@ -74,10 +74,6 @@ def test_cli(input_pqt, ext, tmp_path):
             "clade_size_class",
             "--calibration-compare-by-bins",
             "joint_quantile_bin",
-            "--num-bootstrap",
-            "5",
-            "--bootstrap-seed",
-            "1",
             "--eager-write",
             output_file,
         ],
@@ -90,7 +86,6 @@ def test_cli(input_pqt, ext, tmp_path):
         else pd.read_parquet(output_file)
     )
     assert result_df["trait"].tolist() == ["focal", *NEUTRAL_TRAITS]
-    assert "selection_coef_p" in result_df.columns
     assert result_df.loc[0, "gain_ratio"] > 1.0
 
 

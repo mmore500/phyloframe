@@ -8,12 +8,17 @@ import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
 from phyloframe.legacy import (
+    alifestd_tgs_pendantmdc_bootstrap_polars,
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
 )
 from phyloframe.legacy._impl import tgs_select_calibration_neighborhoods
 
-from ._impl import add_trait_transitions, mark_tgs_calibration_columns
+from ._impl import (
+    add_trait_transitions,
+    mark_tgs_calibration_columns,
+    run_tgs_estimate,
+)
 
 
 def _estimate_pendantmdc(
@@ -33,7 +38,12 @@ def _estimate_pendantmdc(
             max_num_bins=calibrate_max_num_bins,
         )
         kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
-    return alifestd_tgs_pendantmdc_estimate_polars(df_pl, **kwargs).to_pandas()
+    return run_tgs_estimate(
+        alifestd_tgs_pendantmdc_estimate_polars,
+        alifestd_tgs_pendantmdc_bootstrap_polars,
+        df_pl,
+        **kwargs,
+    )
 
 
 def _estimate_from_masks(
@@ -680,7 +690,6 @@ def test_empty(apply: typing.Callable):
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],
-            num_bootstrap=2,
         )
 
 

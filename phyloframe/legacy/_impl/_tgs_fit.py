@@ -159,15 +159,13 @@ def tgs_fit(
         naively overstates significance when lineages are correlated (e.g.,
         through shared ancestry or space), and ignores uncertainty in any
         calibration of `pendant_length`. Prefer bootstrap standard errors
-        for inference (see `num_bootstrap` in
-        `alifestd_tgs_pendantmdc_estimate_polars`).
+        for inference (see `alifestd_tgs_pendantmdc_bootstrap_polars`).
 
     See Also
     --------
     alifestd_tgs_pendantmdc_estimate_polars :
         Applies this fit to leaf pendant branches of a phylogeny, with
-        bootstrap standard errors and optional calibration against neutral
-        traits.
+        optional calibration against neutral traits.
 
     References
     ----------

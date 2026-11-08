@@ -3,6 +3,7 @@ from ._enforce_dtype_stability_pandas import enforce_dtype_stability_pandas
 from ._enforce_dtype_stability_polars import enforce_dtype_stability_polars
 from ._enforce_identical_polars_result import enforce_identical_polars_result
 from ._mark_tgs_calibration_columns import mark_tgs_calibration_columns
+from ._run_tgs_estimate import run_tgs_estimate
 
 __all__ = [
     "add_trait_transitions",
@@ -10,4 +11,5 @@ __all__ = [
     "enforce_dtype_stability_polars",
     "enforce_identical_polars_result",
     "mark_tgs_calibration_columns",
+    "run_tgs_estimate",
 ]

@@ -216,7 +216,9 @@ $ python3 -m phyloframe.legacy._alifestd_splice_chronological_consistency_asexua
 $ python3 -m phyloframe.legacy._alifestd_splice_chronological_consistency_polars
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_asexual
 $ python3 -m phyloframe.legacy._alifestd_test_leaves_isomorphic_polars
+$ python3 -m phyloframe.legacy._alifestd_tgs_allmdc_bootstrap_polars
 $ python3 -m phyloframe.legacy._alifestd_tgs_allmdc_estimate_polars
+$ python3 -m phyloframe.legacy._alifestd_tgs_pendantmdc_bootstrap_polars
 $ python3 -m phyloframe.legacy._alifestd_tgs_pendantmdc_estimate_polars
 $ python3 -m phyloframe.legacy._alifestd_to_working_format
 $ python3 -m phyloframe.legacy._alifestd_to_working_format_polars

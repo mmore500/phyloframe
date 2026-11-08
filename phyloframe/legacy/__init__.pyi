@@ -730,11 +730,20 @@ from ._alifestd_test_leaves_isomorphic_asexual import (
 from ._alifestd_test_leaves_isomorphic_polars import (
     alifestd_test_leaves_isomorphic_polars,
 )
+from ._alifestd_tgs_allmdc_bootstrap_polars import (
+    alifestd_tgs_allmdc_bootstrap_polars,
+)
 from ._alifestd_tgs_allmdc_estimate_polars import (
     alifestd_tgs_allmdc_estimate_polars,
 )
+from ._alifestd_tgs_pendantmdc_bootstrap_polars import (
+    alifestd_tgs_pendantmdc_bootstrap_polars,
+)
 from ._alifestd_tgs_pendantmdc_estimate_polars import (
     alifestd_tgs_pendantmdc_estimate_polars,
+)
+from ._alifestd_tgs_summarize_bootstrap_polars import (
+    alifestd_tgs_summarize_bootstrap_polars,
 )
 from ._alifestd_to_working_format import alifestd_to_working_format
 from ._alifestd_to_working_format_polars import (
@@ -953,8 +962,11 @@ __all__ = [
     "alifestd_mark_unifurcation_length_polars",
     "alifestd_mask_trait_mdcs_strict_asexual",
     "alifestd_mask_trait_mdcs_strict_polars",
+    "alifestd_tgs_allmdc_bootstrap_polars",
     "alifestd_tgs_allmdc_estimate_polars",
+    "alifestd_tgs_pendantmdc_bootstrap_polars",
     "alifestd_tgs_pendantmdc_estimate_polars",
+    "alifestd_tgs_summarize_bootstrap_polars",
     "alifestd_to_iplotx_pandas",
     "alifestd_to_iplotx_polars",
     "alifestd_is_asexual",

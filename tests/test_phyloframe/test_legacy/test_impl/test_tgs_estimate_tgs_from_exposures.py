@@ -29,12 +29,9 @@ def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
                 calibrate_neighborhood_fractions=(0.25, 1.0),
                 calibrate_max_rate_ratio=np.inf,
                 length_rtol=1e-3,
-                num_bootstrap=0,
                 loss_rate=0.0,
                 selection_coef_starts=(0.0, -0.3, -1.8),
                 growth_exponent_bound=600.0,
-                seed=1,
-                parallel_backend=None,
                 progress_wrap=identity,
             ),
             **kwargs,
@@ -68,9 +65,8 @@ def test_uncalibrated():
 
 def test_calibrated():
     exposure_df = _binned_exposure_df()
-    res = _impl(exposure_df, num_bootstrap=2)
+    res = _impl(exposure_df)
     assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)
-    assert "selection_coef_se" in res.columns
 
 
 def test_one_neighborhood_per_partition_ignores_bins():

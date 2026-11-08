@@ -6,16 +6,23 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_tgs_allmdc_bootstrap_polars,
     alifestd_tgs_allmdc_estimate_polars,
+    alifestd_tgs_pendantmdc_bootstrap_polars,
     alifestd_tgs_pendantmdc_estimate_polars,
     alifestd_to_working_format,
 )
 
-from ._impl import add_trait_transitions, mark_tgs_calibration_columns
+from ._impl import (
+    add_trait_transitions,
+    mark_tgs_calibration_columns,
+    run_tgs_estimate,
+)
 
 
 def _estimate(
     estimator: typing.Callable,
+    bootstrapper: typing.Callable,
     phylogeny_df: pd.DataFrame,
     calibrate: bool = False,
     calibrate_size_ratio: float = 2.0,
@@ -33,14 +40,17 @@ def _estimate(
         )
         kwargs["calibration_partition_by"] = "clade_size_class"
         kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
-    return estimator(df_pl, **kwargs).to_pandas()
+    return run_tgs_estimate(estimator, bootstrapper, df_pl, **kwargs)
 
 
 def _estimate_allmdc(
     phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
 ) -> pd.DataFrame:
     return _estimate(
-        alifestd_tgs_allmdc_estimate_polars, phylogeny_df, **kwargs
+        alifestd_tgs_allmdc_estimate_polars,
+        alifestd_tgs_allmdc_bootstrap_polars,
+        phylogeny_df,
+        **kwargs,
     )
 
 
@@ -48,7 +58,10 @@ def _estimate_pendantmdc(
     phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
 ) -> pd.DataFrame:
     return _estimate(
-        alifestd_tgs_pendantmdc_estimate_polars, phylogeny_df, **kwargs
+        alifestd_tgs_pendantmdc_estimate_polars,
+        alifestd_tgs_pendantmdc_bootstrap_polars,
+        phylogeny_df,
+        **kwargs,
     )
 
 
@@ -423,7 +436,6 @@ def test_empty(apply: typing.Callable):
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],
-            num_bootstrap=2,
         )
 
 
