@@ -173,7 +173,8 @@ def alifestd_tgs_allmdc_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes (i.e., branches to fit), if an
-        argument is invalid, or if a column has invalid values.
+        argument is invalid, if a column has invalid values, or if a trait
+        has gains but no calibrated exposure (calibration too fine).
     polars.exceptions.ColumnNotFoundError
         If a column is missing.
     NotImplementedError
@@ -256,10 +257,14 @@ def alifestd_tgs_allmdc_estimate_polars(
             .with_columns(
                 branch_length=pl.col("origin_time")
                 - pl.col("origin_time").gather(pl.col("stem_node_id")),
+                # neutral gains; a root's transition is its initial state
+                neutral_gains=pl.when(pl.col("ancestor_id") != pl.col("id"))
+                .then(pl.sum_horizontal(neutral_traits))
+                .otherwise(0),
             )
             .pipe(
                 alifestd_mark_clade_size_classes_polars,
-                weight_by=neutral_traits,
+                weight_by=["neutral_gains"],
                 min_class_weight=20,
             )
             .pipe(

@@ -184,7 +184,8 @@ def alifestd_tgs_pendantmdc_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes (i.e., leaf pendant branches to fit),
-        if an argument is invalid, or if a column has invalid values.
+        if an argument is invalid, if a column has invalid values, or if a
+        trait has gains but no calibrated exposure (calibration too fine).
     polars.exceptions.ColumnNotFoundError
         If a column is missing.
     NotImplementedError

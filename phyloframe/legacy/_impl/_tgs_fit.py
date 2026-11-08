@@ -59,12 +59,13 @@ def tgs_fit_trait(
 
     selection_rescale = tgs_pick_selection_rescale(partitions)
     if not np.isfinite(selection_rescale):  # no calibrated exposure
-        warnings.warn(
-            "tgs fit got gains but no calibrated exposure (e.g., all in "
-            "calibration neighborhoods without neutral trait gains), so gain "
-            "rate and selection coefficient are undefined.",
+        raise ValueError(
+            "a trait has gains but no calibrated exposure, as its exposure "
+            "episodes all fall in calibration neighborhoods without neutral "
+            "trait gains; use coarser calibration, e.g., fewer, larger "
+            "calibration bins (see alifestd_mark_joint_quantile_bins_polars) "
+            "or larger calibrate_neighborhood_fractions",
         )
-        return dict(gain_rate=np.nan, selection_coef=np.nan)
     log_gain_start = tgs_pick_log_gain_rate_start(partitions)
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,

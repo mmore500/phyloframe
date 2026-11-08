@@ -25,11 +25,15 @@ def mark_tgs_calibration_columns(
     ).with_columns(
         branch_length=pl.col("origin_time")
         - pl.col("origin_time").gather(pl.col("stem_node_id")),
+        # neutral gains; a root's transition is its initial state
+        neutral_gains=pl.when(pl.col("ancestor_id") != pl.col("id"))
+        .then(pl.sum_horizontal(list(dict.fromkeys(neutral_traits))))
+        .otherwise(0),
     )
     phylogeny_df = alifestd_mark_clade_size_classes_polars(
         phylogeny_df,
         size_ratio=size_ratio,
-        weight_by=list(dict.fromkeys(neutral_traits)),
+        weight_by=["neutral_gains"],
         min_class_weight=min_class_weight,
     )
     return alifestd_mark_joint_quantile_bins_polars(
