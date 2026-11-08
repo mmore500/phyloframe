@@ -21,7 +21,9 @@ def calc_knn_neighborhoods(
     -------
     scipy.sparse.csr_matrix
         Square membership matrix, whose row `i` marks (with 1) the
-        `num_neighbors` points nearest point `i`, by Euclidean distance.
+        `num_neighbors` points nearest point `i`, by Euclidean distance,
+        always including point `i` itself (one extra point if a duplicate
+        displaced it).
 
     See Also
     --------
@@ -36,4 +38,7 @@ def calc_knn_neighborhoods(
         neighbors.NearestNeighbors(n_neighbors=num_neighbors)
         .fit(points)
         .kneighbors_graph(points, mode="connectivity")
+        # duplicate points can displace a point from its own neighborhood
+        .maximum(sparse.identity(len(points), format="csr"))
+        .tocsr()
     )

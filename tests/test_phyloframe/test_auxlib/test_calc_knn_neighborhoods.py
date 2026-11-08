@@ -26,3 +26,8 @@ def test_row_sizes(num_neighbors: int):
     assert res.shape == (50, 50)
     expected = min(max(num_neighbors, 1), 50)
     np.testing.assert_array_equal(res.sum(axis=1).A1, expected)
+
+
+def test_duplicate_points_include_self():
+    res = calc_knn_neighborhoods(np.zeros((5, 1)), num_neighbors=1)
+    assert (res.diagonal() == 1).all()
