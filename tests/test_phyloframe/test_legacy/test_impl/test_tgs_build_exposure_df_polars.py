@@ -222,17 +222,6 @@ def test_masked_out_leaf_counts_for_survival():
     assert res["clade_size"].to_list() == [2, 1, 1]
 
 
-def test_nan_origin_time_skipped_for_survival():
-    # leaf 3's time is unknown, so ancestor 1's latest known leaf is leaf 4
-    df_pl = _make_tree().with_columns(
-        origin_time=pl.Series([0.0, 1.0, 2.0, float("nan"), 6.0]),
-        keep=pl.Series([True, True, True, False, True]),
-    )
-    res = _build(df_pl, episode_mask="keep")
-    assert res["survival_duration"].to_list() == [5.0, 0.0, 0.0]
-    assert res["clade_size"].to_list() == [2, 1, 1]
-
-
 def test_masked_out_descendants_count_for_survival():
     df_pl = _make_tree().with_columns(
         keep=pl.Series([True, True, True, False, False]),
@@ -240,28 +229,6 @@ def test_masked_out_descendants_count_for_survival():
     res = _build(df_pl, episode_mask="keep")
     assert res["survival_duration"].to_list() == [5.0, 0.0]
     assert res["clade_size"].to_list() == [2, 1]
-
-
-def test_infinite_origin_time_raises():
-    # kept leaf 4 with infinite time has infinite branch length
-    df_pl = _make_tree().with_columns(
-        origin_time=pl.Series([0.0, 1.0, 2.0, 5.0, float("inf")]),
-    )
-    with pytest.raises(ValueError, match="finite"):
-        _build(df_pl)
-    # masked out, it gives its kept ancestor 1 infinite survival duration
-    df_pl = df_pl.with_columns(keep=pl.Series([True, True, True, True, False]))
-    with pytest.raises(ValueError, match="finite"):
-        _build(df_pl, episode_mask="keep")
-
-
-def test_nan_root_origin_time_ok_with_children_masked_out():
-    df_pl = _make_tree().with_columns(
-        origin_time=pl.Series([float("nan"), 1.0, 2.0, 5.0, 6.0]),
-        keep=pl.Series([True, False, False, True, True]),
-    )
-    res = _build(df_pl, episode_mask="keep")
-    assert res["branch_length"].to_list() == [4.0, 5.0]
 
 
 def test_missing_episode_mask_raises_early():
@@ -283,15 +250,12 @@ def test_integer_origin_time_precision_loss_warns():
     assert res.dtype == pl.Float64
 
 
-def test_null_root_origin_time_is_unknown():
-    # the root's unknown time leaves its children's branch lengths undefined
+@pytest.mark.parametrize("value", [None, float("nan"), float("inf")])
+def test_unknown_origin_time_raises(value):
+    # even at a root, or with its episodes masked out
     df_pl = _make_tree().with_columns(
-        origin_time=pl.Series([None, 1.0, 2.0, 5.0, 6.0])
+        origin_time=pl.Series([value, 1.0, 2.0, 5.0, 6.0]),
+        keep=pl.Series([True, False, False, True, True]),
     )
-    with pytest.raises(ValueError, match="finite"):
-        _build(df_pl)
-    res = _build(
-        df_pl.with_columns(keep=pl.Series([True, False, False, True, True])),
-        episode_mask="keep",
-    )
-    assert res["branch_length"].to_list() == [4.0, 5.0]
+    with pytest.raises(NotImplementedError, match="origin_time"):
+        _build(df_pl, episode_mask="keep")

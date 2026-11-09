@@ -233,13 +233,8 @@ def test_unifurcations_raise():
         )
 
 
-def test_nan_origin_time_ignored():
+def test_nan_origin_time_raises():
     phylogeny_df, traits = _make_cherries(2_000)
-    # no calibration bins, as alifestd_mark_joint_quantile_bins_polars
-    # rejects nan values
-    kwargs = dict(neutral_traits=[1, 2, 3, 4])
-    expected = _estimate_from_masks(phylogeny_df, trait_masks=traits, **kwargs)
-
     # add a disconnected root with unknown origin time
     nan_df = pd.concat(
         [
@@ -254,12 +249,12 @@ def test_nan_origin_time_ignored():
         ],
         ignore_index=True,
     )
-    res = _estimate_from_masks(
-        nan_df,
-        trait_masks=np.hstack([traits, np.zeros((5, 1), dtype=bool)]),
-        **kwargs,
-    )
-    pd.testing.assert_frame_equal(res, expected)
+    with pytest.raises(NotImplementedError, match="origin_time"):
+        _estimate_from_masks(
+            nan_df,
+            trait_masks=np.hstack([traits, np.zeros((5, 1), dtype=bool)]),
+            neutral_traits=[1, 2, 3, 4],
+        )
 
 
 def test_input_not_mutated():

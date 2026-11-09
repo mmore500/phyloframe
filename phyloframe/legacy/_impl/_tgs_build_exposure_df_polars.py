@@ -37,9 +37,8 @@ from .._alifestd_try_add_ancestor_id_col_polars import (
 def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
-    Returns `origin_time` as float64, with nulls as nan, i.e., unknown,
-    warning if any value does not round trip through float64, e.g., an
-    integer above 2**53.
+    Returns `origin_time` as float64, warning if any value does not round
+    trip through float64, e.g., an integer above 2**53.
     """
     as_float = origin_time.cast(pl.Float64)
     if (
@@ -52,7 +51,7 @@ def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
             "origin_time values lose precision as float64, so branch lengths "
             "may be inexact",
         )
-    return as_float.fill_null(np.nan)
+    return as_float
 
 
 def _tgs_calc_trait_states(
@@ -167,10 +166,13 @@ def tgs_build_exposure_df_polars(
     ancestor_ids = nodes_df["ancestor_id"].to_numpy().astype(np.int64)
     origin_time = _tgs_cast_origin_time_float(
         nodes_df["origin_time"]
-    ).to_numpy()
-    # latest descendant, or self, with known origin time
+    ).to_numpy()  # nulls become nan
+    if not np.isfinite(origin_time).all():
+        raise NotImplementedError(
+            "null, nan, and infinite origin_time values not supported",
+        )
     latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
-        ancestor_ids, np.where(np.isnan(origin_time), -np.inf, origin_time)
+        ancestor_ids, origin_time
     )
     node_cols = {
         "origin_time": origin_time,
@@ -212,15 +214,10 @@ def tgs_build_exposure_df_polars(
         raise ValueError("phylogeny_df has no exposure episodes to fit")
     if sum(episodes_df.null_count().row(0)):
         raise NotImplementedError("null values not supported")
-    lengths = episodes_df.select("branch_length", "survival_duration")
-    if not (
-        np.isfinite(lengths.to_numpy()).all()
-        and (lengths["branch_length"] > 0).all()
-    ):
+    if not (episodes_df["branch_length"] > 0).all():
         raise ValueError(
-            "exposure episodes must have positive, finite branch lengths and "
-            "finite survival durations, e.g., not an unknown (nan) parent "
-            "origin_time; exclude any others with episode_mask",
+            "exposure episodes must have positive branch lengths; exclude "
+            "any others with episode_mask",
         )
 
     partition, bin_ = (

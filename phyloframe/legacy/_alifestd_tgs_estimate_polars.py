@@ -143,11 +143,11 @@ def alifestd_tgs_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes, if an argument is invalid, or if
-        an exposure episode has a nonpositive or non-finite branch length.
+        an exposure episode has a nonpositive branch length.
     NotImplementedError
         For unsupported input, e.g., fewer than two neutral traits, a
-        non-asexual phylogeny, unifurcations, null values, trait losses, or
-        a trait present at a root.
+        non-asexual phylogeny, unifurcations, null values, null or nan
+        origin times, trait losses, or a trait present at a root.
 
     Warns
     -----
@@ -164,7 +164,7 @@ def alifestd_tgs_estimate_polars(
         Non-root nodes with one child (unifurcations) are not supported.
     'origin_time' : float
         Time of each taxon's origin, from which branch lengths and survival
-        durations are taken.
+        durations are taken; must be finite.
     `trait_transitions` columns : integer
         See Parameters.
     `episode_mask` column : boolean, optional
