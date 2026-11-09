@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 import polars as pl
 
+from ..._auxlib._clamp import clamp
 from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_fit_trait import tgs_fit_trait
 from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
@@ -27,7 +28,7 @@ def _tgs_calc_lrt(*, null_nll: float, free_nll: float) -> float:
             "clipping likelihood-ratio statistic to 0, but it may be "
             "unreliable.",
         )
-    return float(np.clip(2 * (null_nll - free_nll), a_min=0.0, a_max=None))
+    return clamp(2 * (null_nll - free_nll), lo=0.0, hi=math.inf)
 
 
 def _tgs_calc_trait_gain_ratio_lrt(

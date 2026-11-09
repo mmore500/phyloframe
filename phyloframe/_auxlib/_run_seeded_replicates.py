@@ -1,9 +1,11 @@
+import math
 import typing
 
 import joblib
 import numpy as np
 import opytional as opyt
 
+from ._clamp import clamp
 from ._identity import identity
 
 
@@ -53,10 +55,8 @@ def run_seeded_replicates(
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
         # batch replicates, to serialize shared arguments once per batch
         batch_size = int(
-            np.clip(
-                num_replicates // (4 * joblib.cpu_count()),
-                a_min=1,
-                a_max=None,
+            clamp(
+                num_replicates // (4 * joblib.cpu_count()), lo=1, hi=math.inf
             )
         )
         return joblib.Parallel(batch_size=batch_size)(progress_wrap(jobs))
