@@ -8,9 +8,8 @@ def iter_kdtree_nodes(
 ) -> typing.Iterator[typing.Any]:
     """Iterate over the nodes of a k-d tree, depth first in preorder.
 
-    Visits each node before its children, and its `lesser` subtree before
-    its `greater` subtree. So, leaves come in order of the points they hold
-    in `tree.indices`. Leaves are nodes whose `lesser` is None.
+    Visits `lesser` before `greater` subtrees, so leaves (nodes whose
+    `lesser` is None) come in order of the points they hold in `tree.indices`.
 
     Parameters
     ----------

@@ -1,110 +1,58 @@
-import logging
-
 import numpy as np
 import polars as pl
 import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import alifestd_mark_clade_size_geom_classes_polars
-from phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars import (
-    _alifestd_mark_clade_size_geom_classes_fast_path,
-)
 
 _SIZES = np.array([1, 1, 2, 3, 4, 5, 8, 9, 16])
 
 
-def _calc(weighted_positions, min_class_weight=1.0, min_num_classes=2):
-    weights = np.zeros(len(_SIZES))
+def _calc(weighted_positions, min_class_weight=1.0, sizes=_SIZES, **kwargs):
+    weights = np.zeros(len(sizes))
     weights[np.asarray(weighted_positions, dtype=int)] = 1.0
-    return _alifestd_mark_clade_size_geom_classes_fast_path(
-        clade_sizes=_SIZES,
-        weights=weights,
-        size_ratio=2.0,
+    return alifestd_mark_clade_size_geom_classes_polars(
+        pl.DataFrame(
+            {"id": range(len(sizes)), "num_leaves": sizes, "weight": weights}
+        ),
+        weight_by="weight",
         min_class_weight=min_class_weight,
-        min_num_classes=min_num_classes,
-    )
+        **kwargs,
+    )["clade_size_geom_class"]
 
 
 def test_log_scale_without_merging():
     expected = [0, 0, 1, 2, 2, 3, 3, 4, 4]
-    assert _calc([], min_class_weight=0.0).tolist() == expected
+    assert _calc([], min_class_weight=0.0).to_list() == expected
 
 
 def test_light_classes_join_below():
-    # weight in classes 0 and 1 only
-    res = _calc([0, 2])
-    assert res.tolist() == [0, 0, 1, 1, 1, 1, 1, 1, 1]
+    # weight in classes 0, 1, and 2 only
+    res = _calc([0, 2, 3])
+    assert res.to_list() == [0, 0, 1, 2, 2, 2, 2, 2, 2]
 
 
 def test_class_zero_kept_apart():
     # no weight anywhere, so all classes but 0 form one class
     res = _calc([])
-    assert res.tolist() == [0, 0] + [1] * (len(_SIZES) - 2)
+    assert res.to_list() == [0, 0] + [1] * (len(_SIZES) - 2)
 
 
 def test_first_inner_light_keeps_class_zero_apart():
     # weight in classes 0 and 4 only
     res = _calc([0, 1, 7, 8])
-    assert res.tolist() == [0, 0] + [1] * (len(_SIZES) - 2)
-
-
-@pytest.mark.parametrize(
-    "min_num_classes, expected",
-    [
-        (1, [0] * len(_SIZES)),
-        (2, [0, 0] + [1] * (len(_SIZES) - 2)),
-        (3, [0, 0, 1, 2, 2, 2, 2, 2, 2]),
-        (5, [0, 0, 1, 2, 2, 3, 3, 4, 4]),
-        (10, [0, 0, 1, 2, 2, 3, 3, 4, 4]),
-    ],
-)
-def test_min_num_classes(min_num_classes: int, expected: list):
-    # no weight anywhere, so merging stops at min_num_classes
-    res = _calc([], min_num_classes=min_num_classes)
-    assert res.tolist() == expected
-
-
-def test_warns_if_still_light():
-    # class 1 is light, but min_num_classes keeps it
-    with pytest.warns(UserWarning, match=r"classes \[1\] weigh less"):
-        _calc([0, 1, 4, 5, 7], min_num_classes=3)
-
-
-def test_no_warning_if_heavy(recwarn):
-    _calc(range(len(_SIZES)))
-    _calc([], min_class_weight=0.0)
-    assert not [w for w in recwarn if "weigh less" in str(w.message)]
+    assert res.to_list() == [0, 0] + [1] * (len(_SIZES) - 2)
 
 
 def test_heavy_enough_everywhere():
     res = _calc(range(len(_SIZES)))
-    assert res.tolist() == _calc([], min_class_weight=0.0).tolist()
+    assert res.to_list() == _calc([], min_class_weight=0.0).to_list()
 
 
 def test_empty_bins_skipped():
     # ratio 1.5 leaves bin (1, 1.5] empty, which must not count as light
-    res = _alifestd_mark_clade_size_geom_classes_fast_path(
-        clade_sizes=np.array([1, 1, 2, 2, 3, 3]),
-        weights=np.ones(6),
-        size_ratio=1.5,
-        min_class_weight=1.0,
-        min_num_classes=2,
-    )
-    assert res.tolist() == [0, 0, 1, 1, 2, 2]
-
-
-def test_logs_light_class(caplog):
-    # class 1 is light, but min_num_classes keeps it, merging classes 3-4
-    with caplog.at_level(logging.INFO):
-        _calc([0, 1, 4, 5, 7], min_num_classes=3)
-    assert "class 1 weighs less than 1.0" in caplog.text
-    assert "classes above 2 join class 2" in caplog.text
-
-
-def test_logs_clade_sizes_and_weights(caplog):
-    with caplog.at_level(logging.INFO):
-        _calc([0, 2], min_class_weight=0.0)
-    assert "class 1 has clade sizes 2-2, 1 nodes, and weight 1" in caplog.text
+    res = _calc(range(6), sizes=np.array([1, 1, 2, 2, 3, 3]), size_ratio=1.5)
+    assert res.to_list() == [0, 0, 1, 1, 2, 2]
 
 
 def _make_tree() -> pl.DataFrame:
@@ -176,22 +124,12 @@ def test_polars_empty():
     "kwargs, error",
     [
         (dict(size_ratio=1.0), ValueError),
-        (dict(min_class_weight=-1), ValueError),
-        (dict(min_num_classes=0), ValueError),
         (dict(weight_by=["absent"]), pl.exceptions.ColumnNotFoundError),
     ],
 )
 def test_polars_invalid(kwargs, error):
     with pytest.raises(error):
         alifestd_mark_clade_size_geom_classes_polars(_make_tree(), **kwargs)
-
-
-def test_polars_null_weights_raise():
-    df = _make_tree().with_columns(
-        n1=pl.when(pl.col("id") == 2).then(None).otherwise(pl.col("n1"))
-    )
-    with pytest.raises(NotImplementedError, match="null"):
-        alifestd_mark_clade_size_geom_classes_polars(df, weight_by=["n1"])
 
 
 def test_polars_unsorted_raises():

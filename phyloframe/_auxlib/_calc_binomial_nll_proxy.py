@@ -13,14 +13,10 @@ def calc_binomial_nll_proxy(
     additive constant), and its gradient with respect to success
     probability.
 
-    The result is offset from the true negative log likelihood by the summed
-    log binomial coefficients, which do not depend on `p`. So, differences
-    between results for different `p` (e.g., likelihood-ratio statistics),
-    and the gradient are both exact.
-
-    Avoids calculating log binomial coefficients, providing substantial
-    speedup over `scipy.stats.binom.logpmf` for repeated evaluation (e.g.,
-    within an optimizer).
+    Omits log binomial coefficients for speedup over
+    `scipy.stats.binom.logpmf` under repeated evaluation (e.g., within an
+    optimizer). These are constant in `p`, so the gradient equals that of
+    the true negative log likelihood.
 
     Parameters
     ----------
@@ -31,9 +27,8 @@ def calc_binomial_nll_proxy(
     p : np.ndarray
         Success probability of each bin.
 
-        Values outside the open interval (0, 1), e.g., from underflow or
-        optimizer trial steps overshooting, are clipped to keep the result
-        finite, and their gradient is zeroed.
+        Values outside the open interval (0, 1) are clipped to keep the
+        result finite, and their gradient is zeroed.
 
     Returns
     -------

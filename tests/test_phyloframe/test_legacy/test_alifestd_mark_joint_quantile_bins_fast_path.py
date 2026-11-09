@@ -9,34 +9,33 @@ from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
 def test_bins():
     rng = np.random.default_rng(1)
     x, y = rng.random(1000), rng.random(1000)
-    bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
+    bins = _alifestd_mark_joint_quantile_bins_fast_path(
         [x, y], max_num_bins=16, min_bin_occupancy=4
     )
-    assert num_bins == 16
     assert set(np.bincount(bins, minlength=16)) <= {62, 63}
 
 
+@pytest.mark.parametrize("max_num_bins", [1, 2, 5, 8, 1024])
 @pytest.mark.parametrize("min_bin_occupancy", [1, 2, 4, 10, 20])
-def test_min_bin_occupancy(min_bin_occupancy: int):
-    bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
-        [np.arange(10.0)],
-        max_num_bins=1024,
+@pytest.mark.parametrize("num_items", [5, 9, 10, 100])
+def test_bin_limits(max_num_bins: int, min_bin_occupancy: int, num_items: int):
+    rng = np.random.default_rng(num_items)
+    bins = _alifestd_mark_joint_quantile_bins_fast_path(
+        [rng.random(num_items), rng.random(num_items)],
+        max_num_bins=max_num_bins,
         min_bin_occupancy=min_bin_occupancy,
     )
-    # splitting can stop early, giving fewer bins, where items do not divide
-    # evenly
-    assert num_bins <= 2 ** int(max(np.log2(10 / min_bin_occupancy), 0))
-    assert sorted(set(bins.tolist())) == list(range(num_bins))
-    assert np.bincount(bins).sum() == 10
-    assert np.bincount(bins).min() >= min(min_bin_occupancy, 10) // 2
+    counts = np.bincount(bins)
+    assert counts.sum() == num_items
+    assert len(counts) <= max_num_bins
+    assert counts.min() >= min(min_bin_occupancy, num_items)
 
 
 def test_empty():
-    bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
+    bins = _alifestd_mark_joint_quantile_bins_fast_path(
         [np.zeros(0)], max_num_bins=8, min_bin_occupancy=4
     )
     assert len(bins) == 0
-    assert num_bins == 0
 
 
 def test_ties_broken_by_other_coordinates():
@@ -44,10 +43,10 @@ def test_ties_broken_by_other_coordinates():
     tied = np.zeros(200)
     other = rng.random(200)
     order = rng.permutation(200)
-    bins, __ = _alifestd_mark_joint_quantile_bins_fast_path(
+    bins = _alifestd_mark_joint_quantile_bins_fast_path(
         [tied, other], max_num_bins=8, min_bin_occupancy=4
     )
-    shuffled, __ = _alifestd_mark_joint_quantile_bins_fast_path(
+    shuffled = _alifestd_mark_joint_quantile_bins_fast_path(
         [tied[order], other[order]], max_num_bins=8, min_bin_occupancy=4
     )
     assert (shuffled == bins[order]).all()

@@ -28,19 +28,15 @@ def run_weighted_bootstrap(
     """Call `func(weights=...)` once per bootstrap replicate, and return the
     results in replicate order.
 
-    Each replicate draws `num_items` items with replacement, so an item may
-    be drawn zero, one, or several times; `weights` holds each item's draw
-    count, as floats. Weighting by draw count is the same as refitting to
-    the resample, without building the resampled data. See
-    `sample_bootstrap_counts` and, for seeding and parallelism,
-    `run_seeded_replicates`.
+    Each replicate's `weights` hold items' draw counts, as floats, from
+    resampling `num_items` items with replacement. See
+    `sample_bootstrap_counts` and `run_seeded_replicates`.
 
     Parameters
     ----------
     func : Callable
         Called as `func(weights=weights)`. Must be picklable for
-        process-based backends (e.g., a `functools.partial` of a module-level
-        function).
+        process-based backends.
     num_items : int
         Number of items resampled.
     num_replicates : int

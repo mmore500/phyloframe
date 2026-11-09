@@ -10,9 +10,8 @@ def sample_bootstrap_counts(
     """Sample how many times each item is drawn in a given bootstrap
     replicate.
 
-    The replicate draws `num_items` items uniformly with replacement, so an
-    item may be drawn zero, one, or several times. Weighting each item by
-    its count is equivalent to resampling items, without copying data.
+    Weighting each item by its count is equivalent to resampling `num_items`
+    items with replacement, without copying data.
 
     Parameters
     ----------
@@ -29,10 +28,6 @@ def sample_bootstrap_counts(
 
     Notes
     -----
-    Given `seed`, draws only from a generator seeded by it, not global
-    random state. So, concurrent seeded calls from different threads are
-    reproducible.
-
     Representing a replicate as multinomial counts over the original items
     is the weighted bootstrap view of Praestgaard and Wellner (1993).
 
