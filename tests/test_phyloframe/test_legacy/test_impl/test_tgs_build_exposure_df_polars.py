@@ -46,7 +46,7 @@ def test_prepare(lazy: bool):
     )
     # one row per non-root node, in order
     assert res["origin_time"].to_list() == [1.0, 2.0, 5.0, 6.0]
-    assert res["branch_length"].to_list() == [1.0, 2.0, 4.0, 5.0]
+    assert res["episode_length"].to_list() == [1.0, 2.0, 4.0, 5.0]
     assert res["clade_size"].to_list() == [2, 1, 1, 1]
     assert res["survival_duration"].to_list() == [5.0, 0.0, 0.0, 0.0]
     # 3 and 4 inherit t from 1, so start with it
@@ -131,7 +131,8 @@ def test_origin_time_delta_branch_lengths_match():
         df_pl, mark_as="branch_length"
     )
     assert (
-        marked["branch_length"][1:].to_list() == res["branch_length"].to_list()
+        marked["branch_length"][1:].to_list()
+        == res["episode_length"].to_list()
     )
 
 
@@ -163,7 +164,7 @@ def test_unifurcating_root_supported():
         },
     )
     res = _build(df_pl)
-    assert res["branch_length"].to_list() == [1.0, 1.0, 3.0]
+    assert res["episode_length"].to_list() == [1.0, 1.0, 3.0]
     assert res["trait0_gain"].to_list() == [False, True, False]
 
 
@@ -173,10 +174,10 @@ def test_masked_out_zero_length_branch_ok():
         origin_time=pl.Series([0.0, 1.0, 0.0, 5.0, 6.0]),
         keep=pl.Series([True, True, False, True, True]),
     )
-    with pytest.raises(NotImplementedError, match="branch lengths"):
+    with pytest.raises(NotImplementedError, match="lengths"):
         _build(df_pl)
     res = _build(df_pl, episode_mask="keep")
-    assert res["branch_length"].to_list() == [1.0, 4.0, 5.0]
+    assert res["episode_length"].to_list() == [1.0, 4.0, 5.0]
 
 
 def test_masked_out_null_calibration_value_ok():
@@ -241,7 +242,7 @@ def test_integer_origin_time_exact_is_quiet():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         res = _build(df_pl)
-    assert res["branch_length"].to_list() == [1.0, 2.0, 4.0, 5.0]
+    assert res["episode_length"].to_list() == [1.0, 2.0, 4.0, 5.0]
 
 
 def test_integer_origin_time_precision_loss_warns():

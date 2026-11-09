@@ -28,10 +28,10 @@ def tgs_count_trait_bin_exposures(
     'num_successes' : float
         Of those, the weighted count that gained the trait.
     'length_sum' : float
-        Weighted sum of those episodes' branch lengths.
+        Weighted sum of those episodes' lengths.
     """
-    branch_lengths = exposure_df["branch_length"].to_numpy()
-    assert np.isfinite(branch_lengths).all()
+    episode_lengths = exposure_df["episode_length"].to_numpy()
+    assert np.isfinite(episode_lengths).all()
     bin_ids = exposure_df["bin_id"].to_numpy()
     num_bins = bin_ids.max() + 1  # bins are numbered densely
     sum_by_bin = functools.partial(np.bincount, bin_ids, minlength=num_bins)
@@ -48,7 +48,7 @@ def tgs_count_trait_bin_exposures(
                 "bin_id": np.arange(num_bins, dtype=np.int64),
                 "num_trials": sum_by_bin(trait_weights),
                 "num_successes": sum_by_bin(trait_weights * gain),
-                "length_sum": sum_by_bin(trait_weights * branch_lengths),
+                "length_sum": sum_by_bin(trait_weights * episode_lengths),
             },
         )
 

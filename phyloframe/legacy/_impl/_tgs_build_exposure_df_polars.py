@@ -48,8 +48,8 @@ def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
         ).any()
     ):
         warnings.warn(
-            "origin_time values lose precision as float64, so branch lengths "
-            "may be inexact",
+            "origin_time values lose precision as float64, so episode "
+            "lengths may be inexact",
         )
     return as_float
 
@@ -104,8 +104,8 @@ def tgs_build_exposure_df_polars(
     -------------
     'origin_time' : float
         Origin time of the episode's end node.
-    'branch_length' : float
-        Episode length.
+    'episode_length' : float
+        Length of the episode's branch.
     'survival_duration' : float
         Time from the end node to the latest leaf below it (0 for a leaf).
     'clade_size' : integer
@@ -119,15 +119,15 @@ def tgs_build_exposure_df_polars(
     'bin_id' : integer
         Calibration bin, numbered from 0, partition-major.
     'calibration_compare_by_{name}' : per `calibration_compare_by_vals` name
-        Episode column `name` (e.g., `branch_length`), if any, else the end
-        node's `phylogeny_df` value.
+        Episode column `name`, if any, with `branch_length` naming
+        `episode_length`; else the end node's `phylogeny_df` value.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
         raise NotImplementedError("only asexual phylogenies are supported")
 
     computed_cols = (
-        "origin_time", "branch_length", "survival_duration", "clade_size",
+        "origin_time", "episode_length", "survival_duration", "clade_size",
     )  # fmt: skip
     calibration_cols = (
         calibration_partition_by,
@@ -143,7 +143,8 @@ def tgs_build_exposure_df_polars(
                 cs.by_name("id", "ancestor_id", "origin_time")
                 | cs.by_name(*trait_transitions)
                 | cs.by_name(
-                    {episode_mask, *calibration_cols} - {None, *computed_cols}
+                    {episode_mask, *calibration_cols}
+                    - {None, "branch_length", *computed_cols}
                 ),
             )
             .collect()
@@ -177,7 +178,7 @@ def tgs_build_exposure_df_polars(
     )
     node_cols = {
         "origin_time": origin_time,
-        "branch_length": origin_time - origin_time[ancestor_ids],
+        "episode_length": origin_time - origin_time[ancestor_ids],
         "survival_duration": latest_ot - origin_time,
         "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
             ancestor_ids
@@ -215,10 +216,10 @@ def tgs_build_exposure_df_polars(
         raise ValueError("phylogeny_df has no exposure episodes to fit")
     if sum(episodes_df.null_count().row(0)):
         raise NotImplementedError("null values not supported")
-    if not (episodes_df["branch_length"] > 0).all():
+    if not (episodes_df["episode_length"] > 0).all():
         raise NotImplementedError(
-            "exposure episodes with zero or negative branch lengths not "
-            "supported; exclude them with episode_mask",
+            "exposure episodes with zero or negative lengths not supported; "
+            "exclude them with episode_mask",
         )
 
     partition, bin_ = (
@@ -231,7 +232,10 @@ def tgs_build_exposure_df_polars(
         (partition.rank("dense") - 1).cast(pl.Int64).alias("partition_id"),
         (partition_bin.rank("dense") - 1).cast(pl.Int64).alias("bin_id"),
         *(
-            pl.col(col).alias(f"calibration_compare_by_{col}")
+            # branch_length names the episode's own length
+            pl.col({"branch_length": "episode_length"}.get(col, col)).alias(
+                f"calibration_compare_by_{col}"
+            )
             for col in calibration_compare_by_vals
         ),
     )
@@ -240,7 +244,7 @@ def tgs_build_exposure_df_polars(
     log_memory_usage(logging.info)
 
     times = exposure_df.select(
-        "origin_time", "branch_length", "survival_duration"
+        "origin_time", "episode_length", "survival_duration"
     )
     assert np.isfinite(times.to_numpy()).all()
     assert (times["survival_duration"] >= 0).all()

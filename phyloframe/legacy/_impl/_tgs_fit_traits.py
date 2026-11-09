@@ -44,7 +44,7 @@ def _tgs_coarsen_episodes(
 ) -> typing.Tuple[pl.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `tgs_fit_traits`.
 
-    Pools `trait_id`'s exposure episodes whose calibrated branch lengths
+    Pools `trait_id`'s exposure episodes whose calibrated lengths
     and survival durations both agree within relative tolerance
     `length_rtol` (0 for no pooling), so have nearly the same chance of
     gain. Each episode's length is calibrated by its calibration bin's
@@ -61,8 +61,8 @@ def _tgs_coarsen_episodes(
         Weighted (by `weight`) count of the pool's episodes.
     'num_successes' : float
         Of those, the weighted count that gained the trait.
-    'mean_branch_length' : float
-        Their weighted mean calibrated branch length.
+    'mean_episode_length' : float
+        Their weighted mean calibrated length.
     """
     episodes_df = exposure_df.filter(
         pl.col(f"trait{trait_id}_starts_absent"),
@@ -72,7 +72,7 @@ def _tgs_coarsen_episodes(
         "survival_duration",
         "survival_duration_id",
         gain=f"trait{trait_id}_gain",
-        length=pl.col("branch_length")
+        length=pl.col("episode_length")
         * pl.lit(pl.Series(calibration_factors)).gather("bin_id"),
     )
     if length_rtol > 0:
@@ -95,7 +95,7 @@ def _tgs_coarsen_episodes(
         .select(
             "num_trials",
             "num_successes",
-            mean_branch_length=pl.col("length_sum") / pl.col("num_trials"),
+            mean_episode_length=pl.col("length_sum") / pl.col("num_trials"),
         )
     )
     survival_shares = sparse.diags(
@@ -131,7 +131,7 @@ def tgs_fit_traits(
 
     Fits each trait to the exposure episodes of `exposure_df` (see
     `tgs_build_exposure_df_polars`), each weighted by `weights` (e.g.,
-    bootstrap draw counts): calibrates branch lengths by calibration bin
+    bootstrap draw counts): calibrates episode lengths by calibration bin
     (see `tgs_calc_calibration_rescaling`), pools episodes of similar
     length (see `_tgs_coarsen_episodes`), and fits gain rate and selection
     coefficient. Returns one row per trait; see `tgs_fit_coarsened_traits`.

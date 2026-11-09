@@ -20,7 +20,7 @@ def tgs_calc_calibration_rescaling(
     """Implementation detail for `alifestd_tgs_estimate_polars`.
 
     Returns, for each calibration bin, the factor rescaling `trait_id`'s
-    branch lengths there: the gain rate of the neutral traits other than
+    episode lengths there: the gain rate of the neutral traits other than
     `trait_id` within the bin's calibration neighborhood, relative to
     overall (see `calc_neighborhood_rate_ratios`), capped at
     `max_rate_ratio`. Takes the neutral traits' `trait_bin_counts_df` (see

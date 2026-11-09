@@ -68,16 +68,16 @@ def tgs_calc_nll(
         (Weighted) count of the row's exposure episodes.
     'num_successes' : float
         Of those, the (weighted) count that gained the trait.
-    'mean_branch_length' : float
-        Their mean calibrated branch length.
+    'mean_episode_length' : float
+        Their mean calibrated length.
     """
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
-        length=coarsened_df["mean_branch_length"].to_numpy(),
+        length=coarsened_df["mean_episode_length"].to_numpy(),
         growth_rate=growth_rate,
     )
 
     # carrier lineage growth over each distinct survival duration, exp(r * u),
-    # then averaged over each coarsened row's branches
+    # then averaged over each coarsened row's episodes
     growth_by_duration = np.exp(growth_rate * distinct_survival_durations)
     row_survival = survival_shares @ growth_by_duration
     row_survival_deriv = survival_shares @ (

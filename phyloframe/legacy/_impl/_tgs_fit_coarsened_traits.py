@@ -48,7 +48,7 @@ def tgs_fit_coarsened_traits(
     Output Schema
     -------------
     'gain_rate' : float
-        Fitted gain rate, per unit branch length; 0 without gains.
+        Fitted gain rate, per unit episode length; 0 without gains.
     'selection_coef' : float
         Fitted selection coefficient; nan without gains.
     'gain_ratio' : float
