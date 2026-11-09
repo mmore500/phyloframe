@@ -182,3 +182,20 @@ def test_effective_length(rate: float):
     ]
     np.testing.assert_allclose(res, expected, rtol=1e-12)
     np.testing.assert_allclose(res_deriv, expected_deriv, rtol=1e-9)
+
+
+def test_gradient_zero_past_growth_exponent_cap():
+    # past the cap, the likelihood is flat in the rate, so is its gradient
+    coarsened_df = pl.DataFrame(
+        {"num_trials": [100.0], "num_successes": [1.0], "length": [10.0]}
+    )
+    kwargs = dict(
+        gain_rate=1e-3,
+        coarsened_df=coarsened_df,
+        growth_exponent_bound=600.0,
+        survival_shares=None,
+        distinct_survival_durations=None,
+    )
+    nll, __, drate = tgs_calc_nll(growth_rate=60.1, **kwargs)
+    assert drate == 0.0
+    assert tgs_calc_nll(growth_rate=61.0, **kwargs)[0] == nll

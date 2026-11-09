@@ -9,6 +9,24 @@ from ._tgs_fit_trait import tgs_fit_trait
 from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 
 
+def _tgs_clamp_lrt(statistic: float, *, free_nll: float) -> float:
+    """Implementation detail for `_tgs_calc_trait_gain_ratio_lrt` and
+    `_tgs_calc_trait_selection_lrt`. Acronym tgs stands for trait
+    gain/selection.
+
+    Returns likelihood-ratio `statistic`, clamped at 0, warning if it is
+    meaningfully negative, as then the free fit, with negative log
+    likelihood `free_nll`, missed its optimum.
+    """
+    if statistic < -1e-6 * max(1.0, abs(free_nll)):
+        warnings.warn(
+            "a likelihood-ratio statistic is negative, as the constrained "
+            "fit beat the free fit, which so missed its optimum; clamping "
+            "to 0, but estimates may be unreliable.",
+        )
+    return max(float(statistic), 0.0)
+
+
 def _tgs_calc_trait_gain_ratio_lrt(
     *,
     nll_kwargs: typing.Dict[str, typing.Any],
@@ -56,7 +74,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
             "mean gain rate of its neutral reference traits; gain ratio "
             "likelihood-ratio statistic may be unreliable.",
         )
-    return float(2 * (null.fun - free_nll))
+    return _tgs_clamp_lrt(2 * (null.fun - free_nll), free_nll=free_nll)
 
 
 def _tgs_calc_trait_gain_ratio_lrts(
@@ -165,7 +183,7 @@ def _tgs_calc_trait_selection_lrt(
             "may be unreliable.",
         )
     # two-tailed, testing selection coefficient != 0 in either direction
-    return float(2 * (null.fun - free_nll))
+    return _tgs_clamp_lrt(2 * (null.fun - free_nll), free_nll=free_nll)
 
 
 def _tgs_calc_trait_selection_lrts(

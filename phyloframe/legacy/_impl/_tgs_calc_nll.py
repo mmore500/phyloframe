@@ -15,7 +15,7 @@ def _tgs_calc_effective_length(
 
     Returns effective length (exp(r * t) - 1) / r for each length t, with
     r = `growth_rate`, and its derivative with respect to r, with r * t
-    capped at `growth_exponent_bound`.
+    capped at `growth_exponent_bound`, past which the derivative is 0.
     """
     cx = np.minimum(growth_rate * length, growth_exponent_bound)
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
@@ -42,8 +42,10 @@ def _tgs_calc_effective_length(
         out=np.empty_like(cx),
         where=~is_near_zero_rate,
     )
+    deriv = np.where(is_near_zero_rate, series_deriv, exact_deriv)
+    # past the cap, effective length no longer depends on the rate
     return effective_length, np.where(
-        is_near_zero_rate, series_deriv, exact_deriv
+        growth_rate * length > growth_exponent_bound, 0.0, deriv
     )
 
 
@@ -97,15 +99,14 @@ def tgs_calc_nll(
     else:
         # chance a carrier lineage persists until its clade's last leaf is
         # sampled, averaged over each coarsened row's branches
-        survival_factors = np.exp(
-            np.minimum(
-                growth_rate * distinct_survival_durations,
-                growth_exponent_bound,
-            )
-        )
+        exponents = growth_rate * distinct_survival_durations
+        survival_factors = np.exp(np.minimum(exponents, growth_exponent_bound))
         survival = survival_shares @ survival_factors
-        survival_deriv = survival_shares @ (
-            distinct_survival_durations * survival_factors
+        # past the cap, survival factors no longer depend on the rate
+        survival_deriv = survival_shares @ np.where(
+            exponents > growth_exponent_bound,
+            0.0,
+            distinct_survival_durations * survival_factors,
         )
 
     p = gain_rate * effective_length * survival

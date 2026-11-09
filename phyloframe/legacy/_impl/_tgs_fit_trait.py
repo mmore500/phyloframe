@@ -62,14 +62,9 @@ def tgs_fit_trait(
         return dict(gain_rate=0.0, selection_coef=np.nan)
 
     selection_rescale = tgs_pick_selection_rescale(coarsened_df)
-    if not np.isfinite(selection_rescale):  # no calibrated exposure
-        raise ValueError(
-            "a trait has gains but no calibrated exposure, as its exposure "
-            "episodes all fall in calibration neighborhoods without neutral "
-            "trait gains; use coarser calibration, e.g., fewer, larger "
-            "calibration bins (see alifestd_mark_joint_quantile_bins_polars) "
-            "or larger calibrate_neighborhood_fractions",
-        )
+    # calibrated lengths are positive, as branch lengths and calibration
+    # factors are, so the rescale is defined
+    assert np.isfinite(selection_rescale)
     log_gain_start = tgs_pick_log_gain_rate_start(coarsened_df)
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,

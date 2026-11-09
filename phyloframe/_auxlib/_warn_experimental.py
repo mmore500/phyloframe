@@ -33,7 +33,7 @@ def warn_experimental(func: typing.Callable) -> typing.Callable:
                 f"{func.__name__} is experimental. Its interface and results "
                 "can change in the future. To silence this warning, set the "
                 "environment variable PHYLOFRAME_WARN_EXPERIMENTAL_SUPPRESS, "
-                "or filter phyloframe's ExperimentalWarning category.",
+                "or filter the phyloframe.ExperimentalWarning category.",
                 ExperimentalWarning,
                 stacklevel=2,
             )
