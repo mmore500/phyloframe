@@ -13,9 +13,10 @@ def calc_binomial_nll_proxy(
     additive constant), and its gradient with respect to success
     probability.
 
-    Omits log binomial coefficients, which do not depend on `p`, for speedup
-    over `scipy.stats.binom.logpmf` under repeated evaluation (e.g., within
-    an optimizer). The gradient is unaffected.
+    Omits log binomial coefficients for speedup over
+    `scipy.stats.binom.logpmf` under repeated evaluation (e.g., within an
+    optimizer). These are constant in `p`, so the gradient equals that of
+    the true negative log likelihood.
 
     Parameters
     ----------
