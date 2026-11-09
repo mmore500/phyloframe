@@ -32,7 +32,6 @@ def warn_experimental(func: typing.Callable) -> typing.Callable:
             warnings.warn(
                 f"{func.__name__} is experimental, and thus may provide "
                 "an unstable interface or unreliable results. To silence this "
-                "can change in the future, and its results have not yet been "
                 "warning, set the environment variable "
                 "PHYLOFRAME_WARN_EXPERIMENTAL_SUPPRESS, or filter the "
                 "phyloframe.ExperimentalWarning category.",
