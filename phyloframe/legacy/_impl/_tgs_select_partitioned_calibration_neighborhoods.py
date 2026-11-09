@@ -104,8 +104,8 @@ def _tgs_select_calibration_neighborhoods(
             num_neighbors=int(
                 np.clip(
                     round(neighborhood_fraction * len(bin_coords)),
-                    1,
-                    len(bin_coords),
+                    a_min=1,
+                    a_max=len(bin_coords),
                 )
             ),
         )

@@ -53,6 +53,10 @@ def run_seeded_replicates(
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
         # batch replicates, to serialize shared arguments once per batch
         batch_size = int(
-            np.clip(num_replicates // (4 * joblib.cpu_count()), 1, None)
+            np.clip(
+                num_replicates // (4 * joblib.cpu_count()),
+                a_min=1,
+                a_max=None,
+            )
         )
         return joblib.Parallel(batch_size=batch_size)(progress_wrap(jobs))
