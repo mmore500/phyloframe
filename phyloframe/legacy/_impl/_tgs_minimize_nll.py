@@ -48,6 +48,7 @@ def tgs_minimize_nll(
     fit_selection: bool,
     selection_rescale: float,
     loss_rate: float,
+    growth_exponent_bound: float,
 ) -> optimize.OptimizeResult:
     """Implementation detail for `tgs_fit_trait`,
     `_tgs_calc_trait_selection_lrts`, and `_tgs_calc_trait_gain_ratio_lrts`.
@@ -65,15 +66,13 @@ def tgs_minimize_nll(
     length, so that both parameters are of order one; otherwise, with long
     lengths, L-BFGS-B stops early on the tiny selection coefficient. It is
     bounded above so that growth exponents, growth rate times branch length
-    plus survival duration, stay within `growth_exponent_bound` of
-    `nll_kwargs` (see `tgs_calc_nll`).
+    plus survival duration, stay within `growth_exponent_bound`.
     """
-    durations = nll_kwargs["distinct_survival_durations"]
-    max_exponent_time = nll_kwargs["coarsened_df"]["length"].max() + (
-        0.0 if durations is None else durations.max(initial=0.0)
-    )
+    max_length = nll_kwargs["coarsened_df"]["length"].max()
+    max_duration = nll_kwargs["distinct_survival_durations"].max(initial=0.0)
+    max_exponent_time = max_length + max_duration
     max_rescaled_selection = (
-        (nll_kwargs["growth_exponent_bound"] / max_exponent_time + loss_rate)
+        (growth_exponent_bound / max_exponent_time + loss_rate)
         / selection_rescale
         if max_exponent_time > 0
         else None

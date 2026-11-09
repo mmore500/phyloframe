@@ -19,6 +19,7 @@ def _exposure_df() -> pl.DataFrame:
 def test_counts():
     res = tgs_count_trait_bin_exposures(
         exposure_df=_exposure_df(),
+        num_traits=2,
         bins=np.array([0, 0, 1, 1]),
         num_bins=3,
         weights=np.array([1.0, 2.0, 1.0, 1.0]),

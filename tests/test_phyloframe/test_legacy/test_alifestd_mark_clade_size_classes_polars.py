@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 import polars as pl
+import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import alifestd_mark_clade_size_classes_polars
@@ -158,7 +159,6 @@ def test_polars_empty():
         (dict(min_class_weight=-1), ValueError),
         (dict(min_num_classes=0), ValueError),
         (dict(weight_by=["absent"]), pl.exceptions.ColumnNotFoundError),
-        (dict(weight_by="n1"), TypeError),
     ],
 )
 def test_polars_invalid(kwargs, error):
@@ -178,3 +178,12 @@ def test_polars_unsorted_raises():
     df = pl.DataFrame({"id": [0, 1, 2], "ancestor_id": [1, 1, 1]})
     with pytest.raises(NotImplementedError):
         alifestd_mark_clade_size_classes_polars(df)
+
+
+def test_polars_single_string_weight_by():
+    pltest.assert_frame_equal(
+        alifestd_mark_clade_size_classes_polars(_make_tree(), weight_by="n1"),
+        alifestd_mark_clade_size_classes_polars(
+            _make_tree(), weight_by=["n1"]
+        ),
+    )

@@ -87,7 +87,7 @@ def alifestd_mark_clade_size_classes_polars(
     phylogeny_df: pl.DataFrame,
     *,
     size_ratio: float = 2.0,
-    weight_by: typing.Sequence[str] = (),
+    weight_by: typing.Union[str, typing.Sequence[str]] = (),
     min_class_weight: float = 0.0,
     min_num_classes: int = 2,
     mark_as: str = "clade_size_class",
@@ -129,7 +129,7 @@ def alifestd_mark_clade_size_classes_polars(
     size_ratio : float, default 2.0
         Ratio between successive classes' clade size bounds; must exceed 1.
         Larger ratios give fewer, larger classes.
-    weight_by : Sequence[str], default ()
+    weight_by : str or Sequence[str], default ()
         Names of numeric columns summed into each node's weight, e.g.,
         neutral traits' transitions.
     min_class_weight : float, default 0.0
@@ -178,10 +178,7 @@ def alifestd_mark_clade_size_classes_polars(
             f"min_num_classes must be at least 1, got {min_num_classes}",
         )
     if isinstance(weight_by, str):
-        raise TypeError(
-            "weight_by must be a sequence of column names, not a single "
-            f"string; did you mean [{weight_by!r}]?",
-        )
+        weight_by = [weight_by]
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -326,6 +323,7 @@ if __name__ == "__main__":
             )
     except NotImplementedError as e:
         logging.error(
-            "- polars op not yet implemented, use pandas op instead",
+            "- unsupported input, with no pandas op to fall back on; "
+            "see the error for which input to convert",
         )
         raise e

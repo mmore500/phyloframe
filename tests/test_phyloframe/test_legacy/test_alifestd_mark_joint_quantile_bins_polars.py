@@ -1,5 +1,6 @@
 import numpy as np
 import polars as pl
+import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
@@ -95,7 +96,6 @@ def test_empty():
         ),
         (dict(bin_by=["x"], max_num_bins=6), ValueError),
         (dict(bin_by=["x"], min_bin_occupancy=0), ValueError),
-        (dict(bin_by="x"), TypeError),
     ],
 )
 def test_invalid(kwargs, error):
@@ -162,3 +162,10 @@ def test_num_bins_counts_bins_produced(num_rows: int):
         min_bin_occupancy=1,
     )
     assert sorted(set(bins.tolist())) == list(range(num_bins))
+
+
+def test_single_string_bin_by():
+    pltest.assert_frame_equal(
+        alifestd_mark_joint_quantile_bins_polars(_make_df(), bin_by="x"),
+        alifestd_mark_joint_quantile_bins_polars(_make_df(), bin_by=["x"]),
+    )

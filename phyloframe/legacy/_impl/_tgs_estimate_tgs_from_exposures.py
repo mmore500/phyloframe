@@ -22,8 +22,6 @@ def _tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
     `calibration_bin`) pairs consecutively, partition-major, so that each
     partition's bins are contiguous; see Input and Output Schema.
 
-    Raises ValueError if `exposure_df` has no exposure episodes.
-
     Input Schema
     ------------
     'calibration_partition' : integer, optional
@@ -41,9 +39,6 @@ def _tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
     'partition' : integer
         Calibration partition index, from 0, over partitions, sorted.
     """
-    if exposure_df.is_empty():
-        raise ValueError("phylogeny_df has no exposure episodes to fit")
-
     calibration_df = exposure_df.select(
         exposure_id=pl.int_range(pl.len(), dtype=pl.Int64),
         # defaults, overwritten by `exposure_df`'s columns, if any
@@ -130,6 +125,7 @@ def tgs_estimate_tgs_from_exposures(
     )
     fit_kwargs = dict(
         exposure_df=exposure_df,
+        num_traits=len(trait_names),
         bins=bins_df["bin"].to_numpy(),
         num_bins=num_bins,
         calibration_neighborhoods=calibration_neighborhoods,

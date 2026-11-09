@@ -10,6 +10,7 @@ def tgs_validate_args(
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
     length_rtol: float,
+    growth_exponent_bound: float,
     calibration_compare_by_vals: typing.Sequence[str],
 ) -> typing.Tuple[typing.List[str], typing.List[int]]:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
@@ -20,15 +21,6 @@ def tgs_validate_args(
     `neutral_traits`, given as names among them, as sorted, distinct
     indices.
     """
-    for name, value in (
-        ("trait_transitions", trait_transition_cols),
-        ("neutral_traits", neutral_traits),
-    ):
-        if isinstance(value, str):
-            raise TypeError(
-                f"{name} must be a sequence of column names, not a single "
-                f"string; did you mean [{value!r}]?",
-            )
     trait_transition_cols = list(trait_transition_cols)
     for column in trait_transition_cols:
         if not isinstance(column, str):
@@ -74,12 +66,8 @@ def tgs_validate_args(
         )
     if not length_rtol >= 0:
         raise ValueError(f"length_rtol must be nonnegative, got {length_rtol}")
-    if isinstance(calibration_compare_by_vals, str):
-        raise TypeError(
-            "calibration_compare_by_vals must be a sequence of column names, "
-            "not a single string; did you mean "
-            f"[{calibration_compare_by_vals!r}]?",
-        )
+    if not growth_exponent_bound < np.log(np.finfo(np.float64).max):
+        raise ValueError("growth_exponent_bound overflows float64")
     if not len(calibration_compare_by_vals):
         raise ValueError("calibration_compare_by_vals must be nonempty")
     return trait_transition_cols, neutral_traits

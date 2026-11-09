@@ -463,6 +463,18 @@ def test_episode_mask_all_true_matches_unmasked():
     )
 
 
+def test_single_string_calibration_compare_by_vals():
+    df_pl = _make_cherries_polars(2_000)
+    pltest.assert_frame_equal(
+        alifestd_tgs_estimate_polars(
+            df_pl, calibration_compare_by_vals="origin_time", **_MASK_KWARGS
+        ),
+        alifestd_tgs_estimate_polars(
+            df_pl, calibration_compare_by_vals=["origin_time"], **_MASK_KWARGS
+        ),
+    )
+
+
 def test_episode_mask_leaves_counts_no_inner_episodes():
     df_pl = alifestd_mark_leaves_polars(_make_cherries_polars(2_000))
     res = alifestd_tgs_estimate_polars(

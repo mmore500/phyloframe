@@ -5,6 +5,7 @@ import typing
 import numpy as np
 import opytional as opyt
 import polars as pl
+import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._calc_geometric_bins import calc_geometric_bins
@@ -14,10 +15,7 @@ from ._tgs_calc_calibration_rescaling import (
 )
 from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
 from ._tgs_fit_coarsened_traits import tgs_fit_coarsened_traits
-from ._tgs_select_trait_episodes import (
-    tgs_count_exposure_traits,
-    tgs_select_trait_episodes,
-)
+from ._tgs_select_trait_episodes import tgs_select_trait_episodes
 
 
 def _tgs_calc_length_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
@@ -45,8 +43,8 @@ def _tgs_coarsen_episodes(
     survival_duration_indices: np.ndarray,
     num_survival_durations: int,
 ) -> typing.Tuple[pl.DataFrame, sparse.csr_matrix]:
-    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
-    stands for trait gain/selection.
+    """Implementation detail for `tgs_fit_traits`. Acronym tgs stands for trait
+    gain/selection.
 
     Coarsens `trait_id`'s exposure episodes (rows of `exposure_df` starting
     without the trait; see `_tgs_build_exposure_df`), pooling those whose
@@ -145,6 +143,7 @@ def _tgs_coarsen_episodes(
 def tgs_fit_traits(
     *,
     exposure_df: pl.DataFrame,
+    num_traits: int,
     bins: np.ndarray,
     num_bins: int,
     calibration_neighborhoods: sparse.spmatrix,
@@ -211,19 +210,21 @@ def tgs_fit_traits(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1.
     """
+    assert (
+        num_traits == exposure_df.select(cs.matches(r"^trait\d+_gain$")).width
+    )
     trait_bin_counts_df = opyt.or_else(
         trait_bin_counts_df,
         lambda: tgs_count_trait_bin_exposures(
             exposure_df=exposure_df,
+            num_traits=num_traits,
             bins=bins,
             num_bins=num_bins,
             weights=weights,
         ),
     )
     trait_nll_kwargs = []  # each trait's, but the rate parameters
-    for trait_id in progress_wrap(
-        range(tgs_count_exposure_traits(exposure_df))
-    ):
+    for trait_id in progress_wrap(range(num_traits)):
         coarsened_df, survival_shares = _tgs_coarsen_episodes(
             exposure_df=exposure_df,
             trait_id=trait_id,
@@ -243,7 +244,6 @@ def tgs_fit_traits(
         trait_nll_kwargs.append(
             dict(
                 coarsened_df=coarsened_df,
-                growth_exponent_bound=growth_exponent_bound,
                 survival_shares=survival_shares,
                 distinct_survival_durations=distinct_survival_durations,
             ),
@@ -256,5 +256,6 @@ def tgs_fit_traits(
         neutral_traits=neutral_traits,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
+        growth_exponent_bound=growth_exponent_bound,
         progress_wrap=progress_wrap,
     )

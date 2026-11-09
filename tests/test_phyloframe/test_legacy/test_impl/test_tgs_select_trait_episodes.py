@@ -1,9 +1,6 @@
 import polars as pl
 
-from phyloframe.legacy._impl import (
-    tgs_count_exposure_traits,
-    tgs_select_trait_episodes,
-)
+from phyloframe.legacy._impl import tgs_select_trait_episodes
 
 
 def _exposure_df() -> pl.DataFrame:
@@ -16,11 +13,6 @@ def _exposure_df() -> pl.DataFrame:
             "trait1_gain": [False, False, True],
         },
     )
-
-
-def test_count_exposure_traits():
-    assert tgs_count_exposure_traits(_exposure_df()) == 2
-    assert tgs_count_exposure_traits(pl.DataFrame({"clade_size": [1]})) == 0
 
 
 def test_episodes():

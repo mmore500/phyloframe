@@ -8,8 +8,8 @@ def _tgs_tally_trait_exposure_episodes(
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_tally_exposure_episodes`.
 
-    Returns `trait_id`'s leaf and inner exposure episode and gain counts, as one
-    row; see Output Schema.
+    Returns `trait_id`'s leaf and inner exposure episode and gain counts, as
+    one row; see Output Schema.
 
     Output Schema
     -------------

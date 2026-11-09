@@ -52,7 +52,7 @@ def test_block_diagonal():
 
 
 def test_one_bin_is_uncalibrated():
-    exposure_df = simulate_exposure_df(400)
+    exposure_df = simulate_exposure_df(400, num_neutral=3)
     __, neighborhoods, trait_bin_counts_df = _select(exposure_df)
     assert neighborhoods.toarray().tolist() == [[1.0]]
     assert trait_bin_counts_df["bin"].unique().to_list() == [0]

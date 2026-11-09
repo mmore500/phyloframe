@@ -91,8 +91,7 @@ def _tgs_select_calibration_neighborhoods(
     `bin_coords`, of the size, among `neighborhood_fractions`, that best
     predicts each held-out neutral trait's gains when calibrating against
     the other neutral traits (see `_tgs_calc_heldout_nll`), given
-    `trait_bin_counts_df` (see `tgs_count_trait_bin_exposures`). Warns about any
-    neighborhoods without neutral gains.
+    `trait_bin_counts_df` (see `tgs_count_trait_bin_exposures`).
     """
 
     def calc_heldout_nll_for_neighborhood_fraction(
@@ -175,9 +174,9 @@ def _tgs_slice_partition_bins(
     `tgs_select_partitioned_calibration_neighborhoods`.
 
     Returns the rows of `trait_bin_counts_df`, per-trait exposure counts in
-    each calibration bin (see `tgs_count_trait_bin_exposures`), for one partition's
-    bins, `begin` up to `end`, with bins renumbered from 0 to match that
-    partition's own bin coordinates.
+    each calibration bin (see `tgs_count_trait_bin_exposures`), for one
+    partition's bins, `begin` up to `end`, with bins renumbered from 0 to match
+    that partition's own bin coordinates.
     """
     return trait_bin_counts_df.filter(
         pl.col("bin").is_between(begin, end - 1)
@@ -197,15 +196,14 @@ def tgs_select_partitioned_calibration_neighborhoods(
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
 
-    Selects calibration neighborhoods separately within each partition
-    (see `_tgs_select_calibration_neighborhoods`), so that neighborhoods
-    never span partitions. Returns a sparse 0/1 bin-by-bin matrix whose row
-    `i` marks the calibration bins in bin `i`'s neighborhood, i.e., those
-    whose neutral trait gains calibrate bin `i`'s branch lengths; with one
-    bin, that bin alone, i.e., no calibration. Also returns per-(trait,
-    bin) exposure counts (see `tgs_count_trait_bin_exposures`), which it needs for
-    selection, for reuse by the point estimate; see Input and Output
-    Schema.
+    Selects calibration neighborhoods separately within each partition (see
+    `_tgs_select_calibration_neighborhoods`), so that neighborhoods never span
+    partitions. Returns a sparse 0/1 bin-by-bin matrix whose row `i` marks the
+    calibration bins in bin `i`'s neighborhood, i.e., those whose neutral trait
+    gains calibrate bin `i`'s branch lengths; with one bin, that bin alone,
+    i.e., no calibration. Also returns per-(trait, bin) exposure counts (see
+    `tgs_count_trait_bin_exposures`), which it needs for selection, for reuse
+    by the point estimate; see Input and Output Schema.
 
     Input Schema
     ------------
@@ -245,6 +243,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
     bins = bins_df["bin"].to_numpy()
     trait_bin_counts_df = tgs_count_trait_bin_exposures(
         exposure_df=exposure_df,
+        num_traits=len(trait_names),
         bins=bins,
         num_bins=num_bins,
         weights=np.ones(len(exposure_df)),

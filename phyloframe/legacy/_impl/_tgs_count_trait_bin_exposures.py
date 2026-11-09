@@ -2,10 +2,7 @@ import numpy as np
 import polars as pl
 import polars.selectors as cs
 
-from ._tgs_select_trait_episodes import (
-    tgs_count_exposure_traits,
-    tgs_select_trait_episodes,
-)
+from ._tgs_select_trait_episodes import tgs_select_trait_episodes
 
 
 def _tgs_count_bin_exposures_of_trait(
@@ -51,6 +48,7 @@ def _tgs_count_bin_exposures_of_trait(
 def tgs_count_trait_bin_exposures(
     *,
     exposure_df: pl.DataFrame,
+    num_traits: int,
     bins: np.ndarray,
     num_bins: int,
     weights: np.ndarray,
@@ -76,6 +74,9 @@ def tgs_count_trait_bin_exposures(
     'length_sum' : float
         Weighted sum of those episodes' branch lengths.
     """
+    assert (
+        num_traits == exposure_df.select(cs.matches(r"^trait\d+_gain$")).width
+    )
     bin_df = pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)})
     trait_bin_kwargs = dict(  # converted once, shared by every trait
         exposure_df=exposure_df,
@@ -96,5 +97,5 @@ def tgs_count_trait_bin_exposures(
         .with_columns(cs.float().fill_null(0.0)).select(
             pl.lit(trait_id, dtype=pl.Int64).alias("trait_id"), pl.all()
         )
-        for trait_id in range(tgs_count_exposure_traits(exposure_df))
+        for trait_id in range(num_traits)
     ).sort("trait_id", "bin")

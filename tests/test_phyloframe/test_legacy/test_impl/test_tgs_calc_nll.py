@@ -9,6 +9,8 @@ from scipy import optimize
 from phyloframe.legacy._impl import tgs_calc_nll
 from phyloframe.legacy._impl._tgs_calc_nll import _tgs_calc_effective_length
 
+from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
+
 
 def _data():
     rng = np.random.default_rng(1)
@@ -46,25 +48,8 @@ def _pendant_nll(coarsened_df, log_gain_rate, rate):
     return tgs_calc_nll(
         gain_rate=np.exp(log_gain_rate),
         growth_rate=rate,
-        coarsened_df=coarsened_df,
-        growth_exponent_bound=600.0,
-        survival_shares=None,
-        distinct_survival_durations=None,
+        **make_pendant_nll_kwargs(coarsened_df),
     )
-
-
-def test_matches_pendant_without_survival_duration():
-    data, __ = _data()
-    data["survival_shares"] = np.ones((6, 1))
-    res = tgs_calc_nll(
-        gain_rate=1e-3,
-        growth_rate=-0.05,
-        **data,
-        distinct_survival_durations=np.array([0.0]),
-        growth_exponent_bound=600.0,
-    )
-    expected = _pendant_nll(data["coarsened_df"], np.log(1e-3), -0.05)
-    np.testing.assert_allclose(res, expected)
 
 
 def test_survival_discounts():
@@ -79,7 +64,6 @@ def test_survival_discounts():
         growth_rate=rate,
         **data,
         distinct_survival_durations=times,
-        growth_exponent_bound=600.0,
     )
     gain = 1e-3 * np.expm1(rate * lengths) / rate * factor
     expected = -np.sum(k * np.log(gain) + (n - k) * np.log1p(-gain))
@@ -96,7 +80,6 @@ def test_gradient(rate: float):
             growth_rate=params[1],
             **data,
             distinct_survival_durations=times,
-            growth_exponent_bound=600.0,
         )
 
     x0 = np.array([np.log(1e-3), rate])
@@ -124,20 +107,6 @@ def test_continuous_at_zero_rate():
     at_zero = _pendant_nll(coarsened_df, np.log(1e-3), 0.0)
     near_zero = _pendant_nll(coarsened_df, np.log(1e-3), 1e-12)
     np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)
-
-
-@pytest.mark.parametrize("growth_exponent_bound", [710.0, np.inf])
-def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
-    data, times = _data()
-    with pytest.raises(ValueError, match="growth exponent bound"):
-        tgs_calc_nll(
-            gain_rate=1e-3,
-            growth_rate=-0.05,
-            coarsened_df=data["coarsened_df"],
-            growth_exponent_bound=growth_exponent_bound,
-            survival_shares=None,
-            distinct_survival_durations=None,
-        )
 
 
 @pytest.mark.parametrize(

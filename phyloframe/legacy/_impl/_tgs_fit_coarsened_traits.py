@@ -39,6 +39,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
     selection_coef: float,
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
 ) -> float:
     """Implementation detail for `_tgs_calc_trait_gain_ratio_lrts`. Acronym
     tgs stands for trait gain/selection.
@@ -71,6 +72,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
         fit_selection=True,
         selection_rescale=selection_rescale,
         loss_rate=loss_rate,
+        growth_exponent_bound=growth_exponent_bound,
     )
     if not null.num_converged:
         warnings.warn(
@@ -87,6 +89,7 @@ def _tgs_calc_trait_gain_ratio_lrts(
     trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
@@ -135,6 +138,7 @@ def _tgs_calc_trait_gain_ratio_lrts(
                     selection_coef=fit["selection_coef"],
                     loss_rate=loss_rate,
                     selection_coef_starts=selection_coef_starts,
+                    growth_exponent_bound=growth_exponent_bound,
                 ),
             }
             for trait_id, (nll_kwargs, fit) in enumerate(
@@ -151,6 +155,7 @@ def _tgs_calc_trait_selection_lrt(
     gain_rate: float,
     selection_coef: float,
     loss_rate: float,
+    growth_exponent_bound: float,
 ) -> float:
     """Implementation detail for `_tgs_calc_trait_selection_lrts`. Acronym
     tgs stands for trait gain/selection.
@@ -179,6 +184,7 @@ def _tgs_calc_trait_selection_lrt(
         fit_selection=False,
         selection_rescale=selection_rescale,
         loss_rate=loss_rate,
+        growth_exponent_bound=growth_exponent_bound,
     )
     if not null.num_converged:
         warnings.warn(
@@ -195,6 +201,7 @@ def _tgs_calc_trait_selection_lrts(
     fits_df: pl.DataFrame,
     trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
     loss_rate: float,
+    growth_exponent_bound: float,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
@@ -234,6 +241,7 @@ def _tgs_calc_trait_selection_lrts(
                     gain_rate=fit["gain_rate"],
                     selection_coef=fit["selection_coef"],
                     loss_rate=loss_rate,
+                    growth_exponent_bound=growth_exponent_bound,
                 ),
             }
             for trait_id, (nll_kwargs, fit) in enumerate(
@@ -273,16 +281,10 @@ def _tgs_calc_neutral_reference_gain_rates(
 
     Returns each trait's neutral reference gain rate, the mean gain rate of
     the neutral traits other than itself, against which its gain ratio is
-    taken; nan if none of them gained their trait.
-
-    Raises ValueError with fewer than two distinct neutral traits, so that
-    every trait has a neutral reference.
+    taken; nan if none of them gained their trait. Requires at least two
+    distinct neutral traits (see `tgs_validate_args`), so that every trait
+    has a neutral reference.
     """
-    if len(set(neutral_traits)) < 2:
-        raise ValueError(
-            "at least two distinct neutral traits are required, so that "
-            "every trait has a neutral reference",
-        )
     gain_rates = np.asarray(gain_rates, dtype=np.float64)
     return np.array(
         [
@@ -303,15 +305,16 @@ def tgs_fit_coarsened_traits(
     neutral_traits: typing.Sequence[int],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
 
-    Fits each trait's gain rate and selection coefficient, given each
-    trait's `tgs_calc_nll` arguments but the rate parameters,
-    `trait_nll_kwargs`, e.g., its coarsened episodes from `_tgs_coarsen_episodes` (see
-    Input Schema of `tgs_calc_nll`).
+    Fits each trait's gain rate and selection coefficient, given each trait's
+    `tgs_calc_nll` arguments but the rate parameters, `trait_nll_kwargs`, e.g.,
+    its coarsened episodes from `_tgs_coarsen_episodes` (see Input Schema of
+    `tgs_calc_nll`).
 
     Fits one trait at a time, wrapped in `progress_wrap` (e.g., tqdm).
     Returns one row per trait, in trait index order; see Output Schema.
@@ -338,14 +341,14 @@ def tgs_fit_coarsened_traits(
                 nll_kwargs=nll_kwargs,
                 loss_rate=loss_rate,
                 selection_coef_starts=selection_coef_starts,
+                growth_exponent_bound=growth_exponent_bound,
             )
             for nll_kwargs in progress_wrap(trait_nll_kwargs)
         ],
         schema={"gain_rate": pl.Float64, "selection_coef": pl.Float64},
     )
     # normalize each gain rate by the mean gain rate of its neutral reference;
-    # undefined (nan) without neutral reference traits, or if none gained the
-    # trait
+    # undefined (nan) if none of the reference traits gained theirs
     fits_df = fits_df.with_columns(
         trait_id=pl.int_range(pl.len(), dtype=pl.Int64),
         gain_rate_neutral=_tgs_calc_neutral_reference_gain_rates(
@@ -356,7 +359,10 @@ def tgs_fit_coarsened_traits(
         gain_ratio=pl.col("gain_rate") / pl.col("gain_rate_neutral")
     )
     lrt_kwargs = dict(
-        fits_df=fits_df, trait_nll_kwargs=trait_nll_kwargs, loss_rate=loss_rate
+        fits_df=fits_df,
+        trait_nll_kwargs=trait_nll_kwargs,
+        loss_rate=loss_rate,
+        growth_exponent_bound=growth_exponent_bound,
     )
     return (
         fits_df.join(

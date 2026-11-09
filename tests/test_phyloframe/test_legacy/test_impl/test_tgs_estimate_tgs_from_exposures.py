@@ -11,9 +11,6 @@ from phyloframe.legacy._impl import (
     tgs_fit_traits,
     tgs_tally_exposure_episodes,
 )
-from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
-    _tgs_build_exposure_df,
-)
 
 from ._simulate_exposure_df import simulate_exposure_df
 
@@ -115,18 +112,3 @@ def test_partitions_separate_neighborhoods():
         res["selection_coef"],
         _impl(exposure_df.drop("calibration_partition"))["selection_coef"],
     )
-
-
-def test_no_episodes_raises():
-    exposure_df = _tgs_build_exposure_df(
-        pl.DataFrame(
-            {
-                "ancestor_id": [0],
-                "origin_time": [0.0],
-                **{f"__alifestd_tgs_trait{i}_state": [0] for i in range(4)},
-            },
-        ),
-        is_kept_episode=np.ones(1, dtype=bool),
-    )
-    with pytest.raises(ValueError, match="no exposure episodes"):
-        _impl(exposure_df)

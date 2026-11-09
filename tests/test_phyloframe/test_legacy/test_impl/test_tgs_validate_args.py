@@ -7,6 +7,7 @@ _KWARGS = dict(
     calibrate_neighborhood_fractions=(0.1, 1.0),
     calibrate_max_rate_ratio=np.inf,
     length_rtol=1e-3,
+    growth_exponent_bound=600.0,
     calibration_compare_by_vals=("branch_length", "origin_time"),
 )
 
@@ -83,27 +84,20 @@ def test_invalid(kwargs: dict):
         )
 
 
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        dict(trait_transition_cols="a", neutral_traits=()),
-        dict(trait_transition_cols=["a", "b"], neutral_traits="a"),
-        dict(
-            trait_transition_cols=["a", "b", "c"],
-            neutral_traits=["b", "c"],
-            calibration_compare_by_vals="origin_time",
-        ),
-    ],
-)
-def test_bare_string_raises(kwargs: dict):
-    with pytest.raises(TypeError, match="single string"):
-        tgs_validate_args(**{**_KWARGS, **kwargs})
-
-
 def test_duplicate_trait_transitions_raise():
     with pytest.raises(ValueError, match="duplicate"):
         tgs_validate_args(
             trait_transition_cols=["a", "b", "a"],
             neutral_traits=["a", "b"],
             **_KWARGS,
+        )
+
+
+@pytest.mark.parametrize("growth_exponent_bound", [710.0, np.inf])
+def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
+    with pytest.raises(ValueError, match="growth_exponent_bound"):
+        tgs_validate_args(
+            trait_transition_cols=["a", "b"],
+            neutral_traits=["a", "b"],
+            **{**_KWARGS, "growth_exponent_bound": growth_exponent_bound},
         )

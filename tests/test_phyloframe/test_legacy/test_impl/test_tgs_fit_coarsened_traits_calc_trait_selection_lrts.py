@@ -7,6 +7,8 @@ from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_selection_lrts,
 )
 
+from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
+
 
 def _coarsened_df(gain_rate: float, selection_coef: float, seed: int):
     rng = np.random.default_rng(seed)
@@ -31,12 +33,7 @@ def _coarsened_df(gain_rate: float, selection_coef: float, seed: int):
 def test_trait_selection_lrts():
     # trait 0 has a cost; trait 1 is neutral; trait 2 has no gains
     trait_nll_kwargs = [
-        dict(
-            coarsened_df=_coarsened_df(gain_rate, selection_coef, seed),
-            growth_exponent_bound=600.0,
-            survival_shares=None,
-            distinct_survival_durations=None,
-        )
+        make_pendant_nll_kwargs(_coarsened_df(gain_rate, selection_coef, seed))
         for seed, (gain_rate, selection_coef) in enumerate(
             [(2e-3, -0.05), (1e-3, 0.0), (0.0, 0.0)]
         )
@@ -44,6 +41,7 @@ def test_trait_selection_lrts():
     fits_df = pl.DataFrame(
         [
             tgs_fit_trait(
+                growth_exponent_bound=600.0,
                 nll_kwargs=kwargs,
                 loss_rate=0.0,
                 selection_coef_starts=(0.0, -0.3, -1.8),
@@ -52,7 +50,10 @@ def test_trait_selection_lrts():
         ],
     )
     res = _tgs_calc_trait_selection_lrts(
-        fits_df=fits_df, trait_nll_kwargs=trait_nll_kwargs, loss_rate=0.0
+        growth_exponent_bound=600.0,
+        fits_df=fits_df,
+        trait_nll_kwargs=trait_nll_kwargs,
+        loss_rate=0.0,
     )
     assert res.columns == ["trait_id", "selection_coef_lrt_naive"]
     assert res["trait_id"].to_list() == [0, 1, 2]
@@ -62,7 +63,10 @@ def test_trait_selection_lrts():
         lrts,
         [
             _tgs_calc_trait_selection_lrt(
-                nll_kwargs=kwargs, loss_rate=0.0, **fit
+                growth_exponent_bound=600.0,
+                nll_kwargs=kwargs,
+                loss_rate=0.0,
+                **fit,
             )
             for kwargs, fit in zip(
                 trait_nll_kwargs, fits_df.iter_rows(named=True)
@@ -76,12 +80,8 @@ def test_trait_selection_lrts():
 
 def test_no_gains_is_nan():
     lrt = _tgs_calc_trait_selection_lrt(
-        nll_kwargs=dict(
-            coarsened_df=_coarsened_df(0.0, 0.0, 1),
-            growth_exponent_bound=600.0,
-            survival_shares=None,
-            distinct_survival_durations=None,
-        ),
+        growth_exponent_bound=600.0,
+        nll_kwargs=make_pendant_nll_kwargs(_coarsened_df(0.0, 0.0, 1)),
         gain_rate=0.0,
         selection_coef=np.nan,
         loss_rate=0.0,

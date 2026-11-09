@@ -29,12 +29,12 @@ from ._impl import (
 def alifestd_tgs_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str],
+    trait_transitions: typing.Union[str, typing.Sequence[str]],
+    neutral_traits: typing.Union[str, typing.Sequence[str]],
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Sequence[str] = (
+    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
         "branch_length",
         "origin_time",
     ),
@@ -89,11 +89,11 @@ def alifestd_tgs_estimate_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format; see Input
         Schema.
-    trait_transitions : Sequence[str]
+    trait_transitions : str or Sequence[str]
         Names of integer columns, one per trait, giving each node's trait
         state transition on the branch from its parent (see Input Schema).
         Output rows are labeled by these column names.
-    neutral_traits : Sequence[str]
+    neutral_traits : str or Sequence[str]
         Names, among `trait_transitions`, of traits known to be neutral. At
         least two are required for selecting the calibration configuration.
         Used to calibrate branch lengths against one another; their mean gain
@@ -105,12 +105,12 @@ def alifestd_tgs_estimate_polars(
         branches only. Unmasked episodes inform neither the fit nor
         calibration. If not given, every episode is fit.
     calibration_partition_by : str, optional
-        Name of a column of integer partition ids (see Input Schema): bins
-        are compared only with bins of the same partition, never across
-        partitions, with neighborhood size selected separately within each, e.g., by clade size (see
-        `alifestd_mark_clade_size_classes_polars`), as neutral gains per
-        unit length may differ between leaves and inner nodes. If not given,
-        all bins are compared with one another.
+        Name of a column of integer partition ids (see Input Schema): bins are
+        compared only with bins of the same partition, never across partitions,
+        with neighborhood size selected separately within each, e.g., by clade
+        size (see `alifestd_mark_clade_size_classes_polars`), as neutral gains
+        per unit length may differ between leaves and inner nodes. If not
+        given, all bins are compared with one another.
     calibration_compare_by_bins : str, optional
         Name of a column of integer calibration bin ids, at each exposure
         episode's end node (see Input Schema), e.g., from
@@ -120,7 +120,7 @@ def alifestd_tgs_estimate_polars(
         traits share (e.g., from tree reconstruction). If not given, each
         partition is one bin, so without `calibration_partition_by` too,
         there is no calibration.
-    calibration_compare_by_vals : Sequence[str], default ("branch_length", "origin_time")
+    calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time")
         Columns by which bins are compared: a bin's neighborhood is its
         nearest bins in its partition by mean rank of these columns.
         Exposure episode columns take precedence: `branch_length`;
@@ -148,7 +148,8 @@ def alifestd_tgs_estimate_polars(
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Starting values for the selection coefficient, in units of 1 / mean
-        branch length; the best of the resulting fits is kept. See `tgs_fit_trait`.
+        branch length; the best of the resulting fits is kept. See
+        `tgs_fit_trait`.
     growth_exponent_bound : float, default 600.0
         Bound on carrier growth exponents, the selection coefficient minus
         loss rate times branch length plus survival duration, within which
@@ -369,12 +370,12 @@ def _alifestd_tgs_estimate_polars_impl(
     phylogeny_df: pl.DataFrame,
     *,
     progress_wrap: typing.Callable,
-    trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str],
+    trait_transitions: typing.Union[str, typing.Sequence[str]],
+    neutral_traits: typing.Union[str, typing.Sequence[str]],
     episode_mask: typing.Optional[str],
     calibration_partition_by: typing.Optional[str],
     calibration_compare_by_bins: typing.Optional[str],
-    calibration_compare_by_vals: typing.Sequence[str],
+    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]],
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
     length_rtol: float,
@@ -390,12 +391,19 @@ def _alifestd_tgs_estimate_polars_impl(
     `tgs_estimate_tgs_from_exposures`), with which bootstrap replicates
     refit.
     """
+    if isinstance(trait_transitions, str):
+        trait_transitions = [trait_transitions]
+    if isinstance(neutral_traits, str):
+        neutral_traits = [neutral_traits]
+    if isinstance(calibration_compare_by_vals, str):
+        calibration_compare_by_vals = [calibration_compare_by_vals]
     trait_names, neutral_traits = tgs_validate_args(
         trait_transition_cols=trait_transitions,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,
+        growth_exponent_bound=growth_exponent_bound,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
     exposure_df = tgs_build_exposure_df_polars(
@@ -701,6 +709,7 @@ if __name__ == "__main__":
             )
     except NotImplementedError as e:
         logging.error(
-            "- polars op not yet implemented, use pandas op instead",
+            "- unsupported input, with no pandas op to fall back on; "
+            "see the error for which input to convert",
         )
         raise e

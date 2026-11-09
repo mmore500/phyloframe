@@ -8,6 +8,8 @@ from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_gain_ratio_lrts,
 )
 
+from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
+
 
 def _simulate(gain_rate: float, seed: int):
     rng = np.random.default_rng(seed)
@@ -28,17 +30,13 @@ def _fit_traits(gain_rates):
         _simulate(g, seed) for seed, g in enumerate(gain_rates)
     ]
     trait_nll_kwargs = [
-        dict(
-            coarsened_df=coarsened_df,
-            growth_exponent_bound=600.0,
-            survival_shares=None,
-            distinct_survival_durations=None,
-        )
+        make_pendant_nll_kwargs(coarsened_df)
         for coarsened_df in trait_coarsened_dfs
     ]
     fits = pl.DataFrame(
         [
             tgs_fit_trait(
+                growth_exponent_bound=600.0,
                 nll_kwargs=nll_kwargs,
                 loss_rate=0.0,
                 selection_coef_starts=(0.0, -0.3, -1.8),
@@ -57,6 +55,7 @@ def _lrts(fits, trait_nll_kwargs, *, neutral_traits, **kwargs):
         ),
     )
     res = _tgs_calc_trait_gain_ratio_lrts(
+        growth_exponent_bound=600.0,
         fits_df=fits,
         trait_nll_kwargs=trait_nll_kwargs,
         loss_rate=0.0,
