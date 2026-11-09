@@ -13,7 +13,6 @@ from ._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ._calc_two_sided_normal_p import calc_two_sided_normal_p
-from ._ceil_decimal_product import ceil_decimal_product
 from ._ceil_div import ceil_div
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
@@ -72,7 +71,6 @@ __all__ = [
     "begin_prod_logging",
     "calc_binomial_nll_proxy",
     "calc_group_means",
-    "ceil_decimal_product",
     "ceil_div",
     "calc_tiebroken_ranks",
     "run_weighted_bootstrap",

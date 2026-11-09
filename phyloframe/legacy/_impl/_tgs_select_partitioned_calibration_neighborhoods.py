@@ -11,7 +11,6 @@ from scipy import sparse
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
-from ..._auxlib._ceil_decimal_product import ceil_decimal_product
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
@@ -106,9 +105,7 @@ def _tgs_select_calibration_neighborhoods(
         # `neighborhood_fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
             bin_coords,
-            num_neighbors=ceil_decimal_product(
-                neighborhood_fraction, len(bin_coords)
-            ),
+            num_neighbors=round(neighborhood_fraction * len(bin_coords)),
         )
         # holding out each neutral trait in turn
         nll = sum(
