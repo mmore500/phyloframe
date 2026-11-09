@@ -1,4 +1,32 @@
+import warnings
+
 import polars as pl
+
+
+def _tgs_warn_undefined_estimates(estimates_df: pl.DataFrame) -> None:
+    """Implementation detail for `tgs_build_estimates_df`.
+
+    Warns of traits whose estimates are undefined (nan): without gains,
+    the selection coefficient and likelihood-ratio statistics; without
+    gains of the neutral reference, the gain ratio and its statistic.
+    """
+    no_gains = pl.col("selection_coef").is_nan()
+    traits_without_gains = estimates_df.filter(no_gains)["trait"].to_list()
+    if traits_without_gains:
+        warnings.warn(
+            f"traits {traits_without_gains} have no gains, so their "
+            "selection coefficients and likelihood-ratio statistics are "
+            "undefined (nan)",
+        )
+    traits_without_reference = estimates_df.filter(
+        ~no_gains & pl.col("gain_ratio").is_nan()
+    )["trait"].to_list()
+    if traits_without_reference:
+        warnings.warn(
+            f"traits {traits_without_reference} have neutral references "
+            "without gains, so their gain ratios and gain ratio "
+            "likelihood-ratio statistics are undefined (nan)",
+        )
 
 
 def tgs_build_estimates_df(
@@ -12,6 +40,8 @@ def tgs_build_estimates_df(
     Returns one row per trait, joining `episode_tallies_df`'s per-trait
     exposure episode and gain tallies (see `tgs_tally_exposure_episodes`)
     and `fits_df`'s estimates (see `tgs_fit_traits`); see Output Schema.
+    Warns of traits whose estimates are undefined (nan), e.g., traits
+    without gains.
 
     Output Schema
     -------------
@@ -40,7 +70,7 @@ def tgs_build_estimates_df(
         Likelihood-ratio statistic for gain ratio = 1.
 
     """
-    return pl.concat(
+    estimates_df = pl.concat(
         [
             episode_tallies_df,
             fits_df.select(
@@ -53,3 +83,5 @@ def tgs_build_estimates_df(
         ],
         how="horizontal",
     )
+    _tgs_warn_undefined_estimates(estimates_df)
+    return estimates_df

@@ -34,7 +34,7 @@ from .._alifestd_try_add_ancestor_id_col_polars import (
 
 
 def _tgs_build_exposure_df(
-    phylogeny_df: pl.DataFrame, *, episode_mask: np.ndarray
+    phylogeny_df: pl.DataFrame, *, is_kept_episode: np.ndarray
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
@@ -42,7 +42,7 @@ def _tgs_build_exposure_df(
     Returns the exposure table of `phylogeny_df`, a phylogeny with
     contiguous, topologically sorted ids and no unifurcations, with one row
     per branch, i.e., per non-root node, where per-node boolean
-    `episode_mask` is true; see Input Schema and Output
+    `is_kept_episode` is true; see Input Schema and Output
     Schema.
 
     Clade sizes and survival durations count the whole tree, masked-out
@@ -86,7 +86,7 @@ def _tgs_build_exposure_df(
         ancestor_ids, origin_time
     )
     # a root has no parent, so no branch over which to gain a trait
-    keep = (ancestor_ids != np.arange(len(ancestor_ids))) & episode_mask
+    keep = (ancestor_ids != np.arange(len(ancestor_ids))) & is_kept_episode
     is_bad = ~(np.isfinite(branch_length) & (branch_length > 0))
     (bad_ids,) = np.nonzero(keep & is_bad)
     if len(bad_ids):
@@ -186,19 +186,50 @@ def _tgs_calc_trait_states(
     return states
 
 
-def _tgs_get_cols_with_nulls(
-    df: pl.DataFrame, *, cols: typing.Sequence[str]
-) -> typing.List[str]:
+def _tgs_validate_no_nulls(
+    df: pl.DataFrame, *, cols: typing.Sequence[str], description: str
+) -> None:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
-    Returns those of `df`'s `cols` with null values.
+    Raises NotImplementedError if any of `df`'s `cols`, described by
+    `description` in the error message, has null values.
     """
-    return (
+    cols_with_nulls = (
         df.select(pl.col([*dict.fromkeys(cols)]).has_nulls())
         .unpivot()
         .filter("value")["variable"]
         .to_list()
     )
+    if cols_with_nulls:
+        raise NotImplementedError(
+            f"null values in {description} {cols_with_nulls} not supported",
+        )
+
+
+def _tgs_validate_required_cols(
+    schema_names: typing.Sequence[str],
+    *,
+    required_cols: typing.Dict[typing.Optional[str], str],
+) -> None:
+    """Implementation detail for `tgs_build_exposure_df_polars`.
+
+    Raises ColumnNotFoundError if any of `required_cols`, column names
+    mapped to the arguments that name them, are not among `schema_names`;
+    a None column name is not required.
+    """
+    required_cols = {
+        col: argument
+        for col, argument in required_cols.items()
+        if col is not None
+    }
+    missing = set(required_cols) - set(schema_names)
+    if missing:
+        raise pl.exceptions.ColumnNotFoundError(
+            "missing required columns: "
+            + ", ".join(
+                f"{col!r} ({required_cols[col]})" for col in sorted(missing)
+            ),
+        )
 
 
 def _tgs_select_columns(
@@ -242,13 +273,9 @@ def _tgs_calc_states(
     Returns each trait's state at every node, summing its transitions (see
     `_tgs_calc_trait_states`).
     """
-    cols_with_nulls = _tgs_get_cols_with_nulls(
-        selected, cols=trait_transition_cols
+    _tgs_validate_no_nulls(
+        selected, cols=trait_transition_cols, description="trait transitions"
     )
-    if cols_with_nulls:
-        raise NotImplementedError(
-            f"null values in trait transitions {cols_with_nulls} not supported",
-        )
     ancestor_ids = selected["ancestor_id"].to_numpy()
     return [
         _tgs_calc_trait_states(
@@ -274,16 +301,11 @@ def _tgs_check_no_unifurcations(selected: pl.DataFrame) -> None:
     if len(unifurcation_ids):
         raise NotImplementedError(
             "unifurcations, i.e., non-root nodes with one child (e.g., ids "
-            f"{unifurcation_ids[:5].tolist()}), are not supported; collapse "
-            "them first, carrying trait transitions over: sum each trait's "
-            "transitions into states with alifestd_mark_lineage_cumsum_polars, "
-            "collapse with alifestd_collapse_unifurcations_polars, then remake "
-            "transitions with alifestd_mark_lineage_delta_polars, with "
-            "basal_value=False",
+            f"{unifurcation_ids[:5].tolist()}), are not yet supported",
         )
 
 
-def _tgs_add_trait_states(
+def _tgs_add_trait_state_cols(
     selected: pl.DataFrame, *, trait_transition_cols: typing.Sequence[str]
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_build_exposure_df_polars`.
@@ -317,18 +339,20 @@ def _tgs_validate_calibration_cols(
         *exposure_df.select(pl.col(numeric_cols))
         .select(~cs.numeric())
         .columns,
-        *_tgs_get_cols_with_nulls(
-            exposure_df, cols=[*integer_cols, *numeric_cols]
-        ),
     }
     if invalid_cols:
         raise NotImplementedError(
             f"calibration columns {sorted(invalid_cols)} must be "
-            "numeric (integer, for partitions and bins), without null values",
+            "numeric (integer, for partitions and bins)",
         )
+    _tgs_validate_no_nulls(
+        exposure_df,
+        cols=[*integer_cols, *numeric_cols],
+        description="calibration columns",
+    )
 
 
-def _tgs_calc_episode_mask(
+def _tgs_calc_is_kept_episode(
     nodes_df: pl.DataFrame, *, episode_mask: typing.Optional[str]
 ) -> np.ndarray:
     """Implementation detail for `tgs_build_exposure_df_polars`.
@@ -436,15 +460,15 @@ def tgs_build_exposure_df_polars(
             raise NotImplementedError(
                 f"{caller} only supports asexual phylogenies.",
             )
-        for argument, column in (
-            ("episode_mask", episode_mask),
-            ("calibration_partition_by", calibration_partition_by),
-            ("calibration_compare_by_bins", calibration_compare_by_bins),
-        ):
-            if column is not None and column not in schema_names:
-                raise pl.exceptions.ColumnNotFoundError(
-                    f"{argument} column {column!r} not found in phylogeny_df",
-                )
+        _tgs_validate_required_cols(
+            schema_names,
+            required_cols={
+                **{col: "trait_transitions" for col in trait_transition_cols},
+                episode_mask: "episode_mask",
+                calibration_partition_by: "calibration_partition_by",
+                calibration_compare_by_bins: "calibration_compare_by_bins",
+            },
+        )
         selected = _tgs_select_columns(
             phylogeny_df,
             trait_transition_cols=trait_transition_cols,
@@ -456,7 +480,7 @@ def tgs_build_exposure_df_polars(
         if selected.is_empty():
             raise ValueError("phylogeny_df has no exposure episodes to fit")
     _tgs_check_no_unifurcations(selected)
-    nodes_df = _tgs_add_trait_states(
+    nodes_df = _tgs_add_trait_state_cols(
         selected, trait_transition_cols=trait_transition_cols
     )
     del selected
@@ -464,16 +488,16 @@ def tgs_build_exposure_df_polars(
     log_memory_usage(logging.info)
 
     # masked-out episodes are dropped before their values are checked
-    is_episode_kept = _tgs_calc_episode_mask(
+    is_kept_episode = _tgs_calc_is_kept_episode(
         nodes_df, episode_mask=episode_mask
     )
     exposure_df = _tgs_build_exposure_df(
-        nodes_df, episode_mask=is_episode_kept
+        nodes_df, is_kept_episode=is_kept_episode
     )
     # kept rows, without roots, match exposure_df's; its own columns take
     # precedence
     node_df = nodes_df.filter(
-        (pl.col("ancestor_id") != pl.col("id")) & pl.Series(is_episode_kept)
+        (pl.col("ancestor_id") != pl.col("id")) & pl.Series(is_kept_episode)
     ).select(
         cs.by_name(*calibration_cols.values(), require_all=False)
         - cs.by_name(exposure_df.columns, require_all=False),

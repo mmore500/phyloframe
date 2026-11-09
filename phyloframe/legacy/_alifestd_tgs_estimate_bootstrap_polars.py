@@ -1,12 +1,12 @@
 import argparse
 import functools
+import inspect
 import logging
 import os
 import typing
 
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
-import numpy as np
 import polars as pl
 from tqdm import tqdm
 
@@ -20,50 +20,48 @@ from ._alifestd_tgs_estimate_polars import (
     _add_estimate_arguments,
     _alifestd_tgs_estimate_polars_impl,
     _get_estimate_kwargs,
+    alifestd_tgs_estimate_polars,
 )
 from ._impl import tgs_bootstrap
+
+
+def _bind_estimate_kwargs(
+    kwargs: typing.Dict[str, typing.Any],
+) -> typing.Dict[str, typing.Any]:
+    """Implementation detail for `alifestd_tgs_estimate_bootstrap_polars`.
+
+    Returns `kwargs`, `alifestd_tgs_estimate_polars` arguments but
+    `phylogeny_df` and `progress_wrap`, with its defaults filled in; raises
+    TypeError for missing or unknown arguments.
+    """
+    bound = inspect.signature(alifestd_tgs_estimate_polars).bind(
+        None, **kwargs
+    )
+    bound.apply_defaults()
+    return {
+        name: value
+        for name, value in bound.arguments.items()
+        if name not in ("phylogeny_df", "progress_wrap")
+    }
 
 
 @warn_experimental
 def alifestd_tgs_estimate_bootstrap_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str],
     num_bootstrap: int,
-    episode_mask: typing.Optional[str] = None,
-    calibration_partition_by: typing.Optional[str] = None,
-    calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Sequence[str] = (
-        "branch_length",
-        "origin_time",
-    ),
-    calibrate_neighborhood_fractions: typing.Sequence[float] = (
-        0.005,
-        0.01,
-        0.025,
-        0.05,
-        0.1,
-        0.25,
-        0.5,
-        1.0,
-    ),
-    calibrate_max_rate_ratio: float = np.inf,
-    length_rtol: float = 1e-2,
-    loss_rate: float = 0.0,
-    selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    growth_exponent_bound: float = 600.0,
     seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
+    **kwargs: typing.Any,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and selection coefficient from mutationally
     defined clades (MDCs), as `alifestd_tgs_estimate_polars` does, with
     bootstrap standard errors, z-scores, and p-values.
 
     Bootstrap replicates resample the fit exposure episodes (see
-    `episode_mask`) with replacement and refit, holding calibration neighborhoods fixed at those
-    of the point estimate.
+    `episode_mask`) with replacement and refit, holding calibration
+    neighborhoods fixed at those of the point estimate.
 
     Only supports asexual phylogenies.
 
@@ -87,8 +85,9 @@ def alifestd_tgs_estimate_bootstrap_polars(
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display progress over traits, for the
         point estimate, and over bootstrap replicates.
-
-    Other parameters are as for `alifestd_tgs_estimate_polars`.
+    **kwargs
+        Passed to `alifestd_tgs_estimate_polars`, e.g., `trait_transitions`
+        and `neutral_traits`; see it for these parameters.
 
     Returns
     -------
@@ -133,20 +132,7 @@ def alifestd_tgs_estimate_bootstrap_polars(
     return tgs_bootstrap(
         _alifestd_tgs_estimate_polars_impl,
         phylogeny_df,
-        estimate_kwargs=dict(
-            trait_transitions=trait_transitions,
-            neutral_traits=neutral_traits,
-            episode_mask=episode_mask,
-            calibration_partition_by=calibration_partition_by,
-            calibration_compare_by_bins=calibration_compare_by_bins,
-            calibration_compare_by_vals=calibration_compare_by_vals,
-            calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
-            calibrate_max_rate_ratio=calibrate_max_rate_ratio,
-            length_rtol=length_rtol,
-            loss_rate=loss_rate,
-            selection_coef_starts=selection_coef_starts,
-            growth_exponent_bound=growth_exponent_bound,
-        ),
+        estimate_kwargs=_bind_estimate_kwargs(kwargs),
         num_bootstrap=num_bootstrap,
         seed=seed,
         parallel_backend=parallel_backend,

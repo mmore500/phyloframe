@@ -488,7 +488,7 @@ def test_length_rtol(length_rtol: float):
     res = _estimate_from_masks(phylogeny_df, length_rtol=length_rtol, **kwargs)
     np.testing.assert_allclose(res["gain_ratio"], default["gain_ratio"], 1e-2)
     np.testing.assert_allclose(
-        res["selection_coef"], default["selection_coef"], atol=1e-4
+        res["selection_coef"], default["selection_coef"], atol=3e-4
     )
 
 

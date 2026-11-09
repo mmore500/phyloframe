@@ -7,6 +7,7 @@ import opytional as opyt
 import polars as pl
 from scipy import sparse
 
+from ..._auxlib._calc_geometric_bins import calc_geometric_bins
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
@@ -19,15 +20,17 @@ from ._tgs_select_trait_episodes import (
 )
 
 
-def _calc_log_grid_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
+def _tgs_calc_length_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
     """Implementation detail for `_tgs_coarsen_episodes`.
 
     Returns each nonnegative value's cell of a log-scale grid with ratio 1 +
-    `rtol`; zero values get a cell of their own.
+    `rtol` (see `calc_geometric_bins`); zero values get a cell of their own.
     """
     cells = np.full(len(values), np.iinfo(np.int64).min)
     is_positive = values > 0
-    cells[is_positive] = np.round(np.log(values[is_positive]) / np.log1p(rtol))
+    cells[is_positive] = calc_geometric_bins(
+        values[is_positive], ratio=1 + rtol
+    )
     return cells
 
 
@@ -52,12 +55,11 @@ def _tgs_coarsen_episodes(
     log-scale grid with ratio 1 + `length_rtol` (0 for no coarsening), so
     that pooled episodes have nearly the same chance of gain, and
     coarsening loses little information about which episodes gained the
-    trait. Each episode's
-    length is calibrated by its calibration bin's factor,
-    `calibration_factors[bin]`.
+    trait. Each episode's length is calibrated by its calibration bin's
+    factor, `calibration_factors[bin]`.
 
-    Returns `coarsened_df`, one row per grid cell with episodes
-    (see Output Schema), and `survival_shares`, a sparse matrix with a row
+    Returns `coarsened_df`, one row per grid cell with episodes (see Output
+    Schema), and `survival_shares`, a sparse matrix with a row
     per `coarsened_df` row and a column per distinct survival duration
     (episodes' `survival_duration_indices`), giving the share of the row's
     episodes with each.
@@ -83,8 +85,8 @@ def _tgs_coarsen_episodes(
     )
     survival_durations = exposure_df["survival_duration"].to_numpy()[episodes]
     if length_rtol > 0:
-        length_cells = _calc_log_grid_cells(lengths, rtol=length_rtol)
-        survival_cells = _calc_log_grid_cells(
+        length_cells = _tgs_calc_length_cells(lengths, rtol=length_rtol)
+        survival_cells = _tgs_calc_length_cells(
             survival_durations, rtol=length_rtol
         )
     else:

@@ -174,6 +174,12 @@ def alifestd_tgs_estimate_polars(
         (see Input Schema), e.g., a non-asexual phylogeny, unifurcations,
         null values, trait losses, or a trait present at a root.
 
+    Warns
+    -----
+    UserWarning
+        For traits whose estimates are undefined (nan), as without gains,
+        or without gains of their neutral reference.
+
     Input Schema
     ------------
     'id' : integer

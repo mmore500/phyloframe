@@ -94,12 +94,16 @@ def _tgs_select_calibration_neighborhoods(
     neighborhoods without neutral gains.
     """
 
-    def score(fraction: float) -> typing.Tuple[float, sparse.spmatrix]:
+    def calc_heldout_nll_for_neighborhood_fraction(
+        neighborhood_fraction: float,
+    ) -> typing.Tuple[float, sparse.spmatrix]:
         # each bin's nearest bins, itself included, together holding about
-        # `fraction` of bins
+        # `neighborhood_fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
             bin_coords,
-            num_neighbors=int(np.ceil(fraction * len(bin_coords))),
+            num_neighbors=int(
+                np.ceil(neighborhood_fraction * len(bin_coords))
+            ),
         )
         # holding out each neutral trait in turn
         nll = sum(
@@ -115,14 +119,22 @@ def _tgs_select_calibration_neighborhoods(
         )
         logging.info(
             "- tgs: calibration neighborhoods of "
-            f"{fraction:.1%} of bins give "
+            f"{neighborhood_fraction:.1%} of bins give "
             f"held-out neutral negative log likelihood {nll:.1f}",
         )
         return nll, calibration_neighborhoods
 
     # first (smallest-index) candidate among ties; nan scores lose
-    best_nll, best_neighborhoods, best_fraction = min(
-        ((*score(fraction), fraction) for fraction in neighborhood_fractions),
+    best_nll, best_neighborhoods, best_neighborhood_fraction = min(
+        (
+            (
+                *calc_heldout_nll_for_neighborhood_fraction(
+                    neighborhood_fraction
+                ),
+                neighborhood_fraction,
+            )
+            for neighborhood_fraction in neighborhood_fractions
+        ),
         key=lambda candidate: (np.isnan(candidate[0]), candidate[0]),
     )
 
@@ -136,7 +148,7 @@ def _tgs_select_calibration_neighborhoods(
     num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
     logging.info(
         "- tgs: selected calibration "
-        f"neighborhoods of {best_fraction:.1%} of {len(bin_coords)} "
+        f"neighborhoods of {best_neighborhood_fraction:.1%} of {len(bin_coords)} "
         f"bins, {num_empty} without neutral trait gains",
     )
     if num_empty:
@@ -144,7 +156,7 @@ def _tgs_select_calibration_neighborhoods(
             f"{num_empty} of {len(bin_coords)} calibration "
             "neighborhoods contain no neutral trait gains, so branches "
             "there get zero effective length; more neutral traits or "
-            "leaves would help.",
+            "leaves may help.",
         )
     return best_neighborhoods
 

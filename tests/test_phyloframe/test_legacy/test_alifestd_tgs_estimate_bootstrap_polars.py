@@ -104,3 +104,14 @@ def test_empty(apply: typing.Callable):
             neutral_traits=["b", "c"],
             num_bootstrap=2,
         )
+
+
+def test_unknown_kwarg_raises():
+    with pytest.raises(TypeError):
+        alifestd_tgs_estimate_bootstrap_polars(
+            _make_cherries_polars(100),
+            trait_transitions=["focal", "n1", "n2"],
+            neutral_traits=["n1", "n2"],
+            num_bootstrap=2,
+            not_an_argument=1,
+        )

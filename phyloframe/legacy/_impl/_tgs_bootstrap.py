@@ -225,12 +225,6 @@ def tgs_bootstrap(
     `_tgs_bootstrap_trait_fits`. `progress_wrap` wraps the point estimate's
     traits, then the replicates.
 
-    `estimate_impl` takes `phylogeny_df` positionally, `progress_wrap`,
-    and `estimate_kwargs`, and returns a dict of `estimates_df`, and
-    `fits_df` and `fit_kwargs` (see `tgs_estimate_tgs_from_exposures`).
-    Replicates refit with `tgs_fit_traits` and `fit_kwargs`, so bins,
-    calibration neighborhoods, and survival durations are computed once.
-
     Returns the point estimate's `estimates_df` with bootstrap standard
     errors, z-scores, and p-values appended; see `_tgs_summarize_bootstrap`.
     """
