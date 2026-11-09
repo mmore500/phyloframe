@@ -11,6 +11,7 @@ import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._calc_geometric_bins import calc_geometric_bins
+from .._auxlib._clamp import clamp
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
@@ -91,7 +92,8 @@ def alifestd_mark_clade_size_geom_classes_polars(
     class_weights = np.bincount(classes, selected["weight"].to_numpy())
     light_classes = np.flatnonzero(class_weights[1:] < min_class_weight) + 1
     if len(light_classes):  # merge down, keeping class 1
-        classes = np.minimum(classes, max(light_classes[0] - 1, 1))
+        max_class = clamp(light_classes[0] - 1, lo=1)
+        classes = np.clip(classes, a_min=None, a_max=max_class)
 
     return phylogeny_df.with_columns(
         pl.Series(name=mark_as, values=classes, dtype=pl.Int64),

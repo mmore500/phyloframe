@@ -13,6 +13,7 @@ from .._auxlib._assign_kdtree_partitions import assign_kdtree_partitions
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._calc_tiebroken_ranks import calc_tiebroken_ranks
 from .._auxlib._ceil_div import ceil_div
+from .._auxlib._clamp import clamp
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
@@ -31,7 +32,7 @@ def _alifestd_mark_joint_quantile_bins_fast_path(
     num_items = len(coordinates[0])
     # largest power of two that keeps bins at least min_bin_occupancy
     num_bins = 2 ** int(
-        np.log2(np.clip(num_items // min_bin_occupancy, 1, max_num_bins))
+        np.log2(clamp(num_items // min_bin_occupancy, lo=1, hi=max_num_bins))
     )
     return assign_kdtree_partitions(
         calc_tiebroken_ranks(coordinates),
