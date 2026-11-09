@@ -13,7 +13,6 @@ from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._calc_tiebroken_ranks import calc_tiebroken_ranks
 from ._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ._ceil_div import ceil_div
-from ._clamp import clamp
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -71,7 +70,6 @@ __all__ = [
     "begin_prod_logging",
     "calc_binomial_nll_proxy",
     "ceil_div",
-    "clamp",
     "calc_tiebroken_ranks",
     "run_weighted_bootstrap",
     "calc_geometric_bins",
