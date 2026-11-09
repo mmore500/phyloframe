@@ -23,7 +23,10 @@ def test_min_bin_occupancy(min_bin_occupancy: int):
         max_num_bins=1024,
         min_bin_occupancy=min_bin_occupancy,
     )
-    assert num_bins == 2 ** int(max(np.log2(10 / min_bin_occupancy), 0))
+    # splitting can stop early, giving fewer bins, where items do not divide
+    # evenly
+    assert num_bins <= 2 ** int(max(np.log2(10 / min_bin_occupancy), 0))
+    assert sorted(set(bins.tolist())) == list(range(num_bins))
     assert np.bincount(bins).sum() == 10
     assert np.bincount(bins).min() >= min(min_bin_occupancy, 10) // 2
 

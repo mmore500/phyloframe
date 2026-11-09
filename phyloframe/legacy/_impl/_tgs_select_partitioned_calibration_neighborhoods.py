@@ -11,6 +11,7 @@ from scipy import sparse
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
+from ..._auxlib._clamp import clamp
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
@@ -32,8 +33,8 @@ def _tgs_calc_heldout_nll(
 
     Returns the negative log likelihood of held-out neutral `trait_id`'s gains
     under no selection, with each bin's mean branch length calibrated
-    against the other neutral traits only; 0 if it has no gains or no
-    calibrated exposure, so scores the same for every neighborhood size.
+    against the other neutral traits only; 0 if it has no gains, so scores
+    the same for every neighborhood size.
     """
     trait_counts_df = trait_bin_counts_df.filter(
         pl.col("trait_id") == trait_id
@@ -61,9 +62,9 @@ def _tgs_calc_heldout_nll(
     exposure = (num_trials * calibrated_lengths).sum()
     if not (num_successes.any() and exposure):
         warnings.warn(
-            f"neutral trait {trait_name} has no gains or no calibrated "
-            "exposure, so it does not inform the choice of calibration "
-            "neighborhood size.",
+            f"neutral trait {trait_name} has no gains or no branch length, "
+            "so it does not inform the choice of calibration neighborhood "
+            "size.",
         )
         return 0.0
     gain_rate = num_successes.sum() / exposure  # neutral fit, to first order
@@ -101,8 +102,10 @@ def _tgs_select_calibration_neighborhoods(
         # `neighborhood_fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
             bin_coords,
-            num_neighbors=int(
-                np.ceil(neighborhood_fraction * len(bin_coords))
+            num_neighbors=clamp(
+                round(neighborhood_fraction * len(bin_coords)),
+                lo=1,
+                hi=len(bin_coords),
             ),
         )
         # holding out each neutral trait in turn
@@ -125,7 +128,7 @@ def _tgs_select_calibration_neighborhoods(
         return nll, calibration_neighborhoods
 
     # first (smallest-index) candidate among ties; nan scores lose
-    best_nll, best_neighborhoods, best_neighborhood_fraction = min(
+    __, best_neighborhoods, best_neighborhood_fraction = min(
         (
             (
                 *calc_heldout_nll_for_neighborhood_fraction(
@@ -138,26 +141,10 @@ def _tgs_select_calibration_neighborhoods(
         key=lambda candidate: (np.isnan(candidate[0]), candidate[0]),
     )
 
-    neutral_gains = (
-        trait_bin_counts_df.filter(pl.col("trait_id").is_in(neutral_traits))
-        .group_by("bin")
-        .agg(pl.col("num_successes").sum())
-        .sort("bin")["num_successes"]
-        .to_numpy()
-    )
-    num_empty = int((best_neighborhoods @ neutral_gains == 0).sum())
     logging.info(
-        "- tgs: selected calibration "
-        f"neighborhoods of {best_neighborhood_fraction:.1%} of {len(bin_coords)} "
-        f"bins, {num_empty} without neutral trait gains",
+        "- tgs: selected calibration neighborhoods of "
+        f"{best_neighborhood_fraction:.1%} of {len(bin_coords)} bins",
     )
-    if num_empty:
-        warnings.warn(
-            f"{num_empty} of {len(bin_coords)} calibration "
-            "neighborhoods contain no neutral trait gains, so branches "
-            "there get zero effective length; more neutral traits or "
-            "leaves may help.",
-        )
     return best_neighborhoods
 
 

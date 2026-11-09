@@ -123,7 +123,7 @@ def test_no_episodes_raises():
             {
                 "ancestor_id": [0],
                 "origin_time": [0.0],
-                **{f"trait{i}_state": [0] for i in range(4)},
+                **{f"__alifestd_tgs_trait{i}_state": [0] for i in range(4)},
             },
         ),
         is_kept_episode=np.ones(1, dtype=bool),

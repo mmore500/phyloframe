@@ -63,36 +63,51 @@ def tgs_minimize_nll(
     The selection coefficient is optimized, and given in `starts`, as a
     multiple of `selection_rescale`, a typical rate, e.g., 1 / mean branch
     length, so that both parameters are of order one; otherwise, with long
-    lengths, L-BFGS-B stops early on the tiny selection coefficient.
+    lengths, L-BFGS-B stops early on the tiny selection coefficient. It is
+    bounded above so that growth exponents, growth rate times branch length
+    plus survival duration, stay within `growth_exponent_bound` of
+    `nll_kwargs` (see `tgs_calc_nll`).
     """
-    is_free = np.array([fit_gain, fit_selection])
+    durations = nll_kwargs["distinct_survival_durations"]
+    max_exponent_time = nll_kwargs["coarsened_df"]["length"].max() + (
+        0.0 if durations is None else durations.max(initial=0.0)
+    )
+    max_rescaled_selection = (
+        (nll_kwargs["growth_exponent_bound"] / max_exponent_time + loss_rate)
+        / selection_rescale
+        if max_exponent_time > 0
+        else None
+    )
 
-    def nll(
-        free_params: np.ndarray, start: np.ndarray
-    ) -> typing.Tuple[float, np.ndarray]:
-        params = start.copy()
-        params[is_free] = free_params
+    def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:
         log_gain_rate, rescaled_selection = params
         res, dlog_gain, drate = tgs_calc_nll(
             **nll_kwargs,
             gain_rate=np.exp(log_gain_rate),
             growth_rate=rescaled_selection * selection_rescale - loss_rate,
         )
-        return res, np.array([dlog_gain, drate * selection_rescale])[is_free]
+        return res, np.array([dlog_gain, drate * selection_rescale])
 
     fits = []
-    for start in starts:
-        start = np.asarray(start, dtype=np.float64)
+    for log_gain_start, selection_start in starts:
         fit = optimize.minimize(
-            nll,
-            start[is_free],
-            args=(start,),
+            fun=nll,
+            x0=[log_gain_start, selection_start],
             jac=True,  # objective function returns its own gradient
             method="L-BFGS-B",  # gradient-based, for differentiable functions
-        )
-        params = start.copy()
-        params[is_free] = fit.x
-        fit.x = params
+            bounds=[
+                (
+                    (None, None)
+                    if fit_gain
+                    else (log_gain_start, log_gain_start)
+                ),
+                (
+                    (None, max_rescaled_selection)
+                    if fit_selection
+                    else (selection_start, selection_start)
+                ),
+            ],
+        )  # fmt: skip
         fits.append(fit)
     converged = [fit for fit in fits if fit.success]
     best = min(converged or fits, key=lambda fit: fit.fun)  # .fun is nll

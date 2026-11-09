@@ -4,6 +4,7 @@ import joblib
 import numpy as np
 import opytional as opyt
 
+from ._clamp import clamp
 from ._identity import identity
 
 
@@ -51,4 +52,6 @@ def run_seeded_replicates(
         for replicate_seed in replicate_seeds
     ]
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
-        return joblib.Parallel()(progress_wrap(jobs))
+        # batch replicates, to serialize shared arguments once per batch
+        batch_size = clamp(num_replicates // (4 * joblib.cpu_count()), lo=1)
+        return joblib.Parallel(batch_size=batch_size)(progress_wrap(jobs))

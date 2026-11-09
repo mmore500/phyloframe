@@ -1,5 +1,6 @@
 import numpy as np
 import polars as pl
+import pytest
 
 from phyloframe.legacy._impl import tgs_fit_trait
 from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
@@ -77,6 +78,7 @@ def test_gain_ratio_lrts():
     assert (lrts > -1e-6).all()
 
 
+@pytest.mark.filterwarnings("ignore:tgs fit optimizer found a worse free fit")
 def test_matches_free_fit_at_reference_rate():
     fits, trait_nll_kwargs = _fit_traits([1e-4, 1e-4, 1e-4])
     # make trait 0's fitted gain rate exactly its reference's mean

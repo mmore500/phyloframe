@@ -98,3 +98,12 @@ def test_invalid(kwargs: dict):
 def test_bare_string_raises(kwargs: dict):
     with pytest.raises(TypeError, match="single string"):
         tgs_validate_args(**{**_KWARGS, **kwargs})
+
+
+def test_duplicate_trait_transitions_raise():
+    with pytest.raises(ValueError, match="duplicate"):
+        tgs_validate_args(
+            trait_transition_cols=["a", "b", "a"],
+            neutral_traits=["a", "b"],
+            **_KWARGS,
+        )

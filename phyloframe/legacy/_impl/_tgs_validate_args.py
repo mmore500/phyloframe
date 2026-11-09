@@ -36,6 +36,8 @@ def tgs_validate_args(
                 "trait_transitions must be column names, got "
                 f"{type(column).__name__}",
             )
+    if len(set(trait_transition_cols)) != len(trait_transition_cols):
+        raise ValueError("trait_transitions must not have duplicate columns")
     for trait in neutral_traits:
         if not isinstance(trait, str):
             raise TypeError(

@@ -78,3 +78,14 @@ def test_max_ratio_caps():
     )
     # caps the high ratios (4 / 3), leaving the low ones (2 / 3)
     np.testing.assert_allclose(res, [1.2, 1.2, 2 / 3, 2 / 3])
+
+
+def test_pseudocount_keeps_zero_events_nonzero():
+    # item 0 observes no events of 10 expected at the global rate
+    res = calc_neighborhood_rate_ratios(
+        neighborhoods=sparse.identity(2, format="csr"),
+        num_events=np.array([0.0, 20.0]),
+        exposure=np.array([1.0, 1.0]),
+        pseudocount=1.0,
+    )
+    assert res[0] == pytest.approx(1 / 11)

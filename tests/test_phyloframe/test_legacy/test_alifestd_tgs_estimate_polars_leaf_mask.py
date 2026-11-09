@@ -343,20 +343,6 @@ def test_trait_named_by_columns():
     assert res["trait"].tolist() == list("abcde")
 
 
-def test_calibration_warns_without_neutral_gains():
-    phylogeny_df, traits = _make_cherries(2_000)
-    rare = np.zeros_like(traits[1:3])
-    rare[0, np.flatnonzero(traits[1])[:1]] = True
-    rare[1, np.flatnonzero(traits[2])[:1]] = True
-    with pytest.warns(UserWarning, match="no neutral trait gains"):
-        _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=[traits[0], *rare],
-            neutral_traits=[1, 2],
-            calibrate=True,
-        )
-
-
 def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     bin_coords = rng.random((256, 2))

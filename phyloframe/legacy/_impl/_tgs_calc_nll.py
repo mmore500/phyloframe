@@ -8,16 +8,15 @@ from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 
 
 def _tgs_calc_effective_length(
-    *, length: np.ndarray, growth_rate: float, growth_exponent_bound: float
+    *, length: np.ndarray, growth_rate: float
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Implementation detail for `tgs_calc_nll`. Acronym tgs stands for trait
     gain/selection.
 
     Returns effective length (exp(r * t) - 1) / r for each length t, with
-    r = `growth_rate`, and its derivative with respect to r, with r * t
-    capped at `growth_exponent_bound`.
+    r = `growth_rate`, and its derivative with respect to r.
     """
-    cx = np.minimum(growth_rate * length, growth_exponent_bound)
+    cx = growth_rate * length
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = length * special.exprel(cx)
 
@@ -71,7 +70,8 @@ def tgs_calc_nll(
     is sampled. Each partition averages exp(r * u) exactly over its
     branches, whose shares over `distinct_survival_durations` are rows of
     `survival_shares`. Without `survival_shares`, `u` is 0, as for leaf
-    pendant branches. Exponents are capped at `growth_exponent_bound`.
+    pendant branches. Requires r * (t + u) <= `growth_exponent_bound`, so
+    exponentials stay finite; `tgs_minimize_nll` bounds r accordingly.
 
     Input Schema
     ------------
@@ -89,7 +89,6 @@ def tgs_calc_nll(
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
         length=coarsened_df["length"].to_numpy(),
         growth_rate=growth_rate,
-        growth_exponent_bound=growth_exponent_bound,
     )
 
     if survival_shares is None:
@@ -97,12 +96,7 @@ def tgs_calc_nll(
     else:
         # chance a carrier lineage persists until its clade's last leaf is
         # sampled, averaged over each coarsened row's branches
-        survival_factors = np.exp(
-            np.minimum(
-                growth_rate * distinct_survival_durations,
-                growth_exponent_bound,
-            )
-        )
+        survival_factors = np.exp(growth_rate * distinct_survival_durations)
         survival = survival_shares @ survival_factors
         survival_deriv = survival_shares @ (
             distinct_survival_durations * survival_factors

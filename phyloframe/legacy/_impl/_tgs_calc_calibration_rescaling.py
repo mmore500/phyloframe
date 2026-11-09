@@ -22,9 +22,10 @@ def tgs_calc_calibration_rescaling(
 
     Returns, for each calibration bin, the factor rescaling `trait_id`'s branch
     lengths there: the rate ratio of gains of `trait_id`'s neutral reference
-    (the other neutral traits) within the bin's calibration
-    neighborhood, capped at `max_rate_ratio`, given `trait_bin_counts_df` (see
-    `tgs_count_trait_bin_exposures`).
+    (the other neutral traits) within the bin's calibration neighborhood,
+    capped at `max_rate_ratio`, given `trait_bin_counts_df` (see
+    `tgs_count_trait_bin_exposures`). A pseudocount of 1 stabilizes
+    calibration against sparse gains.
     """
     # a neutral trait is not calibrated against itself
     reference_counts_df = (
@@ -40,4 +41,5 @@ def tgs_calc_calibration_rescaling(
         num_events=reference_counts_df["num_successes"].to_numpy(),
         exposure=reference_counts_df["length_sum"].to_numpy(),
         max_ratio=max_rate_ratio,
+        pseudocount=1.0,
     )

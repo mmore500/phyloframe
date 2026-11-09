@@ -59,7 +59,7 @@ def _tgs_build_exposure_df(
         Parent's id (or own, for a root).
     'origin_time' : float
         Time of each node's origin.
-    'trait{i}_state' : integer, per trait `i`
+    '__alifestd_tgs_trait{i}_state' : integer, per trait `i`
         Whether the node has trait `i` (0 or 1).
 
     Output Schema
@@ -119,9 +119,11 @@ def _tgs_build_exposure_df(
             ancestor_ids
         )[keep],
     }
-    num_traits = phylogeny_df.select(cs.matches(r"^trait\d+_state$")).width
+    num_traits = phylogeny_df.select(
+        cs.matches(r"^__alifestd_tgs_trait\d+_state$")
+    ).width
     for i in range(num_traits):
-        states = phylogeny_df[f"trait{i}_state"].to_numpy()
+        states = phylogeny_df[f"__alifestd_tgs_trait{i}_state"].to_numpy()
         deltas = _alifestd_mark_lineage_delta_asexual_fast_path(
             ancestor_ids, states
         )
@@ -311,13 +313,14 @@ def _tgs_add_trait_state_cols(
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
     Returns `selected` with trait transitions replaced by trait states,
-    `trait{i}_state` (see `_tgs_calc_states`).
+    `__alifestd_tgs_trait{i}_state` (see `_tgs_calc_states`).
     """
     states = _tgs_calc_states(
         selected, trait_transition_cols=trait_transition_cols
     )
     return selected.drop(trait_transition_cols).with_columns(
-        pl.Series(f"trait{i}_state", s) for i, s in enumerate(states)
+        pl.Series(f"__alifestd_tgs_trait{i}_state", s)
+        for i, s in enumerate(states)
     )
 
 

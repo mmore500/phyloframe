@@ -1,12 +1,34 @@
+import math
 import typing
 import warnings
 
 import numpy as np
 import polars as pl
 
+from ..._auxlib._clamp import clamp
 from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_fit_trait import tgs_fit_trait
 from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
+
+
+def _tgs_calc_twotail_lrt(*, null_nll: float, free_nll: float) -> float:
+    """Implementation detail for `_tgs_calc_trait_gain_ratio_lrt` and
+    `_tgs_calc_trait_selection_lrt`. Acronym tgs stands for trait
+    gain/selection.
+
+    Returns the likelihood-ratio statistic, 2 * (`null_nll` - `free_nll`),
+    clipped at 0, warning if the null fit is better beyond optimizer
+    tolerance, as then the free fit missed its optimum.
+    """
+    if null_nll < free_nll and not math.isclose(
+        null_nll, free_nll, rel_tol=1e-8, abs_tol=1e-8
+    ):
+        warnings.warn(
+            "tgs fit optimizer found a worse free fit than constrained fit; "
+            "clipping likelihood-ratio statistic to 0, but it may be "
+            "unreliable.",
+        )
+    return clamp(2 * (null_nll - free_nll), lo=0.0)
 
 
 def _tgs_calc_trait_gain_ratio_lrt(
@@ -56,7 +78,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
             "mean gain rate of its neutral reference traits; gain ratio "
             "likelihood-ratio statistic may be unreliable.",
         )
-    return float(2 * (null.fun - free_nll))
+    return _tgs_calc_twotail_lrt(null_nll=null.fun, free_nll=free_nll)
 
 
 def _tgs_calc_trait_gain_ratio_lrts(
@@ -165,7 +187,7 @@ def _tgs_calc_trait_selection_lrt(
             "may be unreliable.",
         )
     # two-tailed, testing selection coefficient != 0 in either direction
-    return float(2 * (null.fun - free_nll))
+    return _tgs_calc_twotail_lrt(null_nll=null.fun, free_nll=free_nll)
 
 
 def _tgs_calc_trait_selection_lrts(
