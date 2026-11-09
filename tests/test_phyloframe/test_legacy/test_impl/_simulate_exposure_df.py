@@ -2,12 +2,12 @@ import numpy as np
 import polars as pl
 
 
-def simulate_allmdc_exposure_df(
+def simulate_exposure_df(
     num_branches: int = 40_000, seed: int = 1, num_neutral: int = 2
 ) -> pl.DataFrame:
-    """Branches, as from `tgs_build_exposure_df`: half leaves (survival duration
+    """Branches, as from `_tgs_build_exposure_df`: half leaves (survival duration
     0), half inner branches of clades of 2 to 9 leaves, every branch at
-    risk of each trait and gaining it under the allmdc model.
+    risk of each trait and gaining it under the full model.
 
     Trait 0 has twice the neutral gain rate and selection -0.05; the
     `num_neutral` traits after it are neutral.

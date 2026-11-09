@@ -9,7 +9,7 @@ from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
     _create_parser,
 )
 
-from .test_alifestd_tgs_allmdc_estimate_polars import _make_cherries_polars
+from .test_alifestd_tgs_estimate_polars import _make_cherries_polars
 
 MODULE = "phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars"
 

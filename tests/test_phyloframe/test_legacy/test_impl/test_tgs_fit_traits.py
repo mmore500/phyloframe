@@ -7,7 +7,7 @@ from phyloframe._auxlib._identity import identity
 from phyloframe.legacy._impl import tgs_fit_traits
 
 from ._make_tgs_fit_kwargs import make_tgs_fit_kwargs
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 
 def _fit(exposure_df, weights=None, **kwargs):
@@ -24,7 +24,7 @@ def _fit(exposure_df, weights=None, **kwargs):
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_recovers(calibrate: bool):
     # four neutral traits, so each calibrates against three others
-    res = _fit(simulate_allmdc_exposure_df(num_neutral=4), calibrate=calibrate)
+    res = _fit(simulate_exposure_df(num_neutral=4), calibrate=calibrate)
     assert res.columns == [
         "gain_rate",
         "selection_coef",
@@ -46,14 +46,14 @@ def test_recovers(calibrate: bool):
 
 
 def test_length_rtol_approximates_exact():
-    exposure_df = simulate_allmdc_exposure_df(8_000)
+    exposure_df = simulate_exposure_df(8_000)
     exact = _fit(exposure_df, calibrate=True, length_rtol=0.0)
     merged = _fit(exposure_df, calibrate=True, length_rtol=1e-3)
     pltest.assert_frame_equal(merged, exact, rel_tol=1e-3)
 
 
 def test_trait_without_gains():
-    exposure_df = simulate_allmdc_exposure_df(4_000)
+    exposure_df = simulate_exposure_df(4_000)
     exposure_df = exposure_df.with_columns(trait0_gain=False)
     res = _fit(exposure_df)
     assert res["gain_rate"][0] == 0.0
@@ -62,7 +62,7 @@ def test_trait_without_gains():
 
 
 def test_weights_match_duplication():
-    exposure_df = simulate_allmdc_exposure_df(4_000)
+    exposure_df = simulate_exposure_df(4_000)
     weights = np.ones(4_000)
     weights[::3] = 2.0
     weighted = _fit(exposure_df, weights=weights)

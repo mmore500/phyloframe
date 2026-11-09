@@ -4,31 +4,31 @@ import pytest
 from phyloframe._auxlib._identity import identity
 from phyloframe.legacy._impl import (
     tgs_calc_nll,
-    tgs_coarsen_episodes,
     tgs_fit_coarsened_traits,
     tgs_fit_trait,
 )
-from phyloframe.legacy._impl._tgs_calc_trait_selection_lrts import (
+from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_selection_lrt,
 )
+from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
 from phyloframe.legacy._impl._tgs_minimize_nll import (
     tgs_pick_log_gain_rate_start,
     tgs_pick_selection_rescale,
 )
 
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 
 @pytest.fixture(scope="module")
 def fixture():
-    exposure_df = simulate_allmdc_exposure_df()
+    exposure_df = simulate_exposure_df()
     distinct_survival_durations, survival_duration_indices = np.unique(
         exposure_df["survival_duration"].to_numpy(), return_inverse=True
     )
     # each trait's `tgs_calc_nll` arguments, but the rate parameters
     trait_nll_kwargs = []
     for trait in range(3):
-        coarsened_df, shares = tgs_coarsen_episodes(
+        coarsened_df, shares = _tgs_coarsen_episodes(
             exposure_df=exposure_df,
             trait_id=trait,
             bins=np.zeros(len(exposure_df), dtype=np.int64),

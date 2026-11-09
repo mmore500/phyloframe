@@ -2,13 +2,13 @@ import numpy as np
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl import tgs_coarsen_episodes
+from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
 
 
 def _exposure_df() -> pl.DataFrame:
     return pl.DataFrame(
         {
-            "branch_length": [1.0, 1.0001, 2.0, 2.0],
+            "branch_length": [1.0002, 1.0004, 2.0, 2.0],
             "survival_duration": [0.0, 0.0, 0.0, 5.0],
             "trait0_starts_absent": [True, True, True, True],
             "trait0_gain": [False, True, True, False],
@@ -20,7 +20,7 @@ def _exposure_df() -> pl.DataFrame:
 
 def _coarsen(trait: int, **kwargs):
     distinct, indices = np.unique([0.0, 0.0, 0.0, 5.0], return_inverse=True)
-    return tgs_coarsen_episodes(
+    return _tgs_coarsen_episodes(
         **{
             **dict(
                 exposure_df=_exposure_df(),
@@ -43,13 +43,13 @@ def test_merges_within_tolerance():
     assert coarsened_df.columns == ["num_trials", "num_successes", "length"]
     np.testing.assert_array_equal(coarsened_df["num_trials"], [2, 1, 1])
     np.testing.assert_array_equal(coarsened_df["num_successes"], [1, 1, 0])
-    np.testing.assert_allclose(coarsened_df["length"], [1.00005, 2.0, 2.0])
+    np.testing.assert_allclose(coarsened_df["length"], [1.0003, 2.0, 2.0])
     np.testing.assert_array_equal(shares.toarray(), [[1, 0], [1, 0], [0, 1]])
     # trait 1: only branches 1 and 2 start without it
     coarsened_df, shares = _coarsen(1)
     np.testing.assert_array_equal(coarsened_df["num_trials"], [1, 1])
     np.testing.assert_array_equal(coarsened_df["num_successes"], [0, 1])
-    np.testing.assert_allclose(coarsened_df["length"], [1.0001, 2.0])
+    np.testing.assert_allclose(coarsened_df["length"], [1.0004, 2.0])
     np.testing.assert_array_equal(shares.toarray(), [[1, 0], [1, 0]])
 
 
@@ -61,7 +61,7 @@ def test_no_merging():
 def test_calibration_factors_scale_lengths():
     coarsened_df, __ = _coarsen(0, calibration_factors=np.array([1, 3]))
     assert coarsened_df["length"].to_list() == pytest.approx(
-        [1.00005, 2.0, 6.0]
+        [1.0003, 2.0, 6.0]
     )
 
 

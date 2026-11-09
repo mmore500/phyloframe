@@ -9,7 +9,7 @@ from phyloframe.legacy._alifestd_mark_clade_size_classes_polars import (
     _create_parser,
 )
 
-from .test_alifestd_tgs_allmdc_estimate_polars import _make_cherries_polars
+from .test_alifestd_tgs_estimate_polars import _make_cherries_polars
 
 MODULE = "phyloframe.legacy._alifestd_mark_clade_size_classes_polars"
 

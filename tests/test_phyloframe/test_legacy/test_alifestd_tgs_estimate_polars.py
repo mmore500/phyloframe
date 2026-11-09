@@ -3,15 +3,17 @@ import typing
 import numpy as np
 import pandas as pd
 import polars as pl
+import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_tgs_allmdc_estimate_polars,
-    alifestd_tgs_pendantmdc_estimate_polars,
+    alifestd_mark_leaves_polars,
+    alifestd_tgs_estimate_polars,
     alifestd_to_working_format,
 )
 
 from ._impl import add_trait_transitions, mark_tgs_calibration_columns
+from .test_alifestd_tgs_estimate_polars_leaf_mask import _estimate_leaves
 
 
 def _estimate(
@@ -36,20 +38,19 @@ def _estimate(
     return estimator(df_pl, **kwargs).to_pandas()
 
 
-def _estimate_allmdc(
-    phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
+def _estimate_all(
+    phylogeny_df: pd.DataFrame,
+    mutate: bool = False,
+    estimator: typing.Callable = alifestd_tgs_estimate_polars,
+    **kwargs,
 ) -> pd.DataFrame:
-    return _estimate(
-        alifestd_tgs_allmdc_estimate_polars, phylogeny_df, **kwargs
-    )
+    return _estimate(estimator, phylogeny_df, **kwargs)
 
 
-def _estimate_pendantmdc(
+def _estimate_leaves_only(
     phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
 ) -> pd.DataFrame:
-    return _estimate(
-        alifestd_tgs_pendantmdc_estimate_polars, phylogeny_df, **kwargs
-    )
+    return _estimate(_estimate_leaves, phylogeny_df, **kwargs)
 
 
 def _estimate_from_masks(
@@ -67,14 +68,14 @@ def _estimate_from_masks(
         phylogeny_df, trait_masks, trait_names
     )
     kwargs["neutral_traits"] = [names[i] for i in neutral_traits]
-    return _estimate_allmdc(
+    return _estimate_all(
         phylogeny_df, mutate, trait_transitions=names, **kwargs
     )
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
     """Root with cherries hanging off it. Each cherry's stem gains a trait
-    under the allmdc model, surviving until its later leaf is sampled,
+    under the full model, surviving until its later leaf is sampled,
     after which both leaves carry it; otherwise, each leaf gains it on its
     own pendant branch under the pendant model.
 
@@ -130,8 +131,6 @@ def test_recovers_gain_selection(calibrate: bool):
         trait_names=["focal", "n1", "n2", "n3", "n4"],
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
-        num_bootstrap=10,
-        seed=1,
     )
     assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_inner_episodes"] == 40_000).all()
@@ -140,9 +139,6 @@ def test_recovers_gain_selection(calibrate: bool):
     focal = res.iloc[0]
     assert focal["gain_ratio"] == pytest.approx(2.0, rel=0.25)
     assert focal["selection_coef"] == pytest.approx(-0.05, abs=0.02)
-    assert focal["gain_ratio_p"] < 1e-3
-    assert focal["selection_coef_p"] < 1e-3
-    assert np.isfinite(res["selection_coef_se"]).all()
     assert not any("shift" in c for c in res.columns)
 
     neutral = res.iloc[1:]
@@ -175,8 +171,8 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
         neutral_traits=names[1:],
         calibrate=calibrate,
     )
-    res = _estimate_allmdc(phylogeny_df, **kwargs)
-    expected = _estimate_pendantmdc(phylogeny_df, **kwargs)
+    res = _estimate_all(phylogeny_df, **kwargs)
+    expected = _estimate_leaves_only(phylogeny_df, **kwargs)
     for column in ("num_leaf_episodes", "num_leaf_gains"):
         assert res[column].tolist() == expected[column].tolist()
     for column in ("gain_rate", "selection_coef", "gain_ratio"):
@@ -290,7 +286,7 @@ def test_neutral_trait_index_raises():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     with pytest.raises(TypeError):
-        _estimate_allmdc(
+        _estimate_all(
             phylogeny_df, trait_transitions=names, neutral_traits=[1]
         )
 
@@ -299,7 +295,7 @@ def test_input_not_mutated():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     original_df = phylogeny_df.copy()
-    _estimate_allmdc(
+    _estimate_all(
         phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
     )
     pd.testing.assert_frame_equal(phylogeny_df, original_df)
@@ -313,7 +309,7 @@ def _make_cherries_with_transitions(num_cherries: int = 100):
 def test_missing_transitions_column_raises():
     phylogeny_df, names = _make_cherries_with_transitions()
     with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
-        _estimate_allmdc(
+        _estimate_all(
             phylogeny_df,
             trait_transitions=["absent", *names[1:]],
             neutral_traits=names[1:],
@@ -323,7 +319,7 @@ def test_missing_transitions_column_raises():
 def test_missing_calibration_column_raises():
     phylogeny_df, names = _make_cherries_with_transitions()
     with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
-        _estimate_allmdc(
+        _estimate_all(
             phylogeny_df,
             trait_transitions=names,
             neutral_traits=names[1:],
@@ -335,7 +331,7 @@ def test_float_transitions_raise():
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
     with pytest.raises(NotImplementedError):
-        _estimate_allmdc(
+        _estimate_all(
             phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
         )
 
@@ -345,7 +341,7 @@ def test_invalid_transitions_raise(value: int):
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df.loc[5, names[0]] = value
     with pytest.raises(ValueError):
-        _estimate_allmdc(
+        _estimate_all(
             phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
         )
 
@@ -356,7 +352,7 @@ def test_repeated_gain_raises():
     phylogeny_df["trait"] = 0
     phylogeny_df.loc[[1, 2], "trait"] = 1
     with pytest.raises(ValueError):
-        _estimate_allmdc(
+        _estimate_all(
             phylogeny_df,
             trait_transitions=["trait", *names[1:]],
             neutral_traits=names[1:],
@@ -369,7 +365,7 @@ def test_losses_not_supported():
     phylogeny_df.loc[1, "trait"] = 1
     phylogeny_df.loc[2, "trait"] = -1
     with pytest.raises(NotImplementedError, match="loss"):
-        _estimate_allmdc(
+        _estimate_all(
             phylogeny_df,
             trait_transitions=["trait", *names[1:]],
             neutral_traits=names[1:],
@@ -379,7 +375,7 @@ def test_losses_not_supported():
 def test_trait_named_by_columns():
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
-    res = _estimate_allmdc(
+    res = _estimate_all(
         phylogeny_df,
         trait_transitions=list("abcde"),
         neutral_traits=["b", "c"],
@@ -419,18 +415,17 @@ def test_empty(apply: typing.Callable):
         ),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
-        alifestd_tgs_allmdc_estimate_polars(
+        alifestd_tgs_estimate_polars(
             df_pl,
             trait_transitions=["a", "b", "c"],
             neutral_traits=["b", "c"],
-            num_bootstrap=2,
         )
 
 
 def test_expression_transitions_raise():
     df_pl = _make_cherries_polars(2_000)
     with pytest.raises(TypeError):
-        alifestd_tgs_allmdc_estimate_polars(
+        alifestd_tgs_estimate_polars(
             df_pl, trait_transitions=[pl.col("focal")]
         )
 
@@ -447,6 +442,57 @@ def test_not_asexual():
         },
     ).with_columns(ancestor_list=pl.lit("[0, 1]"))
     with pytest.raises(NotImplementedError, match="asexual"):
-        alifestd_tgs_allmdc_estimate_polars(
+        alifestd_tgs_estimate_polars(
             df_pl, trait_transitions=["a", "b", "c"], neutral_traits=["b", "c"]
+        )
+
+
+_MASK_KWARGS = dict(
+    trait_transitions=["focal", "n1", "n2", "n3", "n4"],
+    neutral_traits=["n1", "n2", "n3", "n4"],
+)
+
+
+def test_episode_mask_all_true_matches_unmasked():
+    df_pl = _make_cherries_polars(2_000).with_columns(keep=pl.lit(True))
+    pltest.assert_frame_equal(
+        alifestd_tgs_estimate_polars(
+            df_pl, episode_mask="keep", **_MASK_KWARGS
+        ),
+        alifestd_tgs_estimate_polars(df_pl, **_MASK_KWARGS),
+    )
+
+
+def test_episode_mask_leaves_counts_no_inner_episodes():
+    df_pl = alifestd_mark_leaves_polars(_make_cherries_polars(2_000))
+    res = alifestd_tgs_estimate_polars(
+        df_pl, episode_mask="is_leaf", **_MASK_KWARGS
+    )
+    assert (res["num_inner_episodes"] == 0).all()
+    assert (res["num_leaf_episodes"] > 0).all()
+
+
+@pytest.mark.parametrize(
+    "mask", [pl.lit(1), pl.lit(None, dtype=pl.Boolean)], ids=["int", "null"]
+)
+def test_invalid_episode_mask_raises(mask: pl.Expr):
+    df_pl = _make_cherries_polars(500).with_columns(mask.alias("keep"))
+    with pytest.raises(NotImplementedError, match="episode mask"):
+        alifestd_tgs_estimate_polars(
+            df_pl, episode_mask="keep", **_MASK_KWARGS
+        )
+
+
+def test_missing_episode_mask_raises():
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
+        alifestd_tgs_estimate_polars(
+            _make_cherries_polars(500), episode_mask="keep", **_MASK_KWARGS
+        )
+
+
+def test_episode_mask_excluding_all_raises():
+    df_pl = _make_cherries_polars(500).with_columns(keep=pl.lit(False))
+    with pytest.raises(ValueError, match="no exposure episodes"):
+        alifestd_tgs_estimate_polars(
+            df_pl, episode_mask="keep", **_MASK_KWARGS
         )

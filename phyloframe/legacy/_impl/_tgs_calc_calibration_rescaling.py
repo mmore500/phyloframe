@@ -17,9 +17,8 @@ def tgs_calc_calibration_rescaling(
     calibration_neighborhoods: sparse.spmatrix,
     max_rate_ratio: float,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns, for each calibration bin, the factor rescaling `trait_id`'s branch
     lengths there: the rate ratio of gains of `trait_id`'s neutral reference

@@ -1,7 +1,9 @@
 import numpy as np
 import pytest
 
-from phyloframe.legacy._impl import tgs_calc_trait_states
+from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
+    _tgs_calc_trait_states,
+)
 
 #     0
 #   1   2
@@ -19,7 +21,7 @@ _ANCESTOR_IDS = np.array([0, 0, 0, 1])
     ],
 )
 def test_states(transitions, expected):
-    res = tgs_calc_trait_states(
+    res = _tgs_calc_trait_states(
         ancestor_ids=_ANCESTOR_IDS,
         trait_transitions=np.asarray(transitions),
         trait_name="t",
@@ -39,7 +41,7 @@ def test_states(transitions, expected):
 )
 def test_invalid(transitions, error):
     with pytest.raises(error):
-        tgs_calc_trait_states(
+        _tgs_calc_trait_states(
             ancestor_ids=_ANCESTOR_IDS,
             trait_transitions=transitions,
             trait_name="t",

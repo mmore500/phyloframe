@@ -2,11 +2,13 @@ import numpy as np
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl import tgs_build_exposure_df
+from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
+    _tgs_build_exposure_df,
+)
 
 
 def _exposure_df(*, ancestor_ids, origin_time, trait_states):
-    return tgs_build_exposure_df(
+    return _tgs_build_exposure_df(
         pl.DataFrame(
             {
                 "ancestor_id": ancestor_ids,
@@ -17,6 +19,7 @@ def _exposure_df(*, ancestor_ids, origin_time, trait_states):
                 },
             },
         ),
+        is_kept_episode=np.ones(len(ancestor_ids), dtype=bool),
     )
 
 

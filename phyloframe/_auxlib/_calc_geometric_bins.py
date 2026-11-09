@@ -14,7 +14,7 @@ def calc_geometric_bins(values: np.ndarray, *, ratio: float) -> np.ndarray:
     Parameters
     ----------
     values : np.ndarray
-        Values to bin, each at least 1.
+        Values to bin, each positive.
     ratio : float
         Ratio between successive bin bounds; must exceed 1.
 
@@ -25,7 +25,7 @@ def calc_geometric_bins(values: np.ndarray, *, ratio: float) -> np.ndarray:
     """
     values = np.asarray(values)
     assert ratio > 1
-    assert (values >= 1).all()
+    assert (values > 0).all()
     if values.dtype.kind in "iu" and values.max(initial=1) > 2**53:
         warnings.warn(
             "values above 2**53 lose precision as float64", stacklevel=2

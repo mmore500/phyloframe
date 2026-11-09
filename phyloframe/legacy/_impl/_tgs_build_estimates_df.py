@@ -1,25 +1,47 @@
-import typing
+import warnings
 
-import opytional as opyt
 import polars as pl
 
-from ._tgs_summarize_bootstrap import tgs_summarize_bootstrap
+
+def _tgs_warn_undefined_estimates(estimates_df: pl.DataFrame) -> None:
+    """Implementation detail for `tgs_build_estimates_df`.
+
+    Warns of traits whose estimates are undefined (nan): without gains,
+    the selection coefficient and likelihood-ratio statistics; without
+    gains of the neutral reference, the gain ratio and its statistic.
+    """
+    no_gains = pl.col("selection_coef").is_nan()
+    traits_without_gains = estimates_df.filter(no_gains)["trait"].to_list()
+    if traits_without_gains:
+        warnings.warn(
+            f"traits {traits_without_gains} have no gains, so their "
+            "selection coefficients and likelihood-ratio statistics are "
+            "undefined (nan)",
+        )
+    traits_without_reference = estimates_df.filter(
+        ~no_gains & pl.col("gain_ratio").is_nan()
+    )["trait"].to_list()
+    if traits_without_reference:
+        warnings.warn(
+            f"traits {traits_without_reference} have neutral references "
+            "without gains, so their gain ratios and gain ratio "
+            "likelihood-ratio statistics are undefined (nan)",
+        )
 
 
 def tgs_build_estimates_df(
     episode_tallies_df: pl.DataFrame,
     *,
-    point_estimate_df: pl.DataFrame,
-    bootstrap_fits_df: typing.Optional[pl.DataFrame],
+    fits_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Returns one row per trait, joining `episode_tallies_df`'s per-trait
-    exposure episode and gain tallies (see `tgs_tally_exposure_episodes`),
-    `point_estimate_df`'s estimates, and bootstrap summaries of
-    `bootstrap_fits_df`; see Output Schema.
+    exposure episode and gain tallies (see `tgs_tally_exposure_episodes`)
+    and `fits_df`'s estimates (see `tgs_fit_traits`); see Output Schema.
+    Warns of traits whose estimates are undefined (nan), e.g., traits
+    without gains.
 
     Output Schema
     -------------
@@ -30,10 +52,10 @@ def tgs_build_estimates_df(
         the trait.
     'num_leaf_gains' : integer
         Of those, the number that gained the trait.
-    'num_inner_episodes' : integer, allmdc only
+    'num_inner_episodes' : integer
         Inner exposure episodes, i.e., inner branches that started without
         the trait.
-    'num_inner_gains' : integer, allmdc only
+    'num_inner_gains' : integer
         Of those, the number that gained the trait.
     'gain_rate' : float
         Estimated rate of trait gain, per unit branch length.
@@ -47,28 +69,11 @@ def tgs_build_estimates_df(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1.
 
-    With `bootstrap_fits_df`, also:
-
-    'selection_coef_se' : float
-        Bootstrap standard error of the selection coefficient.
-    'selection_coef_z' : float
-        Selection coefficient over its standard error.
-    'selection_coef_p' : float
-        Two-sided normal p-value of `selection_coef_z`.
-    'log_gain_ratio_se' : float
-        Bootstrap standard error of the log gain ratio.
-    'gain_ratio_z' : float
-        Log gain ratio over its standard error.
-    'gain_ratio_p' : float
-        Two-sided normal p-value of `gain_ratio_z`.
-    'num_bootstrap_degenerate' : integer
-        Replicates excluded for an undefined selection coefficient or gain
-        ratio.
     """
     estimates_df = pl.concat(
         [
             episode_tallies_df,
-            point_estimate_df.select(
+            fits_df.select(
                 "gain_rate",
                 "selection_coef",
                 "gain_ratio",
@@ -78,16 +83,5 @@ def tgs_build_estimates_df(
         ],
         how="horizontal",
     )
-    return pl.concat(
-        [
-            estimates_df,
-            opyt.apply_if_or_else(
-                bootstrap_fits_df,
-                lambda df: tgs_summarize_bootstrap(
-                    point_estimate_df=estimates_df, bootstrap_fits_df=df
-                ),
-                pl.DataFrame,
-            ),
-        ],
-        how="horizontal",
-    )
+    _tgs_warn_undefined_estimates(estimates_df)
+    return estimates_df

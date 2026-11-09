@@ -3,9 +3,7 @@ import warnings
 import numpy as np
 import pytest
 
-from phyloframe.legacy._impl._tgs_summarize_bootstrap import (
-    _warn_excluded_replicates,
-)
+from phyloframe.legacy._impl._tgs_bootstrap import _warn_excluded_replicates
 
 # two replicates of two traits
 _TRAIT_IDS = np.array([0, 1, 0, 1])

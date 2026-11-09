@@ -12,9 +12,8 @@ def tgs_validate_args(
     length_rtol: float,
     calibration_compare_by_vals: typing.Sequence[str],
 ) -> typing.Tuple[typing.List[str], typing.List[int]]:
-    """Implementation detail for `alifestd_tgs_pendantmdc_estimate_polars` and
-    `alifestd_tgs_allmdc_estimate_polars`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    stands for trait gain/selection.
 
     Validates arguments shared by the trait gain/selection estimators.
     Returns trait names, i.e., `trait_transition_cols`, and

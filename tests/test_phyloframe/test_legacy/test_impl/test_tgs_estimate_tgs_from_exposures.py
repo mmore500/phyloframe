@@ -6,35 +6,33 @@ import pytest
 from phyloframe._auxlib import identity
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
-    tgs_build_exposure_df,
+    tgs_build_estimates_df,
     tgs_estimate_tgs_from_exposures,
+    tgs_fit_traits,
     tgs_tally_exposure_episodes,
 )
+from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
+    _tgs_build_exposure_df,
+)
 
-from ._simulate_allmdc_exposure_df import simulate_allmdc_exposure_df
+from ._simulate_exposure_df import simulate_exposure_df
 
 _TRAIT_NAMES = ["focal", "a", "b", "c"]
 
 
-def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
+def _fit(exposure_df: pl.DataFrame, **kwargs) -> dict:
     return tgs_estimate_tgs_from_exposures(
         exposure_df,
         **{
             **dict(
-                episode_tallies_df=tgs_tally_exposure_episodes(
-                    trait_names=_TRAIT_NAMES, exposure_df=exposure_df
-                ),
                 trait_names=_TRAIT_NAMES,
                 neutral_traits=[1, 2, 3],
                 calibrate_neighborhood_fractions=(0.25, 1.0),
                 calibrate_max_rate_ratio=np.inf,
                 length_rtol=1e-3,
-                num_bootstrap=0,
                 loss_rate=0.0,
                 selection_coef_starts=(0.0, -0.3, -1.8),
                 growth_exponent_bound=600.0,
-                seed=1,
-                parallel_backend=None,
                 progress_wrap=identity,
             ),
             **kwargs,
@@ -42,9 +40,18 @@ def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
     )
 
 
+def _impl(exposure_df: pl.DataFrame, **kwargs) -> pl.DataFrame:
+    return tgs_build_estimates_df(
+        tgs_tally_exposure_episodes(
+            trait_names=_TRAIT_NAMES, exposure_df=exposure_df
+        ),
+        fits_df=_fit(exposure_df, **kwargs)["fits_df"],
+    )
+
+
 def _binned_exposure_df() -> pl.DataFrame:
     return alifestd_mark_joint_quantile_bins_polars(
-        simulate_allmdc_exposure_df(8_000, num_neutral=3),
+        simulate_exposure_df(8_000, num_neutral=3),
         bin_by=["branch_length", "origin_time"],
         max_num_bins=16,
         mark_as="calibration_bin",
@@ -56,7 +63,7 @@ def _binned_exposure_df() -> pl.DataFrame:
 
 
 def test_uncalibrated():
-    exposure_df = simulate_allmdc_exposure_df(8_000, num_neutral=3)
+    exposure_df = simulate_exposure_df(8_000, num_neutral=3)
     res = _impl(exposure_df)
     assert res["trait"].to_list() == _TRAIT_NAMES
     assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)
@@ -68,9 +75,22 @@ def test_uncalibrated():
 
 def test_calibrated():
     exposure_df = _binned_exposure_df()
-    res = _impl(exposure_df, num_bootstrap=2)
+    res = _impl(exposure_df)
     assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)
-    assert "selection_coef_se" in res.columns
+
+
+def test_fit_kwargs_refit_matches():
+    # as for a bootstrap replicate drawing every episode once, with bins and
+    # calibration neighborhoods from the point estimate
+    exposure_df = _binned_exposure_df()
+    point = _fit(exposure_df)
+    refit = tgs_fit_traits(
+        weights=np.ones(len(exposure_df)),
+        progress_wrap=identity,
+        trait_bin_counts_df=None,
+        **point["fit_kwargs"],
+    )
+    pltest.assert_frame_equal(refit, point["fits_df"])
 
 
 def test_one_neighborhood_per_partition_ignores_bins():
@@ -98,7 +118,7 @@ def test_partitions_separate_neighborhoods():
 
 
 def test_no_episodes_raises():
-    exposure_df = tgs_build_exposure_df(
+    exposure_df = _tgs_build_exposure_df(
         pl.DataFrame(
             {
                 "ancestor_id": [0],
@@ -106,6 +126,7 @@ def test_no_episodes_raises():
                 **{f"trait{i}_state": [0] for i in range(4)},
             },
         ),
+        is_kept_episode=np.ones(1, dtype=bool),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
         _impl(exposure_df)
