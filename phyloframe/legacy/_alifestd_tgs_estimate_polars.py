@@ -183,8 +183,8 @@ def alifestd_tgs_estimate_polars(
         Parent's taxon identifier (or own, for a root).
     'origin_time' : float
         Time of each taxon's origin, from which branch lengths and survival
-        durations are taken. Nodes whose episodes `episode_mask` excludes
-        do not set their ancestors' survival durations.
+        durations are taken; unknown (nan) times are skipped in finding a
+        clade's latest leaf.
     `trait_transitions` columns : integer
         Each node's trait state transition on the branch from its parent:
         +1 for a gain, -1 for a loss (not yet supported), 0 for none, and,

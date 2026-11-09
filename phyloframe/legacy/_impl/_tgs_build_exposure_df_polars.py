@@ -45,13 +45,13 @@ def _tgs_build_exposure_df(
     `episode_mask` is true; see Input Schema and Output
     Schema.
 
-    Masked-out nodes are ignored in finding each kept episode's latest
-    descendant, so do not set survival durations, but still count toward
-    clade sizes.
+    Clade sizes and survival durations count the whole tree, masked-out
+    nodes included; nodes with unknown (nan) origin times are skipped in
+    finding each node's latest descendant.
 
-    Raises ValueError if a kept exposure episode's branch has zero,
-    negative, or undefined (nan) length; masked-out episodes' branch
-    lengths are not checked.
+    Raises ValueError if a kept exposure episode's branch length is not
+    positive and finite, or its survival duration is not finite;
+    masked-out episodes are not checked.
 
     Input Schema
     ------------
@@ -69,9 +69,9 @@ def _tgs_build_exposure_df(
     'branch_length' : float
         Branch length.
     'survival_duration' : float
-        Time from the end node to the latest leaf below it (0 for a leaf),
-        for which a trait gained on the branch must persist to be seen at
-        every leaf of its clade.
+        Time from the end node to the latest leaf below it with known
+        origin time (0 for a leaf), for which a trait gained on the branch
+        must persist to be seen at every leaf of its clade.
     'clade_size' : integer
         Number of leaves below the end node (1 for a leaf).
     'trait{i}_starts_absent' : boolean, per trait `i`
@@ -87,25 +87,34 @@ def _tgs_build_exposure_df(
     )
     # a root has no parent, so no branch over which to gain a trait
     keep = (ancestor_ids != np.arange(len(ancestor_ids))) & episode_mask
-    (bad_ids,) = np.nonzero(keep & ~(branch_length > 0))  # nan is bad
+    is_bad = ~(np.isfinite(branch_length) & (branch_length > 0))
+    (bad_ids,) = np.nonzero(keep & is_bad)
     if len(bad_ids):
         raise ValueError(
-            "branch lengths must be positive, but exposure episodes ending "
-            f"at nodes (e.g., ids {bad_ids[:5].tolist()}) have zero, "
-            "negative, or undefined (nan) branch length; a parent with "
-            "unknown (nan) origin_time, such as a root, leaves its children's "
-            "branch lengths undefined; exclude such episodes with "
-            "episode_mask",
+            "branch lengths must be positive and finite, but exposure "
+            f"episodes ending at nodes (e.g., ids {bad_ids[:5].tolist()}) "
+            "have zero, negative, infinite, or undefined (nan) branch "
+            "length; a parent with unknown (nan) origin_time, such as a "
+            "root, leaves its children's branch lengths undefined; exclude "
+            "such episodes with episode_mask",
         )
-    # latest kept descendant, or self; masked-out nodes, e.g., with unknown
-    # (nan) origin times, are skipped, though their descendants' still count
+    # latest descendant, or self, with known origin time
     latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
-        ancestor_ids, np.where(keep, origin_time, -np.inf)
+        ancestor_ids, np.where(np.isnan(origin_time), -np.inf, origin_time)
     )
+    survival_duration = latest_ot - origin_time
+    (bad_ids,) = np.nonzero(keep & ~np.isfinite(survival_duration))
+    if len(bad_ids):
+        raise ValueError(
+            "survival durations must be finite, but exposure episodes ending "
+            f"at nodes (e.g., ids {bad_ids[:5].tolist()}) have infinite or "
+            "undefined (nan) survival duration, e.g., from an infinite "
+            "descendant origin_time",
+        )
     columns = {
         "origin_time": origin_time[keep],
         "branch_length": branch_length[keep],
-        "survival_duration": (latest_ot - origin_time)[keep],
+        "survival_duration": survival_duration[keep],
         "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
             ancestor_ids
         )[keep],
@@ -388,7 +397,8 @@ def tgs_build_exposure_df_polars(
     'branch_length' : float
         Episode length.
     'survival_duration' : float
-        Time from the end node to the latest leaf below it (0 for a leaf).
+        Time from the end node to the latest leaf below it with known
+        origin time (0 for a leaf).
     'clade_size' : integer
         Number of leaves below the end node (1 for a leaf).
     'trait{i}_starts_absent' : boolean, per trait `i`
@@ -426,11 +436,15 @@ def tgs_build_exposure_df_polars(
             raise NotImplementedError(
                 f"{caller} only supports asexual phylogenies.",
             )
-        if episode_mask is not None and episode_mask not in schema_names:
-            raise pl.exceptions.ColumnNotFoundError(
-                f"episode_mask column {episode_mask!r} not found in "
-                "phylogeny_df",
-            )
+        for argument, column in (
+            ("episode_mask", episode_mask),
+            ("calibration_partition_by", calibration_partition_by),
+            ("calibration_compare_by_bins", calibration_compare_by_bins),
+        ):
+            if column is not None and column not in schema_names:
+                raise pl.exceptions.ColumnNotFoundError(
+                    f"{argument} column {column!r} not found in phylogeny_df",
+                )
         selected = _tgs_select_columns(
             phylogeny_df,
             trait_transition_cols=trait_transition_cols,

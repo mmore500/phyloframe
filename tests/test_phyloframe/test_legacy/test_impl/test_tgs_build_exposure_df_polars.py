@@ -133,7 +133,9 @@ def test_invalid_calibration_column_raises(kwargs: dict):
 
 
 def test_missing_calibration_column_raises():
-    with pytest.raises(pl.exceptions.ColumnNotFoundError):
+    with pytest.raises(
+        pl.exceptions.ColumnNotFoundError, match="calibration_compare_by_bins"
+    ):
         _build(
             _make_tree(),
             trait_transition_cols=["t"],
@@ -222,32 +224,57 @@ def test_episode_mask_null_at_root_ignored():
 
 
 def test_episode_mask_keeps_whole_tree_columns():
-    # masking leaf 2, a child of the root, changes no kept episode
+    # masking leaf 3, under kept episode 1, leaves 1's clade size and
+    # survival duration as unmasked
     df_pl = _make_tree().with_columns(
-        keep=pl.Series([True, True, False, True, True]),
+        keep=pl.Series([True, True, True, False, True]),
     )
-    expected = _build(df_pl).filter(pl.Series([True, False, True, True]))
+    expected = _build(df_pl).filter(pl.Series([True, True, False, True]))
     assert _build(df_pl, episode_mask="keep").equals(expected)
 
 
-@pytest.mark.parametrize("bad", [float("nan"), float("inf"), 100.0])
-def test_masked_out_origin_time_skipped_for_survival(bad: float):
-    # leaf 3 is masked out, so ancestor 1's latest descendant is leaf 4
+def test_masked_out_leaf_counts_for_survival():
+    # leaf 3 is masked out, but still ancestor 1's latest leaf
     df_pl = _make_tree().with_columns(
-        origin_time=pl.Series([0.0, 1.0, 2.0, bad, 6.0]),
+        origin_time=pl.Series([0.0, 1.0, 2.0, 100.0, 6.0]),
+        keep=pl.Series([True, True, True, False, True]),
+    )
+    res = _build(df_pl, episode_mask="keep")
+    assert res["survival_duration"].to_list() == [99.0, 0.0, 0.0]
+    assert res["clade_size"].to_list() == [2, 1, 1]
+
+
+def test_nan_origin_time_skipped_for_survival():
+    # leaf 3's time is unknown, so ancestor 1's latest known leaf is leaf 4
+    df_pl = _make_tree().with_columns(
+        origin_time=pl.Series([0.0, 1.0, 2.0, float("nan"), 6.0]),
         keep=pl.Series([True, True, True, False, True]),
     )
     res = _build(df_pl, episode_mask="keep")
     assert res["survival_duration"].to_list() == [5.0, 0.0, 0.0]
-    assert res["clade_size"].to_list() == [2, 1, 1]  # still counts leaf 3
+    assert res["clade_size"].to_list() == [2, 1, 1]
 
 
-def test_kept_node_with_masked_out_descendants_survives_zero():
+def test_masked_out_descendants_count_for_survival():
     df_pl = _make_tree().with_columns(
         keep=pl.Series([True, True, True, False, False]),
     )
     res = _build(df_pl, episode_mask="keep")
-    assert res["survival_duration"].to_list() == [0.0, 0.0]
+    assert res["survival_duration"].to_list() == [5.0, 0.0]
+    assert res["clade_size"].to_list() == [2, 1]
+
+
+def test_infinite_origin_time_raises():
+    # kept leaf 4 with infinite time has infinite branch length
+    df_pl = _make_tree().with_columns(
+        origin_time=pl.Series([0.0, 1.0, 2.0, 5.0, float("inf")]),
+    )
+    with pytest.raises(ValueError, match="positive and finite"):
+        _build(df_pl)
+    # masked out, it gives its kept ancestor 1 infinite survival duration
+    df_pl = df_pl.with_columns(keep=pl.Series([True, True, True, True, False]))
+    with pytest.raises(ValueError, match="survival durations must be finite"):
+        _build(df_pl, episode_mask="keep")
 
 
 def test_nan_root_origin_time_ok_with_children_masked_out():
