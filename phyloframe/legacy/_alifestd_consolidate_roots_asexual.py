@@ -15,37 +15,15 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_find_oldest_root_id_asexual import (
+    alifestd_find_oldest_root_id_asexual,
+)
 from ._alifestd_is_asexual import alifestd_is_asexual
 from ._alifestd_make_ancestor_list_col import alifestd_make_ancestor_list_col
-from ._alifestd_mark_oldest_root import alifestd_mark_oldest_root
 from ._alifestd_topological_sensitivity_warned import (
     alifestd_topological_sensitivity_warned,
 )
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
-
-
-def _find_oldest_root_id(phylogeny_df: pd.DataFrame) -> int:
-    """Implementation detail for `alifestd_consolidate_roots_asexual`.
-
-    Returns the id of the oldest root, as for `alifestd_mark_oldest_root`,
-    raising NotImplementedError if a root's `origin_time` is null or nan, as
-    then which is oldest is undefined.
-    """
-    columns = [
-        column
-        for column in ("id", "ancestor_id", "origin_time")
-        if column in phylogeny_df
-    ]
-    roots_df = phylogeny_df.loc[
-        phylogeny_df["id"] == phylogeny_df["ancestor_id"], columns
-    ]
-    if "origin_time" in roots_df and roots_df["origin_time"].isna().any():
-        raise NotImplementedError(
-            "null or nan root origin_time not supported, as then which root "
-            "is oldest is undefined",
-        )
-    marked_df = alifestd_mark_oldest_root(roots_df, mark_as="is_oldest_root")
-    return marked_df.loc[marked_df["is_oldest_root"], "id"].item()
 
 
 @alifestd_topological_sensitivity_warned(
@@ -58,31 +36,37 @@ def alifestd_consolidate_roots_asexual(
     mutate: bool = False,
     root_ancestor_token: str = "none",
 ) -> pd.DataFrame:
-    """Delete all roots but the oldest, measured by lowest `origin_time` (if
-    available) or otherwise lowest `id`, pointing their children to the
-    oldest root.
+    """Delete all roots but the oldest, pointing their children to it.
 
-    Unlike `alifestd_join_roots`, which points the other roots themselves to
-    the oldest root, removes them, so that their children become children of
-    the oldest root. Roots without children are removed altogether. So, the
-    result is one tree, and no new branches start from the other roots'
-    origin times, e.g., where those are placeholders.
+    Unlike `alifestd_join_roots`, which points the other roots themselves
+    to the oldest root, removes them; roots without children are removed
+    altogether. Ids are not reassigned, and rows may no longer be
+    topologically sorted.
 
-    Ids are not reassigned, so may become non-contiguous, and rows may no
-    longer be topologically sorted if the oldest root follows the other
-    roots' children. Dataframe reindexing (e.g., df.index) may be applied.
+    Parameters
+    ----------
+    phylogeny_df : pd.DataFrame
+        Phylogeny in alife standard format.
 
-    The option `root_ancestor_token` will be sandwiched in brackets to create
-    the ancestor list entry for genesis organisms, if an `ancestor_list`
-    column is present. For example, the token "None" will yield the entry
-    "[None]" and the token "" will yield the entry "[]". Default "none".
+        Must represent an asexual phylogeny.
+    mutate : bool, default False
+        If True, allows in-place modification of `phylogeny_df`.
+    root_ancestor_token : str, default "none"
+        Token sandwiched in brackets as the root's `ancestor_list` entry, if
+        that column is present; e.g., "none" gives "[none]".
 
-    Raises ValueError if `phylogeny_df` is not asexual, and
-    NotImplementedError if a root's `origin_time` is null or nan.
+    Returns
+    -------
+    pd.DataFrame
+        The phylogeny with one root, the oldest (see
+        `alifestd_find_oldest_root_id_asexual`).
 
-    Input dataframe is not mutated by this operation unless `mutate` set True.
-    If mutate set True, operation does not occur in place; still use return
-    value to get transformed phylogeny dataframe.
+    Raises
+    ------
+    ValueError
+        If `phylogeny_df` is not asexual.
+    NotImplementedError
+        If a root's `origin_time` is null or nan.
 
     See Also
     --------
@@ -103,7 +87,9 @@ def alifestd_consolidate_roots_asexual(
     if phylogeny_df.empty:
         return phylogeny_df
 
-    oldest_root_id = _find_oldest_root_id(phylogeny_df)
+    oldest_root_id = alifestd_find_oldest_root_id_asexual(
+        phylogeny_df, mutate=True
+    )
     is_root = phylogeny_df["id"] == phylogeny_df["ancestor_id"]
     is_other_root = is_root & (phylogeny_df["id"] != oldest_root_id)
     other_root_ids = phylogeny_df.loc[is_other_root, "id"]

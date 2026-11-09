@@ -11,14 +11,17 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_find_oldest_root_id_polars import (
+    alifestd_find_oldest_root_id_polars,
+)
 from ._alifestd_mark_roots_polars import alifestd_mark_roots_polars
 
 
 def alifestd_mark_oldest_root_polars(
     phylogeny_df: pl.DataFrame, *, mark_as: str = "is_oldest_root"
 ) -> pl.DataFrame:
-    """Point all other roots to oldest root, measured by lowest
-    `origin_time` (if available) or otherwise lowest `id`.
+    """Add column `is_oldest_root`, marking the oldest root (see
+    `alifestd_find_oldest_root_id_polars`).
 
     The output column name can be changed via the ``mark_as`` parameter.
     """
@@ -39,24 +42,7 @@ def alifestd_mark_oldest_root_polars(
     logging.info(
         "- alifestd_mark_oldest_root_polars: finding oldest root...",
     )
-    if "origin_time" in schema_names:
-        oldest_root_id = (
-            phylogeny_df.lazy()
-            .filter(pl.col("is_root"))
-            .sort(["origin_time", "id"])
-            .select("id")
-            .limit(1)
-            .collect()
-            .item()
-        )
-    else:
-        oldest_root_id = (
-            phylogeny_df.lazy()
-            .filter(pl.col("is_root"))
-            .select(pl.col("id").min())
-            .collect()
-            .item()
-        )
+    oldest_root_id = alifestd_find_oldest_root_id_polars(phylogeny_df)
 
     return phylogeny_df.with_columns(
         (pl.col("id") == oldest_root_id).alias(mark_as),

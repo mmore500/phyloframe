@@ -12,11 +12,11 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_find_oldest_root_id_polars import (
+    alifestd_find_oldest_root_id_polars,
+)
 from ._alifestd_make_ancestor_list_col_polars import (
     alifestd_make_ancestor_list_col_polars,
-)
-from ._alifestd_mark_oldest_root_polars import (
-    alifestd_mark_oldest_root_polars,
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
@@ -24,41 +24,6 @@ from ._alifestd_topological_sensitivity_warned_polars import (
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-
-
-def _find_oldest_root_id(phylogeny_df: pl.DataFrame) -> int:
-    """Implementation detail for `alifestd_consolidate_roots_polars`.
-
-    Returns the id of the oldest root, as for
-    `alifestd_mark_oldest_root_polars`, raising NotImplementedError if a
-    root's `origin_time` is null or nan, as then which is oldest is
-    undefined.
-    """
-    schema_names = phylogeny_df.lazy().collect_schema().names()
-    roots_df = (
-        phylogeny_df.lazy()
-        .select(
-            "id",
-            "ancestor_id",
-            *(["origin_time"] if "origin_time" in schema_names else []),
-        )
-        .filter(pl.col("id") == pl.col("ancestor_id"))
-        .collect()
-    )
-    if "origin_time" in schema_names:
-        origin_time = roots_df["origin_time"]
-        if origin_time.has_nulls() or (
-            origin_time.dtype.is_float() and origin_time.is_nan().any()
-        ):
-            raise NotImplementedError(
-                "null or nan root origin_time not supported, as then which "
-                "root is oldest is undefined",
-            )
-    return (
-        alifestd_mark_oldest_root_polars(roots_df, mark_as="is_oldest_root")
-        .filter(pl.col("is_oldest_root"))["id"]
-        .item()
-    )
 
 
 def _update_ancestor_list(
@@ -92,20 +57,9 @@ def alifestd_consolidate_roots_polars(
     *,
     root_ancestor_token: str = "none",
 ) -> pl.DataFrame:
-    """Delete all roots but the oldest, measured by lowest `origin_time` (if
-    available) or otherwise lowest `id`, pointing their children to the
-    oldest root.
+    """Delete all roots but the oldest, pointing their children to it.
 
-    Unlike `alifestd_join_roots_polars`, which points the other roots
-    themselves to the oldest root, removes them, so that their children
-    become children of the oldest root. Roots without children are removed
-    altogether. So, the result is one tree, and no new branches start from
-    the other roots' origin times, e.g., where those are placeholders.
-
-    Ids are not reassigned, so may become non-contiguous (see
-    `alifestd_assign_contiguous_ids_polars`), and rows may no longer be
-    topologically sorted if the oldest root follows the other roots'
-    children (see `alifestd_topological_sort_polars`).
+    See `alifestd_consolidate_roots_asexual`.
 
     Parameters
     ----------
@@ -153,7 +107,7 @@ def alifestd_consolidate_roots_polars(
     logging.info(
         "- alifestd_consolidate_roots_polars: finding oldest root...",
     )
-    oldest_root_id = _find_oldest_root_id(phylogeny_df)
+    oldest_root_id = alifestd_find_oldest_root_id_polars(phylogeny_df)
 
     is_root = pl.col("id") == pl.col("ancestor_id")
     other_root_ids = (

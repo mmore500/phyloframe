@@ -14,6 +14,9 @@ from .._auxlib._delegate_polars_implementation import (
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_find_oldest_root_id_asexual import (
+    alifestd_find_oldest_root_id_asexual,
+)
 from ._alifestd_mark_roots import alifestd_mark_roots
 
 
@@ -23,8 +26,8 @@ def alifestd_mark_oldest_root(
     *,
     mark_as: str = "is_oldest_root",
 ) -> pd.DataFrame:
-    """Point all other roots to oldest root, measured by lowest `origin_time`
-    (if available) or otherwise lowest `id`.
+    """Add column `is_oldest_root`, marking the oldest root (see
+    `alifestd_find_oldest_root_id_asexual`).
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -40,19 +43,8 @@ def alifestd_mark_oldest_root(
         phylogeny_df[mark_as] = True
         return phylogeny_df
 
-    phylogeny_df.reset_index(drop=True, inplace=True)
-    idxmin: int
-    if "origin_time" in phylogeny_df.columns:
-        idxmin = (
-            phylogeny_df.loc[phylogeny_df["is_root"]]
-            .sort_values(by=["origin_time", "id"])
-            .index[0]
-        )
-    else:
-        idxmin = phylogeny_df.loc[phylogeny_df["is_root"], "id"].idxmin()
-
-    phylogeny_df[mark_as] = False
-    phylogeny_df.at[idxmin, mark_as] = True
+    oldest_root_id = alifestd_find_oldest_root_id_asexual(phylogeny_df)
+    phylogeny_df[mark_as] = phylogeny_df["id"] == oldest_root_id
 
     return phylogeny_df
 
