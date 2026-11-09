@@ -92,7 +92,7 @@ def _tgs_summarize_bootstrap(
     warn_kwargs = dict(
         trait_ids=trait_ids,
         trait_names=point_estimate_df["trait"],
-        num_replicates=bootstrap_fits_df["replicate"].n_unique(),
+        num_replicates=bootstrap_fits_df["replicate_id"].n_unique(),
     )
     _tgs_warn_excluded_bootstrap_replicates(
         is_selection_degenerate,
@@ -177,7 +177,7 @@ def _tgs_bootstrap_trait_fits(
 
     Output Schema
     -------------
-    'replicate' : integer
+    'replicate_id' : integer
         Bootstrap replicate index.
     'trait_id' : integer
         Trait index.
@@ -195,11 +195,11 @@ def _tgs_bootstrap_trait_fits(
     )
     return pl.concat(
         fit_df.select(
-            pl.lit(replicate, dtype=pl.Int64).alias("replicate"),
+            pl.lit(replicate_id, dtype=pl.Int64).alias("replicate_id"),
             pl.int_range(pl.len(), dtype=pl.Int64).alias("trait_id"),
             pl.all(),
         )
-        for replicate, fit_df in enumerate(replicate_fits)
+        for replicate_id, fit_df in enumerate(replicate_fits)
     )
 
 

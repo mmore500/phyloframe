@@ -29,7 +29,7 @@ def test_replicate():
     again = _tgs_bootstrap_trait_fits(seed=1, **kwargs)
     other = _tgs_bootstrap_trait_fits(seed=2, **kwargs)
     assert len(fits) == 2 * 3
-    assert fits["replicate"].to_list() == [0, 0, 0, 1, 1, 1]
+    assert fits["replicate_id"].to_list() == [0, 0, 0, 1, 1, 1]
     assert fits["trait_id"].to_list() == [0, 1, 2] * 2
     pltest.assert_frame_equal(fits, again)
     assert not np.allclose(fits["gain_rate"], other["gain_rate"])

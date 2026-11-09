@@ -32,9 +32,9 @@ def tgs_calc_calibration_rescaling(
         trait_bin_counts_df.filter(
             pl.col("trait_id").is_in(set(neutral_trait_ids) - {trait_id})
         )
-        .group_by("bin")
+        .group_by("bin_id")
         .agg(pl.col("num_successes", "length_sum").sum())
-        .sort("bin")
+        .sort("bin_id")
     )
     return calc_neighborhood_rate_ratios(
         neighborhoods=calibration_neighborhoods,

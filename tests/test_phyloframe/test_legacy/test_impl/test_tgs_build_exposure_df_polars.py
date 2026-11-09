@@ -109,8 +109,8 @@ def test_calibration_columns():
         calibration_compare_by_bins="b",
         calibration_compare_by_vals=["v", "branch_length"],
     )
-    assert res["calibration_partition"].to_list() == [7, 8, 9, 10]
-    assert res["calibration_bin"].to_list() == [3, 4, 5, 6]
+    assert res["calibration_partition_id"].to_list() == [7, 8, 9, 10]
+    assert res["calibration_bin_id"].to_list() == [3, 4, 5, 6]
     assert res["calibration_compare_by_v"].to_list() == [0.5, 1.5, 2.5, 3.5]
     # the exposure table's own branch lengths take precedence
     assert res["calibration_compare_by_branch_length"].to_list() == [
@@ -218,7 +218,7 @@ def test_masked_out_null_calibration_value_ok():
     res = _build(
         df_pl, calibration_compare_by_bins="b", episode_mask="is_leaf"
     )
-    assert res["calibration_bin"].to_list() == [3, 4, 5]
+    assert res["calibration_bin_id"].to_list() == [3, 4, 5]
 
 
 def test_episode_mask_null_at_root_ignored():

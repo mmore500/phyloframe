@@ -349,7 +349,7 @@ def test_tgs_select_calibration_neighborhoods():
     counts = pl.DataFrame(
         {
             "trait_id": np.repeat(np.arange(3), 256),
-            "bin": np.tile(np.arange(256), 3),
+            "bin_id": np.tile(np.arange(256), 3),
             "num_trials": 100.0,
             "num_successes": rng.binomial(100, 0.01, 3 * 256).astype(float),
             "length_sum": 1000.0,

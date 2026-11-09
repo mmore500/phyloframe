@@ -18,26 +18,26 @@ def make_tgs_fit_kwargs(
     """
     num_traits = sum(c.endswith("_starts_absent") for c in exposure_df.columns)
     if calibrate:
-        bins = alifestd_mark_joint_quantile_bins_polars(
+        bin_ids = alifestd_mark_joint_quantile_bins_polars(
             exposure_df,
             bin_by=["branch_length", "origin_time"],
             max_num_bins=64,
         )["joint_quantile_bin"].to_numpy()
-        num_bins = bins.max() + 1
+        num_bins = bin_ids.max() + 1
     else:
-        bins, num_bins = np.zeros(len(exposure_df), dtype=np.int64), 1
-    distinct_survival_durations, survival_duration_indices = np.unique(
+        bin_ids, num_bins = np.zeros(len(exposure_df), dtype=np.int64), 1
+    distinct_survival_durations, survival_duration_ids = np.unique(
         exposure_df["survival_duration"].to_numpy(), return_inverse=True
     )
     return {
         **dict(
             exposure_df=exposure_df,
             num_traits=num_traits,
-            bins=bins,
+            bin_ids=bin_ids,
             num_bins=num_bins,
             calibration_neighborhoods=sparse.identity(num_bins, format="csr"),
             distinct_survival_durations=distinct_survival_durations,
-            survival_duration_indices=survival_duration_indices,
+            survival_duration_ids=survival_duration_ids,
             neutral_trait_ids=list(range(1, num_traits)),
             calibrate_max_rate_ratio=np.inf,
             length_rtol=1e-3,

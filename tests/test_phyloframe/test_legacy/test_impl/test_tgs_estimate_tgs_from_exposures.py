@@ -51,9 +51,9 @@ def _binned_exposure_df() -> pl.DataFrame:
         simulate_exposure_df(8_000, num_neutral=3),
         bin_by=["branch_length", "origin_time"],
         max_num_bins=16,
-        mark_as="calibration_bin",
+        mark_as="calibration_bin_id",
     ).with_columns(
-        calibration_partition=(pl.col("clade_size") > 1).cast(pl.Int64),
+        calibration_partition_id=(pl.col("clade_size") > 1).cast(pl.Int64),
         calibration_compare_by_branch_length=pl.col("branch_length"),
         calibration_compare_by_origin_time=pl.col("origin_time"),
     )
@@ -66,7 +66,7 @@ def test_uncalibrated():
     assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)
     # a constant partition column, like none, gives one bin
     pltest.assert_frame_equal(
-        res, _impl(exposure_df.with_columns(calibration_partition=0))
+        res, _impl(exposure_df.with_columns(calibration_partition_id=0))
     )
 
 
@@ -95,7 +95,7 @@ def test_one_neighborhood_per_partition_ignores_bins():
     # partition were one bin
     exposure_df = _binned_exposure_df()
     whole = _impl(exposure_df, calibrate_neighborhood_fractions=(1.0,))
-    by_partition = _impl(exposure_df.drop("calibration_bin"))
+    by_partition = _impl(exposure_df.drop("calibration_bin_id"))
     pltest.assert_frame_equal(whole, by_partition, rel_tol=1e-4)
 
 
@@ -104,11 +104,11 @@ def test_partitions_separate_neighborhoods():
     exposure_df = _binned_exposure_df()
     res = _impl(exposure_df)
     shifted = exposure_df.with_columns(
-        calibration_partition=pl.col("calibration_partition") * 5 - 3
+        calibration_partition_id=pl.col("calibration_partition_id") * 5 - 3
     )
     pltest.assert_frame_equal(res, _impl(shifted))
     # calibrating across partitions differs
     assert not np.allclose(
         res["selection_coef"],
-        _impl(exposure_df.drop("calibration_partition"))["selection_coef"],
+        _impl(exposure_df.drop("calibration_partition_id"))["selection_coef"],
     )

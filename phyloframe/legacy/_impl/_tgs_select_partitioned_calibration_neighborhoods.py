@@ -147,7 +147,7 @@ def _tgs_select_calibration_neighborhoods(
 
 
 def _tgs_calc_calibration_bin_coords(
-    exposure_df: pl.DataFrame, *, bins: np.ndarray, num_bins: int
+    exposure_df: pl.DataFrame, *, bin_ids: np.ndarray, num_bins: int
 ) -> np.ndarray:
     """Implementation detail for
     `tgs_select_partitioned_calibration_neighborhoods`.
@@ -155,7 +155,7 @@ def _tgs_calc_calibration_bin_coords(
     Returns each calibration bin's coordinates for nearest-neighbor
     comparison, in bin order: its episodes' mean ranks, scaled to (0, 1], by
     each `calibration_compare_by_*` column of `exposure_df`, given each
-    episode's bin, `bins`. Tied episodes share their average rank, so
+    episode's bin, `bin_ids`. Tied episodes share their average rank, so
     coordinates do not depend on row order, and a constant column places
     every bin alike, adding no distance.
     """
@@ -163,15 +163,15 @@ def _tgs_calc_calibration_bin_coords(
         exposure_df.select(
             cs.starts_with("calibration_compare_by_").rank(method="average")
             / pl.len(),
-            bin=pl.Series(bins),
+            bin_id=pl.Series(bin_ids),
         )
-        .group_by("bin")
+        .group_by("bin_id")
         .mean()
-        .sort("bin")
+        .sort("bin_id")
     )
     # every bin has episodes, as bins are numbered densely from them
-    assert bin_coords_df["bin"].to_list() == list(range(num_bins))
-    return bin_coords_df.drop("bin").to_numpy()
+    assert bin_coords_df["bin_id"].to_list() == list(range(num_bins))
+    return bin_coords_df.drop("bin_id").to_numpy()
 
 
 def _tgs_select_partition_trait_bin_counts(
@@ -186,8 +186,8 @@ def _tgs_select_partition_trait_bin_counts(
     that partition's own bin coordinates.
     """
     return trait_bin_counts_df.filter(
-        pl.col("bin").is_between(begin, end - 1)
-    ).with_columns(pl.col("bin") - begin)
+        pl.col("bin_id").is_between(begin, end - 1)
+    ).with_columns(pl.col("bin_id") - begin)
 
 
 def tgs_select_partitioned_calibration_neighborhoods(
@@ -227,9 +227,9 @@ def tgs_select_partitioned_calibration_neighborhoods(
     `bins_df` columns, one row per episode (see
     `_tgs_assign_calibration_bins`):
 
-    'bin' : integer
+    'bin_id' : integer
         Calibration bin index, partition-major.
-    'partition' : integer
+    'partition_id' : integer
         Calibration partition index.
 
     Output Schema
@@ -238,7 +238,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
 
     'trait_id' : integer
         Trait index.
-    'bin' : integer
+    'bin_id' : integer
         Calibration bin index.
     'num_trials' : float
         Exposure episodes of the trait in the bin.
@@ -247,11 +247,11 @@ def tgs_select_partitioned_calibration_neighborhoods(
     'length_sum' : float
         Their summed branch length.
     """
-    bins = bins_df["bin"].to_numpy()
+    bin_ids = bins_df["bin_id"].to_numpy()
     trait_bin_counts_df = tgs_count_trait_bin_exposures(
         exposure_df=exposure_df,
         num_traits=len(trait_names),
-        bins=bins,
+        bin_ids=bin_ids,
         num_bins=num_bins,
         weights=np.ones(len(exposure_df)),
     )
@@ -260,14 +260,14 @@ def tgs_select_partitioned_calibration_neighborhoods(
 
     # each partition's bins, contiguous as numbered partition-major
     partition_bin_ranges = (
-        bins_df.group_by("partition")
-        .agg(begin=pl.col("bin").min(), end=pl.col("bin").max() + 1)
-        .sort("partition")
+        bins_df.group_by("partition_id")
+        .agg(begin=pl.col("bin_id").min(), end=pl.col("bin_id").max() + 1)
+        .sort("partition_id")
         .select("begin", "end")
         .iter_rows()
     )
     bin_coords = _tgs_calc_calibration_bin_coords(
-        exposure_df, bins=bins, num_bins=num_bins
+        exposure_df, bin_ids=bin_ids, num_bins=num_bins
     )
     calibration_neighborhoods = sparse.block_diag(
         [

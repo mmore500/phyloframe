@@ -18,15 +18,15 @@ def _tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
     stands for trait gain/selection.
 
     Returns each exposure episode's calibration bin and partition, one row
-    per row of `exposure_df`, numbering distinct (`calibration_partition`,
-    `calibration_bin`) pairs consecutively, partition-major, so that each
+    per row of `exposure_df`, numbering distinct (`calibration_partition_id`,
+    `calibration_bin_id`) pairs consecutively, partition-major, so that each
     partition's bins are contiguous; see Input and Output Schema.
 
     Input Schema
     ------------
-    'calibration_partition' : integer, optional
+    'calibration_partition_id' : integer, optional
         Each episode's calibration partition id; if missing, all 0.
-    'calibration_bin' : integer, optional
+    'calibration_bin_id' : integer, optional
         Each episode's calibration bin id; if missing, all 0. So, without
         either column, every episode is in one bin.
 
@@ -34,30 +34,33 @@ def _tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
     -------------
     'exposure_id' : integer
         Id of the episode, its row index in `exposure_df`.
-    'bin' : integer
+    'bin_id' : integer
         Calibration bin index, from 0, over (partition, bin) pairs, sorted.
-    'partition' : integer
+    'partition_id' : integer
         Calibration partition index, from 0, over partitions, sorted.
     """
     calibration_df = exposure_df.select(
         exposure_id=pl.int_range(pl.len(), dtype=pl.Int64),
         # defaults, overwritten by `exposure_df`'s columns, if any
-        calibration_partition=pl.lit(0),
-        calibration_bin=pl.lit(0),
+        calibration_partition_id=pl.lit(0),
+        calibration_bin_id=pl.lit(0),
     ).with_columns(
         exposure_df.select(
             cs.by_name(
-                "calibration_partition", "calibration_bin", require_all=False
+                "calibration_partition_id",
+                "calibration_bin_id",
+                require_all=False,
             ),
         ),
     )
     return calibration_df.select(
         "exposure_id",
-        bin=pl.struct("calibration_partition", "calibration_bin").rank(
-            method="dense"
-        )
+        bin_id=pl.struct(
+            "calibration_partition_id", "calibration_bin_id"
+        ).rank(method="dense")
         - 1,
-        partition=pl.col("calibration_partition").rank(method="dense") - 1,
+        partition_id=pl.col("calibration_partition_id").rank(method="dense")
+        - 1,
     ).cast(pl.Int64)
 
 
@@ -103,13 +106,13 @@ def tgs_estimate_tgs_from_exposures(
     'trait{i}_starts_absent', 'trait{i}_gain' : boolean, per trait `i`
         Whether the branch started without, and whether it gained, the
         trait.
-    'calibration_partition', 'calibration_bin' : integer, optional
+    'calibration_partition_id', 'calibration_bin_id' : integer, optional
         The branch's calibration partition and bin.
     'calibration_compare_by_{name}' : numeric, optional
         Values by which calibration bins are compared.
     """
     bins_df = _tgs_assign_calibration_bins(exposure_df)
-    num_bins = bins_df["bin"].n_unique()
+    num_bins = bins_df["bin_id"].n_unique()
     (
         calibration_neighborhoods,
         trait_bin_counts_df,
@@ -122,17 +125,17 @@ def tgs_estimate_tgs_from_exposures(
         trait_names=trait_names,
         max_rate_ratio=calibrate_max_rate_ratio,
     )
-    distinct_survival_durations, survival_duration_indices = np.unique(
+    distinct_survival_durations, survival_duration_ids = np.unique(
         exposure_df["survival_duration"].to_numpy(), return_inverse=True
     )
     fit_kwargs = dict(
         exposure_df=exposure_df,
         num_traits=len(trait_names),
-        bins=bins_df["bin"].to_numpy(),
+        bin_ids=bins_df["bin_id"].to_numpy(),
         num_bins=num_bins,
         calibration_neighborhoods=calibration_neighborhoods,
         distinct_survival_durations=distinct_survival_durations,
-        survival_duration_indices=survival_duration_indices,
+        survival_duration_ids=survival_duration_ids,
         neutral_trait_ids=neutral_trait_ids,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,

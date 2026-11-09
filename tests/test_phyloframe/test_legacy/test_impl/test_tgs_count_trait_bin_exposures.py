@@ -20,11 +20,11 @@ def test_counts():
     res = tgs_count_trait_bin_exposures(
         exposure_df=_exposure_df(),
         num_traits=2,
-        bins=np.array([0, 0, 1, 1]),
+        bin_ids=np.array([0, 0, 1, 1]),
         num_bins=3,
         weights=np.array([1.0, 2.0, 1.0, 1.0]),
     )
-    assert res.select("trait_id", "bin").rows() == [
+    assert res.select("trait_id", "bin_id").rows() == [
         (t, b) for t in range(2) for b in range(3)
     ]
     np.testing.assert_array_equal(res["num_trials"], [3, 1, 0, 3, 2, 0])

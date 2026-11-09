@@ -25,11 +25,11 @@ def _coarsen(trait: int, **kwargs):
             **dict(
                 exposure_df=_exposure_df(),
                 trait_id=trait,
-                bins=np.array([0, 0, 0, 1]),
+                bin_ids=np.array([0, 0, 0, 1]),
                 calibration_factors=np.ones(2),
                 weights=np.ones(4),
                 length_rtol=1e-3,
-                survival_duration_indices=indices,
+                survival_duration_ids=indices,
                 num_survival_durations=len(distinct),
             ),
             **kwargs,

@@ -11,7 +11,7 @@ def _counts(num_successes) -> pl.DataFrame:
     return pl.DataFrame(
         {
             "trait_id": np.repeat(np.arange(num_traits), num_bins),
-            "bin": np.tile(np.arange(num_bins), num_traits),
+            "bin_id": np.tile(np.arange(num_bins), num_traits),
             "num_trials": 100.0,
             "num_successes": num_successes.ravel(),
             "length_sum": 1000.0,

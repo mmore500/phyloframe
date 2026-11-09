@@ -23,7 +23,7 @@ from ._simulate_exposure_df import simulate_exposure_df
 @pytest.fixture(scope="module")
 def fixture():
     exposure_df = simulate_exposure_df()
-    distinct_survival_durations, survival_duration_indices = np.unique(
+    distinct_survival_durations, survival_duration_ids = np.unique(
         exposure_df["survival_duration"].to_numpy(), return_inverse=True
     )
     # each trait's `tgs_calc_nll` arguments, but the rate parameters
@@ -32,11 +32,11 @@ def fixture():
         coarsened_df, shares = _tgs_coarsen_episodes(
             exposure_df=exposure_df,
             trait_id=trait,
-            bins=np.zeros(len(exposure_df), dtype=np.int64),
+            bin_ids=np.zeros(len(exposure_df), dtype=np.int64),
             calibration_factors=np.ones(1),
             weights=np.ones(len(exposure_df)),
             length_rtol=1e-2,
-            survival_duration_indices=survival_duration_indices,
+            survival_duration_ids=survival_duration_ids,
             num_survival_durations=len(distinct_survival_durations),
         )
         trait_nll_kwargs.append(

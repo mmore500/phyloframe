@@ -267,8 +267,8 @@ def _tgs_calc_neutral_reference_gain_rate(
     gained their trait.
     """
     # a neutral trait is not compared against itself
-    refs = sorted(set(neutral_trait_ids) - {trait_id})
-    ref_gain_rate = gain_rates[refs].mean()
+    ref_trait_ids = sorted(set(neutral_trait_ids) - {trait_id})
+    ref_gain_rate = gain_rates[ref_trait_ids].mean()
     return ref_gain_rate if ref_gain_rate > 0 else np.nan
 
 

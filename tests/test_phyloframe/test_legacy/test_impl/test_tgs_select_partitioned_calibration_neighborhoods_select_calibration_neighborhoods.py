@@ -15,27 +15,27 @@ from ._simulate_exposure_df import simulate_exposure_df
 def test_select(caplog):
     exposure_df = simulate_exposure_df(8_000, num_neutral=3)
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
-    bins = alifestd_mark_joint_quantile_bins_polars(
+    bin_ids = alifestd_mark_joint_quantile_bins_polars(
         exposure_df,
         bin_by=["branch_length", "origin_time"],
         max_num_bins=64,
     )["joint_quantile_bin"].to_numpy()
-    num_bins = bins.max() + 1
+    num_bins = bin_ids.max() + 1
     with caplog.at_level(logging.INFO):
         res = _tgs_select_calibration_neighborhoods(
             bin_coords=exposure_df.select(
-                "branch_length", "origin_time", bin=pl.Series(bins)
+                "branch_length", "origin_time", bin_id=pl.Series(bin_ids)
             )
-            .group_by("bin")
+            .group_by("bin_id")
             .mean()
-            .sort("bin")
-            .drop("bin")
+            .sort("bin_id")
+            .drop("bin_id")
             .to_numpy(),
             neighborhood_fractions=(0.25, 1.0),
             trait_bin_counts_df=tgs_count_trait_bin_exposures(
                 exposure_df=exposure_df,
                 num_traits=4,
-                bins=bins,
+                bin_ids=bin_ids,
                 num_bins=num_bins,
                 weights=np.ones(len(exposure_df)),
             ),

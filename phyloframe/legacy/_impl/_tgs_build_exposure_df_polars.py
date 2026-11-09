@@ -447,9 +447,9 @@ def tgs_build_exposure_df_polars(
         Whether the episode started without the trait.
     'trait{i}_gain' : boolean, per trait `i`
         Whether the episode gained the trait.
-    'calibration_partition' : integer, optional
+    'calibration_partition_id' : integer, optional
         The end node's `calibration_partition_by` value, if given.
-    'calibration_bin' : integer, optional
+    'calibration_bin_id' : integer, optional
         The end node's `calibration_compare_by_bins` value, if given.
     'calibration_compare_by_{name}' : numeric, per `calibration_compare_by_vals` name
         The episode's value of that column, from the exposure table's own
@@ -460,8 +460,8 @@ def tgs_build_exposure_df_polars(
     calibration_cols = {
         name: col
         for name, col in (
-            ("calibration_partition", calibration_partition_by),
-            ("calibration_bin", calibration_compare_by_bins),
+            ("calibration_partition_id", calibration_partition_by),
+            ("calibration_bin_id", calibration_compare_by_bins),
             *(
                 (f"calibration_compare_by_{col}", col)
                 for col in calibration_compare_by_vals

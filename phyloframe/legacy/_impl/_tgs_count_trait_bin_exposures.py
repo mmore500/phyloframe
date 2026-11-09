@@ -9,7 +9,7 @@ def _tgs_count_bin_exposures_of_trait(
     *,
     exposure_df: pl.DataFrame,
     trait_id: int,
-    bins: pl.Series,
+    bin_ids: pl.Series,
     weights: pl.Series,
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_count_trait_bin_exposures`.
@@ -19,7 +19,7 @@ def _tgs_count_bin_exposures_of_trait(
 
     Output Schema
     -------------
-    'bin' : integer
+    'bin_id' : integer
         Calibration bin index; only bins with the trait's exposure episodes.
     'num_trials' : float
         Weighted count of the trait's exposure episodes in the bin.
@@ -33,10 +33,10 @@ def _tgs_count_bin_exposures_of_trait(
             exposure_df, trait_id=trait_id, weights=weights
         )
         .with_columns(
-            bin=pl.lit(bins).gather("exposure_id"),
+            bin_id=pl.lit(bin_ids).gather("exposure_id"),
             length=pl.lit(exposure_df["branch_length"]).gather("exposure_id"),
         )
-        .group_by("bin")
+        .group_by("bin_id")
         .agg(
             num_trials=pl.col("weight").sum(),
             num_successes=pl.col("weight").filter(pl.col("gain")).sum(),
@@ -49,7 +49,7 @@ def tgs_count_trait_bin_exposures(
     *,
     exposure_df: pl.DataFrame,
     num_traits: int,
-    bins: np.ndarray,
+    bin_ids: np.ndarray,
     num_bins: int,
     weights: np.ndarray,
 ) -> pl.DataFrame:
@@ -58,14 +58,14 @@ def tgs_count_trait_bin_exposures(
 
     Returns each trait's exposure counts in each calibration bin, one row
     per trait and bin, trait-major, given each row of `exposure_df` (see
-    `_tgs_build_exposure_df`), its `bins` index, and its `weights` (e.g.,
+    `_tgs_build_exposure_df`), its `bin_ids` index, and its `weights` (e.g.,
     bootstrap draw counts); see Output Schema.
 
     Output Schema
     -------------
     'trait_id' : integer
         Trait index.
-    'bin' : integer
+    'bin_id' : integer
         Calibration bin index, from 0 to `num_bins` - 1.
     'num_trials' : float
         Weighted count of the trait's exposure episodes in the bin.
@@ -77,10 +77,10 @@ def tgs_count_trait_bin_exposures(
     assert (
         num_traits == exposure_df.select(cs.matches(r"^trait\d+_gain$")).width
     )
-    bin_df = pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)})
+    bin_df = pl.DataFrame({"bin_id": np.arange(num_bins, dtype=np.int64)})
     trait_bin_kwargs = dict(  # converted once, shared by every trait
         exposure_df=exposure_df,
-        bins=pl.Series(bins, dtype=pl.Int64),
+        bin_ids=pl.Series(bin_ids, dtype=pl.Int64),
         weights=pl.Series(weights, dtype=pl.Float64),
     )
     return pl.concat(
@@ -89,7 +89,7 @@ def tgs_count_trait_bin_exposures(
             _tgs_count_bin_exposures_of_trait(
                 trait_id=trait_id, **trait_bin_kwargs
             ),
-            on="bin",
+            on="bin_id",
             how="left",
         )
         # zero counts for bins without the trait's exposure episodes, e.g.,
@@ -98,4 +98,4 @@ def tgs_count_trait_bin_exposures(
             pl.lit(trait_id, dtype=pl.Int64).alias("trait_id"), pl.all()
         )
         for trait_id in range(num_traits)
-    ).sort("trait_id", "bin")
+    ).sort("trait_id", "bin_id")

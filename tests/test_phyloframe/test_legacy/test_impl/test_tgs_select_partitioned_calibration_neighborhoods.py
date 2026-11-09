@@ -19,7 +19,7 @@ def _select(exposure_df: pl.DataFrame):
         *tgs_select_partitioned_calibration_neighborhoods(
             exposure_df,
             bins_df=bins_df,
-            num_bins=bins_df["bin"].max() + 1,
+            num_bins=bins_df["bin_id"].max() + 1,
             neighborhood_fractions=(0.25, 1.0),
             neutral_trait_ids=[1, 2, 3],
             trait_names=["focal", "a", "b", "c"],
@@ -34,28 +34,28 @@ def test_block_diagonal():
         exposure_df,
         bin_by=["branch_length", "origin_time"],
         max_num_bins=8,
-        mark_as="calibration_bin",
+        mark_as="calibration_bin_id",
     ).with_columns(
-        calibration_partition=(pl.col("clade_size") > 1).cast(pl.Int64),
+        calibration_partition_id=(pl.col("clade_size") > 1).cast(pl.Int64),
         calibration_compare_by_branch_length=pl.col("branch_length"),
     )
     bins_df, neighborhoods, trait_bin_counts_df = _select(exposure_df)
-    num_bins = bins_df["bin"].max() + 1
+    num_bins = bins_df["bin_id"].max() + 1
     assert neighborhoods.shape == (num_bins, num_bins)
     assert (neighborhoods.diagonal() == 1).all()
     # partition 0's bins come first
-    first = bins_df.filter(pl.col("partition") == 1)["bin"].min()
+    first = bins_df.filter(pl.col("partition_id") == 1)["bin_id"].min()
     dense = neighborhoods.toarray()
     assert not dense[:first, first:].any()
     assert not dense[first:, :first].any()
-    assert trait_bin_counts_df["bin"].n_unique() == num_bins
+    assert trait_bin_counts_df["bin_id"].n_unique() == num_bins
 
 
 def test_one_bin_is_uncalibrated():
     exposure_df = simulate_exposure_df(400, num_neutral=3)
     __, neighborhoods, trait_bin_counts_df = _select(exposure_df)
     assert neighborhoods.toarray().tolist() == [[1.0]]
-    assert trait_bin_counts_df["bin"].unique().to_list() == [0]
+    assert trait_bin_counts_df["bin_id"].unique().to_list() == [0]
 
 
 def test_bin_coords_ignore_row_order():
@@ -70,13 +70,13 @@ def test_bin_coords_ignore_row_order():
             "calibration_compare_by_c": np.ones(200),  # constant
         },
     )
-    bins = rng.integers(0, 8, 200)
+    bin_ids = rng.integers(0, 8, 200)
     expected = _tgs_calc_calibration_bin_coords(
-        exposure_df, bins=bins, num_bins=8
+        exposure_df, bin_ids=bin_ids, num_bins=8
     )
     order = rng.permutation(200)
     res = _tgs_calc_calibration_bin_coords(
-        exposure_df[order], bins=bins[order], num_bins=8
+        exposure_df[order], bin_ids=bin_ids[order], num_bins=8
     )
     np.testing.assert_allclose(res, expected)
     # the constant column places every bin alike
