@@ -10,8 +10,7 @@ from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 def _tgs_calc_effective_length(
     *, length: np.ndarray, growth_rate: float
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
-    """Implementation detail for `tgs_calc_nll`. Acronym tgs stands for trait
-    gain/selection.
+    """Implementation detail for `tgs_calc_nll`.
 
     Returns effective length (exp(r * t) - 1) / r for each length t, with
     r = `growth_rate`, and its derivative with respect to r.
@@ -20,19 +19,10 @@ def _tgs_calc_effective_length(
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = length * special.exprel(cx)
 
-    # The exact derivative, (t * exp(r * t) - effective length) / r,
-    # loses precision as r * t approaches 0, as it divides a difference of
-    # nearly equal numbers by a small r (relative error ~1e-16 /
-    # |r * t|). In this regime, the Taylor series of the exponential
-    # function provides better numerical stability: with effective length =
-    # sum over j >= 1 of r**(j - 1) * t**j / j!, the derivative is
-    # t**2 / 2 + r * t**3 / 3 + O(r**2), truncated with relative error
-    # ~(r * t)**2 / 4; see
-    # https://en.wikipedia.org/wiki/Exponential_function#Power_series
-    #
-    # So, use the series below a |r * t| < 1e-6 cutoff, where it is more
-    # accurate (~1e-13 vs ~1e-10 error at the cutoff, and the exact form
-    # divides by zero at r = 0).
+    # The exact derivative, (t * exp(r * t) - effective length) / r, loses
+    # precision as r * t approaches 0 (and divides by zero at r = 0), so
+    # below a cutoff use the Taylor series t**2 / 2 + r * t**3 / 3 + O(r**2)
+    # see https://en.wikipedia.org/wiki/Exponential_function#Power_series
     is_near_zero_rate = np.abs(cx) < 1e-6
     series_deriv = length * length * (0.5 + cx / 3)
     exact_deriv = np.divide(
@@ -54,34 +44,32 @@ def tgs_calc_nll(
     survival_shares: sparse.csr_matrix,
     distinct_survival_durations: np.ndarray,
 ) -> typing.Tuple[float, float, float]:
-    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
-    stands for trait gain/selection.
+    """Implementation detail for `tgs_minimize_nll`.
 
     Returns negative log likelihood (up to a constant) of one trait's
-    `coarsened_df` (see Input Schema), and its derivatives with respect to log
+    coarsened exposure episodes, and its derivatives with respect to log
     gain rate and to `growth_rate`, r, the carrier growth rate (selection
-    coefficient minus loss rate). A branch of length `t` gains the trait
+    coefficient minus loss rate). An episode of length `t` gains the trait
     with probability
 
         gain_rate * (exp(r * t) - 1) / r * exp(r * u)
 
     where `u` is its survival duration, the time until its clade's last leaf
-    is sampled, e.g., 0 for a leaf's pendant branch. Each coarsened row
-    averages exp(r * u) exactly over its branches, whose shares over
-    `distinct_survival_durations` are rows of `survival_shares`. Requires
-    r * (t + u) to stay well below float64 overflow, as `tgs_minimize_nll`
-    ensures.
+    is sampled (0 for a leaf's pendant branch). Each row of `coarsened_df`
+    averages exp(r * u) over its episodes, whose shares over
+    `distinct_survival_durations` are rows of `survival_shares`; see
+    `_tgs_coarsen_episodes`.
 
     Input Schema
     ------------
-    `coarsened_df` columns, e.g., from `_tgs_coarsen_episodes`:
+    `coarsened_df` columns:
 
     'num_trials' : float
-        (Weighted) count of the coarsened row's exposure episodes.
+        (Weighted) count of the row's exposure episodes.
     'num_successes' : float
         Of those, the (weighted) count that gained the trait.
     'mean_branch_length' : float
-        Their mean branch length.
+        Their mean calibrated branch length.
     """
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
         length=coarsened_df["mean_branch_length"].to_numpy(),

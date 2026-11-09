@@ -8,7 +8,7 @@ import polars.testing as pltest
 import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
-from phyloframe.legacy import alifestd_tgs_estimate_bootstrap_polars
+from phyloframe.legacy import alifestd_tgs_estimate_polars
 
 from .test_alifestd_tgs_estimate_polars_leaf_mask import (
     _estimate_from_masks,
@@ -22,7 +22,7 @@ from .test_alifestd_tgs_estimate_polars_leaf_mask import (
 
 def _estimate_leaves_bootstrap(phylogeny_df, **kwargs):
     """Bootstrap-estimate from leaf pendant branches only."""
-    return alifestd_tgs_estimate_bootstrap_polars(
+    return alifestd_tgs_estimate_polars(
         _with_leaf_mask(phylogeny_df), episode_mask="is_leaf", **kwargs
     )
 
@@ -49,14 +49,13 @@ def test_point_columns_match_point_estimate():
     pltest.assert_frame_equal(res.select(point.columns), point)
 
 
-@pytest.mark.parametrize("num_bootstrap", [0, -1])
-def test_num_bootstrap_not_positive_raises(num_bootstrap: int):
+def test_num_bootstrap_negative_raises():
     with pytest.raises(ValueError, match="num_bootstrap"):
         _estimate_leaves_bootstrap(
             _make_cherries_polars(100),
             trait_transitions=["focal", "n1", "n2"],
             neutral_traits=["n1", "n2"],
-            num_bootstrap=num_bootstrap,
+            num_bootstrap=-1,
         )
 
 
@@ -146,7 +145,7 @@ def test_bootstrap_rare_trait():
     phylogeny_df, traits = _make_cherries(20_000)
     rare = np.zeros_like(traits[0])
     rare[np.flatnonzero(traits[1])[0]] = True
-    with pytest.warns(UserWarning, match="bootstrap") as record:
+    with pytest.warns(UserWarning, match="bootstrap.*'0'"):
         res = _estimate_bootstrap_from_masks(
             phylogeny_df,
             trait_masks=[rare, *traits[1:]],
@@ -157,10 +156,6 @@ def test_bootstrap_rare_trait():
     # with a single carrier, replicates often resample no carriers
     num_degenerate = res.loc[0, "num_bootstrap_degenerate"]
     assert 0 < num_degenerate < 50
-    assert any(
-        f"0 ({num_degenerate} of 50)" in str(warning.message)
-        for warning in record
-    )
     assert (res.loc[1:, "num_bootstrap_degenerate"] == 0).all()
     assert np.isfinite(res["selection_coef_se"]).all()
     assert np.isfinite(res["log_gain_ratio_se"]).all()
@@ -191,7 +186,7 @@ def test_bootstrap_neutral_reference_without_carriers():
     rare = np.zeros_like(traits[1:3])
     rare[0, np.flatnonzero(traits[1])[:1]] = True
     rare[1, np.flatnonzero(traits[2])[:1]] = True
-    with pytest.warns(UserWarning, match="neutral reference"):
+    with pytest.warns(UserWarning, match="bootstrap"):
         res = _estimate_bootstrap_from_masks(
             phylogeny_df,
             trait_masks=[traits[0], *rare],

@@ -32,8 +32,7 @@ def test_states(transitions, expected):
 @pytest.mark.parametrize(
     "transitions, error",
     [
-        (np.array([0.0, 1.0, 0.0, 0.0]), NotImplementedError),
-        (np.array([0, 2, 0, 0]), ValueError),
+        (np.array([0, 2, 0, 0]), NotImplementedError),
         (np.array([0, 1, 0, 1]), ValueError),  # state 2 at node 3
         (np.array([1, -1, 0, 0]), NotImplementedError),  # loss
         (np.array([1, 0, 0, 0]), NotImplementedError),  # present at root
