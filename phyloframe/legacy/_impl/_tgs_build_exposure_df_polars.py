@@ -7,12 +7,6 @@ import polars as pl
 import polars.selectors as cs
 
 from ..._auxlib._log_memory_usage import log_memory_usage
-from .._alifestd_assign_contiguous_ids_polars import (
-    alifestd_assign_contiguous_ids_polars,
-)
-from .._alifestd_collapse_unifurcations_polars import (
-    alifestd_collapse_unifurcations_polars,
-)
 from .._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -27,6 +21,9 @@ from .._alifestd_mark_lineage_delta_asexual import (
 )
 from .._alifestd_mark_max_descendant_origin_time_asexual import (
     _alifestd_mark_max_descendant_origin_time_asexual_fast_path,
+)
+from .._alifestd_mark_num_children_asexual import (
+    _alifestd_mark_num_children_asexual_fast_path,
 )
 from .._alifestd_mark_num_leaves_asexual import (
     _alifestd_mark_num_leaves_asexual_fast_path,
@@ -242,27 +239,42 @@ def _tgs_calc_states(
     ]
 
 
-def _tgs_collapse_unifurcations(
-    selected: pl.DataFrame,
-    *,
-    trait_transition_cols: typing.Sequence[str],
-    states: typing.Sequence[np.ndarray],
+def _tgs_check_no_unifurcations(selected: pl.DataFrame) -> None:
+    """Implementation detail for `tgs_build_exposure_df_polars`.
+
+    Raises NotImplementedError if a non-root node has exactly one child, so
+    that each branch spans from a node to its parent; a root may have one
+    child.
+    """
+    ancestor_ids = selected["ancestor_id"].to_numpy()
+    is_root = ancestor_ids == np.arange(len(ancestor_ids))
+    num_children = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
+    (unifurcation_ids,) = np.nonzero((num_children == 1) & ~is_root)
+    if len(unifurcation_ids):
+        raise NotImplementedError(
+            "unifurcations, i.e., non-root nodes with one child (e.g., ids "
+            f"{unifurcation_ids[:5].tolist()}), are not supported; collapse "
+            "them first, carrying trait transitions over: sum each trait's "
+            "transitions into states with alifestd_mark_lineage_cumsum_polars, "
+            "collapse with alifestd_collapse_unifurcations_polars, then remake "
+            "transitions with alifestd_mark_lineage_delta_polars, with "
+            "basal_value=False",
+        )
+
+
+def _tgs_add_trait_states(
+    selected: pl.DataFrame, *, trait_transition_cols: typing.Sequence[str]
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
-    Returns `selected`, with trait transitions replaced by trait states,
-    `trait{i}_state`, and unifurcations collapsed and ids made contiguous.
+    Returns `selected` with trait transitions replaced by trait states,
+    `trait{i}_state` (see `_tgs_calc_states`).
     """
-    return (
-        selected.drop(trait_transition_cols)
-        .with_columns(
-            pl.Series(f"trait{i}_state", s) for i, s in enumerate(states)
-        )
-        .pipe(
-            alifestd_collapse_unifurcations_polars,
-            ignore_topological_sensitivity=True,
-        )
-        .pipe(alifestd_assign_contiguous_ids_polars)
+    states = _tgs_calc_states(
+        selected, trait_transition_cols=trait_transition_cols
+    )
+    return selected.drop(trait_transition_cols).with_columns(
+        pl.Series(f"trait{i}_state", s) for i, s in enumerate(states)
     )
 
 
@@ -325,13 +337,13 @@ def tgs_build_exposure_df_polars(
     stands for trait gain/selection.
 
     Sums each trait's transitions into node states (see
-    `_tgs_calc_trait_states`), collapses unifurcations, and returns the
-    phylogeny's exposure table, one row per exposure episode candidate,
+    `_tgs_calc_trait_states`) and returns the phylogeny's exposure table, one row per exposure episode candidate,
     i.e., per non-root node's branch, kept if `episode_mask`, if given, is
     true at its end node; see Output Schema. `caller` names the calling
     function in error messages.
 
-    Raises ValueError if `phylogeny_df` is empty.
+    Raises ValueError if `phylogeny_df` is empty, and NotImplementedError
+    if it has unifurcations other than roots with one child.
 
     Input Schema
     ------------
@@ -405,21 +417,18 @@ def tgs_build_exposure_df_polars(
         )
         if selected.is_empty():
             raise ValueError("phylogeny_df has no exposure episodes to fit")
-        collapsed = _tgs_collapse_unifurcations(
-            selected,
-            trait_transition_cols=trait_transition_cols,
-            states=_tgs_calc_states(
-                selected, trait_transition_cols=trait_transition_cols
-            ),
-        )
-        del selected
-        gc.collect()
-        log_memory_usage(logging.info)
+    _tgs_check_no_unifurcations(selected)
+    nodes_df = _tgs_add_trait_states(
+        selected, trait_transition_cols=trait_transition_cols
+    )
+    del selected
+    gc.collect()
+    log_memory_usage(logging.info)
 
-    exposure_df = _tgs_build_exposure_df(collapsed)
+    exposure_df = _tgs_build_exposure_df(nodes_df)
     # without roots, rows match exposure_df's; its own columns take
     # precedence
-    node_df = collapsed.filter(pl.col("ancestor_id") != pl.col("id")).select(
+    node_df = nodes_df.filter(pl.col("ancestor_id") != pl.col("id")).select(
         cs.by_name(
             *calibration_cols.values(),
             *([episode_mask] if episode_mask is not None else []),
@@ -427,7 +436,7 @@ def tgs_build_exposure_df_polars(
         )
         - cs.by_name(exposure_df.columns, require_all=False),
     )
-    del collapsed
+    del nodes_df
     source_df = pl.concat([exposure_df, node_df], how="horizontal")
     del node_df
     _tgs_validate_calibration_cols(

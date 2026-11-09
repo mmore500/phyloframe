@@ -3,10 +3,15 @@ import typing
 import numpy as np
 import pandas as pd
 import polars as pl
+import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_assign_contiguous_ids_polars,
+    alifestd_collapse_unifurcations_polars,
     alifestd_mark_leaves_polars,
+    alifestd_mark_lineage_cumsum_polars,
+    alifestd_mark_lineage_delta_polars,
     alifestd_tgs_estimate_polars,
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col_polars,
@@ -204,12 +209,8 @@ def test_neutral_traits_normalized():
     pd.testing.assert_frame_equal(res, expected)
 
 
-def test_unifurcations_bypassed():
+def test_unifurcations_raise():
     phylogeny_df, traits = _make_cherries(2_000)
-    expected = _estimate_from_masks(
-        phylogeny_df, trait_masks=traits, neutral_traits=[1, 2, 3, 4]
-    )
-
     # insert a knuckle midway along each pendant branch
     leaves = phylogeny_df.index[
         ~phylogeny_df["id"].isin(phylogeny_df["ancestor_id"])
@@ -224,11 +225,12 @@ def test_unifurcations_bypassed():
     knuckled_df.loc[leaves, "ancestor_id"] = knuckles["id"].to_numpy()
     knuckled_df = pd.concat([knuckled_df, knuckles], ignore_index=True)
     knuckled_traits = np.hstack([traits, traits[:, leaves]])
-
-    res = _estimate_from_masks(
-        knuckled_df, trait_masks=knuckled_traits, neutral_traits=[1, 2, 3, 4]
-    )
-    pd.testing.assert_frame_equal(res, expected)
+    with pytest.raises(NotImplementedError, match="unifurcations"):
+        _estimate_from_masks(
+            knuckled_df,
+            trait_masks=knuckled_traits,
+            neutral_traits=[1, 2, 3, 4],
+        )
 
 
 def test_nan_origin_time_ignored():
@@ -639,7 +641,9 @@ def test_ancestor_list_column():
     assert res.equals(expected)
 
 
-def test_unifurcation_transitions_credit_merged_branch():
+def test_documented_unifurcation_collapse_matches():
+    # as the estimator's Notes describe: sum transitions into states,
+    # collapse, then remake transitions
     phylogeny_df, traits = _make_cherries(2_000)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits[:3])
     # insert a knuckle midway along each pendant branch
@@ -655,25 +659,31 @@ def test_unifurcation_transitions_credit_merged_branch():
     knuckles[names[1:]] = 0  # neutral gains stay below the knuckle
     knuckled = phylogeny_df.copy()
     knuckled.loc[leaves, "ancestor_id"] = knuckles["id"].to_numpy()
-    # a gain on each pendant branch, recorded below or above the knuckle
-    below = pd.concat(
-        [knuckled, knuckles.assign(**{names[0]: 0})], ignore_index=True
-    )
+    # each pendant branch's gain is recorded above the knuckle
     above = pd.concat(
         [knuckled.assign(**{names[0]: 0}), knuckles], ignore_index=True
     )
+    df_pl = pl.from_pandas(alifestd_to_working_format(above)).drop(
+        "ancestor_list", strict=False
+    )
+    for name in names:
+        df_pl = alifestd_mark_lineage_cumsum_polars(df_pl, name, mark_as=name)
+    df_pl = alifestd_assign_contiguous_ids_polars(
+        alifestd_collapse_unifurcations_polars(
+            df_pl, ignore_topological_sensitivity=True
+        ),
+    )
+    for name in names:
+        df_pl = alifestd_mark_lineage_delta_polars(
+            df_pl, name, basal_value=False, mark_as=name
+        )
     kwargs = dict(trait_transitions=names, neutral_traits=names[1:])
-    res_below = _estimate_leaves(
-        pl.from_pandas(alifestd_to_working_format(below)).drop(
+    res = _estimate_leaves(df_pl, **kwargs)
+    expected = _estimate_leaves(
+        pl.from_pandas(alifestd_to_working_format(phylogeny_df)).drop(
             "ancestor_list", strict=False
         ),
         **kwargs,
     )
-    res_above = _estimate_leaves(
-        pl.from_pandas(alifestd_to_working_format(above)).drop(
-            "ancestor_list", strict=False
-        ),
-        **kwargs,
-    )
-    assert res_below.equals(res_above)
-    assert res_below["num_leaf_gains"][0] == traits[0].sum()
+    pltest.assert_frame_equal(res, expected, rel_tol=1e-9)
+    assert res["num_leaf_gains"][0] == traits[0].sum()

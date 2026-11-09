@@ -172,13 +172,14 @@ def alifestd_tgs_estimate_polars(
         If a column is missing.
     NotImplementedError
         If fewer than two neutral traits are given, or for unsupported input
-        (see Input Schema), e.g., a non-asexual phylogeny, null values,
-        trait losses, or a trait present at a root.
+        (see Input Schema), e.g., a non-asexual phylogeny, unifurcations,
+        null values, trait losses, or a trait present at a root.
 
     Input Schema
     ------------
     'id' : integer
-        Taxon identifier; contiguous and topologically sorted.
+        Taxon identifier; contiguous and topologically sorted, without
+        unifurcations, i.e., non-root nodes with one child (see Notes).
     'ancestor_id' : integer
         Parent's taxon identifier (or own, for a root).
     'origin_time' : float
@@ -237,22 +238,21 @@ def alifestd_tgs_estimate_polars(
     a trait present at a root is caught rather than silently read as absent;
     for leaf data, see `alifestd_mask_trait_mdcs_strict_polars`.
 
-    Unifurcations are collapsed (see `alifestd_collapse_unifurcations_polars`),
-    so each branch spans from its end node to its stem node, the nearest
-    ancestor with at least two children, and columns at a collapsed
-    unifurcation (e.g., `episode_mask` values) are ignored. Root leaves have
-    no branch, so are excluded.
+    Unifurcations, i.e., non-root nodes with one child, are not supported,
+    so each branch spans from a node to its parent; a root may have one
+    child. To collapse unifurcations first, carry trait transitions over,
+    as collapsing drops each unifurcation's row, with any transition on it:
+    sum each trait's transitions into states with
+    `alifestd_mark_lineage_cumsum_polars`, collapse with
+    `alifestd_collapse_unifurcations_polars`, then remake transitions with
+    `alifestd_mark_lineage_delta_polars`, with `basal_value=False`. Root
+    leaves have no branch, so are excluded.
 
     To calibrate within clade size classes, by bins of similar branch length
-    and origin time, mark both, measuring branch lengths from each node's
-    stem node, as fit (see `alifestd_mark_stem_node_id_polars`):
+    and origin time, mark both (see `alifestd_mark_origin_time_delta_polars`):
 
         estimates_df = (
-            alifestd_mark_stem_node_id_polars(df)
-            .with_columns(
-                branch_length=pl.col("origin_time")
-                - pl.col("origin_time").gather(pl.col("stem_node_id")),
-            )
+            alifestd_mark_origin_time_delta_polars(df, mark_as="branch_length")
             .pipe(
                 alifestd_mark_clade_size_classes_polars,
                 weight_by=neutral_traits,  # neutral gains
@@ -279,12 +279,8 @@ def alifestd_tgs_estimate_polars(
     calibrating by bins of leaves of similar pendant length and origin time:
 
         estimates_df = (
-            alifestd_mark_stem_node_id_polars(df)
+            alifestd_mark_origin_time_delta_polars(df, mark_as="branch_length")
             .pipe(alifestd_mark_leaves_polars)
-            .with_columns(
-                branch_length=pl.col("origin_time")
-                - pl.col("origin_time").gather(pl.col("stem_node_id")),
-            )
             .pipe(
                 alifestd_mark_joint_quantile_bins_polars,
                 bin_by=["branch_length", "origin_time"],
@@ -529,7 +525,8 @@ One row per trait, not a phylogeny.
 
 Additional Notes
 ================
-- Requires contiguous, topologically sorted ids.
+- Requires contiguous, topologically sorted ids, and no unifurcations
+  (non-root nodes with one child).
 
 - This CLI entrypoint is experimental and may be subject to change.
 

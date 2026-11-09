@@ -188,7 +188,8 @@ phyloframe.legacy._alifestd_tgs_estimate_polars, then:
 
 Additional Notes
 ================
-- Requires contiguous, topologically sorted ids.
+- Requires contiguous, topologically sorted ids, and no unifurcations
+  (non-root nodes with one child).
 
 - This CLI entrypoint is experimental and may be subject to change.
 
