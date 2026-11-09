@@ -91,7 +91,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_clade_logistic_growth_children_ase
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_logistic_growth_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_nodecount_ratio_sister_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_nodecount_ratio_sister_polars
-$ python3 -m phyloframe.legacy._alifestd_mark_clade_size_classes_polars
+$ python3 -m phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_subtended_duration_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_subtended_duration_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_clade_subtended_duration_ratio_sister_asexual

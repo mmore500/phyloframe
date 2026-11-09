@@ -52,12 +52,12 @@ def calc_neighborhood_rate_ratios(
         )
         return np.ones(neighborhoods.shape[0])
     global_rate = num_events.sum() / total_exposure  # events per exposure
-    observed = neighborhoods @ num_events
-    expected = global_rate * (neighborhoods @ exposure)
-    ratios = np.divide(
-        observed + pseudocount,
-        expected + pseudocount,
-        out=np.ones_like(observed),
-        where=expected + pseudocount > 0,
+    observed_events = neighborhoods @ num_events
+    expected_events = global_rate * (neighborhoods @ exposure)
+    rate_ratios = np.divide(  # observed over expected events
+        observed_events + pseudocount,
+        expected_events + pseudocount,
+        out=np.ones_like(observed_events),
+        where=expected_events + pseudocount > 0,
     )
-    return np.clip(ratios, None, max_ratio)
+    return np.clip(rate_ratios, None, max_ratio)

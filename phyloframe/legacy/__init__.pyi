@@ -379,8 +379,8 @@ from ._alifestd_mark_clade_nodecount_ratio_sister_asexual import (
 from ._alifestd_mark_clade_nodecount_ratio_sister_polars import (
     alifestd_mark_clade_nodecount_ratio_sister_polars,
 )
-from ._alifestd_mark_clade_size_classes_polars import (
-    alifestd_mark_clade_size_classes_polars,
+from ._alifestd_mark_clade_size_geom_classes_polars import (
+    alifestd_mark_clade_size_geom_classes_polars,
 )
 from ._alifestd_mark_clade_subtended_duration_asexual import (
     alifestd_mark_clade_subtended_duration_asexual,
@@ -1023,7 +1023,7 @@ __all__ = [
     "alifestd_mark_clade_logistic_growth_sister_asexual",
     "alifestd_mark_clade_nodecount_ratio_sister_asexual",
     "alifestd_mark_clade_nodecount_ratio_sister_polars",
-    "alifestd_mark_clade_size_classes_polars",
+    "alifestd_mark_clade_size_geom_classes_polars",
     "alifestd_mark_clade_subtended_duration_asexual",
     "alifestd_mark_clade_subtended_duration_polars",
     "alifestd_mark_clade_subtended_duration_ratio_sister_asexual",
