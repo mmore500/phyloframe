@@ -51,7 +51,9 @@ def run_seeded_replicates(
         joblib.delayed(func)(seed=int(replicate_seed))
         for replicate_seed in replicate_seeds
     ]
-    with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
+    with joblib.parallel_backend(
+        opyt.or_value(parallel_backend, "sequential"), n_jobs=-1
+    ):
         # batch replicates, to serialize shared arguments once per batch
         batch_size = clamp(num_replicates // (4 * joblib.cpu_count()), lo=1)
         return joblib.Parallel(batch_size=batch_size)(progress_wrap(jobs))

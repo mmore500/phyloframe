@@ -1,7 +1,12 @@
+import warnings
+
 import polars as pl
 import pytest
 
 from phyloframe.legacy._impl import tgs_build_exposure_df_polars
+from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
+    _tgs_cast_origin_time_float,
+)
 
 
 def _build(phylogeny_df, **kwargs) -> pl.DataFrame:
@@ -171,7 +176,7 @@ def test_unifurcation_raises():
             "t": [0, 1, 0, 0],
         },
     )
-    with pytest.raises(NotImplementedError, match=r"unifurcations.*ids \[1\]"):
+    with pytest.raises(NotImplementedError, match="unifurcations"):
         _build(df_pl)
 
 
@@ -291,3 +296,31 @@ def test_missing_episode_mask_raises_early():
         pl.exceptions.ColumnNotFoundError, match="episode_mask"
     ):
         _build(_make_tree(), episode_mask="keep")
+
+
+def test_integer_origin_time_exact_is_quiet():
+    df_pl = _make_tree().with_columns(pl.col("origin_time").cast(pl.Int64))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        res = _build(df_pl)
+    assert res["branch_length"].to_list() == [1.0, 2.0, 4.0, 5.0]
+
+
+def test_integer_origin_time_precision_loss_warns():
+    with pytest.warns(UserWarning, match="precision"):
+        res = _tgs_cast_origin_time_float(pl.Series([0, 2**53 + 1]))
+    assert res.dtype == pl.Float64
+
+
+def test_null_root_origin_time_is_unknown():
+    # the root's unknown time leaves its children's branch lengths undefined
+    df_pl = _make_tree().with_columns(
+        origin_time=pl.Series([None, 1.0, 2.0, 5.0, 6.0])
+    )
+    with pytest.raises(ValueError, match="undefined"):
+        _build(df_pl)
+    res = _build(
+        df_pl.with_columns(keep=pl.Series([True, False, False, True, True])),
+        episode_mask="keep",
+    )
+    assert res["branch_length"].to_list() == [4.0, 5.0]

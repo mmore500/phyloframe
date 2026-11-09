@@ -50,11 +50,10 @@ def calc_neighborhood_rate_ratios(
             "no exposure, so neighborhood rate ratios default to 1.0",
             stacklevel=2,
         )
-    rate = num_events.sum() / np.clip(
-        total_exposure, np.finfo(float).tiny, None
-    )
+        return np.ones(neighborhoods.shape[0])
+    global_rate = num_events.sum() / total_exposure  # events per exposure
     observed = neighborhoods @ num_events
-    expected = rate * (neighborhoods @ exposure)
+    expected = global_rate * (neighborhoods @ exposure)
     ratios = np.divide(
         observed + pseudocount,
         expected + pseudocount,

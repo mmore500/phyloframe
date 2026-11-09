@@ -25,7 +25,7 @@ def _coarsened_df(gain_rate: float, selection_coef: float, seed: int):
             "num_successes": rng.binomial(num_trials.astype(int), p).astype(
                 float
             ),
-            "length": length,
+            "mean_branch_length": length,
         },
     )
 

@@ -1,12 +1,19 @@
 import gc
 import logging
 import typing
+import warnings
 
 import numpy as np
 import polars as pl
 import polars.selectors as cs
 
 from ..._auxlib._log_memory_usage import log_memory_usage
+from .._alifestd_count_unifurcating_roots_polars import (
+    alifestd_count_unifurcating_roots_polars,
+)
+from .._alifestd_count_unifurcations_polars import (
+    alifestd_count_unifurcations_polars,
+)
 from .._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -21,9 +28,6 @@ from .._alifestd_mark_lineage_delta_asexual import (
 )
 from .._alifestd_mark_max_descendant_origin_time_asexual import (
     _alifestd_mark_max_descendant_origin_time_asexual_fast_path,
-)
-from .._alifestd_mark_num_children_asexual import (
-    _alifestd_mark_num_children_asexual_fast_path,
 )
 from .._alifestd_mark_num_leaves_asexual import (
     _alifestd_mark_num_leaves_asexual_fast_path,
@@ -86,9 +90,11 @@ def _tgs_build_exposure_df(
         ancestor_ids, origin_time
     )
     # a root has no parent, so no branch over which to gain a trait
-    keep = (ancestor_ids != np.arange(len(ancestor_ids))) & is_kept_episode
+    keep_rows = (
+        ancestor_ids != np.arange(len(ancestor_ids))
+    ) & is_kept_episode
     is_bad = ~(np.isfinite(branch_length) & (branch_length > 0))
-    (bad_ids,) = np.nonzero(keep & is_bad)
+    (bad_ids,) = np.nonzero(keep_rows & is_bad)
     if len(bad_ids):
         raise ValueError(
             "branch lengths must be positive and finite, but exposure "
@@ -103,7 +109,7 @@ def _tgs_build_exposure_df(
         ancestor_ids, np.where(np.isnan(origin_time), -np.inf, origin_time)
     )
     survival_duration = latest_ot - origin_time
-    (bad_ids,) = np.nonzero(keep & ~np.isfinite(survival_duration))
+    (bad_ids,) = np.nonzero(keep_rows & ~np.isfinite(survival_duration))
     if len(bad_ids):
         raise ValueError(
             "survival durations must be finite, but exposure episodes ending "
@@ -112,12 +118,12 @@ def _tgs_build_exposure_df(
             "descendant origin_time",
         )
     columns = {
-        "origin_time": origin_time[keep],
-        "branch_length": branch_length[keep],
-        "survival_duration": survival_duration[keep],
+        "origin_time": origin_time[keep_rows],
+        "branch_length": branch_length[keep_rows],
+        "survival_duration": survival_duration[keep_rows],
         "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
             ancestor_ids
-        )[keep],
+        )[keep_rows],
     }
     num_traits = phylogeny_df.select(
         cs.matches(r"^__alifestd_tgs_trait\d+_state$")
@@ -128,8 +134,8 @@ def _tgs_build_exposure_df(
             ancestor_ids, states
         )
         # a node's parent's state is its state minus its delta
-        columns[f"trait{i}_starts_absent"] = (states - deltas == 0)[keep]
-        columns[f"trait{i}_gain"] = (deltas == 1)[keep]
+        columns[f"trait{i}_starts_absent"] = (states - deltas == 0)[keep_rows]
+        columns[f"trait{i}_gain"] = (deltas == 1)[keep_rows]
     return pl.DataFrame(columns)
 
 
@@ -252,7 +258,8 @@ def _tgs_select_columns(
             cs.by_name(
                 "id", "ancestor_id", "origin_time", *trait_transition_cols
             )
-            # absent calibration columns may be exposure table columns
+            # calibration columns missing from phylogeny_df may be
+            # computed exposure table columns, e.g., branch_length
             | cs.by_name(*calibration_cols, require_all=False),
         )
         .collect()
@@ -264,6 +271,27 @@ def _tgs_select_columns(
             "non-topologically-sorted data not supported",
         )
     return selected
+
+
+def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
+    """Implementation detail for `tgs_build_exposure_df_polars`.
+
+    Returns `origin_time` as float64, with nulls as nan, i.e., unknown,
+    warning if any value does not round trip through float64, e.g., an
+    integer above 2**53.
+    """
+    as_float = origin_time.cast(pl.Float64)
+    if (
+        not origin_time.dtype.is_float()
+        and (
+            as_float.cast(origin_time.dtype, strict=False) != origin_time
+        ).any()
+    ):
+        warnings.warn(
+            "origin_time values lose precision as float64, so branch lengths "
+            "may be inexact",
+        )
+    return as_float.fill_null(np.nan)
 
 
 def _tgs_calc_states(
@@ -286,24 +314,6 @@ def _tgs_calc_states(
         )
         for column in trait_transition_cols
     ]
-
-
-def _tgs_check_no_unifurcations(selected: pl.DataFrame) -> None:
-    """Implementation detail for `tgs_build_exposure_df_polars`.
-
-    Raises NotImplementedError if a non-root node has exactly one child, so
-    that each branch spans from a node to its parent; a root may have one
-    child.
-    """
-    ancestor_ids = selected["ancestor_id"].to_numpy()
-    is_root = ancestor_ids == np.arange(len(ancestor_ids))
-    num_children = _alifestd_mark_num_children_asexual_fast_path(ancestor_ids)
-    (unifurcation_ids,) = np.nonzero((num_children == 1) & ~is_root)
-    if len(unifurcation_ids):
-        raise NotImplementedError(
-            "unifurcations, i.e., non-root nodes with one child (e.g., ids "
-            f"{unifurcation_ids[:5].tolist()}), are not yet supported",
-        )
 
 
 def _tgs_add_trait_state_cols(
@@ -366,13 +376,18 @@ def _tgs_calc_is_kept_episode(
     if episode_mask is None:
         return np.ones(len(nodes_df), dtype=bool)
     mask = nodes_df[episode_mask]
-    is_root = nodes_df["id"] == nodes_df["ancestor_id"]
-    if mask.dtype != pl.Boolean or mask.filter(~is_root).has_nulls():
+    has_nonroot_nulls = nodes_df.select(
+        (
+            pl.col(episode_mask).is_null()
+            & (pl.col("id") != pl.col("ancestor_id"))
+        ).any()
+    ).item()
+    if mask.dtype != pl.Boolean or has_nonroot_nulls:
         raise NotImplementedError(
             f"episode mask column {episode_mask} must be boolean, without "
             "null values",
         )
-    return mask.fill_null(False).to_numpy()
+    return mask.fill_null(False).to_numpy()  # allow null root
 
 
 def tgs_build_exposure_df_polars(
@@ -480,7 +495,16 @@ def tgs_build_exposure_df_polars(
                 *([episode_mask] if episode_mask is not None else []),
             ],
         )
-    _tgs_check_no_unifurcations(selected)
+    selected = selected.with_columns(
+        origin_time=_tgs_cast_origin_time_float(selected["origin_time"])
+    )
+    # a root may have one child, as each branch spans a node and its parent
+    num_unifurcations = alifestd_count_unifurcations_polars(selected)
+    if num_unifurcations > alifestd_count_unifurcating_roots_polars(selected):
+        raise NotImplementedError(
+            "unifurcations, i.e., non-root nodes with one child, are not yet "
+            "supported",
+        )
     node_states_df = _tgs_add_trait_state_cols(
         selected, trait_transition_cols=trait_transition_cols
     )
@@ -508,6 +532,8 @@ def tgs_build_exposure_df_polars(
         [exposure_df, episode_node_cols_df], how="horizontal"
     )
     del episode_node_cols_df
+    gc.collect()
+
     _tgs_validate_calibration_cols(
         calibration_source_df,
         integer_cols=[

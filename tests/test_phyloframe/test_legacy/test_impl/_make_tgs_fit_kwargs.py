@@ -38,7 +38,7 @@ def make_tgs_fit_kwargs(
             calibration_neighborhoods=sparse.identity(num_bins, format="csr"),
             distinct_survival_durations=distinct_survival_durations,
             survival_duration_indices=survival_duration_indices,
-            neutral_traits=list(range(1, num_traits)),
+            neutral_trait_ids=list(range(1, num_traits)),
             calibrate_max_rate_ratio=np.inf,
             length_rtol=1e-3,
             loss_rate=0.0,

@@ -25,7 +25,7 @@ def _tgs_calc_heldout_nll(
     trait_bin_counts_df: pl.DataFrame,
     trait_id: int,
     trait_name: str,
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
     max_rate_ratio: float,
 ) -> float:
     """Implementation detail for `_tgs_select_calibration_neighborhoods`.
@@ -48,13 +48,13 @@ def _tgs_calc_heldout_nll(
         where=num_trials > 0,
     )
     # held out from its own calibration, against the other neutral traits
-    assert trait_id in neutral_traits
+    assert trait_id in neutral_trait_ids
     calibrated_lengths = (
         mean_bin_branch_lengths
         * tgs_calc_calibration_rescaling(
             trait_bin_counts_df=trait_bin_counts_df,
             trait_id=trait_id,
-            neutral_traits=neutral_traits,
+            neutral_trait_ids=neutral_trait_ids,
             calibration_neighborhoods=calibration_neighborhoods,
             max_rate_ratio=max_rate_ratio,
         )
@@ -78,7 +78,7 @@ def _tgs_select_calibration_neighborhoods(
     bin_coords: np.ndarray,
     neighborhood_fractions: typing.Sequence[float],
     trait_bin_counts_df: pl.DataFrame,
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
 ) -> sparse.spmatrix:
@@ -114,10 +114,10 @@ def _tgs_select_calibration_neighborhoods(
                 trait_bin_counts_df=trait_bin_counts_df,
                 trait_id=trait_id,
                 trait_name=trait_names[trait_id],
-                neutral_traits=neutral_traits,
+                neutral_trait_ids=neutral_trait_ids,
                 max_rate_ratio=max_rate_ratio,
             )
-            for trait_id in neutral_traits
+            for trait_id in neutral_trait_ids
         )
         logging.info(
             "- tgs: calibration neighborhoods of "
@@ -167,8 +167,8 @@ def _tgs_calc_calibration_bin_coords(
     )
 
 
-def _tgs_slice_partition_bins(
-    trait_bin_counts_df: pl.DataFrame, begin: int, end: int
+def _tgs_select_partition_trait_bin_counts(
+    trait_bin_counts_df: pl.DataFrame, *, begin: int, end: int
 ) -> pl.DataFrame:
     """Implementation detail for
     `tgs_select_partitioned_calibration_neighborhoods`.
@@ -189,7 +189,7 @@ def tgs_select_partitioned_calibration_neighborhoods(
     bins_df: pl.DataFrame,
     num_bins: int,
     neighborhood_fractions: typing.Sequence[float],
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
     trait_names: typing.Sequence[str],
     max_rate_ratio: float,
 ) -> typing.Tuple[sparse.csr_matrix, pl.DataFrame]:
@@ -267,10 +267,10 @@ def tgs_select_partitioned_calibration_neighborhoods(
             _tgs_select_calibration_neighborhoods(
                 bin_coords=bin_coords[begin:end],
                 neighborhood_fractions=neighborhood_fractions,
-                trait_bin_counts_df=_tgs_slice_partition_bins(
-                    trait_bin_counts_df, begin, end
+                trait_bin_counts_df=_tgs_select_partition_trait_bin_counts(
+                    trait_bin_counts_df, begin=begin, end=end
                 ),
-                neutral_traits=neutral_traits,
+                neutral_trait_ids=neutral_trait_ids,
                 trait_names=trait_names,
                 max_rate_ratio=max_rate_ratio,
             )

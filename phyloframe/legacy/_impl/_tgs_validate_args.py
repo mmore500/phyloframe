@@ -40,14 +40,14 @@ def tgs_validate_args(
             raise ValueError(
                 f"neutral trait {trait!r} is not among trait_transitions",
             )
-    neutral_traits = (
+    neutral_trait_ids = (
         np.unique(
             [trait_transition_cols.index(trait) for trait in neutral_traits]
         )
         .astype(int)
         .tolist()
     )
-    if len(neutral_traits) < 2:
+    if len(neutral_trait_ids) < 2:
         raise NotImplementedError(
             "at least two distinct neutral traits are required, to calibrate "
             "lengths and as the reference for gain ratios",
@@ -70,4 +70,4 @@ def tgs_validate_args(
         raise ValueError("growth_exponent_bound overflows float64")
     if not len(calibration_compare_by_vals):
         raise ValueError("calibration_compare_by_vals must be nonempty")
-    return trait_transition_cols, neutral_traits
+    return trait_transition_cols, neutral_trait_ids

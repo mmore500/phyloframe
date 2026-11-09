@@ -397,7 +397,7 @@ def _alifestd_tgs_estimate_polars_impl(
         neutral_traits = [neutral_traits]
     if isinstance(calibration_compare_by_vals, str):
         calibration_compare_by_vals = [calibration_compare_by_vals]
-    trait_names, neutral_traits = tgs_validate_args(
+    trait_names, neutral_trait_ids = tgs_validate_args(
         trait_transition_cols=trait_transitions,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
@@ -422,7 +422,7 @@ def _alifestd_tgs_estimate_polars_impl(
     fit = tgs_estimate_tgs_from_exposures(
         exposure_df,
         trait_names=trait_names,
-        neutral_traits=neutral_traits,
+        neutral_trait_ids=neutral_trait_ids,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,

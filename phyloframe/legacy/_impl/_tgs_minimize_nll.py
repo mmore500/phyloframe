@@ -11,9 +11,11 @@ def _tgs_calc_exposure(coarsened_df: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll` callers. Acronym tgs
     stands for trait gain/selection.
 
-    Returns the total branch length of `coarsened_df`' episodes.
+    Returns the total calibrated branch length of `coarsened_df`' episodes.
     """
-    return (coarsened_df["num_trials"] * coarsened_df["length"]).sum()
+    return (
+        coarsened_df["num_trials"] * coarsened_df["mean_branch_length"]
+    ).sum()
 
 
 def tgs_pick_selection_rescale(coarsened_df: pl.DataFrame) -> float:
@@ -68,7 +70,7 @@ def tgs_minimize_nll(
     bounded above so that growth exponents, growth rate times branch length
     plus survival duration, stay within `growth_exponent_bound`.
     """
-    max_length = nll_kwargs["coarsened_df"]["length"].max()
+    max_length = nll_kwargs["coarsened_df"]["mean_branch_length"].max()
     max_duration = nll_kwargs["distinct_survival_durations"].max(initial=0.0)
     max_exponent_time = max_length + max_duration
     max_rescaled_selection = (

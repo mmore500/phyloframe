@@ -18,18 +18,18 @@ from ._tgs_fit_coarsened_traits import tgs_fit_coarsened_traits
 from ._tgs_select_trait_episodes import tgs_select_trait_episodes
 
 
-def _tgs_calc_length_cells(values: np.ndarray, *, rtol: float) -> np.ndarray:
+def _tgs_calc_log_scale_bins(values: np.ndarray, *, rtol: float) -> np.ndarray:
     """Implementation detail for `_tgs_coarsen_episodes`.
 
-    Returns each nonnegative value's cell of a log-scale grid with ratio 1 +
-    `rtol` (see `calc_geometric_bins`); zero values get a cell of their own.
+    Returns each nonnegative value's bin id on a log scale with ratio 1 +
+    `rtol` (see `calc_geometric_bins`); zero values get a bin of their own.
     """
-    cells = np.full(len(values), np.iinfo(np.int64).min)
+    bin_ids = np.full(len(values), np.iinfo(np.int64).min)
     is_positive = values > 0
-    cells[is_positive] = calc_geometric_bins(
+    bin_ids[is_positive] = calc_geometric_bins(
         values[is_positive], ratio=1 + rtol
     )
-    return cells
+    return bin_ids
 
 
 def _tgs_coarsen_episodes(
@@ -49,14 +49,14 @@ def _tgs_coarsen_episodes(
     Coarsens `trait_id`'s exposure episodes (rows of `exposure_df` starting
     without the trait; see `_tgs_build_exposure_df`), pooling those whose
     calibrated branch lengths and survival durations both agree within
-    relative tolerance `length_rtol`, i.e., fall in the same cell of a
-    log-scale grid with ratio 1 + `length_rtol` (0 for no coarsening), so
+    relative tolerance `length_rtol`, i.e., fall in the same bins on a
+    log scale with ratio 1 + `length_rtol` (0 for no coarsening), so
     that pooled episodes have nearly the same chance of gain, and
     coarsening loses little information about which episodes gained the
     trait. Each episode's length is calibrated by its calibration bin's
     factor, `calibration_factors[bin]`.
 
-    Returns `coarsened_df`, one row per grid cell with episodes (see Output
+    Returns `coarsened_df`, one row per pair of bins with episodes (see Output
     Schema), and `survival_shares`, a sparse matrix with a row
     per `coarsened_df` row and a column per distinct survival duration
     (episodes' `survival_duration_indices`), giving the share of the row's
@@ -68,7 +68,7 @@ def _tgs_coarsen_episodes(
         Weighted (by `weights`) count of the row's pooled episodes.
     'num_successes' : float
         Of those, the weighted count that gained the trait.
-    'length' : float
+    'mean_branch_length' : float
         Their weighted mean calibrated branch length.
     """
     episodes_df = tgs_select_trait_episodes(
@@ -83,29 +83,30 @@ def _tgs_coarsen_episodes(
     )
     survival_durations = exposure_df["survival_duration"].to_numpy()[episodes]
     if length_rtol > 0:
-        length_cells = _tgs_calc_length_cells(lengths, rtol=length_rtol)
-        survival_cells = _tgs_calc_length_cells(
+        length_bin_ids = _tgs_calc_log_scale_bins(lengths, rtol=length_rtol)
+        survival_bin_ids = _tgs_calc_log_scale_bins(
             survival_durations, rtol=length_rtol
         )
     else:
-        length_cells = np.arange(len(lengths))
-        survival_cells = np.zeros(len(lengths), dtype=np.int64)
+        length_bin_ids = np.arange(len(lengths))
+        survival_bin_ids = np.zeros(len(lengths), dtype=np.int64)
     episode_weights = episodes_df["weight"].to_numpy()
     episode_df = pl.DataFrame(
         {
-            "length_cell": length_cells,
-            "survival_cell": survival_cells,
+            "length_bin_id": length_bin_ids,
+            "survival_bin_id": survival_bin_ids,
             "weight": episode_weights,
             "gain": episodes_df["gain"],
             "length": lengths,
         },
     ).with_columns(
         # each episode's coarsened row, numbering keys in sorted order
-        row=pl.struct("length_cell", "survival_cell").rank("dense")
+        row=pl.struct("length_bin_id", "survival_bin_id").rank(method="dense")
         - 1,
     )
     # copied into episode_df; free before aggregating
-    del episodes_df, lengths, survival_durations, length_cells, survival_cells
+    del episodes_df, lengths, survival_durations
+    del length_bin_ids, survival_bin_ids
     row_sums_df = (
         episode_df.group_by("row")
         .agg(
@@ -115,11 +116,6 @@ def _tgs_coarsen_episodes(
         )
         .sort("row")
     )
-    # normalize each row's episode weight over survival durations by its
-    # total weight, num_trials, into shares summing to 1, so that
-    # `tgs_calc_nll`'s shares @ exp(rate * distinct durations) is the row's
-    # mean survival factor, exp(rate * u), not a sum growing with its
-    # episode count
     survival_shares = sparse.diags(
         1 / row_sums_df["num_trials"].to_numpy()
     ) @ sparse.csr_matrix(
@@ -132,10 +128,11 @@ def _tgs_coarsen_episodes(
         ),
         shape=(len(row_sums_df), num_survival_durations),
     )
+    assert np.allclose(survival_shares.sum(axis=1), 1.0)
     coarsened_df = row_sums_df.select(
         "num_trials",
         "num_successes",
-        pl.col("length") / pl.col("num_trials"),
+        mean_branch_length=pl.col("length") / pl.col("num_trials"),
     )
     return coarsened_df, survival_shares
 
@@ -150,7 +147,7 @@ def tgs_fit_traits(
     distinct_survival_durations: np.ndarray,
     survival_duration_indices: np.ndarray,
     weights: np.ndarray,
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
     calibrate_max_rate_ratio: float,
     length_rtol: float,
     loss_rate: float,
@@ -174,6 +171,7 @@ def tgs_fit_traits(
     (`length_rtol` > 0), are kept for fitting. Pass `trait_bin_counts_df`
     (see `tgs_count_trait_bin_exposures`) if already computed for these
     `weights`.
+
     Returns one row per trait; see Input and Output Schema.
 
     Input Schema
@@ -232,7 +230,7 @@ def tgs_fit_traits(
             calibration_factors=tgs_calc_calibration_rescaling(
                 trait_bin_counts_df=trait_bin_counts_df,
                 trait_id=trait_id,
-                neutral_traits=neutral_traits,
+                neutral_trait_ids=neutral_trait_ids,
                 calibration_neighborhoods=calibration_neighborhoods,
                 max_rate_ratio=calibrate_max_rate_ratio,
             ),
@@ -248,12 +246,14 @@ def tgs_fit_traits(
                 distinct_survival_durations=distinct_survival_durations,
             ),
         )
-    # called per bootstrap replicate, so log at debug level
+    del trait_bin_counts_df
     gc.collect()
+
+    # called per bootstrap replicate, so log at debug level
     log_memory_usage(logging.debug)
     return tgs_fit_coarsened_traits(
         trait_nll_kwargs=trait_nll_kwargs,
-        neutral_traits=neutral_traits,
+        neutral_trait_ids=neutral_trait_ids,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,

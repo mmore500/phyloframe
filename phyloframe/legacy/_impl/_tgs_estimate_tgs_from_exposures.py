@@ -53,9 +53,11 @@ def _tgs_assign_calibration_bins(exposure_df: pl.DataFrame) -> pl.DataFrame:
     )
     return calibration_df.select(
         "exposure_id",
-        bin=pl.struct("calibration_partition", "calibration_bin").rank("dense")
+        bin=pl.struct("calibration_partition", "calibration_bin").rank(
+            method="dense"
+        )
         - 1,
-        partition=pl.col("calibration_partition").rank("dense") - 1,
+        partition=pl.col("calibration_partition").rank(method="dense") - 1,
     ).cast(pl.Int64)
 
 
@@ -63,7 +65,7 @@ def tgs_estimate_tgs_from_exposures(
     exposure_df: pl.DataFrame,
     *,
     trait_names: typing.Sequence[str],
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
     length_rtol: float,
@@ -82,7 +84,7 @@ def tgs_estimate_tgs_from_exposures(
     `_tgs_assign_calibration_bins`), selects calibration neighborhoods
     within partitions (see `tgs_select_partitioned_calibration_neighborhoods`),
     and fits (see `tgs_fit_traits`). Takes validated arguments, with
-    `neutral_traits` as indices and `trait_names` as labels (see
+    `neutral_trait_ids` as indices and `trait_names` as labels (see
     `tgs_validate_args`).
 
     Returns a dict of `fits_df`, one row per trait (see Output Schema of
@@ -110,13 +112,13 @@ def tgs_estimate_tgs_from_exposures(
     num_bins = bins_df["bin"].n_unique()
     (
         calibration_neighborhoods,
-        trait_bin_counts_df,  # equally weighted, so reused by the fit
+        trait_bin_counts_df,
     ) = tgs_select_partitioned_calibration_neighborhoods(
         exposure_df,
         bins_df=bins_df,
         num_bins=num_bins,
         neighborhood_fractions=calibrate_neighborhood_fractions,
-        neutral_traits=neutral_traits,
+        neutral_trait_ids=neutral_trait_ids,
         trait_names=trait_names,
         max_rate_ratio=calibrate_max_rate_ratio,
     )
@@ -131,7 +133,7 @@ def tgs_estimate_tgs_from_exposures(
         calibration_neighborhoods=calibration_neighborhoods,
         distinct_survival_durations=distinct_survival_durations,
         survival_duration_indices=survival_duration_indices,
-        neutral_traits=neutral_traits,
+        neutral_trait_ids=neutral_trait_ids,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,
         loss_rate=loss_rate,
@@ -147,4 +149,4 @@ def tgs_estimate_tgs_from_exposures(
     del trait_bin_counts_df
     gc.collect()
     log_memory_usage(logging.debug)
-    return dict(fits_df=fits_df, fit_kwargs=fit_kwargs)
+    return {"fits_df": fits_df, "fit_kwargs": fit_kwargs}

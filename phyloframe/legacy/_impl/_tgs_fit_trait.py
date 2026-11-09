@@ -40,8 +40,12 @@ def tgs_fit_trait(
     lineage's expected number of sampled descendants, relative to a
     non-carrier's, changes at rate `c`. At `c` = 0, `p` grows linearly in
     `t`; under a cost (`c` < 0), it saturates at ~`gain_rate` / |`c`|. For
-    inner branches, `p` also has a survival factor; see `tgs_calc_nll`.
+    an inner branch, `p` is also multiplied by exp(`c` * `u`), the carrier
+    lineage's growth over its survival duration `u`, until its clade's last
+    leaf is sampled; see `tgs_calc_nll`.
 
+    Notes
+    -----
     In BiSSE terms (Maddison et al. 2007), `gain_rate` corresponds to the
     0 -> 1 transition rate q01, `loss_rate` to q10, and `selection_coef` to
     the difference in net diversification rate between states, (lambda1 -

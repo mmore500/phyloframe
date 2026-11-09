@@ -38,7 +38,7 @@ def test_select(caplog):
                 num_bins=num_bins,
                 weights=np.ones(len(exposure_df)),
             ),
-            neutral_traits=[1, 2, 3],
+            neutral_trait_ids=[1, 2, 3],
             trait_names=["focal", "a", "b", "c"],
             max_rate_ratio=np.inf,
         )

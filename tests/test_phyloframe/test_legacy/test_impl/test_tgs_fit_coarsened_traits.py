@@ -56,7 +56,8 @@ def _nll_kwargs(fixture, trait: int):
 def test_calc_scales(fixture):
     coarsened_df = _nll_kwargs(fixture, 0)["coarsened_df"]
     n, k, x = (
-        coarsened_df[c] for c in ("num_trials", "num_successes", "length")
+        coarsened_df[c]
+        for c in ("num_trials", "num_successes", "mean_branch_length")
     )
     selection_rescale = tgs_pick_selection_rescale(coarsened_df)
     log_gain_start = tgs_pick_log_gain_rate_start(coarsened_df)
@@ -132,7 +133,7 @@ def test_fit_coarsened_traits(fixture):
     res = tgs_fit_coarsened_traits(
         growth_exponent_bound=600.0,
         trait_nll_kwargs=fixture,
-        neutral_traits=[1, 2],
+        neutral_trait_ids=[1, 2],
         loss_rate=0.0,
         selection_coef_starts=(0.0, -0.3),
         progress_wrap=identity,

@@ -13,7 +13,7 @@ def tgs_calc_calibration_rescaling(
     *,
     trait_bin_counts_df: pl.DataFrame,
     trait_id: int,
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
     calibration_neighborhoods: sparse.spmatrix,
     max_rate_ratio: float,
 ) -> np.ndarray:
@@ -30,7 +30,7 @@ def tgs_calc_calibration_rescaling(
     # a neutral trait is not calibrated against itself
     reference_counts_df = (
         trait_bin_counts_df.filter(
-            pl.col("trait_id").is_in(set(neutral_traits) - {trait_id})
+            pl.col("trait_id").is_in(set(neutral_trait_ids) - {trait_id})
         )
         .group_by("bin")
         .agg(pl.col("num_successes", "length_sum").sum())

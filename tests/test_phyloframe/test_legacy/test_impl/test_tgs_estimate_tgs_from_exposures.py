@@ -23,7 +23,7 @@ def _fit(exposure_df: pl.DataFrame, **kwargs) -> dict:
         **{
             **dict(
                 trait_names=_TRAIT_NAMES,
-                neutral_traits=[1, 2, 3],
+                neutral_trait_ids=[1, 2, 3],
                 calibrate_neighborhood_fractions=(0.25, 1.0),
                 calibrate_max_rate_ratio=np.inf,
                 length_rtol=1e-3,

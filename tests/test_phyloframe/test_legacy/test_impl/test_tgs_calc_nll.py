@@ -20,7 +20,7 @@ def _data():
     shares = rng.random((6, 3))
     shares /= shares.sum(axis=1, keepdims=True)
     coarsened_df = pl.DataFrame(
-        {"num_trials": n, "num_successes": k, "length": lengths}
+        {"num_trials": n, "num_successes": k, "mean_branch_length": lengths}
     )
     data = dict(coarsened_df=coarsened_df, survival_shares=shares)
     return data, np.array([0.0, 5.0, 30.0])
@@ -39,7 +39,7 @@ def _pendant_coarsened_df(gain_rate: float, selection_coef: float, seed: int):
         {
             "num_trials": num_trials,
             "num_successes": rng.binomial(num_trials.astype(int), p),
-            "length": length,
+            "mean_branch_length": length,
         },
     )
 

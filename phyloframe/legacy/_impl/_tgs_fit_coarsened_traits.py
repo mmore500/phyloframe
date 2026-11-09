@@ -28,6 +28,8 @@ def _tgs_calc_twotail_lrt(*, null_nll: float, free_nll: float) -> float:
             "clipping likelihood-ratio statistic to 0, but it may be "
             "unreliable.",
         )
+    # Wilks' statistic, twice the log likelihood ratio, asymptotically
+    # chi-squared; the 2 is not from the test being two-tailed
     return clamp(2 * (null_nll - free_nll), lo=0.0)
 
 
@@ -60,9 +62,8 @@ def _tgs_calc_trait_gain_ratio_lrt(
     )
     null = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
-        # from the free fit, then from each of `selection_coef_starts`
         starts=[
-            (np.log(gain_rate_neutral), start)
+            (np.log(gain_rate_neutral), start)  # free fit
             for start in (
                 selection_coef / selection_rescale,
                 *selection_coef_starts,
@@ -256,7 +257,7 @@ def _tgs_calc_neutral_reference_gain_rate(
     *,
     trait_id: int,
     gain_rates: np.ndarray,
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
 ) -> float:
     """Implementation detail for `_tgs_calc_neutral_reference_gain_rates`.
     Acronym tgs stands for trait gain/selection.
@@ -266,7 +267,7 @@ def _tgs_calc_neutral_reference_gain_rate(
     gained their trait.
     """
     # a neutral trait is not compared against itself
-    refs = [ref for ref in neutral_traits if ref != trait_id]
+    refs = sorted(set(neutral_trait_ids) - {trait_id})
     ref_gain_rate = gain_rates[refs].mean()
     return ref_gain_rate if ref_gain_rate > 0 else np.nan
 
@@ -274,7 +275,7 @@ def _tgs_calc_neutral_reference_gain_rate(
 def _tgs_calc_neutral_reference_gain_rates(
     *,
     gain_rates: np.ndarray,
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
 ) -> np.ndarray:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
@@ -291,7 +292,7 @@ def _tgs_calc_neutral_reference_gain_rates(
             _tgs_calc_neutral_reference_gain_rate(
                 trait_id=trait_id,
                 gain_rates=gain_rates,
-                neutral_traits=neutral_traits,
+                neutral_trait_ids=neutral_trait_ids,
             )
             for trait_id in range(len(gain_rates))
         ],
@@ -302,7 +303,7 @@ def _tgs_calc_neutral_reference_gain_rates(
 def tgs_fit_coarsened_traits(
     *,
     trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
-    neutral_traits: typing.Sequence[int],
+    neutral_trait_ids: typing.Sequence[int],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
@@ -353,7 +354,7 @@ def tgs_fit_coarsened_traits(
         trait_id=pl.int_range(pl.len(), dtype=pl.Int64),
         gain_rate_neutral=_tgs_calc_neutral_reference_gain_rates(
             gain_rates=fits_df["gain_rate"].to_numpy(),
-            neutral_traits=neutral_traits,
+            neutral_trait_ids=neutral_trait_ids,
         ),
     ).with_columns(
         gain_ratio=pl.col("gain_rate") / pl.col("gain_rate_neutral")

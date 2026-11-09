@@ -80,37 +80,37 @@ def tgs_calc_nll(
         (Weighted) count of the coarsened row's exposure episodes.
     'num_successes' : float
         Of those, the (weighted) count that gained the trait.
-    'length' : float
+    'mean_branch_length' : float
         Their mean branch length.
     """
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
-        length=coarsened_df["length"].to_numpy(),
+        length=coarsened_df["mean_branch_length"].to_numpy(),
         growth_rate=growth_rate,
     )
 
-    # chance a carrier lineage persists until its clade's last leaf is
-    # sampled, averaged over each coarsened row's branches
-    survival_factors = np.exp(growth_rate * distinct_survival_durations)
-    survival = survival_shares @ survival_factors
-    survival_deriv = survival_shares @ (
-        distinct_survival_durations * survival_factors
+    # carrier lineage growth over each distinct survival duration, exp(r * u),
+    # then averaged over each coarsened row's branches
+    growth_by_duration = np.exp(growth_rate * distinct_survival_durations)
+    row_survival = survival_shares @ growth_by_duration
+    row_survival_deriv = survival_shares @ (
+        distinct_survival_durations * growth_by_duration
     )
 
-    p = gain_rate * effective_length * survival
-    nll, dnll_dp = calc_binomial_nll_proxy(
+    gain_prob = gain_rate * effective_length * row_survival
+    nll, dnll_dgain_prob = calc_binomial_nll_proxy(
         coarsened_df["num_trials"].to_numpy(),
         coarsened_df["num_successes"].to_numpy(),
-        p,
+        gain_prob,
     )
 
-    # chain rule, as d p / d log(gain_rate) = p
-    dnll_dlog_gain = np.sum(dnll_dp * p)
+    # chain rule, as d gain_prob / d log(gain_rate) = gain_prob
+    dnll_dlog_gain = np.sum(dnll_dgain_prob * gain_prob)
     dnll_drate = np.sum(
-        dnll_dp
+        dnll_dgain_prob
         * gain_rate
         * (
-            effective_length_deriv * survival
-            + effective_length * survival_deriv
+            effective_length_deriv * row_survival
+            + effective_length * row_survival_deriv
         )
     )
 

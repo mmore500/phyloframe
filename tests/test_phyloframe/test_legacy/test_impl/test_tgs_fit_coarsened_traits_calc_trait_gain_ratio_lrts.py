@@ -20,7 +20,7 @@ def _simulate(gain_rate: float, seed: int):
         {
             "num_trials": num_trials,
             "num_successes": num_successes,
-            "length": lengths,
+            "mean_branch_length": lengths,
         },
     )
 
@@ -47,11 +47,11 @@ def _fit_traits(gain_rates):
     return fits, trait_nll_kwargs
 
 
-def _lrts(fits, trait_nll_kwargs, *, neutral_traits, **kwargs):
+def _lrts(fits, trait_nll_kwargs, *, neutral_trait_ids, **kwargs):
     fits = fits.with_columns(
         gain_rate_neutral=_tgs_calc_neutral_reference_gain_rates(
             gain_rates=fits["gain_rate"].to_numpy(),
-            neutral_traits=neutral_traits,
+            neutral_trait_ids=neutral_trait_ids,
         ),
     )
     res = _tgs_calc_trait_gain_ratio_lrts(
@@ -69,7 +69,7 @@ def test_gain_ratio_lrts():
     # trait 0 gains at twice the rate of neutral traits 1-3
     data = _fit_traits([2e-4, 1e-4, 1e-4, 1e-4])
     lrts = _lrts(
-        *data, neutral_traits=[1, 2, 3], selection_coef_starts=(0.0, -0.3)
+        *data, neutral_trait_ids=[1, 2, 3], selection_coef_starts=(0.0, -0.3)
     )
     assert lrts[0] > 100
     assert (lrts[1:] < 20).all()
@@ -89,7 +89,7 @@ def test_matches_free_fit_at_reference_rate():
     lrts = _lrts(
         fits,
         trait_nll_kwargs,
-        neutral_traits=[1, 2],
+        neutral_trait_ids=[1, 2],
         selection_coef_starts=(0.0,),
     )
     # trait 0's "free" point now satisfies the null, which refits the selection
@@ -105,7 +105,7 @@ def test_undefined_without_reference_or_gains():
             gain_rate=pl.Series([fits["gain_rate"][0], 0.0, 0.0])
         ),
         trait_nll_kwargs,
-        neutral_traits=[1, 2],
+        neutral_trait_ids=[1, 2],
         selection_coef_starts=(0.0,),
     )
     # traits 1 and 2 have no gains, so no trait has a reference
@@ -113,7 +113,7 @@ def test_undefined_without_reference_or_gains():
     lrts = _lrts(
         fits.with_columns(gain_rate=pl.Series([0.0, *fits["gain_rate"][1:]])),
         trait_nll_kwargs,
-        neutral_traits=[1, 2],
+        neutral_trait_ids=[1, 2],
         selection_coef_starts=(0.0,),
     )
     # trait 0 has no gains

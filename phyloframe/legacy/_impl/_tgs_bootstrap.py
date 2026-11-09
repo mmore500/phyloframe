@@ -81,9 +81,9 @@ def _tgs_summarize_bootstrap(
     selection_coef = bootstrap_fits_df["selection_coef"].to_numpy()
     gain_ratio = bootstrap_fits_df["gain_ratio"].to_numpy()
     # exclude undefined estimates, e.g., the selection coefficient of a
-    # replicate resampling no carriers of the trait, or the gain ratio of one
-    # resampling no carriers of its neutral reference; a gain ratio undefined
-    # in the point estimate too does not make a replicate degenerate
+    # replicate resampling no carriers of the trait, or the gain ratio of a
+    # replicate resampling no carriers of its neutral reference; an undefined
+    # gain ratio is degenerate only where the point estimate's is defined
     is_selection_degenerate = ~np.isfinite(selection_coef)
     is_gain_ratio_degenerate = is_selection_degenerate | (
         np.isfinite(point_estimate_df["gain_ratio"].to_numpy())[trait_ids]
@@ -239,8 +239,9 @@ def tgs_bootstrap(
     bootstrap_fits_df = _tgs_bootstrap_trait_fits(
         do_fit=functools.partial(
             tgs_fit_traits,
-            progress_wrap=identity,  # progress is over replicates
-            trait_bin_counts_df=None,  # counted with each replicate's weights
+            progress_wrap=identity,  # progress is over bootstrap replicates
+            # to be counted with each bootstrap replicate's weights
+            trait_bin_counts_df=None,
             **point["fit_kwargs"],
         ),
         num_items=len(point["fit_kwargs"]["exposure_df"]),
