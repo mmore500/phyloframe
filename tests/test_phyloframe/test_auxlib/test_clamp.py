@@ -51,3 +51,9 @@ def test_clamp_none_bound_unapplied(value, lo, hi, expected):
     res = clamp(value, lo=lo, hi=hi)
     assert res == expected
     assert isinstance(res, int)
+
+
+def test_clamp_bounds_default_none():
+    assert clamp(0, lo=1) == 1
+    assert clamp(9, hi=3) == 3
+    assert clamp(2) == 2
