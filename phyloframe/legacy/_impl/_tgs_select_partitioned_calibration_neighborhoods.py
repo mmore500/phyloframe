@@ -154,10 +154,9 @@ def _tgs_select_calibration_neighborhoods(
     )
     if num_empty:
         warnings.warn(
-            f"{num_empty} of {len(bin_coords)} calibration "
-            "neighborhoods contain no neutral trait gains, so branches "
-            "there are left uncalibrated; more neutral traits or "
-            "leaves may help.",
+            f"{num_empty} of {len(bin_coords)} calibration neighborhoods "
+            "contain no neutral trait gains, so branches there are left "
+            "uncalibrated; more neutral traits or leaves may help.",
         )
     return best_neighborhoods
 

@@ -28,10 +28,10 @@ def _alifestd_mark_joint_quantile_bins_fast_path(
     """Implementation detail for `alifestd_mark_joint_quantile_bins_polars`.
 
     Assigns items to equal-occupancy bins, the leaves of a balanced k-d tree
-    over items' tiebroken ranks (see `calc_tiebroken_ranks`). Uses the
-    largest power of two of bins, up to `max_num_bins`, that keeps at least
-    `min_bin_occupancy` items in each; splitting can stop early, giving
-    fewer bins, where items do not divide evenly.
+    over items' tiebroken ranks (see `calc_tiebroken_ranks`). Uses the largest
+    power of two of bins, up to `max_num_bins`, that keeps at least
+    `min_bin_occupancy` items in each; splitting can stop early, giving fewer
+    bins, where items do not divide evenly.
 
     Returns each item's bin, numbered contiguously from 0, and the number of
     bins.
@@ -71,13 +71,12 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     Bins are the leaves of a balanced k-d tree over rows' ranks, which
     repeatedly splits rows at the median of one of the columns. Ties on one
-    column are broken by the others, so bins do not depend on row order
-    unless rows tie on every column. Each partition gets the largest power
-    of two of bins, up to `max_num_bins`, that keeps at least
-    `min_bin_occupancy` rows in each, or fewer where rows do not divide
-    evenly.
-    Bins are numbered consecutively across partitions, without gaps, in
-    order of partition value, so each bin lies within one partition.
+    column are broken by the others, so bins do not depend on row order unless
+    rows tie on every column. Each partition gets the largest power of two of
+    bins, up to `max_num_bins`, that keeps at least `min_bin_occupancy` rows in
+    each, or fewer where rows do not divide evenly. Bins are numbered
+    consecutively across partitions, without gaps, in order of partition value,
+    so each bin lies within one partition.
 
     Columns constant within a partition are skipped there: their ranks,
     tiebroken by the other columns, would only repeat those columns'
