@@ -8,8 +8,8 @@ from phyloframe.legacy._impl import (
     tgs_fit_trait,
 )
 from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
-    _tgs_calc_lrt,
     _tgs_calc_trait_selection_lrt,
+    _tgs_calc_twotail_lrt,
 )
 from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
 from phyloframe.legacy._impl._tgs_minimize_nll import (
@@ -158,8 +158,8 @@ def test_fit_coarsened_traits(fixture):
 
 
 def test_negative_lrt_clipped_with_warning():
-    assert _tgs_calc_lrt(null_nll=101.5, free_nll=100.0) == 3.0
+    assert _tgs_calc_twotail_lrt(null_nll=101.5, free_nll=100.0) == 3.0
     # within optimizer tolerance, quietly
-    assert _tgs_calc_lrt(null_nll=100.0 - 1e-9, free_nll=100.0) == 0.0
+    assert _tgs_calc_twotail_lrt(null_nll=100.0 - 1e-9, free_nll=100.0) == 0.0
     with pytest.warns(UserWarning, match="clipping"):
-        assert _tgs_calc_lrt(null_nll=99.5, free_nll=100.0) == 0.0
+        assert _tgs_calc_twotail_lrt(null_nll=99.5, free_nll=100.0) == 0.0

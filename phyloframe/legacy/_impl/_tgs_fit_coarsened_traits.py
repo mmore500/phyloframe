@@ -11,7 +11,7 @@ from ._tgs_fit_trait import tgs_fit_trait
 from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 
 
-def _tgs_calc_lrt(*, null_nll: float, free_nll: float) -> float:
+def _tgs_calc_twotail_lrt(*, null_nll: float, free_nll: float) -> float:
     """Implementation detail for `_tgs_calc_trait_gain_ratio_lrt` and
     `_tgs_calc_trait_selection_lrt`. Acronym tgs stands for trait
     gain/selection.
@@ -78,7 +78,7 @@ def _tgs_calc_trait_gain_ratio_lrt(
             "mean gain rate of its neutral reference traits; gain ratio "
             "likelihood-ratio statistic may be unreliable.",
         )
-    return _tgs_calc_lrt(null_nll=null.fun, free_nll=free_nll)
+    return _tgs_calc_twotail_lrt(null_nll=null.fun, free_nll=free_nll)
 
 
 def _tgs_calc_trait_gain_ratio_lrts(
@@ -187,7 +187,7 @@ def _tgs_calc_trait_selection_lrt(
             "may be unreliable.",
         )
     # two-tailed, testing selection coefficient != 0 in either direction
-    return _tgs_calc_lrt(null_nll=null.fun, free_nll=free_nll)
+    return _tgs_calc_twotail_lrt(null_nll=null.fun, free_nll=free_nll)
 
 
 def _tgs_calc_trait_selection_lrts(

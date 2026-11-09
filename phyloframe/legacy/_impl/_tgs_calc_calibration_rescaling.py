@@ -25,9 +25,7 @@ def tgs_calc_calibration_rescaling(
     (the other neutral traits) within the bin's calibration neighborhood,
     capped at `max_rate_ratio`, given `trait_bin_counts_df` (see
     `tgs_count_trait_bin_exposures`). A pseudocount of 1 stabilizes
-    calibration against sparse gains, e.g., in bootstrap replicates: added
-    to observed and expected gains, it shrinks ratios toward 1, keeping them
-    nonzero even where a neighborhood has no gains.
+    calibration against sparse gains.
     """
     # a neutral trait is not calibrated against itself
     reference_counts_df = (

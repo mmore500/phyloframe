@@ -67,9 +67,24 @@ def tgs_minimize_nll(
     lengths, L-BFGS-B stops early on the tiny selection coefficient. It is
     bounded above so that growth exponents, growth rate times branch length
     plus survival duration, stay within `growth_exponent_bound` of
-    `nll_kwargs` (see `tgs_calc_nll`); and starts beyond are clipped.
+    `nll_kwargs` (see `tgs_calc_nll`).
     """
-    is_free = np.array([fit_gain, fit_selection])
+    is_free = (fit_gain, fit_selection)
+
+    def select_free(params: typing.Sequence) -> list:
+        # those of (log gain rate, rescaled selection) params that are fit
+        return list(itertools.compress(data=params, selectors=is_free))
+
+    def merge_params(
+        free_params: typing.Sequence[float], start: np.ndarray
+    ) -> np.ndarray:
+        # (log gain rate, rescaled selection), taking fit params from
+        # `free_params`, in order, and fixed ones from `start`
+        free_params = list(free_params)
+        log_gain_rate = free_params.pop(0) if fit_gain else start[0]
+        rescaled_selection = free_params.pop(0) if fit_selection else start[1]
+        return np.array([log_gain_rate, rescaled_selection])
+
     durations = nll_kwargs["distinct_survival_durations"]
     max_exponent_time = nll_kwargs["coarsened_df"]["length"].max() + (
         0.0 if durations is None else durations.max(initial=0.0)
@@ -80,40 +95,33 @@ def tgs_minimize_nll(
         if max_exponent_time > 0
         else None
     )
-    # (log gain rate, rescaled selection) bounds, of those fit
-    bounds = list(
-        itertools.compress(
-            [(None, None), (None, max_rescaled_selection)], is_free
-        )
-    )
+    bounds = select_free([(None, None), (None, max_rescaled_selection)])
 
     def nll(
         free_params: np.ndarray, start: np.ndarray
     ) -> typing.Tuple[float, np.ndarray]:
-        params = start.copy()
-        params[is_free] = free_params
-        log_gain_rate, rescaled_selection = params
+        log_gain_rate, rescaled_selection = merge_params(free_params, start)
         res, dlog_gain, drate = tgs_calc_nll(
             **nll_kwargs,
             gain_rate=np.exp(log_gain_rate),
             growth_rate=rescaled_selection * selection_rescale - loss_rate,
         )
-        return res, np.array([dlog_gain, drate * selection_rescale])[is_free]
+        return res, np.array(
+            select_free([dlog_gain, drate * selection_rescale])
+        )
 
     fits = []
     for start in starts:
         start = np.asarray(start, dtype=np.float64)
         fit = optimize.minimize(
             nll,
-            start[is_free],
+            select_free(start),
             args=(start,),
             jac=True,  # objective function returns its own gradient
             method="L-BFGS-B",  # gradient-based, for differentiable functions
             bounds=bounds,
         )
-        params = start.copy()
-        params[is_free] = fit.x
-        fit.x = params
+        fit.x = merge_params(fit.x, start)
         fits.append(fit)
     converged = [fit for fit in fits if fit.success]
     best = min(converged or fits, key=lambda fit: fit.fun)  # .fun is nll
