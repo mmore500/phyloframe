@@ -80,7 +80,7 @@ def test_max_ratio_caps():
     np.testing.assert_allclose(res, [1.2, 1.2, 2 / 3, 2 / 3])
 
 
-def test_pseudocount_keeps_zero_events_finite():
+def test_pseudocount_keeps_zero_events_nonzero():
     # item 0 observes no events of 10 expected at the global rate
     res = calc_neighborhood_rate_ratios(
         neighborhoods=sparse.identity(2, format="csr"),

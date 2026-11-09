@@ -27,7 +27,7 @@ def tgs_calc_calibration_rescaling(
     `tgs_count_trait_bin_exposures`). A pseudocount of 1 stabilizes
     calibration against sparse gains, e.g., in bootstrap replicates: added
     to observed and expected gains, it shrinks ratios toward 1, keeping them
-    finite even where a neighborhood has no gains.
+    nonzero even where a neighborhood has no gains.
     """
     # a neutral trait is not calibrated against itself
     reference_counts_df = (
