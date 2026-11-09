@@ -166,9 +166,7 @@ def alifestd_tgs_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes (i.e., branches to fit), if an
-        argument is invalid, if a column has invalid values, or if
-        calibration is too fine, leaving calibration neighborhoods without
-        neutral trait gains at every `calibrate_neighborhood_fractions`.
+        argument is invalid, or if a column has invalid values.
     polars.exceptions.ColumnNotFoundError
         If a column is missing.
     NotImplementedError

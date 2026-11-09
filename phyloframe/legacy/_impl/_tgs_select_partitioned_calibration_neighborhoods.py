@@ -33,9 +33,7 @@ def _tgs_calc_heldout_nll(
     Returns the negative log likelihood of held-out neutral `trait_id`'s gains
     under no selection, with each bin's mean branch length calibrated
     against the other neutral traits only; 0 if it has no gains, so scores
-    the same for every neighborhood size; nan if a neighborhood of a bin
-    where it has exposure episodes holds no gains of the other neutral
-    traits, so cannot calibrate it.
+    the same for every neighborhood size.
     """
     trait_counts_df = trait_bin_counts_df.filter(
         pl.col("trait_id") == trait_id
@@ -60,8 +58,6 @@ def _tgs_calc_heldout_nll(
             max_rate_ratio=max_rate_ratio,
         )
     )
-    if np.isnan(calibrated_lengths[num_trials > 0]).any():
-        return np.nan
     exposure = (num_trials * calibrated_lengths).sum()
     if not (num_successes.any() and exposure):
         warnings.warn(
@@ -129,7 +125,7 @@ def _tgs_select_calibration_neighborhoods(
         return nll, calibration_neighborhoods
 
     # first (smallest-index) candidate among ties; nan scores lose
-    best_nll, best_neighborhoods, best_neighborhood_fraction = min(
+    __, best_neighborhoods, best_neighborhood_fraction = min(
         (
             (
                 *calc_heldout_nll_for_neighborhood_fraction(
@@ -142,15 +138,6 @@ def _tgs_select_calibration_neighborhoods(
         key=lambda candidate: (np.isnan(candidate[0]), candidate[0]),
     )
 
-    if np.isnan(best_nll):
-        raise ValueError(
-            "calibration is too fine: at every calibration neighborhood "
-            "size, some neighborhood holds no gains of a neutral trait's "
-            "reference (the other neutral traits), so cannot calibrate it; "
-            "use coarser calibration, e.g., fewer, larger calibration bins "
-            "(see alifestd_mark_joint_quantile_bins_polars) or larger "
-            "calibrate_neighborhood_fractions, or more neutral traits",
-        )
     logging.info(
         "- tgs: selected calibration neighborhoods of "
         f"{best_neighborhood_fraction:.1%} of {len(bin_coords)} bins",

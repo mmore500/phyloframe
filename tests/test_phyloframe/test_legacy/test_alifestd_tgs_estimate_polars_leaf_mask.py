@@ -343,22 +343,6 @@ def test_trait_named_by_columns():
     assert res["trait"].tolist() == list("abcde")
 
 
-def test_calibration_too_fine_raises():
-    # one gain per neutral trait leaves small neighborhoods without any
-    phylogeny_df, traits = _make_cherries(2_000)
-    rare = np.zeros_like(traits[1:3])
-    rare[0, np.flatnonzero(traits[1])[:1]] = True
-    rare[1, np.flatnonzero(traits[2])[:1]] = True
-    with pytest.raises(ValueError, match="coarser calibration"):
-        _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=[traits[0], *rare],
-            neutral_traits=[1, 2],
-            calibrate=True,
-            calibrate_neighborhood_fractions=(0.01,),
-        )
-
-
 def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     bin_coords = rng.random((256, 2))

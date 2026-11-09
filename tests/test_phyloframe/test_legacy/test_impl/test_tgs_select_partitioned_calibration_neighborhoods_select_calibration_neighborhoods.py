@@ -2,7 +2,6 @@ import logging
 
 import numpy as np
 import polars as pl
-import pytest
 
 from phyloframe._auxlib._calc_group_means import calc_group_means
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
@@ -46,35 +45,3 @@ def test_select(caplog):
     # each bin is in its own neighborhood
     assert (res.diagonal() == 1).all()
     assert "selected calibration neighborhoods" in caplog.text
-
-
-def _select_two_bins(neighborhood_fractions):
-    # neutral trait 2 gains only in bin 0, so cannot calibrate neutral trait
-    # 1 in bin 1 with neighborhoods of that bin alone
-    num_successes = np.array([[5, 5], [10, 10], [10, 0]], dtype=float)
-    return _tgs_select_calibration_neighborhoods(
-        bin_coords=np.array([[0.0], [1.0]]),
-        neighborhood_fractions=neighborhood_fractions,
-        trait_bin_counts_df=pl.DataFrame(
-            {
-                "trait_id": np.repeat(np.arange(3), 2),
-                "bin": np.tile(np.arange(2), 3),
-                "num_trials": 100.0,
-                "num_successes": num_successes.ravel(),
-                "length_sum": 1000.0,
-            },
-        ),
-        neutral_traits=[1, 2],
-        trait_names=["focal", "a", "b"],
-        max_rate_ratio=np.inf,
-    )
-
-
-def test_skips_neighborhoods_without_reference_gains():
-    res = _select_two_bins((0.5, 1.0))
-    assert (res.toarray() == 1).all()
-
-
-def test_too_fine_raises():
-    with pytest.raises(ValueError, match="coarser calibration"):
-        _select_two_bins((0.5,))

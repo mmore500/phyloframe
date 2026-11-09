@@ -24,9 +24,9 @@ def tgs_calc_calibration_rescaling(
     lengths there: the rate ratio of gains of `trait_id`'s neutral reference
     (the other neutral traits) within the bin's calibration neighborhood,
     capped at `max_rate_ratio`, given `trait_bin_counts_df` (see
-    `tgs_count_trait_bin_exposures`); nan where the neighborhood has no
-    gains of the neutral reference, so cannot calibrate (see
-    `tgs_select_partitioned_calibration_neighborhoods`).
+    `tgs_count_trait_bin_exposures`). A pseudocount of 1, added to observed
+    and expected gains, shrinks ratios toward 1, so that every neighborhood,
+    e.g., of a bootstrap replicate, calibrates, even without gains.
     """
     # a neutral trait is not calibrated against itself
     reference_counts_df = (
@@ -37,11 +37,10 @@ def tgs_calc_calibration_rescaling(
         .agg(pl.col("num_successes", "length_sum").sum())
         .sort("bin")
     )
-    rate_ratios = calc_neighborhood_rate_ratios(
+    return calc_neighborhood_rate_ratios(
         neighborhoods=calibration_neighborhoods,
         num_events=reference_counts_df["num_successes"].to_numpy(),
         exposure=reference_counts_df["length_sum"].to_numpy(),
         max_ratio=max_rate_ratio,
+        pseudocount=1.0,
     )
-    # a zero ratio marks a neighborhood without reference gains
-    return np.where(rate_ratios > 0, rate_ratios, np.nan)
