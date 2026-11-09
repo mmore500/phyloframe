@@ -49,7 +49,8 @@ def test_length_rtol_approximates_exact():
     exposure_df = simulate_exposure_df(8_000)
     exact = _fit(exposure_df, calibrate=True, length_rtol=0.0)
     merged = _fit(exposure_df, calibrate=True, length_rtol=1e-3)
-    pltest.assert_frame_equal(merged, exact, rel_tol=1e-3)
+    # absolute tolerance for likelihood-ratio statistics near 0
+    pltest.assert_frame_equal(merged, exact, rel_tol=1e-3, abs_tol=1e-3)
 
 
 def test_trait_without_gains():
