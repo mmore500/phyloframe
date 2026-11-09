@@ -108,8 +108,8 @@ def alifestd_tgs_estimate_polars(
         Name of a column of integer partition ids (see Input Schema): bins are
         compared only with bins of the same partition, never across partitions,
         with neighborhood size selected separately within each, e.g., by clade
-        size (see `alifestd_mark_clade_size_classes_polars`), as neutral gains
-        per unit length may differ between leaves and inner nodes. If not
+        size (see `alifestd_mark_clade_size_geom_classes_polars`), as neutral
+        gains per unit length may differ between leaves and inner nodes. If not
         given, all bins are compared with one another.
     calibration_compare_by_bins : str, optional
         Name of a column of integer calibration bin ids, at each exposure
@@ -261,20 +261,20 @@ def alifestd_tgs_estimate_polars(
         estimates_df = (
             alifestd_mark_origin_time_delta_polars(df, mark_as="branch_length")
             .pipe(
-                alifestd_mark_clade_size_classes_polars,
+                alifestd_mark_clade_size_geom_classes_polars,
                 weight_by=neutral_traits,  # neutral gains
                 min_class_weight=20,
             )
             .pipe(
                 alifestd_mark_joint_quantile_bins_polars,
                 bin_by=["branch_length", "origin_time"],
-                partition_by="clade_size_class",
+                partition_by="clade_size_geom_class",
             )
             .pipe(
                 alifestd_tgs_estimate_polars,
                 trait_transitions=trait_transitions,
                 neutral_traits=neutral_traits,
-                calibration_partition_by="clade_size_class",
+                calibration_partition_by="clade_size_geom_class",
                 calibration_compare_by_bins="joint_quantile_bin",
             )
         )
@@ -337,7 +337,7 @@ def alifestd_tgs_estimate_polars(
 
     See Also
     --------
-    alifestd_mark_clade_size_classes_polars :
+    alifestd_mark_clade_size_geom_classes_polars :
         Marks clade size classes, e.g., as calibration partitions.
     alifestd_mark_joint_quantile_bins_polars :
         Marks joint quantile bins, e.g., as calibration bins.
@@ -475,7 +475,7 @@ Input Schema: Optional Columns
 ==============================
 `--calibration-partition-by`, `--calibration-compare-by-bins` columns : integer
     Each node's calibration partition and bin (see
-    phyloframe.legacy._alifestd_mark_clade_size_classes_polars and
+    phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars and
     phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars).
 
 `--calibration-compare-by-vals` columns : numeric

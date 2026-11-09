@@ -73,7 +73,7 @@ def test_cli(input_pqt, ext, tmp_path):
             "--neutral-traits",
             *NEUTRAL_TRAITS,
             "--calibration-partition-by",
-            "clade_size_class",
+            "clade_size_geom_class",
             "--calibration-compare-by-bins",
             "joint_quantile_bin",
             "--num-bootstrap",
