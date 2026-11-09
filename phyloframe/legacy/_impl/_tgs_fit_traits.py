@@ -5,6 +5,7 @@ import typing
 import numpy as np
 import opytional as opyt
 import polars as pl
+import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._calc_geometric_bins import calc_geometric_bins
@@ -209,6 +210,9 @@ def tgs_fit_traits(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1.
     """
+    assert (
+        num_traits == exposure_df.select(cs.matches(r"^trait\d+_gain$")).width
+    )
     trait_bin_counts_df = opyt.or_else(
         trait_bin_counts_df,
         lambda: tgs_count_trait_bin_exposures(

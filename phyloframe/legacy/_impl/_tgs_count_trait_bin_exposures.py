@@ -74,6 +74,9 @@ def tgs_count_trait_bin_exposures(
     'length_sum' : float
         Weighted sum of those episodes' branch lengths.
     """
+    assert (
+        num_traits == exposure_df.select(cs.matches(r"^trait\d+_gain$")).width
+    )
     bin_df = pl.DataFrame({"bin": np.arange(num_bins, dtype=np.int64)})
     trait_bin_kwargs = dict(  # converted once, shared by every trait
         exposure_df=exposure_df,
