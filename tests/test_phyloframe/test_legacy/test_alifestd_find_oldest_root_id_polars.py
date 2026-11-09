@@ -56,12 +56,30 @@ def test_integer_origin_time():
 
 
 @pytest.mark.parametrize("bad", [None, float("nan")], ids=["null", "nan"])
-def test_null_or_nan_root_origin_time_raises(bad):
+def test_null_or_nan_root_origin_time_sorts_last(bad):
     df_pl = pl.DataFrame(
         {"id": [0, 1], "ancestor_id": [0, 1]},
     ).with_columns(origin_time=pl.Series([bad, 1.0], dtype=pl.Float64))
-    with pytest.raises(NotImplementedError, match="origin_time"):
-        alifestd_find_oldest_root_id_polars(df_pl)
+    with pytest.warns(UserWarning, match="origin_time"):
+        assert alifestd_find_oldest_root_id_polars(df_pl) == 1
+
+
+def test_null_root_origin_time_matches_pandas():
+    df_pd = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 1, 2],
+            "origin_time": [np.nan, 2.0, 1.0],
+        },
+    )
+    with pytest.warns(UserWarning):
+        expected = alifestd_find_oldest_root_id_asexual(df_pd)
+    with pytest.warns(UserWarning):  # from_pandas makes nan null
+        assert (
+            alifestd_find_oldest_root_id_polars(pl.from_pandas(df_pd))
+            == expected
+            == 2
+        )
 
 
 @pytest.mark.parametrize("seed", range(3))

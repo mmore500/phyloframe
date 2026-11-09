@@ -65,8 +65,12 @@ def alifestd_consolidate_roots_asexual(
     ------
     ValueError
         If `phylogeny_df` is not asexual.
-    NotImplementedError
-        If a root's `origin_time` is null or nan.
+
+    Warns
+    -----
+    UserWarning
+        If a root's `origin_time` is null or nan; such roots sort last in
+        finding the oldest.
 
     See Also
     --------

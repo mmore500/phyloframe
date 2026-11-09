@@ -232,12 +232,15 @@ def test_ancestor_list_matches_pandas():
     [[None, 0.0, 1.0, 2.0], [float("nan"), 0.0, 1.0, 2.0]],
     ids=["null", "nan"],
 )
-def test_null_or_nan_root_origin_time_raises(origin_time: list):
+def test_null_or_nan_root_origin_time_sorts_last(origin_time: list):
     df_pl = pl.DataFrame(
         {"id": [0, 1, 2, 3], "ancestor_id": [0, 1, 0, 1]},
     ).with_columns(origin_time=pl.Series(origin_time, dtype=pl.Float64))
-    with pytest.raises(NotImplementedError, match="origin_time"):
-        alifestd_consolidate_roots_polars(df_pl)
+    with pytest.warns(UserWarning, match="origin_time"):
+        result = alifestd_consolidate_roots_polars(df_pl)
+    # root 1 is oldest, as root 0's time is unknown
+    assert result["id"].to_list() == [1, 2, 3]
+    assert result["ancestor_id"].to_list() == [1, 1, 1]
 
 
 def test_null_nonroot_origin_time_ok():

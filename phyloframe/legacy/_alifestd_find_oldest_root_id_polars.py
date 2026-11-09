@@ -28,10 +28,10 @@ def alifestd_find_oldest_root_id_polars(
     int or None
         The id of the oldest root, or None if there are no roots.
 
-    Raises
-    ------
-    NotImplementedError
-        If a root's `origin_time` is null or nan.
+    Warns
+    -----
+    UserWarning
+        If a root's `origin_time` is null or nan; such roots sort last.
 
     See Also
     --------

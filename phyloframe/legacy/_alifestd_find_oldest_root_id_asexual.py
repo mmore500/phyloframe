@@ -1,4 +1,5 @@
 import typing
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -28,13 +29,8 @@ def _alifestd_find_oldest_root_id_asexual_fast_path(
     -------
     int
         The id of the root with lowest origin time, breaking ties by lowest
-        id, or -1 if there are no roots.
-
-    Raises
-    ------
-    NotImplementedError
-        If a root's origin time is nan, as then which is oldest is
-        undefined.
+        id, or -1 if there are no roots. Roots with nan origin time sort
+        last, with a warning.
     """
     is_root = ids == ancestor_ids
     root_ids = ids[is_root]
@@ -44,10 +40,12 @@ def _alifestd_find_oldest_root_id_asexual_fast_path(
         return int(root_ids.min())
     root_origin_times = origin_times[is_root]
     if np.isnan(root_origin_times).any():
-        raise NotImplementedError(
-            "null or nan root origin_time not supported, as then which root "
-            "is oldest is undefined",
+        warnings.warn(
+            "some roots have null or nan origin_time; these sort last in "
+            "finding the oldest root",
+            stacklevel=2,
         )
+    # nan sorts last
     return int(root_ids[np.lexsort((root_ids, root_origin_times))[0]])
 
 
@@ -73,10 +71,10 @@ def alifestd_find_oldest_root_id_asexual(
     int or None
         The id of the oldest root, or None if there are no roots.
 
-    Raises
-    ------
-    NotImplementedError
-        If a root's `origin_time` is null or nan.
+    Warns
+    -----
+    UserWarning
+        If a root's `origin_time` is null or nan; such roots sort last.
 
     See Also
     --------

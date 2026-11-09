@@ -82,7 +82,13 @@ def alifestd_consolidate_roots_polars(
     ------
     NotImplementedError
         If `phylogeny_df` has no `ancestor_id` column and none can be added
-        from `ancestor_list`, or if a root's `origin_time` is null or nan.
+        from `ancestor_list`.
+
+    Warns
+    -----
+    UserWarning
+        If a root's `origin_time` is null or nan; such roots sort last in
+        finding the oldest.
 
     See Also
     --------

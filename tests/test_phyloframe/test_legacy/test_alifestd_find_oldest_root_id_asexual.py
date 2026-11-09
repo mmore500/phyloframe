@@ -37,12 +37,24 @@ def test_ancestor_list():
 
 
 @pytest.mark.parametrize("bad", [None, np.nan])
-def test_null_or_nan_root_origin_time_raises(bad):
+def test_null_or_nan_root_origin_time_sorts_last(bad):
     df = pd.DataFrame(
         {"id": [0, 1], "ancestor_id": [0, 1], "origin_time": [bad, 1.0]},
     )
-    with pytest.raises(NotImplementedError, match="origin_time"):
-        alifestd_find_oldest_root_id_asexual(df)
+    with pytest.warns(UserWarning, match="origin_time"):
+        assert alifestd_find_oldest_root_id_asexual(df) == 1
+
+
+def test_all_nan_root_origin_times_lowest_id():
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [2, 1, 2],
+            "origin_time": [np.nan] * 3,
+        },
+    )
+    with pytest.warns(UserWarning, match="origin_time"):
+        assert alifestd_find_oldest_root_id_asexual(df) == 1
 
 
 def test_nan_nonroot_origin_time_ok():

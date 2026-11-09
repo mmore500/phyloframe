@@ -116,7 +116,7 @@ def test_warns_topological_sensitivity(column: str):
 @pytest.mark.parametrize(
     "origin_time", [None, float("nan")], ids=["null", "nan"]
 )
-def test_null_or_nan_root_origin_time_raises(origin_time):
+def test_null_or_nan_root_origin_time_sorts_last(origin_time):
     df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3],
@@ -124,5 +124,8 @@ def test_null_or_nan_root_origin_time_raises(origin_time):
             "origin_time": [origin_time, 0.0, 1.0, 2.0],
         },
     )
-    with pytest.raises(NotImplementedError, match="origin_time"):
-        _consolidate(df)
+    with pytest.warns(UserWarning, match="origin_time"):
+        result = _consolidate(df)
+    # root 1 is oldest, as root 0's time is unknown
+    assert result["id"].tolist() == [1, 2, 3]
+    assert result["ancestor_id"].tolist() == [1, 1, 1]
