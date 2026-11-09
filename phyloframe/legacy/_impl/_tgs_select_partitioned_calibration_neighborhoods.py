@@ -9,7 +9,6 @@ import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ..._auxlib._clamp import clamp
 from ..._auxlib._log_memory_usage import log_memory_usage
@@ -154,17 +153,25 @@ def _tgs_calc_calibration_bin_coords(
     `tgs_select_partitioned_calibration_neighborhoods`.
 
     Returns each calibration bin's coordinates for nearest-neighbor
-    comparison: its episodes' mean ranks, scaled to (0, 1], by each
-    `calibration_compare_by_*` column of `exposure_df`. Tied episodes share
-    their average rank, so coordinates do not depend on row order, and a
-    constant column places every bin alike, adding no distance.
+    comparison, in bin order: its episodes' mean ranks, scaled to (0, 1], by
+    each `calibration_compare_by_*` column of `exposure_df`, given each
+    episode's bin, `bins`. Tied episodes share their average rank, so
+    coordinates do not depend on row order, and a constant column places
+    every bin alike, adding no distance.
     """
-    episode_ranks = exposure_df.select(
-        cs.starts_with("calibration_compare_by_").rank("average")
-    ).to_numpy()
-    return calc_group_means(
-        bins, episode_ranks / len(exposure_df), num_groups=num_bins
+    bin_coords_df = (
+        exposure_df.select(
+            cs.starts_with("calibration_compare_by_").rank(method="average")
+            / pl.len(),
+            bin=pl.Series(bins),
+        )
+        .group_by("bin")
+        .mean()
+        .sort("bin")
     )
+    # every bin has episodes, as bins are numbered densely from them
+    assert bin_coords_df["bin"].to_list() == list(range(num_bins))
+    return bin_coords_df.drop("bin").to_numpy()
 
 
 def _tgs_select_partition_trait_bin_counts(

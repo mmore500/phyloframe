@@ -3,7 +3,6 @@ import logging
 import numpy as np
 import polars as pl
 
-from phyloframe._auxlib._calc_group_means import calc_group_means
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import tgs_count_trait_bin_exposures
 from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods import (
@@ -16,9 +15,6 @@ from ._simulate_exposure_df import simulate_exposure_df
 def test_select(caplog):
     exposure_df = simulate_exposure_df(8_000, num_neutral=3)
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
-    coordinates = [
-        exposure_df[c].to_numpy() for c in ("branch_length", "origin_time")
-    ]
     bins = alifestd_mark_joint_quantile_bins_polars(
         exposure_df,
         bin_by=["branch_length", "origin_time"],
@@ -27,9 +23,14 @@ def test_select(caplog):
     num_bins = bins.max() + 1
     with caplog.at_level(logging.INFO):
         res = _tgs_select_calibration_neighborhoods(
-            bin_coords=calc_group_means(
-                bins, np.column_stack(coordinates), num_groups=num_bins
-            ),
+            bin_coords=exposure_df.select(
+                "branch_length", "origin_time", bin=pl.Series(bins)
+            )
+            .group_by("bin")
+            .mean()
+            .sort("bin")
+            .drop("bin")
+            .to_numpy(),
             neighborhood_fractions=(0.25, 1.0),
             trait_bin_counts_df=tgs_count_trait_bin_exposures(
                 exposure_df=exposure_df,
