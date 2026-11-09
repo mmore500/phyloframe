@@ -45,9 +45,12 @@ def tgs_minimize_nll(
     """
     coarsened_df = nll_kwargs["coarsened_df"]
     selection_rescale = tgs_pick_selection_rescale(coarsened_df)
-    max_length = coarsened_df["mean_branch_length"].max()
-    max_survival = nll_kwargs["distinct_survival_durations"].max(initial=0.0)
-    max_exponent_time = max_length + max_survival
+    max_branch_length = coarsened_df["mean_branch_length"].max()
+    max_survival_duration = nll_kwargs["distinct_survival_durations"].max(
+        initial=0.0
+    )
+    # longest time over which a carrier lineage's growth compounds
+    max_exponent_time = max_branch_length + max_survival_duration
     assert np.isfinite(max_exponent_time) and max_exponent_time > 0
     max_selection = (
         growth_exponent_bound / max_exponent_time + loss_rate
