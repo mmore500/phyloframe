@@ -1,5 +1,6 @@
 import subprocess
 
+import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
@@ -9,9 +10,34 @@ from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
     _create_parser,
 )
 
-from .test_alifestd_tgs_estimate_polars import _make_cherries_polars
-
 MODULE = "phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars"
+
+
+def _make_cherries_polars(num_cherries: int, seed: int = 1) -> pl.DataFrame:
+    """Root with `num_cherries` cherries hanging off it, with numeric
+    columns `n1` and `n2`."""
+    rng = np.random.default_rng(seed)
+    num_nodes = 1 + 3 * num_cherries
+    inner = np.arange(1, num_nodes, 3)
+    ancestor_id = np.zeros(num_nodes, dtype=np.int64)
+    ancestor_id[inner + 1] = ancestor_id[inner + 2] = inner
+    origin_time = np.zeros(num_nodes)
+    origin_time[inner] = rng.uniform(0.5, 30, num_cherries)
+    origin_time[inner + 1] = origin_time[inner] + rng.uniform(
+        1, 60, num_cherries
+    )
+    origin_time[inner + 2] = origin_time[inner] + rng.uniform(
+        1, 60, num_cherries
+    )
+    return pl.DataFrame(
+        {
+            "id": np.arange(num_nodes),
+            "ancestor_id": ancestor_id,
+            "origin_time": origin_time,
+            "n1": rng.integers(0, 2, num_nodes),
+            "n2": rng.integers(0, 2, num_nodes),
+        },
+    )
 
 
 @pytest.fixture
