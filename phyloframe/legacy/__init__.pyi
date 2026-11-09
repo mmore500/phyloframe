@@ -123,6 +123,12 @@ from ._alifestd_collapse_unifurcations_tallied_asexual import (
 from ._alifestd_collapse_unifurcations_tallied_polars import (
     alifestd_collapse_unifurcations_tallied_polars,
 )
+from ._alifestd_consolidate_roots_asexual import (
+    alifestd_consolidate_roots_asexual,
+)
+from ._alifestd_consolidate_roots_polars import (
+    alifestd_consolidate_roots_polars,
+)
 from ._alifestd_convert_root_ancestor_token import (
     alifestd_convert_root_ancestor_token,
 )
@@ -212,6 +218,12 @@ from ._alifestd_find_chronological_inconsistency_polars import (
 from ._alifestd_find_leaf_ids import alifestd_find_leaf_ids
 from ._alifestd_find_leaf_ids_polars import alifestd_find_leaf_ids_polars
 from ._alifestd_find_mrca_id_asexual import alifestd_find_mrca_id_asexual
+from ._alifestd_find_oldest_root_id_asexual import (
+    alifestd_find_oldest_root_id_asexual,
+)
+from ._alifestd_find_oldest_root_id_polars import (
+    alifestd_find_oldest_root_id_polars,
+)
 from ._alifestd_find_pair_distance_asexual import (
     alifestd_find_pair_distance_asexual,
 )
@@ -857,6 +869,8 @@ __all__ = [
     "alifestd_collapse_unifurcations_polars",
     "alifestd_collapse_unifurcations_tallied_asexual",
     "alifestd_collapse_unifurcations_tallied_polars",
+    "alifestd_consolidate_roots_asexual",
+    "alifestd_consolidate_roots_polars",
     "alifestd_convert_root_ancestor_token",
     "alifestd_count_children_of_asexual",
     "alifestd_count_children_of_polars",
@@ -912,6 +926,8 @@ __all__ = [
     "alifestd_find_leaf_ids",
     "alifestd_find_leaf_ids_polars",
     "alifestd_find_mrca_id_asexual",
+    "alifestd_find_oldest_root_id_asexual",
+    "alifestd_find_oldest_root_id_polars",
     "alifestd_find_pair_distance_asexual",
     "alifestd_find_pair_distance_polars",
     "alifestd_find_pair_mrca_id_asexual",
