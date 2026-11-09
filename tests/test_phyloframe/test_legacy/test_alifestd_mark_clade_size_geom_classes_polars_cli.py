@@ -80,8 +80,6 @@ def test_cli_matches_function(input_pqt, tmp_path):
             "n2",
             "--min-class-weight",
             "5",
-            "--min-num-classes",
-            "3",
             "--mark-as",
             "c",
             "--eager-write",
@@ -95,7 +93,6 @@ def test_cli_matches_function(input_pqt, tmp_path):
         size_ratio=4.0,
         weight_by=["n1", "n2"],
         min_class_weight=5,
-        min_num_classes=3,
         mark_as="c",
     )
     pd.testing.assert_frame_equal(
