@@ -185,12 +185,72 @@ def test_input_not_mutated():
     assert df_pl.equals(original)
 
 
-def test_ancestor_list_raises():
+@pytest.mark.parametrize("root_ancestor_token", ["none", ""])
+@apply_params
+def test_ancestor_list_updated(
+    apply: typing.Callable, root_ancestor_token: str
+):
     df_pl = pl.DataFrame(
-        {"id": [0, 1], "ancestor_id": [0, 1], "ancestor_list": ["[]", "[]"]},
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_list": ["[none]", "[none]", "[1]", "[2]"],
+        },
     )
-    with pytest.raises(NotImplementedError, match="ancestor_list"):
+    result = (
+        alifestd_consolidate_roots_polars(
+            apply(df_pl), root_ancestor_token=root_ancestor_token
+        )
+        .lazy()
+        .collect()
+    )
+    assert result["id"].to_list() == [0, 2, 3]
+    assert result["ancestor_id"].to_list() == [0, 0, 2]
+    assert result["ancestor_list"].to_list() == [
+        f"[{root_ancestor_token}]",
+        "[0]",
+        "[2]",
+    ]
+
+
+def test_ancestor_list_matches_pandas():
+    df_pd = pd.read_csv(
+        f"{assets}/example-standard-toy-asexual-phylogeny-tworoots.csv"
+    )
+    expected = alifestd_consolidate_roots_asexual(
+        df_pd, ignore_topological_sensitivity=True
+    )
+    result = alifestd_consolidate_roots_polars(
+        pl.from_pandas(df_pd)
+    ).to_pandas()
+    pd.testing.assert_frame_equal(
+        result[expected.columns], expected, check_dtype=False
+    )
+
+
+@pytest.mark.parametrize(
+    "origin_time",
+    [[None, 0.0, 1.0, 2.0], [float("nan"), 0.0, 1.0, 2.0]],
+    ids=["null", "nan"],
+)
+def test_null_or_nan_root_origin_time_raises(origin_time: list):
+    df_pl = pl.DataFrame(
+        {"id": [0, 1, 2, 3], "ancestor_id": [0, 1, 0, 1]},
+    ).with_columns(origin_time=pl.Series(origin_time, dtype=pl.Float64))
+    with pytest.raises(NotImplementedError, match="origin_time"):
         alifestd_consolidate_roots_polars(df_pl)
+
+
+def test_null_nonroot_origin_time_ok():
+    df_pl = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 1, 0, 1],
+            "origin_time": [1.0, 0.0, None, 2.0],
+        },
+    )
+    result = alifestd_consolidate_roots_polars(df_pl)
+    assert result["id"].to_list() == [1, 2, 3]
+    assert result["ancestor_id"].to_list() == [1, 1, 1]
 
 
 def test_missing_ancestor_id_raises():
@@ -198,9 +258,11 @@ def test_missing_ancestor_id_raises():
         alifestd_consolidate_roots_polars(pl.DataFrame({"id": [0, 1]}))
 
 
-def test_warns_topological_sensitivity():
+@pytest.mark.parametrize("column", ["num_children", "is_leaf"])
+def test_warns_topological_sensitivity(column: str):
+    # root 0 is a leaf until consolidation gives it child 2
     df_pl = pl.DataFrame(
-        {"id": [0, 1, 2], "ancestor_id": [0, 1, 1], "num_children": [0, 1, 0]},
+        {"id": [0, 1, 2], "ancestor_id": [0, 1, 1], column: [0, 1, 0]},
     )
-    with pytest.warns(UserWarning, match="num_children"):
+    with pytest.warns(UserWarning, match=column):
         alifestd_consolidate_roots_polars_(df_pl)

@@ -12,11 +12,17 @@ from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from ._alifestd_make_ancestor_list_col_polars import (
+    alifestd_make_ancestor_list_col_polars,
+)
 from ._alifestd_mark_oldest_root_polars import (
     alifestd_mark_oldest_root_polars,
 )
 from ._alifestd_topological_sensitivity_warned_polars import (
     alifestd_topological_sensitivity_warned_polars,
+)
+from ._alifestd_try_add_ancestor_id_col_polars import (
+    alifestd_try_add_ancestor_id_col_polars,
 )
 
 
@@ -24,7 +30,9 @@ def _find_oldest_root_id(phylogeny_df: pl.DataFrame) -> int:
     """Implementation detail for `alifestd_consolidate_roots_polars`.
 
     Returns the id of the oldest root, as for
-    `alifestd_mark_oldest_root_polars`.
+    `alifestd_mark_oldest_root_polars`, raising NotImplementedError if a
+    root's `origin_time` is null or nan, as then which is oldest is
+    undefined.
     """
     schema_names = phylogeny_df.lazy().collect_schema().names()
     roots_df = (
@@ -37,10 +45,40 @@ def _find_oldest_root_id(phylogeny_df: pl.DataFrame) -> int:
         .filter(pl.col("id") == pl.col("ancestor_id"))
         .collect()
     )
+    if "origin_time" in schema_names:
+        origin_time = roots_df["origin_time"]
+        if origin_time.has_nulls() or (
+            origin_time.dtype.is_float() and origin_time.is_nan().any()
+        ):
+            raise NotImplementedError(
+                "null or nan root origin_time not supported, as then which "
+                "root is oldest is undefined",
+            )
     return (
         alifestd_mark_oldest_root_polars(roots_df, mark_as="is_oldest_root")
         .filter(pl.col("is_oldest_root"))["id"]
         .item()
+    )
+
+
+def _update_ancestor_list(
+    phylogeny_df: pl.DataFrame, *, root_ancestor_token: str
+) -> pl.DataFrame:
+    """Implementation detail for `alifestd_consolidate_roots_polars`.
+
+    Returns `phylogeny_df`, of the same type, with `ancestor_list` remade
+    from `ancestor_id` (see `alifestd_make_ancestor_list_col_polars`).
+    """
+    collected = phylogeny_df.lazy().collect()
+    updated = collected.with_columns(
+        ancestor_list=alifestd_make_ancestor_list_col_polars(
+            collected["id"],
+            collected["ancestor_id"],
+            root_ancestor_token=root_ancestor_token,
+        ),
+    )
+    return (
+        updated.lazy() if isinstance(phylogeny_df, pl.LazyFrame) else updated
     )
 
 
@@ -51,6 +89,8 @@ def _find_oldest_root_id(phylogeny_df: pl.DataFrame) -> int:
 )
 def alifestd_consolidate_roots_polars(
     phylogeny_df: pl.DataFrame,
+    *,
+    root_ancestor_token: str = "none",
 ) -> pl.DataFrame:
     """Delete all roots but the oldest, measured by lowest `origin_time` (if
     available) or otherwise lowest `id`, pointing their children to the
@@ -72,7 +112,12 @@ def alifestd_consolidate_roots_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format.
 
-        Must represent an asexual phylogeny, with an `ancestor_id` column.
+        Must represent an asexual phylogeny. If there is no `ancestor_id`
+        column, it is added from `ancestor_list`; an `ancestor_list` column,
+        if present, is updated.
+    root_ancestor_token : str, default "none"
+        Token sandwiched in brackets as the `ancestor_list` entry of the
+        root, if `ancestor_list` is present; e.g., "none" gives "[none]".
 
     Returns
     -------
@@ -82,8 +127,8 @@ def alifestd_consolidate_roots_polars(
     Raises
     ------
     NotImplementedError
-        If `phylogeny_df` has an `ancestor_list` column, which is not
-        updated, or has no `ancestor_id` column.
+        If `phylogeny_df` has no `ancestor_id` column and none can be added
+        from `ancestor_list`, or if a root's `origin_time` is null or nan.
 
     See Also
     --------
@@ -94,14 +139,13 @@ def alifestd_consolidate_roots_polars(
     alifestd_delete_unifurcating_roots_polars :
         Deletes roots with one child, which then become roots.
     """
+    if "ancestor_list" in phylogeny_df.lazy().collect_schema().names():
+        phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema = phylogeny_df.lazy().collect_schema()
-    schema_names = schema.names()
-    if "ancestor_list" in schema_names:
+    if "ancestor_id" not in schema.names():
         raise NotImplementedError(
-            "ancestor_list column not supported; drop it first",
+            "ancestor_id or ancestor_list column required",
         )
-    if "ancestor_id" not in schema_names:
-        raise NotImplementedError("ancestor_id column required")
 
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df
@@ -122,13 +166,18 @@ def alifestd_consolidate_roots_polars(
         f"- alifestd_consolidate_roots_polars: deleting {len(other_root_ids)} "
         "other roots...",
     )
-    return phylogeny_df.with_columns(
+    consolidated = phylogeny_df.with_columns(
         ancestor_id=pl.when(
             ~is_root & pl.col("ancestor_id").is_in(other_root_ids.implode()),
         )
         .then(pl.lit(oldest_root_id, dtype=schema["ancestor_id"]))
         .otherwise(pl.col("ancestor_id")),
     ).filter(~pl.col("id").is_in(other_root_ids.implode()))
+    if "ancestor_list" not in schema.names():
+        return consolidated
+    return _update_ancestor_list(
+        consolidated, root_ancestor_token=root_ancestor_token
+    )
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
@@ -142,7 +191,8 @@ Only supports asexual phylogenies.
 
 Additional Notes
 ================
-- Requires 'ancestor_id' column; 'ancestor_list' column is not supported.
+- 'ancestor_id' is added from 'ancestor_list' if missing; 'ancestor_list', if
+  present, is updated.
 
 - Ids are not reassigned, and topological sort may not be preserved.
 
@@ -168,6 +218,12 @@ def _create_parser() -> argparse.ArgumentParser:
         parser=parser,
         dfcli_module="phyloframe.legacy._alifestd_consolidate_roots_polars",
         dfcli_version=get_phyloframe_version(),
+    )
+    parser.add_argument(
+        "--root-ancestor-token",
+        type=str,
+        default="none",
+        help='token for root ancestor entries (default: "none")',
     )
     add_bool_arg(
         parser,
@@ -199,6 +255,7 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_consolidate_roots_polars,
+                    root_ancestor_token=args.root_ancestor_token,
                     ignore_topological_sensitivity=args.ignore_topological_sensitivity,
                     drop_topological_sensitivity=args.drop_topological_sensitivity,
                 ),

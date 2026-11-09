@@ -103,9 +103,26 @@ def test_sexual_raises():
         _consolidate(df)
 
 
-def test_warns_topological_sensitivity():
+@pytest.mark.parametrize("column", ["num_children", "is_leaf"])
+def test_warns_topological_sensitivity(column: str):
+    # root 0 is a leaf until consolidation gives it child 2
     df = pd.DataFrame(
-        {"id": [0, 1, 2], "ancestor_id": [0, 1, 1], "num_children": [0, 1, 0]},
+        {"id": [0, 1, 2], "ancestor_id": [0, 1, 1], column: [0, 1, 0]},
     )
-    with pytest.warns(UserWarning, match="num_children"):
+    with pytest.warns(UserWarning, match=column):
         alifestd_consolidate_roots_asexual_(df)
+
+
+@pytest.mark.parametrize(
+    "origin_time", [None, float("nan")], ids=["null", "nan"]
+)
+def test_null_or_nan_root_origin_time_raises(origin_time):
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3],
+            "ancestor_id": [0, 1, 0, 1],
+            "origin_time": [origin_time, 0.0, 1.0, 2.0],
+        },
+    )
+    with pytest.raises(NotImplementedError, match="origin_time"):
+        _consolidate(df)

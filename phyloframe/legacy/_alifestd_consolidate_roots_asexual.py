@@ -27,7 +27,9 @@ from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 def _find_oldest_root_id(phylogeny_df: pd.DataFrame) -> int:
     """Implementation detail for `alifestd_consolidate_roots_asexual`.
 
-    Returns the id of the oldest root, as for `alifestd_mark_oldest_root`.
+    Returns the id of the oldest root, as for `alifestd_mark_oldest_root`,
+    raising NotImplementedError if a root's `origin_time` is null or nan, as
+    then which is oldest is undefined.
     """
     columns = [
         column
@@ -37,6 +39,11 @@ def _find_oldest_root_id(phylogeny_df: pd.DataFrame) -> int:
     roots_df = phylogeny_df.loc[
         phylogeny_df["id"] == phylogeny_df["ancestor_id"], columns
     ]
+    if "origin_time" in roots_df and roots_df["origin_time"].isna().any():
+        raise NotImplementedError(
+            "null or nan root origin_time not supported, as then which root "
+            "is oldest is undefined",
+        )
     marked_df = alifestd_mark_oldest_root(roots_df, mark_as="is_oldest_root")
     return marked_df.loc[marked_df["is_oldest_root"], "id"].item()
 
@@ -69,6 +76,9 @@ def alifestd_consolidate_roots_asexual(
     the ancestor list entry for genesis organisms, if an `ancestor_list`
     column is present. For example, the token "None" will yield the entry
     "[None]" and the token "" will yield the entry "[]". Default "none".
+
+    Raises ValueError if `phylogeny_df` is not asexual, and
+    NotImplementedError if a root's `origin_time` is null or nan.
 
     Input dataframe is not mutated by this operation unless `mutate` set True.
     If mutate set True, operation does not occur in place; still use return
