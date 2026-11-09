@@ -36,25 +36,23 @@ def tgs_summarize_bootstrap(
         Replicates excluded for an undefined selection coefficient or log
         gain ratio, e.g., having resampled no gains of the trait.
     """
-    selection_coef, log_gain_ratio = (
-        pl.col("selection_coef"),
-        pl.col("gain_ratio").log(),
-    )
+    is_selection_defined = pl.col("selection_coef").is_finite()
+    log_gain_ratio = pl.col("gain_ratio").log()
+    # finite only with gains of both the trait and its neutral reference
+    is_gain_ratio_defined = log_gain_ratio.is_finite()
     res = (
         pl.concat(
             fits_df.with_row_index("trait_id") for fits_df in replicate_fits
         )
         .group_by("trait_id")
         .agg(
-            selection_coef_se=selection_coef.filter(
-                selection_coef.is_finite()
-            ).std(),
+            selection_coef_se=pl.col("selection_coef")
+            .filter(is_selection_defined)
+            .std(),
             log_gain_ratio_se=log_gain_ratio.filter(
-                log_gain_ratio.is_finite()
+                is_gain_ratio_defined
             ).std(),
-            num_bootstrap_degenerate=(
-                ~(selection_coef.is_finite() & log_gain_ratio.is_finite())
-            )
+            num_bootstrap_degenerate=(~is_gain_ratio_defined)
             .sum()
             .cast(pl.Int64),
         )

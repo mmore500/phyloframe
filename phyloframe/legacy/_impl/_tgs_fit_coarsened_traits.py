@@ -103,13 +103,14 @@ def tgs_fit_coarsened_traits(
         if np.isfinite(reference_gain_rate):
             # null of gain rate equal to the neutral reference's, taken as
             # known; start from the free fit, too
-            selection_start = fit[
-                "selection_coef"
-            ] / tgs_pick_selection_rescale(nll_kwargs["coarsened_df"])
+            selection_rescale = tgs_pick_selection_rescale(
+                nll_kwargs["coarsened_df"]
+            )
+            free_start = fit["selection_coef"] / selection_rescale
             res["gain_ratio_lrt_naive"] = _tgs_calc_lrt(
                 starts=[
                     (np.log(reference_gain_rate), start)
-                    for start in (selection_start, *selection_coef_starts)
+                    for start in (free_start, *selection_coef_starts)
                 ],
                 fit_gain=False,
                 fit_selection=True,
@@ -118,15 +119,5 @@ def tgs_fit_coarsened_traits(
         return res
 
     return pl.DataFrame(
-        list(map(calc_trait_estimates, range(len(fits)))),
-        schema=dict.fromkeys(
-            (
-                "gain_rate",
-                "selection_coef",
-                "gain_ratio",
-                "selection_coef_lrt_naive",
-                "gain_ratio_lrt_naive",
-            ),
-            pl.Float64,
-        ),
+        [calc_trait_estimates(trait_id) for trait_id in range(len(fits))],
     )

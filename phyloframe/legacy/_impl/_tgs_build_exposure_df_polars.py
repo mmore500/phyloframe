@@ -1,5 +1,7 @@
+import gc
 import logging
 import typing
+import warnings
 
 import numpy as np
 import polars as pl
@@ -30,6 +32,27 @@ from .._alifestd_mark_num_leaves_asexual import (
 from .._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
+
+
+def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
+    """Implementation detail for `tgs_build_exposure_df_polars`.
+
+    Returns `origin_time` as float64, with nulls as nan, i.e., unknown,
+    warning if any value does not round trip through float64, e.g., an
+    integer above 2**53.
+    """
+    as_float = origin_time.cast(pl.Float64)
+    if (
+        not origin_time.dtype.is_float()
+        and (
+            as_float.cast(origin_time.dtype, strict=False) != origin_time
+        ).any()
+    ):
+        warnings.warn(
+            "origin_time values lose precision as float64, so branch lengths "
+            "may be inexact",
+        )
+    return as_float.fill_null(np.nan)
 
 
 def _tgs_calc_trait_states(
@@ -75,8 +98,8 @@ def tgs_build_exposure_df_polars(
     """Implementation detail for `alifestd_tgs_estimate_polars`.
 
     Returns one row per exposure episode, i.e., per non-root node's branch
-    where `episode_mask`, if given, is true; see `alifestd_tgs_estimate_polars`
-    for parameters and input schema.
+    where `episode_mask`, if given, is true. See
+    `alifestd_tgs_estimate_polars` for parameters and input schema.
 
     Output Schema
     -------------
@@ -104,7 +127,7 @@ def tgs_build_exposure_df_polars(
     if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
         raise NotImplementedError("only asexual phylogenies are supported")
 
-    episode_cols = (
+    computed_cols = (
         "origin_time", "branch_length", "survival_duration", "clade_size",
     )  # fmt: skip
     calibration_cols = (
@@ -121,11 +144,13 @@ def tgs_build_exposure_df_polars(
                 cs.by_name("id", "ancestor_id", "origin_time")
                 | cs.by_name(*trait_transitions)
                 | cs.by_name(
-                    {episode_mask, *calibration_cols} - {None, *episode_cols}
+                    {episode_mask, *calibration_cols} - {None, *computed_cols}
                 ),
             )
             .collect()
         )
+
+    log_memory_usage(logging.info)
 
     if not alifestd_has_contiguous_ids_polars(nodes_df):
         raise NotImplementedError("non-contiguous ids not supported")
@@ -140,8 +165,9 @@ def tgs_build_exposure_df_polars(
         raise NotImplementedError("unifurcations not supported")
 
     ancestor_ids = nodes_df["ancestor_id"].to_numpy().astype(np.int64)
-    # unknown (null) origin times become nan
-    origin_time = nodes_df["origin_time"].cast(pl.Float64).to_numpy()
+    origin_time = _tgs_cast_origin_time_float(
+        nodes_df["origin_time"]
+    ).to_numpy()
     # latest descendant, or self, with known origin time
     latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids, np.where(np.isnan(origin_time), -np.inf, origin_time)
@@ -167,14 +193,20 @@ def tgs_build_exposure_df_polars(
     # a root has no parent, so no branch over which to gain a trait
     is_episode = ancestor_ids != np.arange(len(ancestor_ids))
     if episode_mask is not None:
-        if nodes_df[episode_mask].dtype != pl.Boolean:
-            raise NotImplementedError("episode_mask column must be boolean")
-        is_episode &= nodes_df[episode_mask].fill_null(False).to_numpy()
+        mask = nodes_df[episode_mask]
+        if mask.dtype != pl.Boolean or mask.has_nulls():
+            raise NotImplementedError(
+                "episode_mask column must be boolean, without nulls",
+            )
+        is_episode &= mask.to_numpy()
 
     # episode columns take precedence over phylogeny_df's
+    episode_cols = [*node_cols]
     episodes_df = nodes_df.with_columns(pl.DataFrame(node_cols)).filter(
         is_episode
     )
+    del nodes_df, node_cols  # clear memory
+    gc.collect()
     log_memory_usage(logging.info)
     if episodes_df.is_empty():  # e.g., all masked out
         raise ValueError("phylogeny_df has no exposure episodes to fit")
@@ -196,8 +228,8 @@ def tgs_build_exposure_df_polars(
         for col in (calibration_partition_by, calibration_compare_by_bins)
     )
     partition_bin = pl.struct(partition.alias("partition"), bin_.alias("bin"))
-    return episodes_df.select(
-        *node_cols,
+    exposure_df = episodes_df.select(
+        *episode_cols,
         (partition.rank("dense") - 1).cast(pl.Int64).alias("partition_id"),
         (partition_bin.rank("dense") - 1).cast(pl.Int64).alias("bin_id"),
         *(
@@ -205,3 +237,7 @@ def tgs_build_exposure_df_polars(
             for col in calibration_compare_by_vals
         ),
     )
+    del episodes_df  # clear memory
+    gc.collect()
+    log_memory_usage(logging.info)
+    return exposure_df

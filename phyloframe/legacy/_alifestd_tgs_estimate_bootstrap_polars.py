@@ -1,5 +1,6 @@
 import argparse
 import functools
+import gc
 import logging
 import os
 import typing
@@ -14,6 +15,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._log_memory_usage import log_memory_usage
 from .._auxlib._run_weighted_bootstrap import run_weighted_bootstrap
 from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_tgs_estimate_polars import (
@@ -116,6 +118,10 @@ def alifestd_tgs_estimate_bootstrap_polars(
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
     )
+    del exposure_df, fit_traits  # clear memory
+    gc.collect()
+    log_memory_usage(logging.info)
+
     return pl.concat(
         [
             estimates_df,

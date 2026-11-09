@@ -1,3 +1,5 @@
+import gc
+import logging
 import typing
 
 import numpy as np
@@ -5,6 +7,7 @@ import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_geometric_bins import calc_geometric_bins
+from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
@@ -169,6 +172,11 @@ def tgs_fit_traits(
                 distinct_survival_durations=distinct_survival_durations,
             ),
         )
+    del exposure_df, trait_bin_counts_df  # clear memory
+    gc.collect()
+    # called per bootstrap replicate, so log at debug level
+    log_memory_usage(logging.debug)
+
     return tgs_fit_coarsened_traits(
         trait_nll_kwargs=trait_nll_kwargs,
         neutral_trait_ids=neutral_trait_ids,

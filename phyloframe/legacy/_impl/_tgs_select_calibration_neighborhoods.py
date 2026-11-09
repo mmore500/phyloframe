@@ -1,3 +1,4 @@
+import gc
 import logging
 import typing
 
@@ -8,6 +9,7 @@ from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
+from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
@@ -135,7 +137,7 @@ def tgs_select_calibration_neighborhoods(
         .mean()
         .sort("bin_id")
     )
-    return sparse.block_diag(
+    calibration_neighborhoods = sparse.block_diag(
         [
             _tgs_select_partition_neighborhoods(
                 partition_df.drop("partition_id", "bin_id").to_numpy(),
@@ -155,3 +157,7 @@ def tgs_select_calibration_neighborhoods(
         ],
         format="csr",
     )
+    del trait_bin_counts_df, bin_coords_df  # clear memory
+    gc.collect()
+    log_memory_usage(logging.info)
+    return calibration_neighborhoods

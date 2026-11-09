@@ -1,5 +1,6 @@
 import argparse
 import functools
+import gc
 import logging
 import os
 import typing
@@ -16,6 +17,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._log_memory_usage import log_memory_usage
 from .._auxlib._warn_experimental import warn_experimental
 from ._impl import (
     tgs_build_exposure_df_polars,
@@ -284,6 +286,8 @@ def _alifestd_tgs_estimate_polars_impl(
     partial of `tgs_fit_traits`, taking `weights` and `progress_wrap`, with
     which bootstrap replicates refit.
     """
+    log_memory_usage(logging.info)
+
     if isinstance(trait_transitions, str):
         trait_transitions = [trait_transitions]
     if isinstance(neutral_traits, str):
@@ -343,6 +347,9 @@ def _alifestd_tgs_estimate_polars_impl(
         ],
         how="horizontal",
     )
+    gc.collect()
+    log_memory_usage(logging.info)
+
     undefined_traits = estimates_df.filter(
         pl.col("gain_ratio_lrt_naive").is_nan()
     )["trait"].to_list()

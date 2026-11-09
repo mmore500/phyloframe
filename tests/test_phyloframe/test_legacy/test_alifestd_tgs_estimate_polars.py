@@ -475,9 +475,12 @@ def test_episode_mask_leaves_counts_no_inner_episodes():
     assert (res["num_leaf_episodes"] > 0).all()
 
 
-def test_non_boolean_episode_mask_raises():
-    df_pl = _make_cherries_polars(500).with_columns(keep=pl.lit(1))
-    with pytest.raises(NotImplementedError, match="boolean"):
+@pytest.mark.parametrize(
+    "mask", [pl.lit(1), pl.lit(None, dtype=pl.Boolean)], ids=["int", "null"]
+)
+def test_invalid_episode_mask_raises(mask: pl.Expr):
+    df_pl = _make_cherries_polars(500).with_columns(mask.alias("keep"))
+    with pytest.raises(NotImplementedError, match="episode_mask"):
         alifestd_tgs_estimate_polars(
             df_pl, episode_mask="keep", **_MASK_KWARGS
         )

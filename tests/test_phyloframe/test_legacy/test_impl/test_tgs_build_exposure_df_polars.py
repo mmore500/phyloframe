@@ -4,6 +4,9 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy._impl import tgs_build_exposure_df_polars
+from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
+    _tgs_cast_origin_time_float,
+)
 
 
 def _build(phylogeny_df, **kwargs) -> pl.DataFrame:
@@ -190,11 +193,12 @@ def test_masked_out_null_calibration_value_ok():
     assert res["bin_id"].to_list() == [0, 1, 2]
 
 
-def test_episode_mask_null_at_root_ignored():
+def test_episode_mask_null_raises():
     df_pl = _make_tree().with_columns(
         keep=pl.Series([None, True, True, True, True], dtype=pl.Boolean),
     )
-    assert _build(df_pl, episode_mask="keep").equals(_build(df_pl))
+    with pytest.raises(NotImplementedError, match="episode_mask"):
+        _build(df_pl, episode_mask="keep")
 
 
 def test_episode_mask_keeps_whole_tree_columns():
@@ -271,6 +275,12 @@ def test_integer_origin_time_exact_is_quiet():
         warnings.simplefilter("error")
         res = _build(df_pl)
     assert res["branch_length"].to_list() == [1.0, 2.0, 4.0, 5.0]
+
+
+def test_integer_origin_time_precision_loss_warns():
+    with pytest.warns(UserWarning, match="precision"):
+        res = _tgs_cast_origin_time_float(pl.Series([0, 2**53 + 1]))
+    assert res.dtype == pl.Float64
 
 
 def test_null_root_origin_time_is_unknown():
