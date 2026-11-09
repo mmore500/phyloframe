@@ -39,6 +39,7 @@ _topologically_sensitive_cols = frozenset(
         "colless_like_index_sd",
         "colless_like_index_var",
         "first_child_id",
+        "is_leaf",
         "is_left_child",
         "is_right_child",
         "left_child_id",

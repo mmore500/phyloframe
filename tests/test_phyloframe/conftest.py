@@ -3,6 +3,9 @@
 import random
 
 import numpy as np
+import numpy.random  # pre-imports prevent worker deadlock
+import pandas  # noqa: F401
+import polars  # noqa: F401
 import pytest
 
 
