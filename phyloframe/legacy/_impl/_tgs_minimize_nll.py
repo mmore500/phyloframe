@@ -90,26 +90,25 @@ def tgs_minimize_nll(
 
     fits = []
     for log_gain_start, selection_start in starts:
-        # a parameter not fit is pinned at its start, by equal bounds
-        bounds = [
-            (
-                (None, None)
-                if fit_gain
-                else (log_gain_start, log_gain_start)
-            ),
-            (
-                (None, max_rescaled_selection)
-                if fit_selection
-                else (selection_start, selection_start)
-            ),
-        ]  # fmt: skip
         fit = optimize.minimize(
             fun=nll,
             x0=[log_gain_start, selection_start],
             jac=True,  # objective function returns its own gradient
             method="L-BFGS-B",  # gradient-based, for differentiable functions
-            bounds=bounds,
-        )
+            # a parameter not fit is pinned at its start, by equal bounds
+            bounds=[
+                (
+                    (None, None)
+                    if fit_gain
+                    else (log_gain_start, log_gain_start)
+                ),
+                (
+                    (None, max_rescaled_selection)
+                    if fit_selection
+                    else (selection_start, selection_start)
+                ),
+            ],
+        )  # fmt: skip
         fits.append(fit)
     converged = [fit for fit in fits if fit.success]
     best = min(converged or fits, key=lambda fit: fit.fun)  # .fun is nll
