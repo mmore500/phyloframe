@@ -31,9 +31,11 @@ def warn_experimental(func: typing.Callable) -> typing.Callable:
         if "PHYLOFRAME_WARN_EXPERIMENTAL_SUPPRESS" not in os.environ:
             warnings.warn(
                 f"{func.__name__} is experimental. Its interface and results "
-                "can change in the future. To silence this warning, set the "
-                "environment variable PHYLOFRAME_WARN_EXPERIMENTAL_SUPPRESS, "
-                "or filter the phyloframe.ExperimentalWarning category.",
+                "can change in the future, and its results have not yet been "
+                "validated, so they may be unreliable. To silence this "
+                "warning, set the environment variable "
+                "PHYLOFRAME_WARN_EXPERIMENTAL_SUPPRESS, or filter the "
+                "phyloframe.ExperimentalWarning category.",
                 ExperimentalWarning,
                 stacklevel=2,
             )
