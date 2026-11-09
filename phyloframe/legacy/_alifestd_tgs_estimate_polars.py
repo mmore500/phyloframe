@@ -150,8 +150,9 @@ def alifestd_tgs_estimate_polars(
         Starting values for the selection coefficient, in units of 1 / mean
         branch length; the best of the resulting fits is kept. See `tgs_fit_trait`.
     growth_exponent_bound : float, default 600.0
-        Bound on carrier growth exponents, such as the selection coefficient
-        minus loss rate, times branch length, keeping optimizer trial steps
+        Bound on carrier growth exponents, the selection coefficient minus
+        loss rate times branch length plus survival duration, within which
+        the optimizer keeps the selection coefficient, so likelihoods stay
         finite. See `tgs_fit_trait`.
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display progress over traits.
@@ -165,7 +166,9 @@ def alifestd_tgs_estimate_polars(
     ------
     ValueError
         If there are no exposure episodes (i.e., branches to fit), if an
-        argument is invalid, or if a column has invalid values.
+        argument is invalid, if a column has invalid values, or if
+        calibration is too fine, leaving calibration neighborhoods without
+        neutral trait gains at every `calibrate_neighborhood_fractions`.
     polars.exceptions.ColumnNotFoundError
         If a column is missing.
     NotImplementedError

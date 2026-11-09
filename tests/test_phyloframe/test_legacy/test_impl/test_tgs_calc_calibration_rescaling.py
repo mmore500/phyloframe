@@ -57,7 +57,7 @@ def test_max_rate_ratio_caps():
     assert res.max() == 1.5
 
 
-def test_neighborhood_without_reference_gains_uncalibrated():
+def test_neighborhood_without_reference_gains_nan():
     # bin 1's neighborhood has no gains of neutral traits 1 and 2
     counts = _counts([[5, 5], [10, 0], [10, 0]])
     res = tgs_calc_calibration_rescaling(
@@ -67,4 +67,4 @@ def test_neighborhood_without_reference_gains_uncalibrated():
         calibration_neighborhoods=sparse.identity(2, format="csr"),
         max_rate_ratio=np.inf,
     )
-    np.testing.assert_allclose(res, [2.0, 1.0])
+    np.testing.assert_allclose(res, [2.0, np.nan])

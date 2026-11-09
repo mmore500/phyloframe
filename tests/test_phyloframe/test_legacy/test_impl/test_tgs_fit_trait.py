@@ -8,6 +8,7 @@ from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_selection_lrt,
 )
 from phyloframe.legacy._impl._tgs_fit_trait import tgs_fit_trait
+from phyloframe.legacy._impl._tgs_minimize_nll import tgs_minimize_nll
 
 
 def _sample(gain_rate: float, selection_coef: float, seed: int):
@@ -135,4 +136,35 @@ def test_no_successes_skips_fit_without_warning():
             dict(coarsened_df=coarsened_df), selection_coef_starts=(0.0,)
         )
     assert res["gain_rate"] == 0.0
+    assert np.isnan(res["selection_coef"])
+
+
+def test_selection_bounded_by_growth_exponent_bound():
+    nll_kwargs = dict(_sample(1e-3, 0.0, seed=10), growth_exponent_bound=5.0)
+    max_length = nll_kwargs["coarsened_df"]["length"].max()
+    # from far past the bound, clipped into it, staying finite
+    best = tgs_minimize_nll(
+        nll_kwargs=nll_kwargs,
+        starts=[(np.log(1e-3), 1e3)],
+        fit_gain=True,
+        fit_selection=True,
+        selection_rescale=1.0,
+        loss_rate=0.0,
+    )
+    assert np.isfinite(best.fun)
+    assert best.x[1] * max_length <= 5.0 * (1 + 1e-9)
+
+
+def test_uncalibrated_episodes_degenerate():
+    # e.g., a bootstrap replicate resampling no neutral gains in a
+    # calibration neighborhood
+    coarsened_df = pl.DataFrame(
+        {
+            "num_trials": [10.0, 10.0],
+            "num_successes": [1.0, 1.0],
+            "length": [1.0, np.nan],
+        }
+    )
+    res = _fit(dict(coarsened_df=coarsened_df), selection_coef_starts=(0.0,))
+    assert np.isnan(res["gain_rate"])
     assert np.isnan(res["selection_coef"])

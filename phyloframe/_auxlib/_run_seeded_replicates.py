@@ -51,8 +51,6 @@ def run_seeded_replicates(
         for replicate_seed in replicate_seeds
     ]
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
-        # dispatch replicates in a few batches per worker, so arguments
-        # they share (e.g., a large dataframe in `func`) are serialized for
-        # process backends once per batch, not once per replicate
+        # batch replicates, to serialize shared arguments once per batch
         batch_size = max(1, num_replicates // (4 * joblib.cpu_count()))
         return joblib.Parallel(batch_size=batch_size)(progress_wrap(jobs))

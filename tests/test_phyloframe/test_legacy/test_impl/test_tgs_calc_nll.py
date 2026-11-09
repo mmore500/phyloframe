@@ -126,14 +126,6 @@ def test_continuous_at_zero_rate():
     np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)
 
 
-def test_finite_for_extreme_rate():
-    # optimizer trial steps far into positive selection must not overflow
-    coarsened_df = _pendant_coarsened_df(1e-3, -0.05, seed=7)
-    with np.errstate(over="raise", invalid="raise"):
-        res = _pendant_nll(coarsened_df, np.log(1e-3), 1e3)
-    assert np.isfinite(res).all()
-
-
 @pytest.mark.parametrize("growth_exponent_bound", [710.0, np.inf])
 def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
     data, times = _data()
@@ -154,7 +146,7 @@ def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
 def test_effective_length(rate: float):
     length = np.array([0.01, 1.0, 7.0, 30.0])
     res, res_deriv = _tgs_calc_effective_length(
-        length=length, growth_rate=rate, growth_exponent_bound=600.0
+        length=length, growth_rate=rate
     )
     # exact values, from the series sums over j >= 1 of
     # rate**(j - 1) * t**j / j!, and over j >= 2 of its derivative,
@@ -182,20 +174,3 @@ def test_effective_length(rate: float):
     ]
     np.testing.assert_allclose(res, expected, rtol=1e-12)
     np.testing.assert_allclose(res_deriv, expected_deriv, rtol=1e-9)
-
-
-def test_gradient_zero_past_growth_exponent_cap():
-    # past the cap, the likelihood is flat in the rate, so is its gradient
-    coarsened_df = pl.DataFrame(
-        {"num_trials": [100.0], "num_successes": [1.0], "length": [10.0]}
-    )
-    kwargs = dict(
-        gain_rate=1e-3,
-        coarsened_df=coarsened_df,
-        growth_exponent_bound=600.0,
-        survival_shares=None,
-        distinct_survival_durations=None,
-    )
-    nll, __, drate = tgs_calc_nll(growth_rate=60.1, **kwargs)
-    assert drate == 0.0
-    assert tgs_calc_nll(growth_rate=61.0, **kwargs)[0] == nll

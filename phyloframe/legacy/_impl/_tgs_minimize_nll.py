@@ -63,9 +63,23 @@ def tgs_minimize_nll(
     The selection coefficient is optimized, and given in `starts`, as a
     multiple of `selection_rescale`, a typical rate, e.g., 1 / mean branch
     length, so that both parameters are of order one; otherwise, with long
-    lengths, L-BFGS-B stops early on the tiny selection coefficient.
+    lengths, L-BFGS-B stops early on the tiny selection coefficient. It is
+    bounded above so that growth exponents, growth rate times branch length
+    plus survival duration, stay within `growth_exponent_bound` of
+    `nll_kwargs` (see `tgs_calc_nll`), and starts beyond are clipped.
     """
     is_free = np.array([fit_gain, fit_selection])
+    durations = nll_kwargs["distinct_survival_durations"]
+    max_exponent_time = nll_kwargs["coarsened_df"]["length"].max() + (
+        0.0 if durations is None else durations.max(initial=0.0)
+    )
+    max_rescaled_selection = (
+        (nll_kwargs["growth_exponent_bound"] / max_exponent_time + loss_rate)
+        / selection_rescale
+        if max_exponent_time > 0
+        else None
+    )
+    bounds = [(None, None), (None, max_rescaled_selection)]
 
     def nll(
         free_params: np.ndarray, start: np.ndarray
@@ -89,6 +103,7 @@ def tgs_minimize_nll(
             args=(start,),
             jac=True,  # objective function returns its own gradient
             method="L-BFGS-B",  # gradient-based, for differentiable functions
+            bounds=[bound for bound, free in zip(bounds, is_free) if free],
         )
         params = start.copy()
         params[is_free] = fit.x

@@ -8,17 +8,15 @@ from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 
 
 def _tgs_calc_effective_length(
-    *, length: np.ndarray, growth_rate: float, growth_exponent_bound: float
+    *, length: np.ndarray, growth_rate: float
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Implementation detail for `tgs_calc_nll`. Acronym tgs stands for trait
     gain/selection.
 
     Returns effective length (exp(r * t) - 1) / r for each length t, with
-    r = `growth_rate`, and its derivative with respect to r, with r * t
-    capped at `growth_exponent_bound`, past which the derivative is 0.
+    r = `growth_rate`, and its derivative with respect to r.
     """
-    x = growth_rate * length
-    cx = np.minimum(x, growth_exponent_bound)
+    cx = growth_rate * length
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = length * special.exprel(cx)
 
@@ -43,9 +41,9 @@ def _tgs_calc_effective_length(
         out=np.empty_like(cx),
         where=~is_near_zero_rate,
     )
-    deriv = np.where(is_near_zero_rate, series_deriv, exact_deriv)
-    # past the cap, effective length no longer depends on the rate
-    return effective_length, np.where(x > growth_exponent_bound, 0.0, deriv)
+    return effective_length, np.where(
+        is_near_zero_rate, series_deriv, exact_deriv
+    )
 
 
 def tgs_calc_nll(
@@ -72,7 +70,8 @@ def tgs_calc_nll(
     is sampled. Each partition averages exp(r * u) exactly over its
     branches, whose shares over `distinct_survival_durations` are rows of
     `survival_shares`. Without `survival_shares`, `u` is 0, as for leaf
-    pendant branches. Exponents are capped at `growth_exponent_bound`.
+    pendant branches. Requires r * (t + u) <= `growth_exponent_bound`, so
+    exponentials stay finite; `tgs_minimize_nll` bounds r accordingly.
 
     Input Schema
     ------------
@@ -90,7 +89,6 @@ def tgs_calc_nll(
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
         length=coarsened_df["length"].to_numpy(),
         growth_rate=growth_rate,
-        growth_exponent_bound=growth_exponent_bound,
     )
 
     if survival_shares is None:
@@ -98,14 +96,10 @@ def tgs_calc_nll(
     else:
         # chance a carrier lineage persists until its clade's last leaf is
         # sampled, averaged over each coarsened row's branches
-        exponents = growth_rate * distinct_survival_durations
-        survival_factors = np.exp(np.minimum(exponents, growth_exponent_bound))
+        survival_factors = np.exp(growth_rate * distinct_survival_durations)
         survival = survival_shares @ survival_factors
-        # past the cap, survival factors no longer depend on the rate
-        survival_deriv = survival_shares @ np.where(
-            exponents > growth_exponent_bound,
-            0.0,
-            distinct_survival_durations * survival_factors,
+        survival_deriv = survival_shares @ (
+            distinct_survival_durations * survival_factors
         )
 
     p = gain_rate * effective_length * survival

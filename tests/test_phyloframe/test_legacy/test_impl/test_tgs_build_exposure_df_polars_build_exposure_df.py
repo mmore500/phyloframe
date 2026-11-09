@@ -14,7 +14,7 @@ def _exposure_df(*, ancestor_ids, origin_time, trait_states):
                 "ancestor_id": ancestor_ids,
                 "origin_time": origin_time,
                 **{
-                    f"__tgs_trait{i}_state": states
+                    f"__alifestd_tgs_trait{i}_state": states
                     for i, states in enumerate(trait_states)
                 },
             },

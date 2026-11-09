@@ -62,9 +62,8 @@ def tgs_fit_trait(
         return dict(gain_rate=0.0, selection_coef=np.nan)
 
     selection_rescale = tgs_pick_selection_rescale(coarsened_df)
-    # calibrated lengths are positive, as branch lengths and calibration
-    # factors are, so the rescale is defined
-    assert np.isfinite(selection_rescale)
+    if np.isnan(selection_rescale):  # uncalibrated episodes
+        return dict(gain_rate=np.nan, selection_coef=np.nan)
     log_gain_start = tgs_pick_log_gain_rate_start(coarsened_df)
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
