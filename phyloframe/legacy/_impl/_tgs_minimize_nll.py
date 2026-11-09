@@ -1,3 +1,4 @@
+import itertools
 import typing
 
 import numpy as np
@@ -66,7 +67,7 @@ def tgs_minimize_nll(
     lengths, L-BFGS-B stops early on the tiny selection coefficient. It is
     bounded above so that growth exponents, growth rate times branch length
     plus survival duration, stay within `growth_exponent_bound` of
-    `nll_kwargs` (see `tgs_calc_nll`), and starts beyond are clipped.
+    `nll_kwargs` (see `tgs_calc_nll`); and starts beyond are clipped.
     """
     is_free = np.array([fit_gain, fit_selection])
     durations = nll_kwargs["distinct_survival_durations"]
@@ -79,7 +80,12 @@ def tgs_minimize_nll(
         if max_exponent_time > 0
         else None
     )
-    bounds = [(None, None), (None, max_rescaled_selection)]
+    # (log gain rate, rescaled selection) bounds, of those fit
+    bounds = list(
+        itertools.compress(
+            [(None, None), (None, max_rescaled_selection)], is_free
+        )
+    )
 
     def nll(
         free_params: np.ndarray, start: np.ndarray
@@ -103,7 +109,7 @@ def tgs_minimize_nll(
             args=(start,),
             jac=True,  # objective function returns its own gradient
             method="L-BFGS-B",  # gradient-based, for differentiable functions
-            bounds=[bound for bound, free in zip(bounds, is_free) if free],
+            bounds=bounds,
         )
         params = start.copy()
         params[is_free] = fit.x

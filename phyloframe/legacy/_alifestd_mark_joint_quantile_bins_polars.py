@@ -48,8 +48,9 @@ def _alifestd_mark_joint_quantile_bins_fast_path(
             np.log2(num_items / min_bin_occupancy), 0, np.log2(max_num_bins)
         )
     )
-    # splitting stops at most `num_levels` levels down, as nodes there hold
-    # at most this many items, but can stop early, as nodes above may too
+    # nodes stop splitting once they hold at most this many items, by
+    # `num_levels` levels down, or sooner where uneven splits leave a node
+    # that small a level early, giving fewer bins
     bins = assign_kdtree_partitions(
         ranks, ceil_div(num_items, 2**num_levels)
     )

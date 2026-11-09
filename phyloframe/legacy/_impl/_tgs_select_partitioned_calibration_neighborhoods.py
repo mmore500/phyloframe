@@ -101,8 +101,12 @@ def _tgs_select_calibration_neighborhoods(
         # `neighborhood_fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
             bin_coords,
-            num_neighbors=max(
-                round(neighborhood_fraction * len(bin_coords)), 1
+            num_neighbors=int(
+                np.clip(
+                    round(neighborhood_fraction * len(bin_coords)),
+                    1,
+                    len(bin_coords),
+                )
             ),
         )
         # holding out each neutral trait in turn

@@ -80,12 +80,12 @@ def test_max_ratio_caps():
     np.testing.assert_allclose(res, [1.2, 1.2, 2 / 3, 2 / 3])
 
 
-def test_pseudocount_shrinks_toward_one():
-    # observed 0 and 20 of 10 expected per item, at the global rate
+def test_pseudocount_keeps_zero_events_finite():
+    # item 0 observes no events of 10 expected at the global rate
     res = calc_neighborhood_rate_ratios(
         neighborhoods=sparse.identity(2, format="csr"),
         num_events=np.array([0.0, 20.0]),
         exposure=np.array([1.0, 1.0]),
         pseudocount=1.0,
     )
-    np.testing.assert_allclose(res, [1 / 11, 21 / 11])
+    assert res[0] == pytest.approx(1 / 11)

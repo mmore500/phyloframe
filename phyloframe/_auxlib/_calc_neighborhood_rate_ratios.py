@@ -35,7 +35,7 @@ def calc_neighborhood_rate_ratios(
         little exposure.
     pseudocount : float, default 0.0
         Count added to both observed and expected events, shrinking each
-        ratio toward 1 and keeping it positive where a neighborhood has no
+        ratio toward 1 and keeping it finite where a neighborhood has no
         events.
 
     Returns
