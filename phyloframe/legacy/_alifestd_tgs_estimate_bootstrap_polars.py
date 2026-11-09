@@ -1,6 +1,6 @@
 import argparse
 import functools
-import inspect
+import gc
 import logging
 import os
 import typing
@@ -15,34 +15,15 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._identity import identity
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._log_memory_usage import log_memory_usage
+from .._auxlib._run_weighted_bootstrap import run_weighted_bootstrap
 from .._auxlib._warn_experimental import warn_experimental
 from ._alifestd_tgs_estimate_polars import (
     _add_estimate_arguments,
     _alifestd_tgs_estimate_polars_impl,
     _get_estimate_kwargs,
-    alifestd_tgs_estimate_polars,
 )
-from ._impl import tgs_bootstrap
-
-
-def _bind_estimate_kwargs(
-    kwargs: typing.Dict[str, typing.Any],
-) -> typing.Dict[str, typing.Any]:
-    """Implementation detail for `alifestd_tgs_estimate_bootstrap_polars`.
-
-    Returns `kwargs`, `alifestd_tgs_estimate_polars` arguments but
-    `phylogeny_df` and `progress_wrap`, with its defaults filled in; raises
-    TypeError for missing or unknown arguments.
-    """
-    bound = inspect.signature(alifestd_tgs_estimate_polars).bind(
-        None, **kwargs
-    )
-    bound.apply_defaults()
-    return {
-        name: value
-        for name, value in bound.arguments.items()
-        if name not in ("phylogeny_df", "progress_wrap")
-    }
+from ._impl import tgs_summarize_bootstrap
 
 
 @warn_experimental
@@ -55,13 +36,13 @@ def alifestd_tgs_estimate_bootstrap_polars(
     progress_wrap: typing.Callable = identity,
     **kwargs: typing.Any,
 ) -> pl.DataFrame:
-    """Estimate per-trait gain rate and selection coefficient from mutationally
-    defined clades (MDCs), as `alifestd_tgs_estimate_polars` does, with
-    bootstrap standard errors, z-scores, and p-values.
+    """Estimate per-trait gain rate and selection coefficient, as
+    `alifestd_tgs_estimate_polars` does, with bootstrap standard errors,
+    z-scores, and p-values.
 
-    Bootstrap replicates resample the fit exposure episodes (see
-    `episode_mask`) with replacement and refit, holding calibration
-    neighborhoods fixed at those of the point estimate.
+    Bootstrap replicates resample exposure episodes with replacement and
+    refit, holding calibration neighborhoods fixed at those of the point
+    estimate.
 
     Only supports asexual phylogenies.
 
@@ -71,23 +52,18 @@ def alifestd_tgs_estimate_bootstrap_polars(
         The phylogeny as a dataframe in alife standard format; see Input
         Schema of `alifestd_tgs_estimate_polars`.
     num_bootstrap : int
-        Number of bootstrap replicates; must be positive. Standard guidance
-        suggests about 200 replicates for standard errors (Efron and
-        Tibshirani 1993, An Introduction to the Bootstrap).
+        Number of bootstrap replicates; must be positive.
     seed : int, optional
-        Seed for bootstrap resampling; if None, drawn from numpy's global
-        random state.
+        Seed for bootstrap resampling.
     parallel_backend : str, optional
-        joblib backend to run bootstrap replicates in parallel, e.g., "loky"
-        (processes) or "threading"; if None, runs them sequentially.
-        Replicate fits are mostly GIL-bound Python (scipy's optimizer loop),
-        so "loky" is typically faster.
+        joblib backend to run bootstrap replicates in parallel, e.g.,
+        "loky"; if None, runs them sequentially.
     progress_wrap : Callable, default identity
-        Pass tqdm or equivalent to display progress over traits, for the
-        point estimate, and over bootstrap replicates.
+        Pass tqdm or equivalent to display progress over traits and
+        bootstrap replicates.
     **kwargs
         Passed to `alifestd_tgs_estimate_polars`, e.g., `trait_transitions`
-        and `neutral_traits`; see it for these parameters.
+        and `neutral_traits`.
 
     Returns
     -------
@@ -102,41 +78,58 @@ def alifestd_tgs_estimate_bootstrap_polars(
 
     Output Schema
     -------------
-    One row per trait, with the columns of
-    `alifestd_tgs_estimate_polars`'s Output Schema, then:
+    The columns of `alifestd_tgs_estimate_polars`'s Output Schema, then:
 
     'selection_coef_se', 'log_gain_ratio_se' : float
-        Bootstrap standard errors (se), i.e., standard deviations across
-        replicates, of the selection coefficient and log gain ratio.
+        Standard deviations of the selection coefficient and log gain ratio
+        across bootstrap replicates.
     'selection_coef_z', 'gain_ratio_z' : float
         Corresponding z-scores, against 0 and 1, respectively.
     'selection_coef_p', 'gain_ratio_p' : float
         Corresponding two-sided p-values, by normal approximation.
     'num_bootstrap_degenerate' : integer
-        Replicates excluded for resampling no carriers of the trait, or of
-        its neutral reference.
+        Replicates excluded for resampling no gains of the trait, or of its
+        neutral reference.
 
     Warnings
     --------
-    Bootstrap sampling assumes exposure episodes are independent, but
-    nested episodes share leaves, so replicates may be underdispersed,
-    making standard errors too small and z-scores and p-values
-    overconfident. See also Warnings of
-    `alifestd_tgs_estimate_polars`.
+    Bootstrap resampling treats exposure episodes as independent, but
+    nested episodes share leaves, so standard errors tend to be too small.
 
     See Also
     --------
     alifestd_tgs_estimate_polars :
         Point estimates only.
     """
-    return tgs_bootstrap(
-        _alifestd_tgs_estimate_polars_impl,
-        phylogeny_df,
-        estimate_kwargs=_bind_estimate_kwargs(kwargs),
-        num_bootstrap=num_bootstrap,
+    if not num_bootstrap > 0:
+        raise ValueError("num_bootstrap must be positive")
+    estimates_df, exposure_df, fit_traits = _alifestd_tgs_estimate_polars_impl(
+        phylogeny_df, progress_wrap=progress_wrap, **kwargs
+    )
+    logging.info(
+        f"- alifestd_tgs_estimate_bootstrap_polars: fitting {num_bootstrap} "
+        "bootstrap replicates...",
+    )
+    replicate_fits = run_weighted_bootstrap(
+        functools.partial(fit_traits, progress_wrap=identity),
+        num_items=len(exposure_df),
+        num_replicates=num_bootstrap,
         seed=seed,
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
+    )
+    del exposure_df, fit_traits  # clear memory
+    gc.collect()
+    log_memory_usage(logging.info)
+
+    return pl.concat(
+        [
+            estimates_df,
+            tgs_summarize_bootstrap(
+                estimates_df, replicate_fits=replicate_fits
+            ),
+        ],
+        how="horizontal",
     )
 
 
@@ -144,15 +137,12 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Estimate per-trait gain rate and selection coefficient from mutationally
-defined clades, with bootstrap standard errors, z-scores, and
-p-values.
+Estimate per-trait gain rate and selection coefficient, with bootstrap standard errors, z-scores, and p-values.
 
 Data is assumed to be in alife standard format.
 Only supports asexual phylogenies.
 
-Input schema is as for
-phyloframe.legacy._alifestd_tgs_estimate_polars.
+Input schema is as for phyloframe.legacy._alifestd_tgs_estimate_polars.
 
 
 Output Schema
@@ -168,7 +158,7 @@ phyloframe.legacy._alifestd_tgs_estimate_polars, then:
     Corresponding z-scores and two-sided normal p-values.
 
 'num_bootstrap_degenerate' : integer
-    Replicates excluded for resampling no carriers of the trait, or of its
+    Replicates excluded for resampling no gains of the trait, or of its
     neutral reference.
 
 
@@ -228,28 +218,20 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
 
-    try:
-        with log_context_duration(
-            "phyloframe.legacy._alifestd_tgs_estimate_bootstrap_polars",
-            logging.info,
-        ):
-            _run_dataframe_cli(
-                base_parser=parser,
-                output_dataframe_op=functools.partial(
-                    alifestd_tgs_estimate_bootstrap_polars,
-                    **_get_estimate_kwargs(args),
-                    num_bootstrap=args.num_bootstrap,
-                    seed=args.bootstrap_seed,
-                    parallel_backend=args.parallel_backend,
-                    progress_wrap=functools.partial(
-                        tqdm,
-                        desc="alifestd_tgs_estimate_bootstrap_polars",
-                    ),
+    with log_context_duration(
+        "phyloframe.legacy._alifestd_tgs_estimate_bootstrap_polars",
+        logging.info,
+    ):
+        _run_dataframe_cli(
+            base_parser=parser,
+            output_dataframe_op=functools.partial(
+                alifestd_tgs_estimate_bootstrap_polars,
+                **_get_estimate_kwargs(args),
+                num_bootstrap=args.num_bootstrap,
+                seed=args.bootstrap_seed,
+                parallel_backend=args.parallel_backend,
+                progress_wrap=functools.partial(
+                    tqdm, desc="alifestd_tgs_estimate_bootstrap_polars"
                 ),
-            )
-    except NotImplementedError as e:
-        logging.error(
-            "- unsupported input, with no pandas op to fall back on; "
-            "see the error for which input to convert",
+            ),
         )
-        raise e

@@ -10,34 +10,25 @@ from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 def make_tgs_fit_kwargs(
     exposure_df: pl.DataFrame, *, calibrate: bool = False, **kwargs
 ) -> typing.Dict[str, typing.Any]:
-    """Arguments for `tgs_fit_traits`, but `weights`, `progress_wrap`, and
-    `trait_bin_counts_df`, treating traits after
-    the first as neutral. If `calibrate`, bins episodes into 64
-    equal-occupancy bins by branch length and origin time, each its own
-    calibration neighborhood; else, one bin.
+    """Arguments for `tgs_fit_traits`, but `weights` and `progress_wrap`,
+    treating traits after the first as neutral. If `calibrate`, bins
+    episodes into 64 equal-occupancy bins by branch length and origin time,
+    each its own calibration neighborhood; else, one bin.
     """
     num_traits = sum(c.endswith("_starts_absent") for c in exposure_df.columns)
     if calibrate:
-        bin_ids = alifestd_mark_joint_quantile_bins_polars(
+        exposure_df = alifestd_mark_joint_quantile_bins_polars(
             exposure_df,
             bin_by=["branch_length", "origin_time"],
             max_num_bins=64,
-        )["joint_quantile_bin"].to_numpy()
-        num_bins = bin_ids.max() + 1
-    else:
-        bin_ids, num_bins = np.zeros(len(exposure_df), dtype=np.int64), 1
-    distinct_survival_durations, survival_duration_ids = np.unique(
-        exposure_df["survival_duration"].to_numpy(), return_inverse=True
-    )
+            mark_as="bin_id",
+        )
+    num_bins = exposure_df["bin_id"].max() + 1
     return {
         **dict(
             exposure_df=exposure_df,
             num_traits=num_traits,
-            bin_ids=bin_ids,
-            num_bins=num_bins,
             calibration_neighborhoods=sparse.identity(num_bins, format="csr"),
-            distinct_survival_durations=distinct_survival_durations,
-            survival_duration_ids=survival_duration_ids,
             neutral_trait_ids=list(range(1, num_traits)),
             calibrate_max_rate_ratio=np.inf,
             length_rtol=1e-3,

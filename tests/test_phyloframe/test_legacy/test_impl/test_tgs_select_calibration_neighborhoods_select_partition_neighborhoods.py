@@ -5,8 +5,8 @@ import polars as pl
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import tgs_count_trait_bin_exposures
-from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods import (
-    _tgs_select_calibration_neighborhoods,
+from phyloframe.legacy._impl._tgs_select_calibration_neighborhoods import (
+    _tgs_select_partition_neighborhoods,
 )
 
 from ._simulate_exposure_df import simulate_exposure_df
@@ -15,17 +15,16 @@ from ._simulate_exposure_df import simulate_exposure_df
 def test_select(caplog):
     exposure_df = simulate_exposure_df(8_000, num_neutral=3)
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
-    bin_ids = alifestd_mark_joint_quantile_bins_polars(
+    exposure_df = alifestd_mark_joint_quantile_bins_polars(
         exposure_df,
         bin_by=["branch_length", "origin_time"],
         max_num_bins=64,
-    )["joint_quantile_bin"].to_numpy()
-    num_bins = bin_ids.max() + 1
+        mark_as="bin_id",
+    )
+    num_bins = exposure_df["bin_id"].max() + 1
     with caplog.at_level(logging.INFO):
-        res = _tgs_select_calibration_neighborhoods(
-            bin_coords=exposure_df.select(
-                "branch_length", "origin_time", bin_id=pl.Series(bin_ids)
-            )
+        res = _tgs_select_partition_neighborhoods(
+            exposure_df.select("branch_length", "origin_time", "bin_id")
             .group_by("bin_id")
             .mean()
             .sort("bin_id")
@@ -33,14 +32,11 @@ def test_select(caplog):
             .to_numpy(),
             neighborhood_fractions=(0.25, 1.0),
             trait_bin_counts_df=tgs_count_trait_bin_exposures(
-                exposure_df=exposure_df,
-                num_traits=4,
-                bin_ids=bin_ids,
-                num_bins=num_bins,
+                exposure_df,
+                trait_ids=[1, 2, 3],
                 weights=np.ones(len(exposure_df)),
             ),
             neutral_trait_ids=[1, 2, 3],
-            trait_names=["focal", "a", "b", "c"],
             max_rate_ratio=np.inf,
         )
     assert res.shape == (num_bins, num_bins)

@@ -17,15 +17,14 @@ def tgs_calc_calibration_rescaling(
     calibration_neighborhoods: sparse.spmatrix,
     max_rate_ratio: float,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
-    stands for trait gain/selection.
+    """Implementation detail for `alifestd_tgs_estimate_polars`.
 
-    Returns, for each calibration bin, the factor rescaling `trait_id`'s branch
-    lengths there: the rate ratio of gains of `trait_id`'s neutral reference
-    (the other neutral traits) within the bin's calibration neighborhood,
-    capped at `max_rate_ratio`, given `trait_bin_counts_df` (see
-    `tgs_count_trait_bin_exposures`). A pseudocount of 1 stabilizes
-    calibration against sparse gains.
+    Returns, for each calibration bin, the factor rescaling `trait_id`'s
+    branch lengths there: the gain rate of the neutral traits other than
+    `trait_id` within the bin's calibration neighborhood, relative to
+    overall (see `calc_neighborhood_rate_ratios`), capped at
+    `max_rate_ratio`. Takes the neutral traits' `trait_bin_counts_df` (see
+    `tgs_count_trait_bin_exposures`).
     """
     # a neutral trait is not calibrated against itself
     reference_counts_df = (
@@ -41,5 +40,5 @@ def tgs_calc_calibration_rescaling(
         num_events=reference_counts_df["num_successes"].to_numpy(),
         exposure=reference_counts_df["length_sum"].to_numpy(),
         max_ratio=max_rate_ratio,
-        pseudocount=1.0,
+        pseudocount=1.0,  # stabilizes calibration against sparse gains
     )

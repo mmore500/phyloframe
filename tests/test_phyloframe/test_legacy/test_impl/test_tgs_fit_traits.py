@@ -16,7 +16,6 @@ def _fit(exposure_df, weights=None, **kwargs):
     return tgs_fit_traits(
         weights=weights,
         progress_wrap=identity,
-        trait_bin_counts_df=None,
         **make_tgs_fit_kwargs(exposure_df, **kwargs),
     )
 
@@ -28,8 +27,8 @@ def test_recovers(calibrate: bool):
     assert res.columns == [
         "gain_rate",
         "selection_coef",
-        "selection_coef_lrt_naive",
         "gain_ratio",
+        "selection_coef_lrt_naive",
         "gain_ratio_lrt_naive",
     ]
     # the focal trait gains at twice the neutral rate, so its gain ratio

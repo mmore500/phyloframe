@@ -4,11 +4,7 @@ import warnings
 
 import numpy as np
 
-from ._tgs_minimize_nll import (
-    tgs_minimize_nll,
-    tgs_pick_log_gain_rate_start,
-    tgs_pick_selection_rescale,
-)
+from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 
 
 def tgs_fit_trait(
@@ -18,31 +14,13 @@ def tgs_fit_trait(
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
 ) -> typing.Dict[str, float]:
-    """Implementation detail for `alifestd_tgs_estimate_polars`, via
-    `tgs_fit_coarsened_traits`.
-    Acronym tgs stands for trait gain/selection.
+    """Implementation detail for `tgs_fit_coarsened_traits`.
 
-    Maximum likelihood fit of one binary trait's gain rate and selection
-    coefficient to its coarsened exposure episodes,
-    `nll_kwargs["coarsened_df"]` (see `_tgs_coarsen_episodes`), minimizing
-    `tgs_calc_nll(**nll_kwargs, ...)` from each of `selection_coef_starts`
-    (in units of 1 / mean branch length) and keeping the best fit. Without
-    gains, skips fitting, giving zero gain rate and undefined (nan)
-    selection coefficient. Returns `gain_rate` and `selection_coef`.
-
-    An exposure episode is a branch starting without the trait, so branch
-    length is an exposure window: an episode of length `t` gains the trait
-    with probability
-
-        p = gain_rate * (exp(c * t) - 1) / c,  c = selection_coef - loss_rate
-
-    i.e., gains arrive at constant `gain_rate`, after which a carrier
-    lineage's expected number of sampled descendants, relative to a
-    non-carrier's, changes at rate `c`. At `c` = 0, `p` grows linearly in
-    `t`; under a cost (`c` < 0), it saturates at ~`gain_rate` / |`c`|. For
-    an inner branch, `p` is also multiplied by exp(`c` * `u`), the carrier
-    lineage's growth over its survival duration `u`, until its clade's last
-    leaf is sampled; see `tgs_calc_nll`.
+    Maximum likelihood fit of one trait's gain rate and selection
+    coefficient to its coarsened exposure episodes (see `tgs_calc_nll`),
+    keeping the best fit from each of `selection_coef_starts`. Returns
+    `gain_rate`, `selection_coef`, and their negative log likelihood,
+    `nll`; without gains, zero gain rate and nan otherwise.
 
     Notes
     -----
@@ -51,9 +29,7 @@ def tgs_fit_trait(
     the difference in net diversification rate between states, (lambda1 -
     mu1) - (lambda0 - mu0). Unlike BiSSE, which fits a full tree likelihood,
     this model considers each episode independently and assumes the trait
-    is rare, so that `p` is proportional to `gain_rate` (ignoring, e.g., a
-    lineage gaining the trait more than once); this lets it scale to large
-    trees with rare traits.
+    is rare, so that it scales to large trees.
 
     References
     ----------
@@ -63,18 +39,17 @@ def tgs_fit_trait(
     https://doi.org/10.1080/10635150701607033
     """
     coarsened_df = nll_kwargs["coarsened_df"]
-    if not coarsened_df["num_successes"].to_numpy().any():
-        return dict(gain_rate=0.0, selection_coef=np.nan)
+    num_gains = coarsened_df["num_successes"].sum()
+    if not num_gains:
+        return dict(gain_rate=0.0, selection_coef=np.nan, nll=np.nan)
 
-    selection_rescale = tgs_pick_selection_rescale(coarsened_df)
-    assert np.isfinite(selection_rescale)
-    log_gain_start = tgs_pick_log_gain_rate_start(coarsened_df)
+    exposure = coarsened_df["num_trials"] * coarsened_df["mean_branch_length"]
+    log_gain_start = np.log(num_gains / exposure.sum())  # no selection
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
         starts=[(log_gain_start, start) for start in selection_coef_starts],
         fit_gain=True,
         fit_selection=True,
-        selection_rescale=selection_rescale,
         loss_rate=loss_rate,
         growth_exponent_bound=growth_exponent_bound,
     )
@@ -84,11 +59,14 @@ def tgs_fit_trait(
             f"({best.message}); estimates may be unreliable.",
         )
     logging.debug(
-        f"- tgs fit: {best.num_converged} of "
-        f"{len(selection_coef_starts)} starts "
-        f"converged; best negative log likelihood {best.fun:.6g}",
+        f"- tgs fit: {best.num_converged} of {len(selection_coef_starts)} "
+        f"starts converged; best negative log likelihood {best.fun:.6g}",
     )
+    log_gain_rate, selection = best.x
     return dict(
-        gain_rate=float(np.exp(best.x[0])),
-        selection_coef=float(best.x[1] * selection_rescale),
+        gain_rate=float(np.exp(log_gain_rate)),
+        selection_coef=float(
+            selection * tgs_pick_selection_rescale(coarsened_df)
+        ),
+        nll=float(best.fun),
     )

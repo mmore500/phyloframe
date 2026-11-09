@@ -8,8 +8,10 @@ from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
 def _exposure_df() -> pl.DataFrame:
     return pl.DataFrame(
         {
+            "bin_id": [0, 0, 0, 1],
             "branch_length": [1.0002, 1.0004, 2.0, 2.0],
             "survival_duration": [0.0, 0.0, 0.0, 5.0],
+            "survival_duration_id": [0, 0, 0, 1],
             "trait0_starts_absent": [True, True, True, True],
             "trait0_gain": [False, True, True, False],
             "trait1_starts_absent": [False, True, True, False],
@@ -18,19 +20,15 @@ def _exposure_df() -> pl.DataFrame:
     )
 
 
-def _coarsen(trait: int, **kwargs):
-    distinct, indices = np.unique([0.0, 0.0, 0.0, 5.0], return_inverse=True)
+def _coarsen(trait: int, weights=np.ones(4), **kwargs):
     return _tgs_coarsen_episodes(
+        _exposure_df().with_columns(weight=weights),
         **{
             **dict(
-                exposure_df=_exposure_df(),
                 trait_id=trait,
-                bin_ids=np.array([0, 0, 0, 1]),
                 calibration_factors=np.ones(2),
-                weights=np.ones(4),
                 length_rtol=1e-3,
-                survival_duration_ids=indices,
-                num_survival_durations=len(distinct),
+                num_survival_durations=2,
             ),
             **kwargs,
         },
@@ -67,7 +65,7 @@ def test_no_merging():
 
 
 def test_calibration_factors_scale_lengths():
-    coarsened_df, __ = _coarsen(0, calibration_factors=np.array([1, 3]))
+    coarsened_df, __ = _coarsen(0, calibration_factors=np.array([1.0, 3.0]))
     assert coarsened_df["mean_branch_length"].to_list() == pytest.approx(
         [1.0003, 2.0, 6.0]
     )

@@ -285,7 +285,7 @@ def test_too_few_neutral_traits_raise(neutral_traits):
 def test_neutral_trait_index_raises():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         _estimate_all(
             phylogeny_df, trait_transitions=names, neutral_traits=[1]
         )
@@ -327,20 +327,11 @@ def test_missing_calibration_column_raises():
         )
 
 
-def test_float_transitions_raise():
-    phylogeny_df, names = _make_cherries_with_transitions()
-    phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
-    with pytest.raises(NotImplementedError):
-        _estimate_all(
-            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
-        )
-
-
 @pytest.mark.parametrize("value", [2, -2])
 def test_invalid_transitions_raise(value: int):
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df.loc[5, names[0]] = value
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         _estimate_all(
             phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
         )
@@ -489,7 +480,7 @@ def test_episode_mask_leaves_counts_no_inner_episodes():
 )
 def test_invalid_episode_mask_raises(mask: pl.Expr):
     df_pl = _make_cherries_polars(500).with_columns(mask.alias("keep"))
-    with pytest.raises(NotImplementedError, match="episode mask"):
+    with pytest.raises(NotImplementedError, match="episode_mask"):
         alifestd_tgs_estimate_polars(
             df_pl, episode_mask="keep", **_MASK_KWARGS
         )

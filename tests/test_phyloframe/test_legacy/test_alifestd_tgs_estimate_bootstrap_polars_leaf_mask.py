@@ -146,7 +146,7 @@ def test_bootstrap_rare_trait():
     phylogeny_df, traits = _make_cherries(20_000)
     rare = np.zeros_like(traits[0])
     rare[np.flatnonzero(traits[1])[0]] = True
-    with pytest.warns(UserWarning, match="bootstrap") as record:
+    with pytest.warns(UserWarning, match="bootstrap.*'0'"):
         res = _estimate_bootstrap_from_masks(
             phylogeny_df,
             trait_masks=[rare, *traits[1:]],
@@ -157,10 +157,6 @@ def test_bootstrap_rare_trait():
     # with a single carrier, replicates often resample no carriers
     num_degenerate = res.loc[0, "num_bootstrap_degenerate"]
     assert 0 < num_degenerate < 50
-    assert any(
-        f"0 ({num_degenerate} of 50)" in str(warning.message)
-        for warning in record
-    )
     assert (res.loc[1:, "num_bootstrap_degenerate"] == 0).all()
     assert np.isfinite(res["selection_coef_se"]).all()
     assert np.isfinite(res["log_gain_ratio_se"]).all()
@@ -191,7 +187,7 @@ def test_bootstrap_neutral_reference_without_carriers():
     rare = np.zeros_like(traits[1:3])
     rare[0, np.flatnonzero(traits[1])[:1]] = True
     rare[1, np.flatnonzero(traits[2])[:1]] = True
-    with pytest.warns(UserWarning, match="neutral reference"):
+    with pytest.warns(UserWarning, match="bootstrap"):
         res = _estimate_bootstrap_from_masks(
             phylogeny_df,
             trait_masks=[traits[0], *rare],

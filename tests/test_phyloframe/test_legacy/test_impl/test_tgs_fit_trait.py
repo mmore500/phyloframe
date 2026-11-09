@@ -4,13 +4,27 @@ import numpy as np
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
-    _tgs_calc_trait_selection_lrt,
+from phyloframe._auxlib._identity import identity
+from phyloframe.legacy._impl import tgs_fit_coarsened_traits, tgs_fit_trait
+from phyloframe.legacy._impl._tgs_minimize_nll import (
+    tgs_minimize_nll,
+    tgs_pick_selection_rescale,
 )
-from phyloframe.legacy._impl._tgs_fit_trait import tgs_fit_trait
-from phyloframe.legacy._impl._tgs_minimize_nll import tgs_minimize_nll
 
 from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
+
+
+def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
+    """One trait's selection likelihood-ratio statistic, with copies of
+    itself as its neutral reference."""
+    return tgs_fit_coarsened_traits(
+        trait_nll_kwargs=[nll_kwargs] * 3,
+        neutral_trait_ids=[1, 2],
+        loss_rate=0.0,
+        growth_exponent_bound=600.0,
+        progress_wrap=identity,
+        **kwargs,
+    )["selection_coef_lrt_naive"][0]
 
 
 def _sample(gain_rate: float, selection_coef: float, seed: int):
@@ -53,11 +67,8 @@ def test_recovers_parameters(gain_rate: float, selection_coef: float):
     res = _fit(nll_kwargs)
     assert res["gain_rate"] == pytest.approx(gain_rate, rel=0.1)
     assert res["selection_coef"] == pytest.approx(selection_coef, abs=0.01)
-    lrt = _tgs_calc_trait_selection_lrt(
-        growth_exponent_bound=600.0,
-        nll_kwargs=nll_kwargs,
-        loss_rate=0.0,
-        **res,
+    lrt = _calc_selection_lrt(
+        nll_kwargs, selection_coef_starts=(0.0, -0.3, -1.8)
     )
     if selection_coef == 0:
         assert lrt < 10
@@ -154,9 +165,11 @@ def test_selection_bounded_by_growth_exponent_bound():
         starts=[(np.log(1e-3), 1e3)],
         fit_gain=True,
         fit_selection=True,
-        selection_rescale=1.0,
         loss_rate=0.0,
         growth_exponent_bound=5.0,
     )
     assert np.isfinite(best.fun)
-    assert best.x[1] * max_length <= 5.0 * (1 + 1e-9)
+    selection_coef = best.x[1] * tgs_pick_selection_rescale(
+        nll_kwargs["coarsened_df"]
+    )
+    assert selection_coef * max_length <= 5.0 * (1 + 1e-9)

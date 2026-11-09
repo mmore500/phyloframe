@@ -5,7 +5,8 @@ import polars as pl
 def simulate_exposure_df(
     num_branches: int = 40_000, seed: int = 1, num_neutral: int = 2
 ) -> pl.DataFrame:
-    """Branches, as from `_tgs_build_exposure_df`: half leaves (survival duration
+    """Branches, as from `tgs_build_exposure_df_polars`, in one calibration
+    bin: half leaves (survival duration
     0), half inner branches of clades of 2 to 9 leaves, every branch at
     risk of each trait and gaining it under the full model.
 
@@ -21,6 +22,8 @@ def simulate_exposure_df(
         "branch_length": lengths,
         "survival_duration": survival,
         "clade_size": np.where(is_leaf, 1, rng.integers(2, 10, num_branches)),
+        "partition_id": np.zeros(num_branches, dtype=np.int64),
+        "bin_id": np.zeros(num_branches, dtype=np.int64),
     }
     for i, (gain, selection) in enumerate(
         [(2e-3, -0.05)] + [(1e-3, 0.0)] * num_neutral

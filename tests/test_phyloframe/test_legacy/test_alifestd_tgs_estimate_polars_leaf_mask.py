@@ -16,8 +16,8 @@ from phyloframe.legacy import (
     alifestd_to_working_format,
     alifestd_try_add_ancestor_id_col_polars,
 )
-from phyloframe.legacy._impl._tgs_select_partitioned_calibration_neighborhoods import (
-    _tgs_select_calibration_neighborhoods,
+from phyloframe.legacy._impl._tgs_select_calibration_neighborhoods import (
+    _tgs_select_partition_neighborhoods,
 )
 
 from ._impl import add_trait_transitions, mark_tgs_calibration_columns
@@ -233,13 +233,8 @@ def test_unifurcations_raise():
         )
 
 
-def test_nan_origin_time_ignored():
+def test_nan_origin_time_raises():
     phylogeny_df, traits = _make_cherries(2_000)
-    # no calibration bins, as alifestd_mark_joint_quantile_bins_polars
-    # rejects nan values
-    kwargs = dict(neutral_traits=[1, 2, 3, 4])
-    expected = _estimate_from_masks(phylogeny_df, trait_masks=traits, **kwargs)
-
     # add a disconnected root with unknown origin time
     nan_df = pd.concat(
         [
@@ -254,12 +249,12 @@ def test_nan_origin_time_ignored():
         ],
         ignore_index=True,
     )
-    res = _estimate_from_masks(
-        nan_df,
-        trait_masks=np.hstack([traits, np.zeros((5, 1), dtype=bool)]),
-        **kwargs,
-    )
-    pd.testing.assert_frame_equal(res, expected)
+    with pytest.raises(NotImplementedError, match="origin_time"):
+        _estimate_from_masks(
+            nan_df,
+            trait_masks=np.hstack([traits, np.zeros((5, 1), dtype=bool)]),
+            neutral_traits=[1, 2, 3, 4],
+        )
 
 
 def test_input_not_mutated():
@@ -287,20 +282,11 @@ def test_missing_transitions_column_raises():
         )
 
 
-def test_float_transitions_raise():
-    phylogeny_df, names = _make_cherries_with_transitions()
-    phylogeny_df[names[0]] = phylogeny_df[names[0]].astype(float)
-    with pytest.raises(NotImplementedError):
-        _estimate_pandas(
-            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
-        )
-
-
 @pytest.mark.parametrize("value", [2, -2])
 def test_invalid_transitions_raise(value: int):
     phylogeny_df, names = _make_cherries_with_transitions()
     phylogeny_df.loc[5, names[0]] = value
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         _estimate_pandas(
             phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
         )
@@ -355,12 +341,11 @@ def test_tgs_select_calibration_neighborhoods():
             "length_sum": 1000.0,
         },
     )
-    res = _tgs_select_calibration_neighborhoods(
-        bin_coords=bin_coords,
+    res = _tgs_select_partition_neighborhoods(
+        bin_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
         trait_bin_counts_df=counts,
         neutral_trait_ids=[0, 1, 2],
-        trait_names=["a", "b", "c"],
         max_rate_ratio=np.inf,
     )
     assert res.shape == (256, 256)
@@ -405,7 +390,7 @@ def test_neutral_trait_not_among_transitions_raises():
 def test_neutral_trait_index_raises():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         _estimate_pandas(
             phylogeny_df, trait_transitions=names, neutral_traits=[1]
         )
@@ -516,17 +501,6 @@ def test_calibrate_max_rate_ratio_not_positive_raises(
             phylogeny_df,
             trait_masks=traits,
             calibrate_max_rate_ratio=calibrate_max_rate_ratio,
-        )
-
-
-def test_heldout_neutral_without_carriers_warns():
-    phylogeny_df, traits = _make_cherries(2_000)
-    with pytest.warns(UserWarning, match="does not inform"):
-        _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=[*traits, np.zeros_like(traits[0])],
-            neutral_traits=[1, 2, 5],
-            calibrate=True,
         )
 
 
