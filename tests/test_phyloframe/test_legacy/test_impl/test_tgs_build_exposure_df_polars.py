@@ -186,3 +186,45 @@ def test_unifurcating_root_supported():
     res = _build(df_pl)
     assert res["branch_length"].to_list() == [1.0, 1.0, 3.0]
     assert res["trait0_gain"].to_list() == [False, True, False]
+
+
+def test_masked_out_zero_length_branch_ok():
+    # leaf 2 originates with its parent, root 0, so its branch has length 0
+    df_pl = _make_tree().with_columns(
+        origin_time=pl.Series([0.0, 1.0, 0.0, 5.0, 6.0]),
+        keep=pl.Series([True, True, False, True, True]),
+    )
+    with pytest.raises(ValueError, match="branch lengths must be positive"):
+        _build(df_pl)
+    res = _build(df_pl, episode_mask="keep")
+    assert res["branch_length"].to_list() == [1.0, 4.0, 5.0]
+
+
+def test_masked_out_null_calibration_value_ok():
+    # leaf-only calibration bins, null at inner node 1
+    df_pl = _make_tree().with_columns(
+        b=pl.Series([None, None, 3, 4, 5]),
+        is_leaf=pl.Series([False, False, True, True, True]),
+    )
+    with pytest.raises(NotImplementedError, match="calibration column"):
+        _build(df_pl, calibration_compare_by_bins="b")
+    res = _build(
+        df_pl, calibration_compare_by_bins="b", episode_mask="is_leaf"
+    )
+    assert res["calibration_bin"].to_list() == [3, 4, 5]
+
+
+def test_episode_mask_null_at_root_ignored():
+    df_pl = _make_tree().with_columns(
+        keep=pl.Series([None, True, True, True, True], dtype=pl.Boolean),
+    )
+    assert _build(df_pl, episode_mask="keep").equals(_build(df_pl))
+
+
+def test_episode_mask_keeps_whole_tree_columns():
+    # clade sizes and survival durations still count masked-out nodes
+    df_pl = _make_tree().with_columns(
+        keep=pl.Series([True, True, False, True, True]),
+    )
+    expected = _build(df_pl).filter(pl.Series([True, False, True, True]))
+    assert _build(df_pl, episode_mask="keep").equals(expected)

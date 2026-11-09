@@ -33,13 +33,16 @@ from .._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-def _tgs_build_exposure_df(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
+def _tgs_build_exposure_df(
+    phylogeny_df: pl.DataFrame, *, episode_mask: np.ndarray
+) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
 
     Returns the exposure table of `phylogeny_df`, a phylogeny with
     contiguous, topologically sorted ids and no unifurcations, with one row
-    per branch, i.e., per non-root node; see Input Schema and Output
+    per branch, i.e., per non-root node, where per-node boolean
+    `episode_mask` is true; see Input Schema and Output
     Schema.
 
     Raises ValueError if a non-root node's branch has zero, negative, or
@@ -78,14 +81,16 @@ def _tgs_build_exposure_df(phylogeny_df: pl.DataFrame) -> pl.DataFrame:
         ancestor_ids, origin_time
     )
     # a root has no parent, so no branch over which to gain a trait
-    keep = ancestor_ids != np.arange(len(ancestor_ids))
+    keep = (ancestor_ids != np.arange(len(ancestor_ids))) & episode_mask
     (bad_ids,) = np.nonzero(keep & ~(branch_length > 0))  # nan is bad
     if len(bad_ids):
         raise ValueError(
-            "branch lengths must be positive, but non-root nodes (e.g., ids "
-            f"{bad_ids[:5].tolist()}) have zero, negative, or undefined (nan) "
-            "branch length; a parent with unknown (nan) origin_time, such "
-            "as a root, leaves its children's branch lengths undefined",
+            "branch lengths must be positive, but exposure episodes ending "
+            f"at nodes (e.g., ids {bad_ids[:5].tolist()}) have zero, "
+            "negative, or undefined (nan) branch length; a parent with "
+            "unknown (nan) origin_time, such as a root, leaves its children's "
+            "branch lengths undefined; exclude such episodes with "
+            "episode_mask",
         )
     latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids, origin_time
@@ -307,20 +312,25 @@ def _tgs_validate_calibration_cols(
         )
 
 
-def _tgs_apply_episode_mask(
-    exposure_df: pl.DataFrame, *, mask: pl.Series
-) -> pl.DataFrame:
+def _tgs_calc_episode_mask(
+    nodes_df: pl.DataFrame, *, episode_mask: typing.Optional[str]
+) -> np.ndarray:
     """Implementation detail for `tgs_build_exposure_df_polars`.
 
-    Returns the rows of `exposure_df` where boolean `mask`, the episode mask
-    column at each episode's end node, is true.
+    Returns, per node, whether to fit the exposure episode ending there: the
+    boolean `episode_mask` column, if given, else all true. Values at roots,
+    which end no episode, are ignored.
     """
-    if mask.dtype != pl.Boolean or mask.has_nulls():
+    if episode_mask is None:
+        return np.ones(len(nodes_df), dtype=bool)
+    mask = nodes_df[episode_mask]
+    is_root = nodes_df["id"] == nodes_df["ancestor_id"]
+    if mask.dtype != pl.Boolean or mask.filter(~is_root).has_nulls():
         raise NotImplementedError(
-            f"episode mask column {mask.name} must be boolean, without null "
-            "values",
+            f"episode mask column {episode_mask} must be boolean, without "
+            "null values",
         )
-    return exposure_df.filter(mask)
+    return mask.fill_null(False).to_numpy()
 
 
 def tgs_build_exposure_df_polars(
@@ -339,7 +349,8 @@ def tgs_build_exposure_df_polars(
     Sums each trait's transitions into node states (see
     `_tgs_calc_trait_states`) and returns the phylogeny's exposure table, one row per exposure episode candidate,
     i.e., per non-root node's branch, kept if `episode_mask`, if given, is
-    true at its end node; see Output Schema. `caller` names the calling
+    true at its end node; see Output Schema. Branch lengths and calibration
+    columns are checked only for kept episodes. `caller` names the calling
     function in error messages.
 
     Raises ValueError if `phylogeny_df` is empty, and NotImplementedError
@@ -425,15 +436,19 @@ def tgs_build_exposure_df_polars(
     gc.collect()
     log_memory_usage(logging.info)
 
-    exposure_df = _tgs_build_exposure_df(nodes_df)
-    # without roots, rows match exposure_df's; its own columns take
+    # masked-out episodes are dropped before their values are checked
+    is_episode_kept = _tgs_calc_episode_mask(
+        nodes_df, episode_mask=episode_mask
+    )
+    exposure_df = _tgs_build_exposure_df(
+        nodes_df, episode_mask=is_episode_kept
+    )
+    # kept rows, without roots, match exposure_df's; its own columns take
     # precedence
-    node_df = nodes_df.filter(pl.col("ancestor_id") != pl.col("id")).select(
-        cs.by_name(
-            *calibration_cols.values(),
-            *([episode_mask] if episode_mask is not None else []),
-            require_all=False,
-        )
+    node_df = nodes_df.filter(
+        (pl.col("ancestor_id") != pl.col("id")) & pl.Series(is_episode_kept)
+    ).select(
+        cs.by_name(*calibration_cols.values(), require_all=False)
         - cs.by_name(exposure_df.columns, require_all=False),
     )
     del nodes_df
@@ -453,10 +468,6 @@ def tgs_build_exposure_df_polars(
             pl.col(col).alias(name) for name, col in calibration_cols.items()
         ),
     )
-    if episode_mask is not None:
-        exposure_df = _tgs_apply_episode_mask(
-            exposure_df, mask=source_df[episode_mask]
-        )
     del source_df
     gc.collect()
     log_memory_usage(logging.info)

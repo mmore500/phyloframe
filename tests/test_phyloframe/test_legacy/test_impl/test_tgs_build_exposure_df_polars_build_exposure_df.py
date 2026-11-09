@@ -19,6 +19,7 @@ def _exposure_df(*, ancestor_ids, origin_time, trait_states):
                 },
             },
         ),
+        episode_mask=np.ones(len(ancestor_ids), dtype=bool),
     )
 
 

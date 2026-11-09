@@ -126,6 +126,7 @@ def test_no_episodes_raises():
                 **{f"trait{i}_state": [0] for i in range(4)},
             },
         ),
+        episode_mask=np.ones(1, dtype=bool),
     )
     with pytest.raises(ValueError, match="no exposure episodes"):
         _impl(exposure_df)
