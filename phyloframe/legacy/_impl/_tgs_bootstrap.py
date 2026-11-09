@@ -96,8 +96,7 @@ def _tgs_summarize_bootstrap(
     )
     _warn_excluded_replicates(
         is_selection_degenerate,
-        reason="no carriers of the trait, or no neutral trait gains to "
-        "calibrate one of its calibration neighborhoods",
+        reason="no carriers of the trait",
         **warn_kwargs,
     )
     _warn_excluded_replicates(
