@@ -7,6 +7,7 @@ _KWARGS = dict(
     calibrate_neighborhood_fractions=(0.1, 1.0),
     calibrate_max_rate_ratio=np.inf,
     length_rtol=1e-3,
+    growth_exponent_bound=600.0,
     calibration_compare_by_vals=("branch_length", "origin_time"),
 )
 
@@ -106,4 +107,14 @@ def test_duplicate_trait_transitions_raise():
             trait_transition_cols=["a", "b", "a"],
             neutral_traits=["a", "b"],
             **_KWARGS,
+        )
+
+
+@pytest.mark.parametrize("growth_exponent_bound", [710.0, np.inf])
+def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
+    with pytest.raises(ValueError, match="growth_exponent_bound"):
+        tgs_validate_args(
+            trait_transition_cols=["a", "b"],
+            neutral_traits=["a", "b"],
+            **{**_KWARGS, "growth_exponent_bound": growth_exponent_bound},
         )

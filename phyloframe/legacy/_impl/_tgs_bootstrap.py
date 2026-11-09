@@ -14,7 +14,7 @@ from ..._auxlib._run_weighted_bootstrap import run_weighted_bootstrap
 from ._tgs_fit_traits import tgs_fit_traits
 
 
-def _warn_excluded_replicates(
+def _tgs_warn_excluded_replicates(
     is_excluded: np.ndarray,
     *,
     trait_ids: np.ndarray,
@@ -94,12 +94,12 @@ def _tgs_summarize_bootstrap(
         trait_names=point_estimate_df["trait"],
         num_replicates=bootstrap_fits_df["replicate"].n_unique(),
     )
-    _warn_excluded_replicates(
+    _tgs_warn_excluded_replicates(
         is_selection_degenerate,
         reason="no carriers of the trait",
         **warn_kwargs,
     )
-    _warn_excluded_replicates(
+    _tgs_warn_excluded_replicates(
         is_gain_ratio_degenerate & ~is_selection_degenerate,
         reason="no carriers of the trait's neutral reference",
         **warn_kwargs,

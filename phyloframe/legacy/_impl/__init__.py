@@ -16,10 +16,7 @@ from ._tgs_minimize_nll import tgs_minimize_nll
 from ._tgs_select_partitioned_calibration_neighborhoods import (
     tgs_select_partitioned_calibration_neighborhoods,
 )
-from ._tgs_select_trait_episodes import (
-    tgs_count_exposure_traits,
-    tgs_select_trait_episodes,
-)
+from ._tgs_select_trait_episodes import tgs_select_trait_episodes
 from ._tgs_tally_exposure_episodes import tgs_tally_exposure_episodes
 from ._tgs_validate_args import tgs_validate_args
 
@@ -37,7 +34,6 @@ __all__ = [
     "tgs_fit_traits",
     "tgs_estimate_tgs_from_exposures",
     "tgs_minimize_nll",
-    "tgs_count_exposure_traits",
     "tgs_select_trait_episodes",
     "tgs_validate_args",
 ]

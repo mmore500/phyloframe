@@ -15,6 +15,7 @@ from .._auxlib._calc_geometric_bins import calc_geometric_bins
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._reject_single_string import reject_single_string
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -177,11 +178,7 @@ def alifestd_mark_clade_size_classes_polars(
         raise ValueError(
             f"min_num_classes must be at least 1, got {min_num_classes}",
         )
-    if isinstance(weight_by, str):
-        raise TypeError(
-            "weight_by must be a sequence of column names, not a single "
-            f"string; did you mean [{weight_by!r}]?",
-        )
+    reject_single_string(weight_by, name="weight_by")
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
@@ -326,6 +323,7 @@ if __name__ == "__main__":
             )
     except NotImplementedError as e:
         logging.error(
-            "- polars op not yet implemented, use pandas op instead",
+            "- unsupported input, with no pandas op to fall back on; "
+            "see the error for which input to convert",
         )
         raise e

@@ -32,6 +32,7 @@ def make_tgs_fit_kwargs(
     return {
         **dict(
             exposure_df=exposure_df,
+            num_traits=num_traits,
             bins=bins,
             num_bins=num_bins,
             calibration_neighborhoods=sparse.identity(num_bins, format="csr"),

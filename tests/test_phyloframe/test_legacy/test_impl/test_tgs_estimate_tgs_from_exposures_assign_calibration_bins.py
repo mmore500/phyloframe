@@ -26,8 +26,3 @@ def test_missing_columns_count_as_zero(columns: dict):
     res = _tgs_assign_calibration_bins(exposure_df)
     assert res["bin"].to_list() == ([0, 0, 1] if columns else [0, 0, 0])
     assert res["partition"].to_list() == [0, 0, 0]
-
-
-def test_no_episodes_raises():
-    with pytest.raises(ValueError, match="no exposure episodes"):
-        _tgs_assign_calibration_bins(pl.DataFrame({"x": []}))

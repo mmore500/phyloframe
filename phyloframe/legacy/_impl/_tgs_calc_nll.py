@@ -51,9 +51,8 @@ def tgs_calc_nll(
     gain_rate: float,
     growth_rate: float,
     coarsened_df: pl.DataFrame,
-    growth_exponent_bound: float,
-    survival_shares: typing.Optional[sparse.csr_matrix],
-    distinct_survival_durations: typing.Optional[np.ndarray],
+    survival_shares: sparse.csr_matrix,
+    distinct_survival_durations: np.ndarray,
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
@@ -67,11 +66,11 @@ def tgs_calc_nll(
         gain_rate * (exp(r * t) - 1) / r * exp(r * u)
 
     where `u` is its survival duration, the time until its clade's last leaf
-    is sampled. Each partition averages exp(r * u) exactly over its
-    branches, whose shares over `distinct_survival_durations` are rows of
-    `survival_shares`. Without `survival_shares`, `u` is 0, as for leaf
-    pendant branches. Requires r * (t + u) <= `growth_exponent_bound`, so
-    exponentials stay finite; `tgs_minimize_nll` bounds r accordingly.
+    is sampled, e.g., 0 for a leaf's pendant branch. Each coarsened row
+    averages exp(r * u) exactly over its branches, whose shares over
+    `distinct_survival_durations` are rows of `survival_shares`. Requires
+    r * (t + u) to stay well below float64 overflow, as `tgs_minimize_nll`
+    ensures.
 
     Input Schema
     ------------
@@ -84,23 +83,18 @@ def tgs_calc_nll(
     'length' : float
         Their mean branch length.
     """
-    if not growth_exponent_bound < np.log(np.finfo(np.float64).max):
-        raise ValueError("growth exponent bound overflows float64")
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
         length=coarsened_df["length"].to_numpy(),
         growth_rate=growth_rate,
     )
 
-    if survival_shares is None:
-        survival, survival_deriv = 1.0, 0.0
-    else:
-        # chance a carrier lineage persists until its clade's last leaf is
-        # sampled, averaged over each coarsened row's branches
-        survival_factors = np.exp(growth_rate * distinct_survival_durations)
-        survival = survival_shares @ survival_factors
-        survival_deriv = survival_shares @ (
-            distinct_survival_durations * survival_factors
-        )
+    # chance a carrier lineage persists until its clade's last leaf is
+    # sampled, averaged over each coarsened row's branches
+    survival_factors = np.exp(growth_rate * distinct_survival_durations)
+    survival = survival_shares @ survival_factors
+    survival_deriv = survival_shares @ (
+        distinct_survival_durations * survival_factors
+    )
 
     p = gain_rate * effective_length * survival
     nll, dnll_dp = calc_binomial_nll_proxy(

@@ -17,6 +17,7 @@ from .._auxlib._ceil_div import ceil_div
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._reject_single_string import reject_single_string
 
 
 def _alifestd_mark_joint_quantile_bins_fast_path(
@@ -126,11 +127,7 @@ def alifestd_mark_joint_quantile_bins_polars(
     alifestd_mark_clade_size_classes_polars :
         Marks clade size classes, e.g., as partitions.
     """
-    if isinstance(bin_by, str):
-        raise TypeError(
-            "bin_by must be a sequence of column names, not a single "
-            f"string; did you mean [{bin_by!r}]?",
-        )
+    reject_single_string(bin_by, name="bin_by")
     if not len(bin_by):
         raise ValueError("bin_by must be nonempty")
     if int(max_num_bins).bit_count() != 1 or max_num_bins < 1:

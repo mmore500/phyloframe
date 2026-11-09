@@ -1,21 +1,6 @@
 import polars as pl
 
 
-def tgs_count_exposure_traits(exposure_df: pl.DataFrame) -> int:
-    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
-    stands for trait gain/selection.
-
-    Returns the number of traits in `exposure_df` (see
-    `_tgs_build_exposure_df`).
-    """
-    return (
-        pl.Series(exposure_df.columns, dtype=pl.String)
-        .str.extract(r"^trait(\d+)_")
-        .drop_nulls()
-        .n_unique()
-    )
-
-
 def tgs_select_trait_episodes(
     exposure_df: pl.DataFrame, *, trait_id: int, weights: pl.Series
 ) -> pl.DataFrame:
