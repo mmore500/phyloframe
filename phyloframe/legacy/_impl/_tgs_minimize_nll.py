@@ -95,7 +95,6 @@ def tgs_minimize_nll(
             x0=[log_gain_start, selection_start],
             jac=True,  # objective function returns its own gradient
             method="L-BFGS-B",  # gradient-based, for differentiable functions
-            # a parameter not fit is pinned at its start, by equal bounds
             bounds=[
                 (
                     (None, None)
