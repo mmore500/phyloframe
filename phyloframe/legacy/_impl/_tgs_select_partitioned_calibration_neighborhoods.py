@@ -1,5 +1,6 @@
 import gc
 import logging
+import math
 import typing
 import warnings
 
@@ -11,7 +12,6 @@ from scipy import sparse
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
-from ..._auxlib._calc_tolerant_ceil import calc_tolerant_ceil
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
@@ -102,8 +102,10 @@ def _tgs_select_calibration_neighborhoods(
         # `neighborhood_fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
             bin_coords,
-            num_neighbors=int(
-                calc_tolerant_ceil(neighborhood_fraction * len(bin_coords))
+            # shrink slightly before rounding up, so floating point error
+            # does not add a neighbor, e.g., 0.07 * 100 gives 7, not 8
+            num_neighbors=math.ceil(
+                neighborhood_fraction * len(bin_coords) * (1 - 1e-12)
             ),
         )
         # holding out each neutral trait in turn

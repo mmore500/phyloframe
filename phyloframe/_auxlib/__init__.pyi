@@ -12,7 +12,6 @@ from ._calc_group_means import calc_group_means
 from ._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._calc_tiebroken_ranks import calc_tiebroken_ranks
-from ._calc_tolerant_ceil import calc_tolerant_ceil
 from ._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ._ceil_div import ceil_div
 from ._coerce_to_pandas import coerce_to_pandas
@@ -74,7 +73,6 @@ __all__ = [
     "calc_group_means",
     "ceil_div",
     "calc_tiebroken_ranks",
-    "calc_tolerant_ceil",
     "run_weighted_bootstrap",
     "calc_geometric_bins",
     "assign_kdtree_partitions",
