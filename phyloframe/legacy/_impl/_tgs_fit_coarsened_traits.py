@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 import polars as pl
 
+from ..._auxlib._clamp import clamp
 from ._tgs_fit_trait import tgs_fit_trait
 from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 
@@ -26,7 +27,7 @@ def _tgs_calc_lrt(*, free_nll: float, **null_kwargs) -> float:
             "or found a worse free fit than null fit; likelihood-ratio "
             "statistic may be unreliable.",
         )
-    return max(2 * (null.fun - free_nll), 0.0)
+    return clamp(2 * (null.fun - free_nll), lo=0.0)
 
 
 def tgs_fit_coarsened_traits(
