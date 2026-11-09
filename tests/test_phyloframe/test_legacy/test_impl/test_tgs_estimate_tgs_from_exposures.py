@@ -8,6 +8,7 @@ from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import (
     tgs_build_estimates_df,
     tgs_estimate_tgs_from_exposures,
+    tgs_fit_traits,
     tgs_tally_exposure_episodes,
 )
 from phyloframe.legacy._impl._tgs_build_exposure_df_polars import (
@@ -24,8 +25,6 @@ def _fit(exposure_df: pl.DataFrame, **kwargs) -> dict:
         exposure_df,
         **{
             **dict(
-                calibration_neighborhoods=None,
-                weights=None,
                 trait_names=_TRAIT_NAMES,
                 neutral_traits=[1, 2, 3],
                 calibrate_neighborhood_fractions=(0.25, 1.0),
@@ -80,32 +79,18 @@ def test_calibrated():
     assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.3)
 
 
-def test_reused_neighborhoods_with_equal_weights_match():
-    # as for a bootstrap replicate drawing every episode once
+def test_fit_kwargs_refit_matches():
+    # as for a bootstrap replicate drawing every episode once, with bins and
+    # calibration neighborhoods from the point estimate
     exposure_df = _binned_exposure_df()
     point = _fit(exposure_df)
-    replicate = _fit(
-        exposure_df,
-        calibration_neighborhoods=point["calibration_neighborhoods"],
+    refit = tgs_fit_traits(
         weights=np.ones(len(exposure_df)),
+        progress_wrap=identity,
+        trait_bin_counts_df=None,
+        **point["fit_kwargs"],
     )
-    assert (
-        replicate["calibration_neighborhoods"]
-        is point["calibration_neighborhoods"]
-    )
-    pltest.assert_frame_equal(replicate["fits_df"], point["fits_df"])
-
-
-@pytest.mark.parametrize("given", ["calibration_neighborhoods", "weights"])
-def test_partial_reuse_raises(given: str):
-    exposure_df = _binned_exposure_df()
-    point = _fit(exposure_df)
-    reused = dict(
-        calibration_neighborhoods=point["calibration_neighborhoods"],
-        weights=np.ones(len(exposure_df)),
-    )
-    with pytest.raises(AssertionError):
-        _fit(exposure_df, **{given: reused[given]})
+    pltest.assert_frame_equal(refit, point["fits_df"])
 
 
 def test_one_neighborhood_per_partition_ignores_bins():

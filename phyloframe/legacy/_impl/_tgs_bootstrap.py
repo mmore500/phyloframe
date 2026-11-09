@@ -11,6 +11,7 @@ from ..._auxlib._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ..._auxlib._identity import identity
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ..._auxlib._run_weighted_bootstrap import run_weighted_bootstrap
+from ._tgs_fit_traits import tgs_fit_traits
 
 
 def _warn_excluded_replicates(
@@ -48,9 +49,8 @@ def _tgs_summarize_bootstrap(
     point_estimate_df: pl.DataFrame,
     bootstrap_fits_df: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Implementation detail for
-    `alifestd_tgs_estimate_bootstrap_polars`.
-    Acronym tgs stands for trait gain/selection.
+    """Implementation detail for `tgs_bootstrap`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns bootstrap standard errors, z-scores, and p-values, one row per
     trait, given point estimates and replicate fits (see
@@ -167,8 +167,8 @@ def _tgs_bootstrap_trait_fits(
     parallel_backend: typing.Optional[str],
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
-    stands for trait gain/selection.
+    """Implementation detail for `tgs_bootstrap`. Acronym tgs stands for trait
+    gain/selection.
 
     Returns per-trait fits to bootstrap resamples of `num_items` exposure
     episodes, from `do_fit` (e.g., a `functools.partial` of
@@ -203,22 +203,6 @@ def _tgs_bootstrap_trait_fits(
     )
 
 
-def _tgs_fit_replicate(
-    estimate_impl: typing.Callable[..., typing.Dict[str, typing.Any]],
-    *,
-    weights: typing.Any,
-    **estimate_kwargs: typing.Any,
-) -> pl.DataFrame:
-    """Implementation detail for `tgs_bootstrap`. Acronym tgs stands for trait
-    gain/selection.
-
-    Returns one bootstrap replicate's per-trait fits, from `estimate_impl`
-    with the replicate's episode `weights`. Module level, so picklable for
-    process-based backends.
-    """
-    return estimate_impl(None, weights=weights, **estimate_kwargs)["fits_df"]
-
-
 def tgs_bootstrap(
     estimate_impl: typing.Callable[..., typing.Dict[str, typing.Any]],
     phylogeny_df: pl.DataFrame,
@@ -241,11 +225,11 @@ def tgs_bootstrap(
     `_tgs_bootstrap_trait_fits`. `progress_wrap` wraps the point estimate's
     traits, then the replicates.
 
-    `estimate_impl` takes `phylogeny_df` positionally; `exposure_df`,
-    `calibration_neighborhoods`, and `weights`, all None for a point
-    estimate, else all given; `progress_wrap`; and `estimate_kwargs`. It
-    returns a dict of `estimates_df`, `fits_df`, `exposure_df`, and
-    `calibration_neighborhoods`.
+    `estimate_impl` takes `phylogeny_df` positionally, `progress_wrap`,
+    and `estimate_kwargs`, and returns a dict of `estimates_df`, and
+    `fits_df` and `fit_kwargs` (see `tgs_estimate_tgs_from_exposures`).
+    Replicates refit with `tgs_fit_traits` and `fit_kwargs`, so bins,
+    calibration neighborhoods, and survival durations are computed once.
 
     Returns the point estimate's `estimates_df` with bootstrap standard
     errors, z-scores, and p-values appended; see `_tgs_summarize_bootstrap`.
@@ -255,24 +239,17 @@ def tgs_bootstrap(
             f"num_bootstrap must be positive, got {num_bootstrap}",
         )
     point = estimate_impl(
-        phylogeny_df,
-        exposure_df=None,
-        calibration_neighborhoods=None,
-        weights=None,
-        progress_wrap=progress_wrap,
-        **estimate_kwargs,
+        phylogeny_df, progress_wrap=progress_wrap, **estimate_kwargs
     )
     logging.info(f"- tgs: fitting {num_bootstrap} bootstrap replicates...")
     bootstrap_fits_df = _tgs_bootstrap_trait_fits(
         do_fit=functools.partial(
-            _tgs_fit_replicate,
-            estimate_impl,
-            exposure_df=point["exposure_df"],  # reused, not rebuilt
-            calibration_neighborhoods=point["calibration_neighborhoods"],
+            tgs_fit_traits,
             progress_wrap=identity,  # progress is over replicates
-            **estimate_kwargs,
+            trait_bin_counts_df=None,  # counted with each replicate's weights
+            **point["fit_kwargs"],
         ),
-        num_items=len(point["exposure_df"]),
+        num_items=len(point["fit_kwargs"]["exposure_df"]),
         num_bootstrap=num_bootstrap,
         seed=seed,
         parallel_backend=parallel_backend,

@@ -6,7 +6,6 @@ import numpy as np
 import opytional as opyt
 import polars as pl
 from scipy import sparse
-import scipy.sparse as scipy_sparse
 
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
@@ -42,7 +41,7 @@ def _tgs_coarsen_episodes(
     length_rtol: float,
     survival_duration_indices: np.ndarray,
     num_survival_durations: int,
-) -> typing.Tuple[pl.DataFrame, scipy_sparse.csr_matrix]:
+) -> typing.Tuple[pl.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
 
@@ -121,9 +120,9 @@ def _tgs_coarsen_episodes(
     # `tgs_calc_nll`'s shares @ exp(rate * distinct durations) is the row's
     # mean survival factor, exp(rate * u), not a sum growing with its
     # episode count
-    survival_shares = scipy_sparse.diags(
+    survival_shares = sparse.diags(
         1 / row_sums_df["num_trials"].to_numpy()
-    ) @ scipy_sparse.csr_matrix(
+    ) @ sparse.csr_matrix(
         (
             episode_weights,
             (

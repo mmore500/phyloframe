@@ -8,7 +8,6 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
-from scipy import sparse
 from tqdm import tqdm
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
@@ -343,9 +342,6 @@ def alifestd_tgs_estimate_polars(
     """
     return _alifestd_tgs_estimate_polars_impl(
         phylogeny_df,
-        exposure_df=None,
-        calibration_neighborhoods=None,
-        weights=None,
         progress_wrap=progress_wrap,
         trait_transitions=trait_transitions,
         neutral_traits=neutral_traits,
@@ -363,11 +359,8 @@ def alifestd_tgs_estimate_polars(
 
 
 def _alifestd_tgs_estimate_polars_impl(
-    phylogeny_df: typing.Optional[pl.DataFrame],
+    phylogeny_df: pl.DataFrame,
     *,
-    exposure_df: typing.Optional[pl.DataFrame],
-    calibration_neighborhoods: typing.Optional[sparse.spmatrix],
-    weights: typing.Optional[np.ndarray],
     progress_wrap: typing.Callable,
     trait_transitions: typing.Sequence[str],
     neutral_traits: typing.Sequence[str],
@@ -385,26 +378,11 @@ def _alifestd_tgs_estimate_polars_impl(
     """Implementation detail for `alifestd_tgs_estimate_polars` and
     `alifestd_tgs_estimate_bootstrap_polars`.
 
-    For a point estimate, pass `phylogeny_df`, with `exposure_df`,
-    `calibration_neighborhoods`, and `weights` None. For a bootstrap
-    replicate, pass `phylogeny_df` None, with a point estimate's
-    `exposure_df` and `calibration_neighborhoods`, and the replicate's
-    episode `weights`. Returns a dict of `estimates_df` (see Output Schema
-    of `alifestd_tgs_estimate_polars`), `fits_df` (see
-    `tgs_estimate_tgs_from_exposures`), `exposure_df`, and
-    `calibration_neighborhoods`.
+    Returns a dict of `estimates_df` (see Output Schema of
+    `alifestd_tgs_estimate_polars`), and `fits_df` and `fit_kwargs` (see
+    `tgs_estimate_tgs_from_exposures`), with which bootstrap replicates
+    refit.
     """
-    # all or none of a point estimate's results, so not partially reused
-    assert (
-        len(
-            {
-                x is None
-                for x in (exposure_df, calibration_neighborhoods, weights)
-            }
-        )
-        == 1
-    )
-    assert (phylogeny_df is None) != (exposure_df is None)
     trait_names, neutral_traits = tgs_validate_args(
         trait_transition_cols=trait_transitions,
         neutral_traits=neutral_traits,
@@ -413,24 +391,21 @@ def _alifestd_tgs_estimate_polars_impl(
         length_rtol=length_rtol,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
-    if exposure_df is None:
-        exposure_df = tgs_build_exposure_df_polars(
-            phylogeny_df,
-            trait_transition_cols=trait_transitions,
-            caller="alifestd_tgs_estimate_polars",
-            calibration_partition_by=calibration_partition_by,
-            calibration_compare_by_bins=calibration_compare_by_bins,
-            calibration_compare_by_vals=calibration_compare_by_vals,
-            episode_mask=episode_mask,
-        )
-        logging.info(
-            f"- tgs: fitting {len(trait_names)} traits to "
-            f"{len(exposure_df)} exposure episodes...",
-        )
+    exposure_df = tgs_build_exposure_df_polars(
+        phylogeny_df,
+        trait_transition_cols=trait_transitions,
+        caller="alifestd_tgs_estimate_polars",
+        calibration_partition_by=calibration_partition_by,
+        calibration_compare_by_bins=calibration_compare_by_bins,
+        calibration_compare_by_vals=calibration_compare_by_vals,
+        episode_mask=episode_mask,
+    )
+    logging.info(
+        f"- tgs: fitting {len(trait_names)} traits to "
+        f"{len(exposure_df)} exposure episodes...",
+    )
     fit = tgs_estimate_tgs_from_exposures(
         exposure_df,
-        calibration_neighborhoods=calibration_neighborhoods,
-        weights=weights,
         trait_names=trait_names,
         neutral_traits=neutral_traits,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
@@ -448,9 +423,7 @@ def _alifestd_tgs_estimate_polars_impl(
             ),
             fits_df=fit["fits_df"],
         ),
-        fits_df=fit["fits_df"],
-        exposure_df=exposure_df,
-        calibration_neighborhoods=fit["calibration_neighborhoods"],
+        **fit,
     )
 
 
