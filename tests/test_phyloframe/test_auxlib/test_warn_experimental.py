@@ -2,6 +2,7 @@ import warnings
 
 import pytest
 
+import phyloframe
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
 from phyloframe._auxlib._warn_experimental import warn_experimental
 
@@ -41,7 +42,4 @@ def test_silenced_by_filter():
 
 
 def test_experimental_warning_public():
-    import phyloframe
-    from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
-
     assert phyloframe.ExperimentalWarning is ExperimentalWarning

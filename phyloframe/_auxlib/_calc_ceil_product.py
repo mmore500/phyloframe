@@ -18,6 +18,8 @@ def calc_ceil_product(fraction: float, count: int) -> int:
         The ceiling of the product, rounded down where the product is within
         floating point error of the integer below.
     """
+    assert fraction >= 0
+    assert count >= 0
     product = fraction * count
     ceil = int(np.ceil(product))
     return ceil - int(np.isclose(ceil - 1, product, rtol=1e-12, atol=0))

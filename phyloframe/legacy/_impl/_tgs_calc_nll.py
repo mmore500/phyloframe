@@ -17,7 +17,8 @@ def _tgs_calc_effective_length(
     r = `growth_rate`, and its derivative with respect to r, with r * t
     capped at `growth_exponent_bound`, past which the derivative is 0.
     """
-    cx = np.minimum(growth_rate * length, growth_exponent_bound)
+    x = growth_rate * length
+    cx = np.minimum(x, growth_exponent_bound)
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = length * special.exprel(cx)
 
@@ -44,9 +45,7 @@ def _tgs_calc_effective_length(
     )
     deriv = np.where(is_near_zero_rate, series_deriv, exact_deriv)
     # past the cap, effective length no longer depends on the rate
-    return effective_length, np.where(
-        growth_rate * length > growth_exponent_bound, 0.0, deriv
-    )
+    return effective_length, np.where(x > growth_exponent_bound, 0.0, deriv)
 
 
 def tgs_calc_nll(

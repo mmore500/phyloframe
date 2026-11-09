@@ -14,15 +14,15 @@ def _tgs_clamp_lrt(statistic: float, *, free_nll: float) -> float:
     `_tgs_calc_trait_selection_lrt`. Acronym tgs stands for trait
     gain/selection.
 
-    Returns likelihood-ratio `statistic`, clamped at 0, warning if it is
-    meaningfully negative, as then the free fit, with negative log
-    likelihood `free_nll`, missed its optimum.
+    Returns likelihood-ratio `statistic` clamped at 0, warning if it is
+    negative beyond rounding error relative to the free fit's negative log
+    likelihood `free_nll`, as then the free fit missed its optimum.
     """
     if statistic < -1e-6 * max(1.0, abs(free_nll)):
         warnings.warn(
-            "a likelihood-ratio statistic is negative, as the constrained "
-            "fit beat the free fit, which so missed its optimum; clamping "
-            "to 0, but estimates may be unreliable.",
+            "tgs fit optimizer found a worse free fit than constrained fit; "
+            "clamping likelihood-ratio statistic to 0, but it may be "
+            "unreliable.",
         )
     return max(float(statistic), 0.0)
 

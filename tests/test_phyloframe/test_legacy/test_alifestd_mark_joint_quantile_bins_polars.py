@@ -3,6 +3,9 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
+from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
+    _alifestd_mark_joint_quantile_bins_fast_path,
+)
 
 
 def _make_df(num_rows: int = 400, seed: int = 1) -> pl.DataFrame:
@@ -152,10 +155,6 @@ def test_expressions():
 
 @pytest.mark.parametrize("num_rows", [5, 9])
 def test_num_bins_counts_bins_produced(num_rows: int):
-    from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
-        _alifestd_mark_joint_quantile_bins_fast_path,
-    )
-
     rng = np.random.default_rng(num_rows)
     bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
         [rng.random(num_rows), rng.random(num_rows)],

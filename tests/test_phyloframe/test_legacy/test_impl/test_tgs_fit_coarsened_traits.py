@@ -9,6 +9,7 @@ from phyloframe.legacy._impl import (
 )
 from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_trait_selection_lrt,
+    _tgs_clamp_lrt,
 )
 from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
 from phyloframe.legacy._impl._tgs_minimize_nll import (
@@ -157,11 +158,7 @@ def test_fit_coarsened_traits(fixture):
 
 
 def test_negative_lrt_clamped_with_warning():
-    from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
-        _tgs_clamp_lrt,
-    )
-
     assert _tgs_clamp_lrt(3.0, free_nll=100.0) == 3.0
     assert _tgs_clamp_lrt(-1e-9, free_nll=100.0) == 0.0  # rounding, quiet
-    with pytest.warns(UserWarning, match="negative"):
+    with pytest.warns(UserWarning, match="clamping"):
         assert _tgs_clamp_lrt(-1.0, free_nll=100.0) == 0.0
