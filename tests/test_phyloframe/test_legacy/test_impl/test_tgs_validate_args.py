@@ -84,23 +84,6 @@ def test_invalid(kwargs: dict):
         )
 
 
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        dict(trait_transition_cols="a", neutral_traits=()),
-        dict(trait_transition_cols=["a", "b"], neutral_traits="a"),
-        dict(
-            trait_transition_cols=["a", "b", "c"],
-            neutral_traits=["b", "c"],
-            calibration_compare_by_vals="origin_time",
-        ),
-    ],
-)
-def test_bare_string_raises(kwargs: dict):
-    with pytest.raises(TypeError, match="single string"):
-        tgs_validate_args(**{**_KWARGS, **kwargs})
-
-
 def test_duplicate_trait_transitions_raise():
     with pytest.raises(ValueError, match="duplicate"):
         tgs_validate_args(

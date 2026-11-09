@@ -2,8 +2,6 @@ import typing
 
 import numpy as np
 
-from ..._auxlib._reject_single_string import reject_single_string
-
 
 def tgs_validate_args(
     *,
@@ -23,12 +21,6 @@ def tgs_validate_args(
     `neutral_traits`, given as names among them, as sorted, distinct
     indices.
     """
-    for name, value in (
-        ("trait_transitions", trait_transition_cols),
-        ("neutral_traits", neutral_traits),
-        ("calibration_compare_by_vals", calibration_compare_by_vals),
-    ):
-        reject_single_string(value, name=name)
     trait_transition_cols = list(trait_transition_cols)
     for column in trait_transition_cols:
         if not isinstance(column, str):

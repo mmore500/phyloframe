@@ -17,7 +17,6 @@ from .._auxlib._ceil_div import ceil_div
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._reject_single_string import reject_single_string
 
 
 def _alifestd_mark_joint_quantile_bins_fast_path(
@@ -62,7 +61,7 @@ def _alifestd_mark_joint_quantile_bins_fast_path(
 def alifestd_mark_joint_quantile_bins_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    bin_by: typing.Sequence[typing.Union[str, pl.Expr]],
+    bin_by: typing.Union[str, typing.Sequence[typing.Union[str, pl.Expr]]],
     partition_by: typing.Union[str, pl.Expr, None] = None,
     max_num_bins: int = 4096,
     min_bin_occupancy: int = 4,
@@ -92,7 +91,7 @@ def alifestd_mark_joint_quantile_bins_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format (or any
         dataframe).
-    bin_by : Sequence[str or polars.Expr]
+    bin_by : str or Sequence[str or polars.Expr]
         Numeric columns, by name or expression, to bin rows by, e.g., branch
         length and origin time.
     partition_by : str or polars.Expr, optional
@@ -127,7 +126,8 @@ def alifestd_mark_joint_quantile_bins_polars(
     alifestd_mark_clade_size_classes_polars :
         Marks clade size classes, e.g., as partitions.
     """
-    reject_single_string(bin_by, name="bin_by")
+    if isinstance(bin_by, str):
+        bin_by = [bin_by]
     if not len(bin_by):
         raise ValueError("bin_by must be nonempty")
     if int(max_num_bins).bit_count() != 1 or max_num_bins < 1:

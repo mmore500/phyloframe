@@ -48,7 +48,6 @@ from ._log_memory_usage import log_memory_usage
 from ._pairwise import pairwise
 from ._preserve_id_dtypes import preserve_id_dtypes
 from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
-from ._reject_single_string import reject_single_string
 from ._run_seeded_replicates import run_seeded_replicates
 from ._run_weighted_bootstrap import run_weighted_bootstrap
 from ._sample_bootstrap_counts import sample_bootstrap_counts
@@ -77,7 +76,6 @@ __all__ = [
     "clamp",
     "calc_tiebroken_ranks",
     "run_weighted_bootstrap",
-    "reject_single_string",
     "calc_geometric_bins",
     "assign_kdtree_partitions",
     "calc_knn_neighborhoods",

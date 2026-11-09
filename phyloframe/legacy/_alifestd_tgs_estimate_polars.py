@@ -29,12 +29,12 @@ from ._impl import (
 def alifestd_tgs_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str],
+    trait_transitions: typing.Union[str, typing.Sequence[str]],
+    neutral_traits: typing.Union[str, typing.Sequence[str]],
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Sequence[str] = (
+    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
         "branch_length",
         "origin_time",
     ),
@@ -89,11 +89,11 @@ def alifestd_tgs_estimate_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format; see Input
         Schema.
-    trait_transitions : Sequence[str]
+    trait_transitions : str or Sequence[str]
         Names of integer columns, one per trait, giving each node's trait
         state transition on the branch from its parent (see Input Schema).
         Output rows are labeled by these column names.
-    neutral_traits : Sequence[str]
+    neutral_traits : str or Sequence[str]
         Names, among `trait_transitions`, of traits known to be neutral. At
         least two are required for selecting the calibration configuration.
         Used to calibrate branch lengths against one another; their mean gain
@@ -120,7 +120,7 @@ def alifestd_tgs_estimate_polars(
         traits share (e.g., from tree reconstruction). If not given, each
         partition is one bin, so without `calibration_partition_by` too,
         there is no calibration.
-    calibration_compare_by_vals : Sequence[str], default ("branch_length", "origin_time")
+    calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time")
         Columns by which bins are compared: a bin's neighborhood is its
         nearest bins in its partition by mean rank of these columns.
         Exposure episode columns take precedence: `branch_length`;
@@ -370,12 +370,12 @@ def _alifestd_tgs_estimate_polars_impl(
     phylogeny_df: pl.DataFrame,
     *,
     progress_wrap: typing.Callable,
-    trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str],
+    trait_transitions: typing.Union[str, typing.Sequence[str]],
+    neutral_traits: typing.Union[str, typing.Sequence[str]],
     episode_mask: typing.Optional[str],
     calibration_partition_by: typing.Optional[str],
     calibration_compare_by_bins: typing.Optional[str],
-    calibration_compare_by_vals: typing.Sequence[str],
+    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]],
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
     length_rtol: float,
@@ -391,6 +391,12 @@ def _alifestd_tgs_estimate_polars_impl(
     `tgs_estimate_tgs_from_exposures`), with which bootstrap replicates
     refit.
     """
+    if isinstance(trait_transitions, str):
+        trait_transitions = [trait_transitions]
+    if isinstance(neutral_traits, str):
+        neutral_traits = [neutral_traits]
+    if isinstance(calibration_compare_by_vals, str):
+        calibration_compare_by_vals = [calibration_compare_by_vals]
     trait_names, neutral_traits = tgs_validate_args(
         trait_transition_cols=trait_transitions,
         neutral_traits=neutral_traits,

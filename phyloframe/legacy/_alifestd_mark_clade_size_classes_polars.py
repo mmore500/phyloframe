@@ -15,7 +15,6 @@ from .._auxlib._calc_geometric_bins import calc_geometric_bins
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._reject_single_string import reject_single_string
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -88,7 +87,7 @@ def alifestd_mark_clade_size_classes_polars(
     phylogeny_df: pl.DataFrame,
     *,
     size_ratio: float = 2.0,
-    weight_by: typing.Sequence[str] = (),
+    weight_by: typing.Union[str, typing.Sequence[str]] = (),
     min_class_weight: float = 0.0,
     min_num_classes: int = 2,
     mark_as: str = "clade_size_class",
@@ -130,7 +129,7 @@ def alifestd_mark_clade_size_classes_polars(
     size_ratio : float, default 2.0
         Ratio between successive classes' clade size bounds; must exceed 1.
         Larger ratios give fewer, larger classes.
-    weight_by : Sequence[str], default ()
+    weight_by : str or Sequence[str], default ()
         Names of numeric columns summed into each node's weight, e.g.,
         neutral traits' transitions.
     min_class_weight : float, default 0.0
@@ -178,7 +177,8 @@ def alifestd_mark_clade_size_classes_polars(
         raise ValueError(
             f"min_num_classes must be at least 1, got {min_num_classes}",
         )
-    reject_single_string(weight_by, name="weight_by")
+    if isinstance(weight_by, str):
+        weight_by = [weight_by]
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
