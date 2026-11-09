@@ -7,12 +7,12 @@ from ._all_unique import all_unique
 from ._assign_kdtree_partitions import assign_kdtree_partitions
 from ._begin_prod_logging import begin_prod_logging
 from ._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ._calc_ceil_product import calc_ceil_product
 from ._calc_geometric_bins import calc_geometric_bins
 from ._calc_group_means import calc_group_means
 from ._calc_knn_neighborhoods import calc_knn_neighborhoods
 from ._calc_neighborhood_rate_ratios import calc_neighborhood_rate_ratios
 from ._calc_tiebroken_ranks import calc_tiebroken_ranks
+from ._calc_tolerant_ceil import calc_tolerant_ceil
 from ._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ._ceil_div import ceil_div
 from ._coerce_to_pandas import coerce_to_pandas
@@ -71,10 +71,10 @@ __all__ = [
     "all_unique",
     "begin_prod_logging",
     "calc_binomial_nll_proxy",
-    "calc_ceil_product",
     "calc_group_means",
     "ceil_div",
     "calc_tiebroken_ranks",
+    "calc_tolerant_ceil",
     "run_weighted_bootstrap",
     "calc_geometric_bins",
     "assign_kdtree_partitions",

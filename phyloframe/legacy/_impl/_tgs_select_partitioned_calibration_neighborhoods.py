@@ -9,9 +9,9 @@ import polars.selectors as cs
 from scipy import sparse
 
 from ..._auxlib._calc_binomial_nll_proxy import calc_binomial_nll_proxy
-from ..._auxlib._calc_ceil_product import calc_ceil_product
 from ..._auxlib._calc_group_means import calc_group_means
 from ..._auxlib._calc_knn_neighborhoods import calc_knn_neighborhoods
+from ..._auxlib._calc_tolerant_ceil import calc_tolerant_ceil
 from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
@@ -102,8 +102,8 @@ def _tgs_select_calibration_neighborhoods(
         # `neighborhood_fraction` of bins
         calibration_neighborhoods = calc_knn_neighborhoods(
             bin_coords,
-            num_neighbors=calc_ceil_product(
-                neighborhood_fraction, len(bin_coords)
+            num_neighbors=int(
+                calc_tolerant_ceil(neighborhood_fraction * len(bin_coords))
             ),
         )
         # holding out each neutral trait in turn
