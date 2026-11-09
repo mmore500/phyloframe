@@ -15,8 +15,7 @@ def calc_binomial_nll_proxy(
 
     Omits log binomial coefficients, which do not depend on `p`, for speedup
     over `scipy.stats.binom.logpmf` under repeated evaluation (e.g., within
-    an optimizer). Differences between results for different `p` and the
-    gradient are exact.
+    an optimizer). The gradient is unaffected.
 
     Parameters
     ----------
