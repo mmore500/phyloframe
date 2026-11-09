@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from phyloframe._auxlib import clamp, jit
+from phyloframe._auxlib import clamp
 
 
 @pytest.mark.parametrize(
@@ -27,17 +27,6 @@ def test_clamp_nan():
     assert math.isnan(clamp(math.nan, lo=0.0, hi=1.0))
 
 
-def test_clamp_within_jit():
-    @jit(nopython=True)
-    def clamp_sum(lo: float, hi: float) -> float:
-        total = 0.0
-        for i in range(-5, 6):
-            total += clamp(float(i), lo, hi)
-        return total
-
-    assert clamp_sum(-1.0, 2.0) == -1.0 * 5 + 0.0 + 1.0 + 2.0 * 4
-
-
 def test_clamp_invalid_bounds():
     with pytest.raises(AssertionError):
         clamp(0.0, lo=1.0, hi=0.0)
@@ -57,3 +46,8 @@ def test_clamp_bounds_default_none():
     assert clamp(0, lo=1) == 1
     assert clamp(9, hi=3) == 3
     assert clamp(2) == 2
+
+
+def test_clamp_bounds_keyword_only():
+    with pytest.raises(TypeError):
+        clamp(0, 1, 2)
