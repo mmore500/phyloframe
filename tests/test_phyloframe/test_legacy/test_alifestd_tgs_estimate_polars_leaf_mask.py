@@ -359,7 +359,7 @@ def test_tgs_select_calibration_neighborhoods():
         bin_coords=bin_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
         trait_bin_counts_df=counts,
-        neutral_traits=[0, 1, 2],
+        neutral_trait_ids=[0, 1, 2],
         trait_names=["a", "b", "c"],
         max_rate_ratio=np.inf,
     )
