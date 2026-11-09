@@ -45,8 +45,13 @@ def _tgs_build_exposure_df(
     `episode_mask` is true; see Input Schema and Output
     Schema.
 
-    Raises ValueError if a non-root node's branch has zero, negative, or
-    undefined (nan) length.
+    Masked-out nodes are ignored in finding each kept episode's latest
+    descendant, so do not set survival durations, but still count toward
+    clade sizes.
+
+    Raises ValueError if a kept exposure episode's branch has zero,
+    negative, or undefined (nan) length; masked-out episodes' branch
+    lengths are not checked.
 
     Input Schema
     ------------
@@ -92,8 +97,10 @@ def _tgs_build_exposure_df(
             "branch lengths undefined; exclude such episodes with "
             "episode_mask",
         )
+    # latest kept descendant, or self; masked-out nodes, e.g., with unknown
+    # (nan) origin times, are skipped, though their descendants' still count
     latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
-        ancestor_ids, origin_time
+        ancestor_ids, np.where(keep, origin_time, -np.inf)
     )
     columns = {
         "origin_time": origin_time[keep],
@@ -414,9 +421,15 @@ def tgs_build_exposure_df_polars(
     # TODO: drop the engine affinity for polars>2.1.0
     with pl.Config(engine_affinity="in-memory"):
         phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-        if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
+        schema_names = phylogeny_df.lazy().collect_schema().names()
+        if "ancestor_id" not in schema_names:
             raise NotImplementedError(
                 f"{caller} only supports asexual phylogenies.",
+            )
+        if episode_mask is not None and episode_mask not in schema_names:
+            raise pl.exceptions.ColumnNotFoundError(
+                f"episode_mask column {episode_mask!r} not found in "
+                "phylogeny_df",
             )
         selected = _tgs_select_columns(
             phylogeny_df,
