@@ -173,7 +173,7 @@ def test_masked_out_zero_length_branch_ok():
         origin_time=pl.Series([0.0, 1.0, 0.0, 5.0, 6.0]),
         keep=pl.Series([True, True, False, True, True]),
     )
-    with pytest.raises(ValueError, match="branch lengths"):
+    with pytest.raises(NotImplementedError, match="branch lengths"):
         _build(df_pl)
     res = _build(df_pl, episode_mask="keep")
     assert res["branch_length"].to_list() == [1.0, 4.0, 5.0]

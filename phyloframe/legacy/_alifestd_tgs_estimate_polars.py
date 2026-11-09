@@ -142,12 +142,12 @@ def alifestd_tgs_estimate_polars(
     Raises
     ------
     ValueError
-        If there are no exposure episodes, if an argument is invalid, or if
-        an exposure episode has a nonpositive branch length.
+        If there are no exposure episodes, or if an argument is invalid.
     NotImplementedError
         For unsupported input, e.g., fewer than two neutral traits, a
-        non-asexual phylogeny, unifurcations, null values, null or nan
-        origin times, trait losses, or a trait present at a root.
+        non-asexual phylogeny, unifurcations, null values, non-finite
+        origin times, exposure episodes with zero or negative branch
+        lengths, trait losses, or a trait present at a root.
 
     Warns
     -----

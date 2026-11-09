@@ -143,8 +143,10 @@ def tgs_fit_traits(
     trait_bin_counts_df = tgs_count_trait_bin_exposures(
         exposure_df, trait_ids=neutral_trait_ids, weights=weights
     )
+    survival_durations = exposure_df["survival_duration"].to_numpy()
+    assert np.isfinite(survival_durations).all()
     distinct_survival_durations, survival_duration_ids = np.unique(
-        exposure_df["survival_duration"].to_numpy(), return_inverse=True
+        survival_durations, return_inverse=True
     )
     exposure_df = exposure_df.with_columns(
         weight=weights, survival_duration_id=survival_duration_ids

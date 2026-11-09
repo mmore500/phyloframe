@@ -215,9 +215,9 @@ def tgs_build_exposure_df_polars(
     if sum(episodes_df.null_count().row(0)):
         raise NotImplementedError("null values not supported")
     if not (episodes_df["branch_length"] > 0).all():
-        raise ValueError(
-            "exposure episodes must have positive branch lengths; exclude "
-            "any others with episode_mask",
+        raise NotImplementedError(
+            "exposure episodes with zero or negative branch lengths not "
+            "supported; exclude them with episode_mask",
         )
 
     partition, bin_ = (
@@ -237,4 +237,10 @@ def tgs_build_exposure_df_polars(
     del episodes_df  # clear memory
     gc.collect()
     log_memory_usage(logging.info)
+
+    times = exposure_df.select(
+        "origin_time", "branch_length", "survival_duration"
+    )
+    assert np.isfinite(times.to_numpy()).all()
+    assert (times["survival_duration"] >= 0).all()
     return exposure_df

@@ -47,6 +47,7 @@ def tgs_minimize_nll(
     max_exponent_time = nll_kwargs["coarsened_df"][
         "mean_branch_length"
     ].max() + nll_kwargs["distinct_survival_durations"].max(initial=0.0)
+    assert np.isfinite(max_exponent_time) and max_exponent_time > 0
     max_selection = (
         growth_exponent_bound / max_exponent_time + loss_rate
     ) / selection_rescale
