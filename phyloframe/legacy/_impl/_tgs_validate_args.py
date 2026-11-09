@@ -12,7 +12,6 @@ def tgs_validate_args(
     calibrate_max_rate_ratio: float,
     length_rtol: float,
     growth_exponent_bound: float,
-    num_bootstrap: int,
 ) -> None:
     """Implementation detail for `alifestd_tgs_estimate_polars`.
 
@@ -43,5 +42,3 @@ def tgs_validate_args(
         raise ValueError("length_rtol must be nonnegative")
     if not growth_exponent_bound < np.log(np.finfo(np.float64).max):
         raise ValueError("growth_exponent_bound overflows float64")
-    if not num_bootstrap >= 0:
-        raise ValueError("num_bootstrap must be nonnegative")

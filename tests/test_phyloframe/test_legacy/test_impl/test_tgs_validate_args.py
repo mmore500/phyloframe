@@ -9,7 +9,6 @@ _KWARGS = dict(
     length_rtol=1e-3,
     growth_exponent_bound=600.0,
     calibration_compare_by_vals=("branch_length", "origin_time"),
-    num_bootstrap=0,
 )
 
 
@@ -36,7 +35,6 @@ def test_too_few_neutral_traits(neutral_traits):
     [
         dict(neutral_traits=["b", "x"]),
         dict(neutral_traits=[1, 2]),
-        dict(num_bootstrap=-1),
         dict(calibrate_neighborhood_fractions=()),
         dict(calibrate_neighborhood_fractions=(0.0,)),
         dict(calibrate_neighborhood_fractions=(1.5,)),

@@ -8,7 +8,7 @@ import polars.testing as pltest
 import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
-from phyloframe.legacy import alifestd_tgs_estimate_polars
+from phyloframe.legacy import alifestd_tgs_estimate_bootstrap_polars
 
 from .test_alifestd_tgs_estimate_polars_leaf_mask import (
     _estimate_from_masks,
@@ -22,7 +22,7 @@ from .test_alifestd_tgs_estimate_polars_leaf_mask import (
 
 def _estimate_leaves_bootstrap(phylogeny_df, **kwargs):
     """Bootstrap-estimate from leaf pendant branches only."""
-    return alifestd_tgs_estimate_polars(
+    return alifestd_tgs_estimate_bootstrap_polars(
         _with_leaf_mask(phylogeny_df), episode_mask="is_leaf", **kwargs
     )
 
@@ -49,13 +49,14 @@ def test_point_columns_match_point_estimate():
     pltest.assert_frame_equal(res.select(point.columns), point)
 
 
-def test_num_bootstrap_negative_raises():
+@pytest.mark.parametrize("num_bootstrap", [0, -1])
+def test_num_bootstrap_not_positive_raises(num_bootstrap: int):
     with pytest.raises(ValueError, match="num_bootstrap"):
         _estimate_leaves_bootstrap(
             _make_cherries_polars(100),
             trait_transitions=["focal", "n1", "n2"],
             neutral_traits=["n1", "n2"],
-            num_bootstrap=-1,
+            num_bootstrap=num_bootstrap,
         )
 
 
