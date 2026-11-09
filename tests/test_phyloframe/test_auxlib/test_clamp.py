@@ -41,3 +41,13 @@ def test_clamp_within_jit():
 def test_clamp_invalid_bounds():
     with pytest.raises(AssertionError):
         clamp(0.0, lo=1.0, hi=0.0)
+
+
+@pytest.mark.parametrize(
+    "value, lo, hi, expected",
+    [(5, 1, None, 5), (0, 1, None, 1), (9, None, 3, 3), (2, None, None, 2)],
+)
+def test_clamp_none_bound_unapplied(value, lo, hi, expected):
+    res = clamp(value, lo=lo, hi=hi)
+    assert res == expected
+    assert isinstance(res, int)

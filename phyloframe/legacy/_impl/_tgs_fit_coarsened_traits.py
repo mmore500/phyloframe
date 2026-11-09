@@ -28,7 +28,7 @@ def _tgs_calc_lrt(*, null_nll: float, free_nll: float) -> float:
             "clipping likelihood-ratio statistic to 0, but it may be "
             "unreliable.",
         )
-    return clamp(2 * (null_nll - free_nll), lo=0.0, hi=math.inf)
+    return clamp(2 * (null_nll - free_nll), lo=0.0, hi=None)
 
 
 def _tgs_calc_trait_gain_ratio_lrt(

@@ -1,4 +1,3 @@
-import math
 import typing
 
 import joblib
@@ -54,9 +53,7 @@ def run_seeded_replicates(
     ]
     with joblib.parallel_backend(parallel_backend or "sequential", n_jobs=-1):
         # batch replicates, to serialize shared arguments once per batch
-        batch_size = int(
-            clamp(
-                num_replicates // (4 * joblib.cpu_count()), lo=1, hi=math.inf
-            )
+        batch_size = clamp(
+            num_replicates // (4 * joblib.cpu_count()), lo=1, hi=None
         )
         return joblib.Parallel(batch_size=batch_size)(progress_wrap(jobs))
