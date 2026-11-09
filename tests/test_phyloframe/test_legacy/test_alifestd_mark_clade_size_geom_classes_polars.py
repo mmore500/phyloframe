@@ -5,9 +5,9 @@ import polars as pl
 import polars.testing as pltest
 import pytest
 
-from phyloframe.legacy import alifestd_mark_clade_size_classes_polars
-from phyloframe.legacy._alifestd_mark_clade_size_classes_polars import (
-    _alifestd_mark_clade_size_classes_fast_path,
+from phyloframe.legacy import alifestd_mark_clade_size_geom_classes_polars
+from phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars import (
+    _alifestd_mark_clade_size_geom_classes_fast_path,
 )
 
 _SIZES = np.array([1, 1, 2, 3, 4, 5, 8, 9, 16])
@@ -16,7 +16,7 @@ _SIZES = np.array([1, 1, 2, 3, 4, 5, 8, 9, 16])
 def _calc(weighted_positions, min_class_weight=1.0, min_num_classes=2):
     weights = np.zeros(len(_SIZES))
     weights[np.asarray(weighted_positions, dtype=int)] = 1.0
-    return _alifestd_mark_clade_size_classes_fast_path(
+    return _alifestd_mark_clade_size_geom_classes_fast_path(
         clade_sizes=_SIZES,
         weights=weights,
         size_ratio=2.0,
@@ -83,7 +83,7 @@ def test_heavy_enough_everywhere():
 
 def test_empty_bins_skipped():
     # ratio 1.5 leaves bin (1, 1.5] empty, which must not count as light
-    res = _alifestd_mark_clade_size_classes_fast_path(
+    res = _alifestd_mark_clade_size_geom_classes_fast_path(
         clade_sizes=np.array([1, 1, 2, 2, 3, 3]),
         weights=np.ones(6),
         size_ratio=1.5,
@@ -125,31 +125,51 @@ def _make_tree() -> pl.DataFrame:
 @pytest.mark.parametrize("apply", [lambda x: x, lambda x: x.lazy()])
 def test_polars(apply):
     res = (
-        alifestd_mark_clade_size_classes_polars(apply(_make_tree()))
+        alifestd_mark_clade_size_geom_classes_polars(apply(_make_tree()))
         .lazy()
         .collect()
     )
     # clade sizes are 5, 3, 2, 2, 1, 1, 1, 1, 1
-    assert res["clade_size_class"].to_list() == [3, 2, 1, 1, 0, 0, 0, 0, 0]
+    assert res["clade_size_geom_class"].to_list() == [
+        3,
+        2,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]
 
 
 def test_polars_merges_light():
     # weight 1 only on node 3 (clade size 2), so classes of larger clades
     # join class 1
-    res = alifestd_mark_clade_size_classes_polars(
+    res = alifestd_mark_clade_size_geom_classes_polars(
         _make_tree(), weight_by=["n1"], min_class_weight=1, mark_as="m"
     )
     assert res["m"].to_list() == [1, 1, 1, 1, 0, 0, 0, 0, 0]
     # weights sum across columns; node 6 is a leaf, in class 0
-    res = alifestd_mark_clade_size_classes_polars(
+    res = alifestd_mark_clade_size_geom_classes_polars(
         _make_tree(), weight_by=["n1", "n2"], min_class_weight=1
     )
-    assert res["clade_size_class"].to_list() == [1, 1, 1, 1, 0, 0, 0, 0, 0]
+    assert res["clade_size_geom_class"].to_list() == [
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]
 
 
 def test_polars_empty():
-    res = alifestd_mark_clade_size_classes_polars(_make_tree().clear())
-    assert res["clade_size_class"].to_list() == []
+    res = alifestd_mark_clade_size_geom_classes_polars(_make_tree().clear())
+    assert res["clade_size_geom_class"].to_list() == []
 
 
 @pytest.mark.parametrize(
@@ -163,7 +183,7 @@ def test_polars_empty():
 )
 def test_polars_invalid(kwargs, error):
     with pytest.raises(error):
-        alifestd_mark_clade_size_classes_polars(_make_tree(), **kwargs)
+        alifestd_mark_clade_size_geom_classes_polars(_make_tree(), **kwargs)
 
 
 def test_polars_null_weights_raise():
@@ -171,19 +191,21 @@ def test_polars_null_weights_raise():
         n1=pl.when(pl.col("id") == 2).then(None).otherwise(pl.col("n1"))
     )
     with pytest.raises(NotImplementedError, match="null"):
-        alifestd_mark_clade_size_classes_polars(df, weight_by=["n1"])
+        alifestd_mark_clade_size_geom_classes_polars(df, weight_by=["n1"])
 
 
 def test_polars_unsorted_raises():
     df = pl.DataFrame({"id": [0, 1, 2], "ancestor_id": [1, 1, 1]})
     with pytest.raises(NotImplementedError):
-        alifestd_mark_clade_size_classes_polars(df)
+        alifestd_mark_clade_size_geom_classes_polars(df)
 
 
 def test_polars_single_string_weight_by():
     pltest.assert_frame_equal(
-        alifestd_mark_clade_size_classes_polars(_make_tree(), weight_by="n1"),
-        alifestd_mark_clade_size_classes_polars(
+        alifestd_mark_clade_size_geom_classes_polars(
+            _make_tree(), weight_by="n1"
+        ),
+        alifestd_mark_clade_size_geom_classes_polars(
             _make_tree(), weight_by=["n1"]
         ),
     )

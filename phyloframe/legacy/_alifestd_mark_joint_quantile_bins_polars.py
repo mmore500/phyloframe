@@ -77,12 +77,11 @@ def alifestd_mark_joint_quantile_bins_polars(
     rows tie on every column. Each partition gets the largest power of two of
     bins, up to `max_num_bins`, that keeps at least `min_bin_occupancy` rows in
     each, or fewer where rows do not divide evenly. Bins are numbered
-    consecutively across partitions, without gaps, in order of partition value,
-    so each bin lies within one partition.
+    consecutively across partitions, without gaps, in order of partition value.
 
-    Columns constant within a partition are skipped there: their ranks,
-    tiebroken by the other columns, would only repeat those columns'
-    splits.
+    Columns constant within a partition are not split on in that partition:
+    their ranks, tiebroken by the other columns, would only repeat those
+    columns' splits.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -96,7 +95,7 @@ def alifestd_mark_joint_quantile_bins_polars(
         length and origin time.
     partition_by : str or polars.Expr, optional
         Column, by name or expression, whose values group rows to bin
-        separately, e.g., from `alifestd_mark_clade_size_classes_polars`.
+        separately, e.g., from `alifestd_mark_clade_size_geom_classes_polars`.
     max_num_bins : int, default 4096
         Largest number of bins per partition; a power of two.
     min_bin_occupancy : int, default 4
@@ -123,7 +122,7 @@ def alifestd_mark_joint_quantile_bins_polars(
 
     See Also
     --------
-    alifestd_mark_clade_size_classes_polars :
+    alifestd_mark_clade_size_geom_classes_polars :
         Marks clade size classes, e.g., as partitions.
     """
     if isinstance(bin_by, str):

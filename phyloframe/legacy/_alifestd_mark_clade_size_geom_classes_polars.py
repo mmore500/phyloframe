@@ -29,7 +29,7 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-def _alifestd_mark_clade_size_classes_fast_path(
+def _alifestd_mark_clade_size_geom_classes_fast_path(
     *,
     clade_sizes: np.ndarray,
     weights: np.ndarray,
@@ -37,7 +37,8 @@ def _alifestd_mark_clade_size_classes_fast_path(
     min_class_weight: float,
     min_num_classes: int,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mark_clade_size_classes_polars`.
+    """Implementation detail for
+    `alifestd_mark_clade_size_geom_classes_polars`.
 
     Returns each node's clade size class, given its clade size (number of
     leaves) and weight.
@@ -58,7 +59,7 @@ def _alifestd_mark_clade_size_classes_fast_path(
     )
     if cap < num_classes - 1:
         logging.info(
-            "- alifestd_mark_clade_size_classes_polars: clade size class "
+            "- alifestd_mark_clade_size_geom_classes_polars: clade size class "
             f"{is_light[0] + 1} weighs less than {min_class_weight}, so "
             f"classes above {cap} join class {cap}",
         )
@@ -76,46 +77,33 @@ def _alifestd_mark_clade_size_classes_fast_path(
     for class_ in range(num_classes):
         sizes = clade_sizes[classes == class_]
         logging.info(
-            "- alifestd_mark_clade_size_classes_polars: class "
+            "- alifestd_mark_clade_size_geom_classes_polars: class "
             f"{class_} has clade sizes {sizes.min()}-{sizes.max()}, "
             f"{len(sizes)} nodes, and weight {class_weights[class_]:g}",
         )
     return classes
 
 
-def alifestd_mark_clade_size_classes_polars(
+def alifestd_mark_clade_size_geom_classes_polars(
     phylogeny_df: pl.DataFrame,
     *,
     size_ratio: float = 2.0,
     weight_by: typing.Union[str, typing.Sequence[str]] = (),
     min_class_weight: float = 0.0,
     min_num_classes: int = 2,
-    mark_as: str = "clade_size_class",
+    mark_as: str = "clade_size_geom_class",
 ) -> pl.DataFrame:
-    """Add column `clade_size_class`, each node's class of clade size (number
-    of leaves below it, itself included if a leaf) on a log scale.
+    """Add column `clade_size_geom_class`, each node's geometric class of
+    clade size (number of leaves below it, itself included if a leaf), i.e.,
+    on a log scale.
 
     A node with `n` leaves falls in bin ceil(log(n) / log(`size_ratio`)),
     so the default ratio of 2 gives bins of 1, 2, 3-4, 5-8, 9-16, ...
     leaves. Classes number occupied bins consecutively from 0, so leaves are
     always class 0.
 
-    For example, pass this column as `calibration_partition_by` to
-    `alifestd_tgs_estimate_polars`, which then calibrates within
-    each class separately, as neutral traits' gain rates per unit branch
-    length may differ between small and large clades (e.g., between leaves
-    and inner nodes). Calibrating within a class requires that class to hold
-    enough neutral trait gains, so set `weight_by` to the neutral traits'
-    transition columns and `min_class_weight` to the fewest gains a class
-    should hold.
-
-    If `min_class_weight` is positive, this function merges classes from
-    the largest clades down: with each node's weight the sum of its
-    `weight_by` columns, the first class above class 0 weighing less than
-    `min_class_weight`, and every class of larger clades, joins the class
-    below it. Merging stops at `min_num_classes` classes, warning if any
-    class above class 0 is then still light; the default of 2 keeps leaves
-    (class 0) apart from inner nodes. Class 0's own weight is not checked.
+    Classes can be merged so that each holds enough weight; see Notes. For
+    use as calibration partitions, see `alifestd_tgs_estimate_polars`.
 
     The output column name can be changed via the ``mark_as`` parameter.
 
@@ -138,7 +126,7 @@ def alifestd_mark_clade_size_classes_polars(
     min_num_classes : int, default 2
         Fewest classes merging may leave, if there are that many; must be at
         least 1.
-    mark_as : str, default "clade_size_class"
+    mark_as : str, default "clade_size_geom_class"
         Output column name.
 
     Returns
@@ -166,6 +154,16 @@ def alifestd_mark_clade_size_classes_polars(
     alifestd_tgs_estimate_polars :
         Calibrates within these classes, e.g., with `weight_by` its
         `neutral_traits`.
+
+    Notes
+    -----
+    If `min_class_weight` is positive, this function merges classes from
+    the largest clades down: with each node's weight the sum of its
+    `weight_by` columns, the first class above class 0 weighing less than
+    `min_class_weight`, and every class of larger clades, joins the class
+    below it. Merging stops at `min_num_classes` classes, warning if any
+    class above class 0 is then still light; the default of 2 keeps leaves
+    (class 0) apart from inner nodes. Class 0's own weight is not checked.
     """
     if not size_ratio > 1:
         raise ValueError(f"size_ratio must exceed 1, got {size_ratio}")
@@ -184,8 +182,8 @@ def alifestd_mark_clade_size_classes_polars(
     schema_names = phylogeny_df.lazy().collect_schema().names()
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
-            "alifestd_mark_clade_size_classes_polars only supports asexual "
-            "phylogenies.",
+            "alifestd_mark_clade_size_geom_classes_polars only supports "
+            "asexual phylogenies.",
         )
     selected = (
         phylogeny_df.lazy()
@@ -215,7 +213,7 @@ def alifestd_mark_clade_size_classes_polars(
     return phylogeny_df.with_columns(
         pl.Series(
             name=mark_as,
-            values=_alifestd_mark_clade_size_classes_fast_path(
+            values=_alifestd_mark_clade_size_geom_classes_fast_path(
                 clade_sizes=_alifestd_mark_num_leaves_asexual_fast_path(
                     selected["ancestor_id"].to_numpy()
                 ),
@@ -233,8 +231,8 @@ _raw_description = f"""\
 {os.path.basename(__file__)} | \
 (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
 
-Add column `clade_size_class`, each node's class of clade size (number of
-leaves below it) on a log scale, optionally merging classes of large clades
+Add column `clade_size_geom_class`, each node's geometric class of clade size
+(number of leaves below it), i.e., on a log scale, optionally merging classes of large clades
 that carry too little weight (e.g., neutral trait gains).
 
 Data is assumed to be in alife standard format.
@@ -259,7 +257,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module="phyloframe.legacy._alifestd_mark_clade_size_classes_polars",
+        dfcli_module="phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars",
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
@@ -292,9 +290,9 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mark-as",
-        default="clade_size_class",
+        default="clade_size_geom_class",
         type=str,
-        help="Output column name (default: clade_size_class).",
+        help="Output column name (default: clade_size_geom_class).",
     )
     return parser
 
@@ -307,13 +305,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mark_clade_size_classes_polars",
+            "phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_mark_clade_size_classes_polars,
+                    alifestd_mark_clade_size_geom_classes_polars,
                     size_ratio=args.size_ratio,
                     weight_by=args.weight_by,
                     min_class_weight=args.min_class_weight,

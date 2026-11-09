@@ -5,12 +5,12 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from phyloframe.legacy import alifestd_mark_clade_size_classes_polars
-from phyloframe.legacy._alifestd_mark_clade_size_classes_polars import (
+from phyloframe.legacy import alifestd_mark_clade_size_geom_classes_polars
+from phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars import (
     _create_parser,
 )
 
-MODULE = "phyloframe.legacy._alifestd_mark_clade_size_classes_polars"
+MODULE = "phyloframe.legacy._alifestd_mark_clade_size_geom_classes_polars"
 
 
 def _make_cherries_polars(num_cherries: int, seed: int = 1) -> pl.DataFrame:
@@ -90,7 +90,7 @@ def test_cli_matches_function(input_pqt, tmp_path):
         check=True,
         input=input_pqt.encode(),
     )
-    expected = alifestd_mark_clade_size_classes_polars(
+    expected = alifestd_mark_clade_size_geom_classes_polars(
         pl.read_parquet(input_pqt),
         size_ratio=4.0,
         weight_by=["n1", "n2"],
