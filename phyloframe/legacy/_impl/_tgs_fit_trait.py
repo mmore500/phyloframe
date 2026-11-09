@@ -16,6 +16,7 @@ def tgs_fit_trait(
     nll_kwargs: typing.Dict[str, typing.Any],
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
+    growth_exponent_bound: float,
 ) -> typing.Dict[str, float]:
     """Implementation detail for `alifestd_tgs_estimate_polars`, via
     `tgs_fit_coarsened_traits`.
@@ -71,6 +72,7 @@ def tgs_fit_trait(
         fit_selection=True,
         selection_rescale=selection_rescale,
         loss_rate=loss_rate,
+        growth_exponent_bound=growth_exponent_bound,
     )
     if not best.num_converged:
         warnings.warn(

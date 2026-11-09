@@ -37,7 +37,7 @@ def tgs_build_estimates_df(
     """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
     stands for trait gain/selection.
 
-    Returns one row per trait, joining `episode_tallies_df`'s per-trait
+    Returns one row per trait, concatenating `episode_tallies_df`'s per-trait
     exposure episode and gain tallies (see `tgs_tally_exposure_episodes`)
     and `fits_df`'s estimates (see `tgs_fit_traits`); see Output Schema.
     Warns of traits whose estimates are undefined (nan), e.g., traits

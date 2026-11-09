@@ -249,6 +249,7 @@ if __name__ == "__main__":
             )
     except NotImplementedError as e:
         logging.error(
-            "- polars op not yet implemented, use pandas op instead",
+            "- unsupported input, with no pandas op to fall back on; "
+            "see the error for which input to convert",
         )
         raise e

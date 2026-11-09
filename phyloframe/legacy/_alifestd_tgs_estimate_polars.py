@@ -105,12 +105,12 @@ def alifestd_tgs_estimate_polars(
         branches only. Unmasked episodes inform neither the fit nor
         calibration. If not given, every episode is fit.
     calibration_partition_by : str, optional
-        Name of a column of integer partition ids (see Input Schema): bins
-        are compared only with bins of the same partition, never across
-        partitions, with neighborhood size selected separately within each, e.g., by clade size (see
-        `alifestd_mark_clade_size_classes_polars`), as neutral gains per
-        unit length may differ between leaves and inner nodes. If not given,
-        all bins are compared with one another.
+        Name of a column of integer partition ids (see Input Schema): bins are
+        compared only with bins of the same partition, never across partitions,
+        with neighborhood size selected separately within each, e.g., by clade
+        size (see `alifestd_mark_clade_size_classes_polars`), as neutral gains
+        per unit length may differ between leaves and inner nodes. If not
+        given, all bins are compared with one another.
     calibration_compare_by_bins : str, optional
         Name of a column of integer calibration bin ids, at each exposure
         episode's end node (see Input Schema), e.g., from
@@ -148,7 +148,8 @@ def alifestd_tgs_estimate_polars(
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Starting values for the selection coefficient, in units of 1 / mean
-        branch length; the best of the resulting fits is kept. See `tgs_fit_trait`.
+        branch length; the best of the resulting fits is kept. See
+        `tgs_fit_trait`.
     growth_exponent_bound : float, default 600.0
         Bound on carrier growth exponents, the selection coefficient minus
         loss rate times branch length plus survival duration, within which
@@ -396,6 +397,7 @@ def _alifestd_tgs_estimate_polars_impl(
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,
+        growth_exponent_bound=growth_exponent_bound,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
     exposure_df = tgs_build_exposure_df_polars(
@@ -701,6 +703,7 @@ if __name__ == "__main__":
             )
     except NotImplementedError as e:
         logging.error(
-            "- polars op not yet implemented, use pandas op instead",
+            "- unsupported input, with no pandas op to fall back on; "
+            "see the error for which input to convert",
         )
         raise e

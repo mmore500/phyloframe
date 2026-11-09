@@ -10,6 +10,8 @@ from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
 from phyloframe.legacy._impl._tgs_fit_trait import tgs_fit_trait
 from phyloframe.legacy._impl._tgs_minimize_nll import tgs_minimize_nll
 
+from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
+
 
 def _sample(gain_rate: float, selection_coef: float, seed: int):
     rng = np.random.default_rng(seed)
@@ -20,8 +22,8 @@ def _sample(gain_rate: float, selection_coef: float, seed: int):
         if selection_coef == 0
         else gain_rate * np.expm1(selection_coef * length) / selection_coef
     )
-    return dict(
-        coarsened_df=pl.DataFrame(
+    return make_pendant_nll_kwargs(
+        pl.DataFrame(
             {
                 "num_trials": num_trials,
                 "num_successes": rng.binomial(
@@ -29,10 +31,7 @@ def _sample(gain_rate: float, selection_coef: float, seed: int):
                 ).astype(float),
                 "length": length,
             },
-        ),
-        growth_exponent_bound=600.0,
-        survival_shares=None,
-        distinct_survival_durations=None,
+        )
     )
 
 
@@ -40,6 +39,7 @@ def _fit(
     nll_kwargs, *, loss_rate=0.0, selection_coef_starts=(0.0, -0.3, -1.8)
 ):
     return tgs_fit_trait(
+        growth_exponent_bound=600.0,
         nll_kwargs=nll_kwargs,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
@@ -54,7 +54,10 @@ def test_recovers_parameters(gain_rate: float, selection_coef: float):
     assert res["gain_rate"] == pytest.approx(gain_rate, rel=0.1)
     assert res["selection_coef"] == pytest.approx(selection_coef, abs=0.01)
     lrt = _tgs_calc_trait_selection_lrt(
-        nll_kwargs=nll_kwargs, loss_rate=0.0, **res
+        growth_exponent_bound=600.0,
+        nll_kwargs=nll_kwargs,
+        loss_rate=0.0,
+        **res,
     )
     if selection_coef == 0:
         assert lrt < 10
@@ -74,9 +77,8 @@ def test_loss_rate_shifts_selection():
 def test_empty_rows_ignored():
     nll_kwargs = _sample(1e-3, -0.05, seed=3)
     expected = _fit(nll_kwargs)
-    padded = dict(
-        nll_kwargs,
-        coarsened_df=pl.concat(
+    padded = make_pendant_nll_kwargs(
+        pl.concat(
             [
                 nll_kwargs["coarsened_df"],
                 pl.DataFrame(
@@ -140,7 +142,7 @@ def test_no_successes_skips_fit_without_warning():
 
 
 def test_selection_bounded_by_growth_exponent_bound():
-    nll_kwargs = dict(_sample(1e-3, 0.0, seed=10), growth_exponent_bound=5.0)
+    nll_kwargs = _sample(1e-3, 0.0, seed=10)
     max_length = nll_kwargs["coarsened_df"]["length"].max()
     # from far past the bound, clipped into it, staying finite
     best = tgs_minimize_nll(
@@ -150,6 +152,7 @@ def test_selection_bounded_by_growth_exponent_bound():
         fit_selection=True,
         selection_rescale=1.0,
         loss_rate=0.0,
+        growth_exponent_bound=5.0,
     )
     assert np.isfinite(best.fun)
     assert best.x[1] * max_length <= 5.0 * (1 + 1e-9)

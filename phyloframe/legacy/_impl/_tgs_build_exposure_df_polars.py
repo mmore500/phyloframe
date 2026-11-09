@@ -36,7 +36,7 @@ from .._alifestd_try_add_ancestor_id_col_polars import (
 def _tgs_build_exposure_df(
     phylogeny_df: pl.DataFrame, *, is_kept_episode: np.ndarray
 ) -> pl.DataFrame:
-    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
+    """Implementation detail for `tgs_build_exposure_df_polars`. Acronym tgs
     stands for trait gain/selection.
 
     Returns the exposure table of `phylogeny_df`, a phylogeny with
@@ -139,8 +139,8 @@ def _tgs_calc_trait_states(
     trait_name: str,
     trait_transitions: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_tgs_estimate_polars`. Acronym tgs
-    stands for trait gain/selection.
+    """Implementation detail for `_tgs_calc_states`. Acronym tgs stands for
+    trait gain/selection.
 
     Takes a phylogeny with contiguous, topologically sorted ids and one
     trait's transitions (see `alifestd_mark_lineage_delta_asexual`).
@@ -257,13 +257,12 @@ def _tgs_select_columns(
         )
         .collect()
     )
-    if not selected.is_empty():
-        if not alifestd_has_contiguous_ids_polars(selected):
-            raise NotImplementedError("non-contiguous ids not supported")
-        if not alifestd_is_topologically_sorted_polars(selected):
-            raise NotImplementedError(
-                "non-topologically-sorted data not supported",
-            )
+    if not alifestd_has_contiguous_ids_polars(selected):
+        raise NotImplementedError("non-contiguous ids not supported")
+    if not alifestd_is_topologically_sorted_polars(selected):
+        raise NotImplementedError(
+            "non-topologically-sorted data not supported",
+        )
     return selected
 
 
@@ -390,13 +389,14 @@ def tgs_build_exposure_df_polars(
     stands for trait gain/selection.
 
     Sums each trait's transitions into node states (see
-    `_tgs_calc_trait_states`) and returns the phylogeny's exposure table, one row per exposure episode candidate,
-    i.e., per non-root node's branch, kept if `episode_mask`, if given, is
-    true at its end node; see Output Schema. Branch lengths and calibration
-    columns are checked only for kept episodes. `caller` names the calling
-    function in error messages.
+    `_tgs_calc_trait_states`) and returns the phylogeny's exposure table, one
+    row per exposure episode candidate, i.e., per non-root node's branch, kept
+    if `episode_mask`, if given, is true at its end node; see Output Schema.
+    Branch lengths and calibration columns are checked only for kept episodes.
+    `caller` names the calling function in error messages.
 
-    Raises ValueError if `phylogeny_df` is empty, and NotImplementedError
+    Raises ValueError if no exposure episodes are kept, e.g., if
+    `phylogeny_df` is empty or all are masked out, and NotImplementedError
     if it has unifurcations other than roots with one child.
 
     Input Schema
@@ -480,10 +480,8 @@ def tgs_build_exposure_df_polars(
                 *([episode_mask] if episode_mask is not None else []),
             ],
         )
-        if selected.is_empty():
-            raise ValueError("phylogeny_df has no exposure episodes to fit")
     _tgs_check_no_unifurcations(selected)
-    nodes_df = _tgs_add_trait_state_cols(
+    node_states_df = _tgs_add_trait_state_cols(
         selected, trait_transition_cols=trait_transition_cols
     )
     del selected
@@ -492,24 +490,26 @@ def tgs_build_exposure_df_polars(
 
     # masked-out episodes are dropped before their values are checked
     is_kept_episode = _tgs_calc_is_kept_episode(
-        nodes_df, episode_mask=episode_mask
+        node_states_df, episode_mask=episode_mask
     )
     exposure_df = _tgs_build_exposure_df(
-        nodes_df, is_kept_episode=is_kept_episode
+        node_states_df, is_kept_episode=is_kept_episode
     )
-    # kept rows, without roots, match exposure_df's; its own columns take
-    # precedence
-    node_df = nodes_df.filter(
+    # each kept episode's end-node values of calibration columns that
+    # exposure_df lacks, row-aligned with exposure_df (roots end none)
+    episode_node_cols_df = node_states_df.filter(
         (pl.col("ancestor_id") != pl.col("id")) & pl.Series(is_kept_episode)
     ).select(
         cs.by_name(*calibration_cols.values(), require_all=False)
         - cs.by_name(exposure_df.columns, require_all=False),
     )
-    del nodes_df
-    source_df = pl.concat([exposure_df, node_df], how="horizontal")
-    del node_df
+    del node_states_df
+    calibration_source_df = pl.concat(
+        [exposure_df, episode_node_cols_df], how="horizontal"
+    )
+    del episode_node_cols_df
     _tgs_validate_calibration_cols(
-        source_df,
+        calibration_source_df,
         integer_cols=[
             col
             for col in (calibration_partition_by, calibration_compare_by_bins)
@@ -518,11 +518,13 @@ def tgs_build_exposure_df_polars(
         numeric_cols=calibration_compare_by_vals,
     )
     exposure_df = exposure_df.with_columns(
-        source_df.select(
+        calibration_source_df.select(
             pl.col(col).alias(name) for name, col in calibration_cols.items()
         ),
     )
-    del source_df
+    del calibration_source_df
     gc.collect()
     log_memory_usage(logging.info)
+    if exposure_df.is_empty():  # e.g., all masked out
+        raise ValueError("phylogeny_df has no exposure episodes to fit")
     return exposure_df

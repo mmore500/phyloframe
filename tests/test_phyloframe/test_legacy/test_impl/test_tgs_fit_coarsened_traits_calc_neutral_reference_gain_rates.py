@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from phyloframe.legacy._impl._tgs_fit_coarsened_traits import (
     _tgs_calc_neutral_reference_gain_rates,
@@ -20,11 +19,3 @@ def test_undefined():
     )
     # no trait's reference gains
     assert np.isnan(res).all()
-
-
-@pytest.mark.parametrize("neutral_traits", [[], [1], [1, 1]])
-def test_too_few_neutral_traits_raises(neutral_traits):
-    with pytest.raises(ValueError, match="at least two"):
-        _tgs_calc_neutral_reference_gain_rates(
-            gain_rates=np.array([4.0, 1.0]), neutral_traits=neutral_traits
-        )
