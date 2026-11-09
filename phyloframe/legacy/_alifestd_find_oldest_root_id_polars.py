@@ -1,6 +1,7 @@
 import typing
 
 import polars as pl
+import polars.selectors as cs
 
 from ._alifestd_find_oldest_root_id_asexual import (
     _alifestd_find_oldest_root_id_asexual_fast_path,
@@ -39,23 +40,16 @@ def alifestd_find_oldest_root_id_polars(
         Pandas-based implementation.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
-    has_origin_time = (
-        "origin_time" in phylogeny_df.lazy().collect_schema().names()
-    )
     roots_df = (
         phylogeny_df.lazy()
         .filter(pl.col("id") == pl.col("ancestor_id"))
         .select(
-            "id",
-            "ancestor_id",
-            *(
-                [pl.col("origin_time").cast(pl.Float64)]
-                if has_origin_time
-                else []
-            ),
+            cs.by_name("id", "ancestor_id"),
+            cs.by_name("origin_time", require_all=False).cast(pl.Float64),
         )
         .collect()
     )
+    has_origin_time = "origin_time" in roots_df.columns
     result = _alifestd_find_oldest_root_id_asexual_fast_path(
         roots_df["id"].to_numpy(),
         roots_df["ancestor_id"].to_numpy(),

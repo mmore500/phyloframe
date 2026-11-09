@@ -26,27 +26,6 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-def _update_ancestor_list(
-    phylogeny_df: pl.DataFrame, *, root_ancestor_token: str
-) -> pl.DataFrame:
-    """Implementation detail for `alifestd_consolidate_roots_polars`.
-
-    Returns `phylogeny_df`, of the same type, with `ancestor_list` remade
-    from `ancestor_id` (see `alifestd_make_ancestor_list_col_polars`).
-    """
-    collected = phylogeny_df.lazy().collect()
-    updated = collected.with_columns(
-        ancestor_list=alifestd_make_ancestor_list_col_polars(
-            collected["id"],
-            collected["ancestor_id"],
-            root_ancestor_token=root_ancestor_token,
-        ),
-    )
-    return (
-        updated.lazy() if isinstance(phylogeny_df, pl.LazyFrame) else updated
-    )
-
-
 @alifestd_topological_sensitivity_warned_polars(
     insert=False,
     delete=True,
@@ -116,28 +95,35 @@ def alifestd_consolidate_roots_polars(
     oldest_root_id = alifestd_find_oldest_root_id_polars(phylogeny_df)
 
     is_root = pl.col("id") == pl.col("ancestor_id")
-    other_root_ids = (
-        phylogeny_df.lazy()
-        .filter(is_root & (pl.col("id") != oldest_root_id))
-        .select("id")
-        .collect()["id"]
-    )
+    is_other_root = is_root & (pl.col("id") != oldest_root_id)
     logging.info(
-        f"- alifestd_consolidate_roots_polars: deleting {len(other_root_ids)} "
-        "other roots...",
+        "- alifestd_consolidate_roots_polars: deleting other roots...",
     )
-    consolidated = phylogeny_df.with_columns(
+    phylogeny_df = phylogeny_df.with_columns(
         ancestor_id=pl.when(
-            ~is_root & pl.col("ancestor_id").is_in(other_root_ids.implode()),
+            ~is_root
+            & pl.col("ancestor_id").is_in(
+                pl.col("id").filter(is_other_root).implode()
+            ),
         )
         .then(pl.lit(oldest_root_id, dtype=schema["ancestor_id"]))
         .otherwise(pl.col("ancestor_id")),
-    ).filter(~pl.col("id").is_in(other_root_ids.implode()))
-    if "ancestor_list" not in schema.names():
-        return consolidated
-    return _update_ancestor_list(
-        consolidated, root_ancestor_token=root_ancestor_token
-    )
+    ).filter(~is_other_root)
+
+    if "ancestor_list" in schema.names():
+        logging.info(
+            "- alifestd_consolidate_roots_polars: updating ancestor_list...",
+        )
+        collected = phylogeny_df.lazy().select("id", "ancestor_id").collect()
+        phylogeny_df = phylogeny_df.with_columns(
+            ancestor_list=alifestd_make_ancestor_list_col_polars(
+                collected["id"],
+                collected["ancestor_id"],
+                root_ancestor_token=root_ancestor_token,
+            ),
+        )
+
+    return phylogeny_df
 
 
 _raw_description = f"""{os.path.basename(__file__)} | (phyloframe v{get_phyloframe_version()}/joinem v{joinem.__version__})
