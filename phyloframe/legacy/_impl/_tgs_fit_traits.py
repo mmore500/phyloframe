@@ -15,19 +15,23 @@ from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
 from ._tgs_fit_coarsened_traits import tgs_fit_coarsened_traits
 
 
-def _tgs_calc_log_scale_bins(values: pl.Series, *, rtol: float) -> pl.Series:
+def _tgs_calc_log_scale_bins(values: pl.Expr, *, rtol: float) -> pl.Expr:
     """Implementation detail for `_tgs_coarsen_episodes`.
 
     Returns each nonnegative value's bin on a log scale with ratio 1 +
     `rtol` (see `calc_geometric_bins`); zero values get a bin of their own.
     """
-    values = values.to_numpy()
-    bin_ids = np.full(len(values), np.iinfo(np.int64).min)
-    is_positive = values > 0
-    bin_ids[is_positive] = calc_geometric_bins(
-        values[is_positive], ratio=1 + rtol
-    )
-    return pl.Series(bin_ids)
+
+    def calc_bins(values: pl.Series) -> pl.Series:
+        values = values.to_numpy()
+        bin_ids = np.full(len(values), np.iinfo(np.int64).min)
+        is_positive = values > 0
+        bin_ids[is_positive] = calc_geometric_bins(
+            values[is_positive], ratio=1 + rtol
+        )
+        return pl.Series(bin_ids)
+
+    return values.map_batches(calc_bins, return_dtype=pl.Int64)
 
 
 def _tgs_coarsen_episodes(
@@ -71,23 +75,15 @@ def _tgs_coarsen_episodes(
         length=pl.col("branch_length")
         * pl.lit(pl.Series(calibration_factors)).gather("bin_id"),
     )
-    calc_log_scale_bins = dict(
-        function=lambda values: _tgs_calc_log_scale_bins(
-            values, rtol=length_rtol
-        ),
-        return_dtype=pl.Int64,
-    )
-    episodes_df = episodes_df.with_columns(
-        pool_id=(
-            pl.struct(
-                pl.col("length").map_batches(**calc_log_scale_bins),
-                pl.col("survival_duration").map_batches(**calc_log_scale_bins),
-            ).rank("dense")
-            - 1
-            if length_rtol > 0
-            else pl.int_range(pl.len())
-        ),
-    )
+    if length_rtol > 0:
+        length_bin, survival_bin = (
+            _tgs_calc_log_scale_bins(pl.col(col), rtol=length_rtol)
+            for col in ("length", "survival_duration")
+        )
+        pool_id = pl.struct(length_bin, survival_bin).rank("dense") - 1
+    else:
+        pool_id = pl.int_range(pl.len())
+    episodes_df = episodes_df.with_columns(pool_id=pool_id)
     coarsened_df = (
         episodes_df.group_by("pool_id")
         .agg(

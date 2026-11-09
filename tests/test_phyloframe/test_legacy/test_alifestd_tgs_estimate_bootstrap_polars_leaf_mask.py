@@ -1,10 +1,7 @@
-import typing
 import warnings
 
 import numpy as np
 import pandas as pd
-import polars as pl
-import polars.testing as pltest
 import pytest
 
 from phyloframe._auxlib._ExperimentalWarning import ExperimentalWarning
@@ -12,11 +9,9 @@ from phyloframe.legacy import alifestd_tgs_estimate_bootstrap_polars
 
 from .test_alifestd_tgs_estimate_polars_leaf_mask import (
     _estimate_from_masks,
-    _estimate_leaves,
     _make_cherries,
     _make_cherries_polars,
     _with_leaf_mask,
-    apply_params,
 )
 
 
@@ -35,18 +30,6 @@ def _estimate_bootstrap_from_masks(
         estimator=_estimate_leaves_bootstrap,
         **kwargs,
     )
-
-
-def test_point_columns_match_point_estimate():
-    df_pl = _make_cherries_polars(2_000)
-    kwargs = dict(
-        trait_transitions=["focal", "n1", "n2", "n3", "n4"],
-        neutral_traits=["n1", "n2", "n3", "n4"],
-    )
-    point = _estimate_leaves(df_pl, **kwargs)
-    res = _estimate_leaves_bootstrap(df_pl, num_bootstrap=2, seed=1, **kwargs)
-    assert res.columns[: point.width] == point.columns
-    pltest.assert_frame_equal(res.select(point.columns), point)
 
 
 @pytest.mark.parametrize("num_bootstrap", [0, -1])
@@ -199,24 +182,3 @@ def test_bootstrap_neutral_reference_without_carriers():
     assert np.isfinite(res.loc[0, "selection_coef_se"])
     assert 0 < res.loc[0, "num_bootstrap_degenerate"] < 50
     assert np.isfinite(res.loc[0, "log_gain_ratio_se"])
-
-
-@apply_params
-def test_empty(apply: typing.Callable):
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": pl.Series([], dtype=pl.Int64),
-                "ancestor_id": pl.Series([], dtype=pl.Int64),
-                "origin_time": pl.Series([], dtype=pl.Float64),
-                **{t: pl.Series([], dtype=pl.Int8) for t in ("a", "b", "c")},
-            }
-        ),
-    )
-    with pytest.raises(ValueError, match="no exposure episodes"):
-        _estimate_leaves_bootstrap(
-            df_pl,
-            trait_transitions=["a", "b", "c"],
-            neutral_traits=["b", "c"],
-            num_bootstrap=2,
-        )

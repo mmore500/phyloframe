@@ -171,13 +171,14 @@ def tgs_build_exposure_df_polars(
         raise NotImplementedError(
             "null, nan, and infinite origin_time values not supported",
         )
-    latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
+    # of the latest leaf below each node, or the node itself
+    latest_time = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids, origin_time
     )
     node_cols = {
         "origin_time": origin_time,
         "branch_length": origin_time - origin_time[ancestor_ids],
-        "survival_duration": latest_ot - origin_time,
+        "survival_duration": latest_time - origin_time,
         "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
             ancestor_ids
         ),

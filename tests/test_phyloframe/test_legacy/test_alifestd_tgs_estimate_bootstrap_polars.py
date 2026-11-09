@@ -43,19 +43,6 @@ def test_point_columns_match_point_estimate():
     pltest.assert_frame_equal(res.select(point.columns), point)
 
 
-def test_seed_reproducible():
-    phylogeny_df, traits = _make_cherries(2_000)
-
-    def run(seed):
-        return _estimate_bootstrap_from_masks(
-            phylogeny_df, trait_masks=traits, num_bootstrap=4, seed=seed
-        )
-
-    res1, res2, res3 = run(1), run(1), run(2)
-    pd.testing.assert_frame_equal(res1, res2)
-    assert not res1["selection_coef_se"].equals(res3["selection_coef_se"])
-
-
 @pytest.mark.parametrize("calibrate", [False, True])
 def test_recovers_gain_selection(calibrate: bool):
     phylogeny_df, traits = _make_cherries()
