@@ -47,21 +47,21 @@ def _tgs_coarsen_episodes(
 ) -> typing.Tuple[pl.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `tgs_fit_traits`.
 
-    Pools `trait_id`'s exposure episodes whose calibrated lengths
-    and survival durations both agree within relative tolerance
-    `length_rtol` (0 for no pooling), so have nearly the same chance of
-    gain. Each episode's length is calibrated by its calibration bin's
-    entry of `calibration_factors`.
+    Groups `trait_id`'s exposure episodes into granules, each holding
+    episodes whose calibrated lengths and survival durations both agree
+    within relative tolerance `length_rtol` (0 for one granule per episode),
+    so have nearly the same chance of gain. Each episode's length is
+    calibrated by its calibration bin's entry of `calibration_factors`.
 
-    Returns `coarsened_df`, one row per pool (see Output Schema), and
-    `survival_duration_granule_mass`, a sparse matrix giving, per pool
+    Returns `coarsened_df`, one row per granule (see Output Schema), and
+    `survival_duration_granule_mass`, a sparse matrix giving, per granule
     (row), the fraction of its episodes with each distinct survival duration
     (column, `survival_duration_id`).
 
     Output Schema
     -------------
     'num_trials' : float
-        Weighted (by `weight`) count of the pool's episodes.
+        Weighted (by `weight`) count of the granule's episodes.
     'num_successes' : float
         Of those, the weighted count that gained the trait.
     'mean_episode_length' : float
@@ -86,15 +86,15 @@ def _tgs_coarsen_episodes(
         survival_bin = _tgs_calc_log_scale_bins(
             pl.col("survival_duration"), rtol=length_rtol
         )
-        pool_id = pl.struct(length_bin, survival_bin).rank("dense") - 1
+        granule_id = pl.struct(length_bin, survival_bin).rank("dense") - 1
     else:
-        pool_id = pl.int_range(pl.len())
+        granule_id = pl.int_range(pl.len())
     calibrated_episodes_df = calibrated_episodes_df.with_columns(
-        pool_id=pool_id
+        granule_id=granule_id
     )
 
     coarsened_df = (
-        calibrated_episodes_df.group_by("pool_id")
+        calibrated_episodes_df.group_by("granule_id")
         .agg(
             num_trials=pl.col("weight").sum(),
             num_successes=pl.col("weight").filter("gained_trait").sum(),
@@ -102,7 +102,7 @@ def _tgs_coarsen_episodes(
                 pl.col("weight") * pl.col("calibrated_length")
             ).sum(),
         )
-        .sort("pool_id")
+        .sort("granule_id")
         .select(
             "num_trials",
             "num_successes",
@@ -117,7 +117,7 @@ def _tgs_coarsen_episodes(
         (
             calibrated_episodes_df["weight"].to_numpy(),
             (
-                calibrated_episodes_df["pool_id"].to_numpy(),
+                calibrated_episodes_df["granule_id"].to_numpy(),
                 calibrated_episodes_df["survival_duration_id"].to_numpy(),
             ),
         ),
@@ -145,9 +145,10 @@ def tgs_fit_traits(
     Fits each trait to the exposure episodes of `exposure_df` (see
     `tgs_build_exposure_df_polars`), each weighted by `weights` (e.g.,
     bootstrap draw counts): calibrates episode lengths by calibration bin
-    (see `tgs_calc_calibration_rescaling`), pools episodes of similar
-    length (see `_tgs_coarsen_episodes`), and fits gain rate and selection
-    coefficient. Returns one row per trait; see `tgs_fit_traits_coarse`.
+    (see `tgs_calc_calibration_rescaling`), groups episodes of similar
+    length into granules (see `_tgs_coarsen_episodes`), and fits gain rate
+    and selection coefficient. Returns one row per trait; see
+    `tgs_fit_traits_coarse`.
     """
     trait_bin_counts_df = tgs_count_trait_bin_exposures(
         exposure_df, trait_ids=neutral_trait_ids, weights=weights

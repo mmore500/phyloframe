@@ -123,8 +123,8 @@ def alifestd_tgs_estimate_polars(
         Cap on the neutral gain rate ratios that rescale episode lengths.
     length_rtol : float, default 1e-2
         Relative tolerance within which episodes' calibrated lengths
-        and survival durations must agree to be pooled for fitting; 0 for
-        no pooling.
+        and survival durations must agree to be fit together, as one
+        granule; 0 for one granule per episode.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
@@ -520,8 +520,8 @@ def _add_estimate_arguments(
         default=1e-2,
         type=float,
         help=(
-            "Relative tolerance for pooling calibrated episode lengths for "
-            "fitting (default: 1e-2)."
+            "Relative tolerance within which episodes of similar calibrated "
+            "length are fit together, as one granule (default: 1e-2)."
         ),
     )
     parser.add_argument(

@@ -45,7 +45,7 @@ def tgs_minimize_nll(
     """
     coarsened_df = nll_kwargs["coarsened_df"]
     selection_rescale = tgs_pick_selection_rescale(coarsened_df)
-    # longest pooled exposure episode, by calibrated length
+    # longest granule of exposure episodes, by mean calibrated length
     max_episode_length = coarsened_df["mean_episode_length"].max()
     max_survival_duration = nll_kwargs["distinct_survival_durations"].max(
         initial=0.0
