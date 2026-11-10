@@ -105,7 +105,8 @@ def tgs_build_exposure_df_polars(
     'origin_time' : float
         Origin time of the episode's end node.
     'episode_length' : float
-        Length of the episode's branch.
+        Duration elapsed between the origin times of the episode's start
+        node (its end node's parent) and its end node.
     'survival_duration' : float
         Time from the end node to the latest leaf below it (0 for a leaf).
     'clade_size' : integer
@@ -172,7 +173,7 @@ def tgs_build_exposure_df_polars(
         raise NotImplementedError(
             "null, nan, and infinite origin_time values not supported",
         )
-    # of the latest leaf below each node, or the node itself
+    # latest leaf below each node, or the node itself
     latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids, origin_time
     )
