@@ -19,16 +19,18 @@ def _tgs_calc_log_scale_bins(values: pl.Expr, *, rtol: float) -> pl.Expr:
     """Implementation detail for `_tgs_coarsen_episodes`.
 
     Returns each nonnegative value's bin on a log scale with ratio 1 +
-    `rtol` (see `calc_geometric_bins`); zero values get a bin of their own.
+    `rtol` (see `calc_geometric_bins`), numbering occupied bins from 0; zero
+    values get bin -1.
     """
 
     def do_calc_bins(values: pl.Series) -> pl.Series:
         values = values.to_numpy()
-        # placeholder below every bin, as bins of values under 1 are negative
-        bin_ids = np.full(len(values), np.iinfo(np.int64).min)
+        bin_ids = np.full(len(values), -1)
         is_positive = values > 0
-        bin_ids[is_positive] = calc_geometric_bins(
-            values[is_positive], ratio=1 + rtol
+        # number occupied bins consecutively, skipping empty ones
+        __, bin_ids[is_positive] = np.unique(
+            calc_geometric_bins(values[is_positive], ratio=1 + rtol),
+            return_inverse=True,
         )
         return pl.Series(bin_ids)
 
