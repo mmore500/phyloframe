@@ -64,12 +64,13 @@ def alifestd_tgs_estimate_polars(
     Each branch whose parent lacks a trait is an exposure episode, which
     gains the trait with probability
 
-        gain_rate * (exp(c * length) - 1) / c * exp(c * survival),
-        c = selection_coef - loss_rate
+        gain_rate * (exp(c * length) - 1) / c * exp(c * survival)
 
-    where `length` is the episode's length and `survival` is the time from its
-    end node to the latest leaf below it (zero for a leaf), over which a
-    carrier lineage must persist to be seen at every leaf of its clade.
+    where `length` is the exposure episode's duration and `survival` is the
+    time from its end node to the latest leaf below it (zero for a leaf).
+    Survival describes how long a carrier lineage must persist to be seen
+    at every leaf of its clade. Growth rate `c` is the selection
+    coefficient minus the loss rate, `selection_coef - loss_rate`.
 
     Only supports asexual phylogenies.
 
@@ -169,7 +170,11 @@ def alifestd_tgs_estimate_polars(
         See Parameters.
     `episode_mask` column : boolean, optional
         See Parameters.
-    `calibration_partition_by`, `calibration_compare_by_bins`, `calibration_compare_by_vals` columns : optional
+    `calibration_partition_by` column : optional
+        See Parameters.
+    `calibration_compare_by_bins` column : optional
+        See Parameters.
+    `calibration_compare_by_vals` columns : optional
         See Parameters.
 
     Output Schema
@@ -198,37 +203,6 @@ def alifestd_tgs_estimate_polars(
     'gain_ratio_lrt_naive' : float
         Likelihood-ratio statistic for gain ratio = 1.
 
-    Notes
-    -----
-    To calibrate within clade size classes, by bins of similar branch length
-    and origin time:
-
-        estimates_df = (
-            alifestd_mark_origin_time_delta_polars(df, mark_as="branch_length")
-            .pipe(
-                alifestd_mark_clade_size_geom_classes_polars,
-                weight_by=neutral_traits,
-                min_class_weight=20,
-            )
-            .pipe(
-                alifestd_mark_joint_quantile_bins_polars,
-                bin_by=["branch_length", "origin_time"],
-                partition_by="clade_size_geom_class",
-            )
-            .pipe(
-                alifestd_tgs_estimate_polars,
-                trait_transitions=trait_transitions,
-                neutral_traits=neutral_traits,
-                calibration_partition_by="clade_size_geom_class",
-                calibration_compare_by_bins="joint_quantile_bin",
-            )
-        )
-
-    Survival durations take inner branch lengths at face value, which
-    calibration does not correct. Leaf pendant branches use no inner branch
-    lengths, so disagreement between estimates with and without
-    `episode_mask="is_leaf"` may suggest distorted inner branch lengths.
-
     Warnings
     --------
     Statistical inference tends to overestimate significance. Nested
@@ -245,6 +219,40 @@ def alifestd_tgs_estimate_polars(
         Marks trait gains from leaf trait data.
     alifestd_tgs_estimate_bootstrap_polars :
         Adds bootstrap standard errors, z-scores, and p-values.
+
+    Notes
+    -----
+    Survival durations are not calibrated. Leaf pendant branches have zero
+    survival duration, so disagreement between estimates with and without
+    `episode_mask="is_leaf"` may suggest distorted inner branch lengths.
+
+    Examples
+    --------
+    To calibrate within clade size classes, by bins of similar branch length
+    and origin time:
+
+    >>> estimates_df = (
+    ...     alifestd_mark_origin_time_delta_polars(
+    ...         df, mark_as="branch_length"
+    ...     )
+    ...     .pipe(
+    ...         alifestd_mark_clade_size_geom_classes_polars,
+    ...         weight_by=neutral_traits,
+    ...         min_class_weight=20,
+    ...     )
+    ...     .pipe(
+    ...         alifestd_mark_joint_quantile_bins_polars,
+    ...         bin_by=["branch_length", "origin_time"],
+    ...         partition_by="clade_size_geom_class",
+    ...     )
+    ...     .pipe(
+    ...         alifestd_tgs_estimate_polars,
+    ...         trait_transitions=trait_transitions,
+    ...         neutral_traits=neutral_traits,
+    ...         calibration_partition_by="clade_size_geom_class",
+    ...         calibration_compare_by_bins="joint_quantile_bin",
+    ...     )
+    ... )
     """
     return _alifestd_tgs_estimate_polars_impl(**locals())[0]
 

@@ -19,7 +19,7 @@ def mark_tgs_calibration_columns(
     max_num_bins: int = 4096,
 ) -> pl.DataFrame:
     """Mark calibration partitions, `clade_size_geom_class`, and bins within
-    them, `joint_quantile_bin`, as the tgs estimators' Notes describe."""
+    them, `joint_quantile_bin`, as the tgs estimators' Examples show."""
     phylogeny_df = alifestd_mark_leaves_polars(
         alifestd_mark_origin_time_delta_polars(
             phylogeny_df, mark_as="branch_length"

@@ -473,7 +473,7 @@ def test_ancestor_list_column():
 
 
 def test_documented_unifurcation_collapse_matches():
-    # as the estimator's Notes describe: sum transitions into states,
+    # to carry transitions over a collapse: sum them into states,
     # collapse, then remake transitions
     phylogeny_df, traits = _make_cherries(2_000)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits[:3])

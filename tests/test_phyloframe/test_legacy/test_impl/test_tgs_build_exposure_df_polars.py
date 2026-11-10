@@ -122,7 +122,7 @@ def test_missing_calibration_column_raises():
 
 
 def test_origin_time_delta_branch_lengths_match():
-    # as the estimator's Notes compute branch lengths for calibration bins
+    # as the estimator's Examples compute branch lengths for calibration bins
     from phyloframe.legacy import alifestd_mark_origin_time_delta_polars
 
     df_pl = _make_tree()
