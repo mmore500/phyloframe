@@ -19,16 +19,18 @@ def _data():
     lengths = rng.uniform(1, 20, 6)
     shares = rng.random((6, 3))
     shares /= shares.sum(axis=1, keepdims=True)
-    coarsened_df = pl.DataFrame(
+    coarsegrain_df = pl.DataFrame(
         {"num_trials": n, "num_successes": k, "mean_episode_length": lengths}
     )
     data = dict(
-        coarsened_df=coarsened_df, survival_duration_granule_mass=shares
+        coarsegrain_df=coarsegrain_df, survival_duration_granule_mass=shares
     )
     return data, np.array([0.0, 5.0, 30.0])
 
 
-def _pendant_coarsened_df(gain_rate: float, selection_coef: float, seed: int):
+def _pendant_coarsegrain_df(
+    gain_rate: float, selection_coef: float, seed: int
+):
     rng = np.random.default_rng(seed)
     length = np.linspace(0.5, 60.0, 120)
     num_trials = np.full_like(length, 20_000)
@@ -46,19 +48,19 @@ def _pendant_coarsened_df(gain_rate: float, selection_coef: float, seed: int):
     )
 
 
-def _pendant_nll(coarsened_df, log_gain_rate, rate):
+def _pendant_nll(coarsegrain_df, log_gain_rate, rate):
     return tgs_calc_nll(
         gain_rate=np.exp(log_gain_rate),
         growth_rate=rate,
-        **make_pendant_nll_kwargs(coarsened_df),
+        **make_pendant_nll_kwargs(coarsegrain_df),
     )
 
 
 def test_survival_discounts():
     data, times = _data()
-    n, k, lengths = data["coarsened_df"].to_numpy().T
+    n, k, lengths = data["coarsegrain_df"].to_numpy().T
     shares = data["survival_duration_granule_mass"]
-    # equivalent to scaling each coarsened row's success probability
+    # equivalent to scaling each coarsegrained row's success probability
     rate = -0.05
     factor = shares @ np.exp(rate * times)
     nll, __, __ = tgs_calc_nll(
@@ -92,22 +94,22 @@ def test_gradient(rate: float):
 
 @pytest.mark.parametrize("rate", [-0.1, -1e-8, 0.0, 1e-8, 0.05])
 def test_pendant_gradient(rate: float):
-    coarsened_df = _pendant_coarsened_df(1e-3, -0.05, seed=3)
+    coarsegrain_df = _pendant_coarsegrain_df(1e-3, -0.05, seed=3)
 
     def nll(params):
-        return _pendant_nll(coarsened_df, *params)[0]
+        return _pendant_nll(coarsegrain_df, *params)[0]
 
     params = np.array([np.log(1e-3), rate])
     expected = optimize.approx_fprime(params, nll, [1e-6, 1e-9])
     np.testing.assert_allclose(
-        _pendant_nll(coarsened_df, *params)[1:], expected, rtol=1e-4
+        _pendant_nll(coarsegrain_df, *params)[1:], expected, rtol=1e-4
     )
 
 
 def test_continuous_at_zero_rate():
-    coarsened_df = _pendant_coarsened_df(1e-3, 0.0, seed=4)
-    at_zero = _pendant_nll(coarsened_df, np.log(1e-3), 0.0)
-    near_zero = _pendant_nll(coarsened_df, np.log(1e-3), 1e-12)
+    coarsegrain_df = _pendant_coarsegrain_df(1e-3, 0.0, seed=4)
+    at_zero = _pendant_nll(coarsegrain_df, np.log(1e-3), 0.0)
+    near_zero = _pendant_nll(coarsegrain_df, np.log(1e-3), 1e-12)
     np.testing.assert_allclose(at_zero, near_zero, rtol=1e-8)
 
 

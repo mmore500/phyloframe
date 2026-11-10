@@ -37,55 +37,55 @@ def _coarsegrain(trait: int, weights=np.ones(4), **kwargs):
 
 def test_merges_within_tolerance():
     # trait 0: lengths ~1 merge; length 2 splits by survival duration
-    coarsened_df, shares = _coarsegrain(0)
-    assert coarsened_df.columns == [
+    coarsegrain_df, shares = _coarsegrain(0)
+    assert coarsegrain_df.columns == [
         "num_trials",
         "num_successes",
         "mean_episode_length",
     ]
-    np.testing.assert_array_equal(coarsened_df["num_trials"], [2, 1, 1])
-    np.testing.assert_array_equal(coarsened_df["num_successes"], [1, 1, 0])
+    np.testing.assert_array_equal(coarsegrain_df["num_trials"], [2, 1, 1])
+    np.testing.assert_array_equal(coarsegrain_df["num_successes"], [1, 1, 0])
     np.testing.assert_allclose(
-        coarsened_df["mean_episode_length"], [1.0003, 2.0, 2.0]
+        coarsegrain_df["mean_episode_length"], [1.0003, 2.0, 2.0]
     )
     np.testing.assert_array_equal(shares.toarray(), [[1, 0], [1, 0], [0, 1]])
     # trait 1: only branches 1 and 2 start without it
-    coarsened_df, shares = _coarsegrain(1)
-    np.testing.assert_array_equal(coarsened_df["num_trials"], [1, 1])
-    np.testing.assert_array_equal(coarsened_df["num_successes"], [0, 1])
+    coarsegrain_df, shares = _coarsegrain(1)
+    np.testing.assert_array_equal(coarsegrain_df["num_trials"], [1, 1])
+    np.testing.assert_array_equal(coarsegrain_df["num_successes"], [0, 1])
     np.testing.assert_allclose(
-        coarsened_df["mean_episode_length"], [1.0004, 2.0]
+        coarsegrain_df["mean_episode_length"], [1.0004, 2.0]
     )
     np.testing.assert_array_equal(shares.toarray(), [[1, 0], [1, 0]])
 
 
 def test_no_merging():
-    coarsened_df, __ = _coarsegrain(0, length_rtol=0.0)
-    assert len(coarsened_df) == 4
+    coarsegrain_df, __ = _coarsegrain(0, length_rtol=0.0)
+    assert len(coarsegrain_df) == 4
 
 
 def test_calibration_factors_scale_lengths():
-    coarsened_df, __ = _coarsegrain(
+    coarsegrain_df, __ = _coarsegrain(
         0, calibration_factors=np.array([1.0, 3.0])
     )
-    assert coarsened_df["mean_episode_length"].to_list() == pytest.approx(
+    assert coarsegrain_df["mean_episode_length"].to_list() == pytest.approx(
         [1.0003, 2.0, 6.0]
     )
 
 
 def test_zero_weight_dropped():
-    coarsened_df, shares = _coarsegrain(
+    coarsegrain_df, shares = _coarsegrain(
         0, weights=np.array([1.0, 1.0, 0.0, 1.0])
     )
     # episode 2 has no weight left
-    assert coarsened_df["num_trials"].to_list() == [2, 1]
+    assert coarsegrain_df["num_trials"].to_list() == [2, 1]
     assert shares.shape == (2, 2)
 
 
 def test_no_episodes():
     # no branch starts without the trait
-    coarsened_df, shares = _coarsegrain(
+    coarsegrain_df, shares = _coarsegrain(
         1, weights=np.array([1.0, 0.0, 0.0, 1.0])
     )
-    assert coarsened_df.is_empty()
+    assert coarsegrain_df.is_empty()
     assert shares.shape == (0, 2)
