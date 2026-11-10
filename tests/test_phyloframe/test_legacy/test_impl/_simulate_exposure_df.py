@@ -19,7 +19,7 @@ def simulate_exposure_df(
     survival = np.where(is_leaf, 0.0, rng.uniform(0.5, 60, num_branches))
     columns = {
         "origin_time": lengths + survival + rng.uniform(0, 10, num_branches),
-        "branch_length": lengths,
+        "episode_length": lengths,
         "survival_duration": survival,
         "clade_size": np.where(is_leaf, 1, rng.integers(2, 10, num_branches)),
         "partition_id": np.zeros(num_branches, dtype=np.int64),

@@ -23,7 +23,7 @@ def _simulate(gain_rate: float, selection_coef: float, seed: int):
                 "num_successes": rng.binomial(
                     num_trials.astype(int), p
                 ).astype(float),
-                "mean_branch_length": length,
+                "mean_episode_length": length,
             },
         ),
     )

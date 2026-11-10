@@ -11,9 +11,9 @@ def tgs_pick_selection_rescale(coarsened_df: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll`.
 
     Returns the rate by which to rescale the selection coefficient for
-    optimization: 1 / mean branch length of `coarsened_df`'s episodes.
+    optimization: 1 / mean length of `coarsened_df`'s episodes.
     """
-    exposure = coarsened_df["num_trials"] * coarsened_df["mean_branch_length"]
+    exposure = coarsened_df["num_trials"] * coarsened_df["mean_episode_length"]
     return coarsened_df["num_trials"].sum() / exposure.sum()
 
 
@@ -38,15 +38,20 @@ def tgs_minimize_nll(
 
     The selection coefficient is optimized, and given in `starts` and `.x`,
     in units of `tgs_pick_selection_rescale`, so that both parameters are
-    of order one; otherwise, with long branches, L-BFGS-B stops early on a
+    of order one; otherwise, with long episodes, L-BFGS-B stops early on a
     tiny selection coefficient. It is bounded above so that growth
-    exponents, growth rate times branch length plus survival duration, stay
+    exponents, growth rate times episode length plus survival duration, stay
     within `growth_exponent_bound`.
     """
-    selection_rescale = tgs_pick_selection_rescale(nll_kwargs["coarsened_df"])
-    max_exponent_time = nll_kwargs["coarsened_df"][
-        "mean_branch_length"
-    ].max() + nll_kwargs["distinct_survival_durations"].max(initial=0.0)
+    coarsened_df = nll_kwargs["coarsened_df"]
+    selection_rescale = tgs_pick_selection_rescale(coarsened_df)
+    # longest pooled exposure episode, by calibrated length
+    max_episode_length = coarsened_df["mean_episode_length"].max()
+    max_survival_duration = nll_kwargs["distinct_survival_durations"].max(
+        initial=0.0
+    )
+    # longest time over which a carrier lineage's growth compounds
+    max_exponent_time = max_episode_length + max_survival_duration
     assert np.isfinite(max_exponent_time) and max_exponent_time > 0
     max_selection = (
         growth_exponent_bound / max_exponent_time + loss_rate

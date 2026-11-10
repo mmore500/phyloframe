@@ -25,7 +25,7 @@ def _tgs_calc_heldout_nll(
     """Implementation detail for `tgs_select_calibration_neighborhoods`.
 
     Returns the negative log likelihood of neutral `trait_id`'s gains
-    under no selection, with branch lengths calibrated against the other
+    under no selection, with episode lengths calibrated against the other
     neutral traits only (see `tgs_calc_calibration_rescaling`); 0 without
     gains.
     """
@@ -111,7 +111,7 @@ def tgs_select_calibration_neighborhoods(
 
     Returns a sparse 0/1 bin-by-bin matrix whose row `i` marks calibration
     bin `i`'s neighborhood, i.e., the bins whose neutral trait gains
-    calibrate its branch lengths (see `tgs_calc_calibration_rescaling`).
+    calibrate its episode lengths (see `tgs_calc_calibration_rescaling`).
 
     A bin's neighborhood is its nearest bins within its partition, by its
     episodes' mean ranks of `exposure_df`'s `calibration_compare_by_*`

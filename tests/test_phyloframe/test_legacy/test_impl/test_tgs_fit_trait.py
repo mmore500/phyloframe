@@ -43,7 +43,7 @@ def _sample(gain_rate: float, selection_coef: float, seed: int):
                 "num_successes": rng.binomial(
                     num_trials.astype(int), p
                 ).astype(float),
-                "mean_branch_length": length,
+                "mean_episode_length": length,
             },
         )
     )
@@ -96,7 +96,7 @@ def test_empty_rows_ignored():
                     {
                         "num_trials": [0.0],
                         "num_successes": [0.0],
-                        "mean_branch_length": [0.0],
+                        "mean_episode_length": [0.0],
                     }
                 ),
             ],
@@ -144,7 +144,7 @@ def test_no_successes_skips_fit_without_warning():
         {
             "num_trials": [10.0],
             "num_successes": [0.0],
-            "mean_branch_length": [1.0],
+            "mean_episode_length": [1.0],
         }
     )
     with warnings.catch_warnings():
@@ -158,7 +158,7 @@ def test_no_successes_skips_fit_without_warning():
 
 def test_selection_bounded_by_growth_exponent_bound():
     nll_kwargs = _sample(1e-3, 0.0, seed=10)
-    max_length = nll_kwargs["coarsened_df"]["mean_branch_length"].max()
+    max_length = nll_kwargs["coarsened_df"]["mean_episode_length"].max()
     # from far past the bound, clipped into it, staying finite
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,

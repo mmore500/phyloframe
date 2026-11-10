@@ -40,7 +40,6 @@ def _estimate(
 
 def _estimate_all(
     phylogeny_df: pd.DataFrame,
-    mutate: bool = False,
     estimator: typing.Callable = alifestd_tgs_estimate_polars,
     **kwargs,
 ) -> pd.DataFrame:
@@ -48,14 +47,13 @@ def _estimate_all(
 
 
 def _estimate_leaves_only(
-    phylogeny_df: pd.DataFrame, mutate: bool = False, **kwargs
+    phylogeny_df: pd.DataFrame, **kwargs
 ) -> pd.DataFrame:
     return _estimate(_estimate_leaves, phylogeny_df, **kwargs)
 
 
 def _estimate_from_masks(
     phylogeny_df: pd.DataFrame,
-    mutate: bool = False,
     *,
     trait_masks: typing.Sequence[np.ndarray],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
@@ -68,9 +66,7 @@ def _estimate_from_masks(
         phylogeny_df, trait_masks, trait_names
     )
     kwargs["neutral_traits"] = [names[i] for i in neutral_traits]
-    return _estimate_all(
-        phylogeny_df, mutate, trait_transitions=names, **kwargs
-    )
+    return _estimate_all(phylogeny_df, trait_transitions=names, **kwargs)
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):

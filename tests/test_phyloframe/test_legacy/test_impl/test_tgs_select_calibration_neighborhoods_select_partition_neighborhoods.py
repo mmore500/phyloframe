@@ -17,14 +17,14 @@ def test_select(caplog):
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
     exposure_df = alifestd_mark_joint_quantile_bins_polars(
         exposure_df,
-        bin_by=["branch_length", "origin_time"],
+        bin_by=["episode_length", "origin_time"],
         max_num_bins=64,
         mark_as="bin_id",
     )
     num_bins = exposure_df["bin_id"].max() + 1
     with caplog.at_level(logging.INFO):
         res = _tgs_select_partition_neighborhoods(
-            exposure_df.select("branch_length", "origin_time", "bin_id")
+            exposure_df.select("episode_length", "origin_time", "bin_id")
             .group_by("bin_id")
             .mean()
             .sort("bin_id")

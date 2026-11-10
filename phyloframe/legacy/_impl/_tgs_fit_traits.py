@@ -15,19 +15,23 @@ from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
 from ._tgs_fit_coarsened_traits import tgs_fit_coarsened_traits
 
 
-def _tgs_calc_log_scale_bins(values: pl.Series, *, rtol: float) -> pl.Series:
+def _tgs_calc_log_scale_bins(values: pl.Expr, *, rtol: float) -> pl.Expr:
     """Implementation detail for `_tgs_coarsen_episodes`.
 
     Returns each nonnegative value's bin on a log scale with ratio 1 +
     `rtol` (see `calc_geometric_bins`); zero values get a bin of their own.
     """
-    values = values.to_numpy()
-    bin_ids = np.full(len(values), np.iinfo(np.int64).min)
-    is_positive = values > 0
-    bin_ids[is_positive] = calc_geometric_bins(
-        values[is_positive], ratio=1 + rtol
-    )
-    return pl.Series(bin_ids)
+
+    def calc_bins(values: pl.Series) -> pl.Series:
+        values = values.to_numpy()
+        bin_ids = np.full(len(values), np.iinfo(np.int64).min)
+        is_positive = values > 0
+        bin_ids[is_positive] = calc_geometric_bins(
+            values[is_positive], ratio=1 + rtol
+        )
+        return pl.Series(bin_ids)
+
+    return values.map_batches(calc_bins, return_dtype=pl.Int64)
 
 
 def _tgs_coarsen_episodes(
@@ -40,7 +44,7 @@ def _tgs_coarsen_episodes(
 ) -> typing.Tuple[pl.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `tgs_fit_traits`.
 
-    Pools `trait_id`'s exposure episodes whose calibrated branch lengths
+    Pools `trait_id`'s exposure episodes whose calibrated lengths
     and survival durations both agree within relative tolerance
     `length_rtol` (0 for no pooling), so have nearly the same chance of
     gain. Each episode's length is calibrated by its calibration bin's
@@ -57,8 +61,8 @@ def _tgs_coarsen_episodes(
         Weighted (by `weight`) count of the pool's episodes.
     'num_successes' : float
         Of those, the weighted count that gained the trait.
-    'mean_branch_length' : float
-        Their weighted mean calibrated branch length.
+    'mean_episode_length' : float
+        Their weighted mean calibrated length.
     """
     episodes_df = exposure_df.filter(
         pl.col(f"trait{trait_id}_starts_absent"),
@@ -68,26 +72,18 @@ def _tgs_coarsen_episodes(
         "survival_duration",
         "survival_duration_id",
         gain=f"trait{trait_id}_gain",
-        length=pl.col("branch_length")
+        length=pl.col("episode_length")
         * pl.lit(pl.Series(calibration_factors)).gather("bin_id"),
     )
-    calc_log_scale_bins = dict(
-        function=lambda values: _tgs_calc_log_scale_bins(
-            values, rtol=length_rtol
-        ),
-        return_dtype=pl.Int64,
-    )
-    episodes_df = episodes_df.with_columns(
-        pool_id=(
-            pl.struct(
-                pl.col("length").map_batches(**calc_log_scale_bins),
-                pl.col("survival_duration").map_batches(**calc_log_scale_bins),
-            ).rank("dense")
-            - 1
-            if length_rtol > 0
-            else pl.int_range(pl.len())
-        ),
-    )
+    if length_rtol > 0:
+        length_bin, survival_bin = (
+            _tgs_calc_log_scale_bins(pl.col(col), rtol=length_rtol)
+            for col in ("length", "survival_duration")
+        )
+        pool_id = pl.struct(length_bin, survival_bin).rank("dense") - 1
+    else:
+        pool_id = pl.int_range(pl.len())
+    episodes_df = episodes_df.with_columns(pool_id=pool_id)
     coarsened_df = (
         episodes_df.group_by("pool_id")
         .agg(
@@ -99,7 +95,7 @@ def _tgs_coarsen_episodes(
         .select(
             "num_trials",
             "num_successes",
-            mean_branch_length=pl.col("length_sum") / pl.col("num_trials"),
+            mean_episode_length=pl.col("length_sum") / pl.col("num_trials"),
         )
     )
     survival_shares = sparse.diags(
@@ -135,7 +131,7 @@ def tgs_fit_traits(
 
     Fits each trait to the exposure episodes of `exposure_df` (see
     `tgs_build_exposure_df_polars`), each weighted by `weights` (e.g.,
-    bootstrap draw counts): calibrates branch lengths by calibration bin
+    bootstrap draw counts): calibrates episode lengths by calibration bin
     (see `tgs_calc_calibration_rescaling`), pools episodes of similar
     length (see `_tgs_coarsen_episodes`), and fits gain rate and selection
     coefficient. Returns one row per trait; see `tgs_fit_coarsened_traits`.

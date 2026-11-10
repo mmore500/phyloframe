@@ -8,7 +8,7 @@ def _exposure_df() -> pl.DataFrame:
     return pl.DataFrame(
         {
             "bin_id": [0, 0, 2, 2],
-            "branch_length": [1.0, 2.0, 3.0, 4.0],
+            "episode_length": [1.0, 2.0, 3.0, 4.0],
             "trait0_starts_absent": [True, True, True, False],
             "trait0_gain": [False, True, False, False],
             "trait1_starts_absent": [True, True, True, True],

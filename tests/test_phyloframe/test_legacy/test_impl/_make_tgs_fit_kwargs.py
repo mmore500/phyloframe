@@ -19,7 +19,7 @@ def make_tgs_fit_kwargs(
     if calibrate:
         exposure_df = alifestd_mark_joint_quantile_bins_polars(
             exposure_df,
-            bin_by=["branch_length", "origin_time"],
+            bin_by=["episode_length", "origin_time"],
             max_num_bins=64,
             mark_as="bin_id",
         )

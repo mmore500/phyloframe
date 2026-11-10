@@ -67,7 +67,7 @@ def alifestd_tgs_estimate_polars(
         gain_rate * (exp(c * length) - 1) / c * exp(c * survival),
         c = selection_coef - loss_rate
 
-    where `length` is its branch length and `survival` is the time from its
+    where `length` is the episode's length and `survival` is the time from its
     end node to the latest leaf below it (zero for a leaf), over which a
     carrier lineage must persist to be seen at every leaf of its clade.
 
@@ -87,7 +87,7 @@ def alifestd_tgs_estimate_polars(
         trait states.
     neutral_traits : str or Sequence[str]
         Names, among `trait_transitions`, of at least two traits known to
-        be neutral, used to calibrate branch lengths and as the reference
+        be neutral, used to calibrate episode lengths and as the reference
         for gain ratios.
     episode_mask : str, optional
         Name of a boolean column marking, at each exposure episode's end
@@ -109,9 +109,9 @@ def alifestd_tgs_estimate_polars(
         Columns by which bins are compared: a bin's neighborhood is its
         nearest bins in its partition by mean rank of these columns.
 
-        May be episode columns `branch_length`, `origin_time`,
-        `clade_size`, or `survival_duration`, or other columns of
-        `phylogeny_df`, at each episode's end node.
+        May be episode columns `branch_length` (the episode's length),
+        `origin_time`, `clade_size`, or `survival_duration`, or other
+        columns of `phylogeny_df`, at each episode's end node.
     calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of a
         partition's bins.
@@ -119,16 +119,16 @@ def alifestd_tgs_estimate_polars(
         The candidate that best predicts each neutral trait's gains, when
         calibrating against the other neutral traits, is used.
     calibrate_max_rate_ratio : float, default np.inf
-        Cap on the neutral gain rate ratios that rescale branch lengths.
+        Cap on the neutral gain rate ratios that rescale episode lengths.
     length_rtol : float, default 1e-2
-        Relative tolerance within which episodes' calibrated branch lengths
+        Relative tolerance within which episodes' calibrated lengths
         and survival durations must agree to be pooled for fitting; 0 for
         no pooling.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Optimizer starting values for the selection coefficient, in units
-        of 1 / mean branch length.
+        of 1 / mean episode length.
     growth_exponent_bound : float, default 600.0
         Bound on `c * (length + survival)`, so likelihoods stay finite.
     progress_wrap : Callable, default identity
@@ -146,8 +146,8 @@ def alifestd_tgs_estimate_polars(
     NotImplementedError
         For unsupported input, e.g., fewer than two neutral traits, a
         non-asexual phylogeny, unifurcations, null values, non-finite
-        origin times, exposure episodes with zero or negative branch
-        lengths, trait losses, or a trait present at a root.
+        origin times, exposure episodes with zero or negative lengths,
+        trait losses, or a trait present at a root.
 
     Warns
     -----
@@ -163,7 +163,7 @@ def alifestd_tgs_estimate_polars(
 
         Non-root nodes with one child (unifurcations) are not supported.
     'origin_time' : float
-        Time of each taxon's origin, from which branch lengths and survival
+        Time of each taxon's origin, from which episode lengths and survival
         durations are taken; must be finite.
     `trait_transitions` columns : integer
         See Parameters.
@@ -185,7 +185,7 @@ def alifestd_tgs_estimate_polars(
     'num_inner_gains' : integer
         Of those, the number that gained the trait.
     'gain_rate' : float
-        Estimated rate of trait gain, per unit branch length.
+        Estimated rate of trait gain, per unit episode length.
     'selection_coef' : float
         Estimated rate at which a carrier lineage's expected number of
         sampled descendants changes relative to a non-carrier's (negative
@@ -508,7 +508,7 @@ def _add_estimate_arguments(
         default=1e-2,
         type=float,
         help=(
-            "Relative tolerance for pooling calibrated branch lengths for "
+            "Relative tolerance for pooling calibrated episode lengths for "
             "fitting (default: 1e-2)."
         ),
     )
@@ -545,7 +545,7 @@ def _add_estimate_arguments(
         type=float,
         help=(
             "Starting values for the selection coefficient, in units of "
-            "1 / mean branch length (default: 0.0 -0.3 -1.8)."
+            "1 / mean episode length (default: 0.0 -0.3 -1.8)."
         ),
     )
     parser.add_argument(

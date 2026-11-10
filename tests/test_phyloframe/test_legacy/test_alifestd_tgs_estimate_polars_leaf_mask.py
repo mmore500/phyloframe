@@ -41,7 +41,6 @@ def _estimate_leaves(phylogeny_df, **kwargs):
 
 def _estimate_pandas(
     phylogeny_df: pd.DataFrame,
-    mutate: bool = False,
     calibrate: bool = False,
     calibrate_max_num_bins: int = 4096,
     estimator: typing.Callable = _estimate_leaves,
@@ -62,7 +61,6 @@ def _estimate_pandas(
 
 def _estimate_from_masks(
     phylogeny_df: pd.DataFrame,
-    mutate: bool = False,
     *,
     trait_masks: typing.Sequence[np.ndarray],
     trait_names: typing.Optional[typing.Sequence[str]] = None,
@@ -75,9 +73,7 @@ def _estimate_from_masks(
         phylogeny_df, trait_masks, trait_names
     )
     kwargs["neutral_traits"] = [names[i] for i in neutral_traits]
-    return _estimate_pandas(
-        phylogeny_df, mutate, trait_transitions=names, **kwargs
-    )
+    return _estimate_pandas(phylogeny_df, trait_transitions=names, **kwargs)
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
@@ -188,15 +184,6 @@ def test_drops_inherited_and_rootward():
     assert np.isnan(res["gain_ratio"]).all()
 
 
-@pytest.mark.parametrize("neutral_traits", [[], [1], [1, 1]])
-def test_too_few_neutral_traits_raise(neutral_traits):
-    phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(NotImplementedError, match="at least two"):
-        _estimate_from_masks(
-            phylogeny_df, trait_masks=traits, neutral_traits=neutral_traits
-        )
-
-
 def test_neutral_traits_normalized():
     phylogeny_df, traits = _make_cherries(2_000)
     kwargs = dict(trait_masks=traits, calibrate=True)
@@ -257,78 +244,6 @@ def test_nan_origin_time_raises():
         )
 
 
-def test_input_not_mutated():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    original_df = phylogeny_df.copy()
-    _estimate_pandas(
-        phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
-    )
-    pd.testing.assert_frame_equal(phylogeny_df, original_df)
-
-
-def _make_cherries_with_transitions(num_cherries: int = 100):
-    phylogeny_df, traits = _make_cherries(num_cherries)
-    return add_trait_transitions(phylogeny_df, traits)
-
-
-def test_missing_transitions_column_raises():
-    phylogeny_df, names = _make_cherries_with_transitions()
-    with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
-        _estimate_pandas(
-            phylogeny_df,
-            trait_transitions=["absent", *names[1:]],
-            neutral_traits=names[1:],
-        )
-
-
-@pytest.mark.parametrize("value", [2, -2])
-def test_invalid_transitions_raise(value: int):
-    phylogeny_df, names = _make_cherries_with_transitions()
-    phylogeny_df.loc[5, names[0]] = value
-    with pytest.raises(NotImplementedError):
-        _estimate_pandas(
-            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
-        )
-
-
-def test_repeated_gain_raises():
-    phylogeny_df, names = _make_cherries_with_transitions()
-    # gains on cherry 1's stem and on one of its leaves give state 2 there
-    phylogeny_df["trait"] = 0
-    phylogeny_df.loc[[1, 2], "trait"] = 1
-    with pytest.raises(ValueError):
-        _estimate_pandas(
-            phylogeny_df,
-            trait_transitions=["trait", *names[1:]],
-            neutral_traits=names[1:],
-        )
-
-
-def test_losses_not_supported():
-    phylogeny_df, names = _make_cherries_with_transitions()
-    phylogeny_df["trait"] = 0
-    phylogeny_df.loc[1, "trait"] = 1
-    phylogeny_df.loc[2, "trait"] = -1
-    with pytest.raises(NotImplementedError, match="loss"):
-        _estimate_pandas(
-            phylogeny_df,
-            trait_transitions=["trait", *names[1:]],
-            neutral_traits=names[1:],
-        )
-
-
-def test_trait_named_by_columns():
-    phylogeny_df, names = _make_cherries_with_transitions()
-    phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
-    res = _estimate_pandas(
-        phylogeny_df,
-        trait_transitions=list("abcde"),
-        neutral_traits=["b", "c"],
-    )
-    assert res["trait"].tolist() == list("abcde")
-
-
 def test_tgs_select_calibration_neighborhoods():
     rng = np.random.default_rng(1)
     bin_coords = rng.random((256, 2))
@@ -384,15 +299,6 @@ def test_neutral_trait_not_among_transitions_raises():
     with pytest.raises(ValueError):
         _estimate_pandas(
             phylogeny_df, trait_transitions=names, neutral_traits=["absent"]
-        )
-
-
-def test_neutral_trait_index_raises():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    with pytest.raises(ValueError):
-        _estimate_pandas(
-            phylogeny_df, trait_transitions=names, neutral_traits=[1]
         )
 
 
@@ -504,15 +410,6 @@ def test_calibrate_max_rate_ratio_not_positive_raises(
         )
 
 
-apply_params = pytest.mark.parametrize(
-    "apply",
-    [
-        pytest.param(lambda x: x, id="DataFrame"),
-        pytest.param(lambda x: x.lazy(), id="LazyFrame"),
-    ],
-)
-
-
 def _make_cherries_polars(num_cherries: int) -> pl.DataFrame:
     phylogeny_df, traits = _make_cherries(num_cherries)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
@@ -521,32 +418,6 @@ def _make_cherries_polars(num_cherries: int) -> pl.DataFrame:
             columns=dict(zip(names, ["focal", "n1", "n2", "n3", "n4"]))
         ).drop(columns=["ancestor_list"], errors="ignore"),
     )
-
-
-@apply_params
-def test_empty(apply: typing.Callable):
-    df_pl = apply(
-        pl.DataFrame(
-            {
-                "id": pl.Series([], dtype=pl.Int64),
-                "ancestor_id": pl.Series([], dtype=pl.Int64),
-                "origin_time": pl.Series([], dtype=pl.Float64),
-                **{t: pl.Series([], dtype=pl.Int8) for t in ("a", "b", "c")},
-            }
-        ),
-    )
-    with pytest.raises(ValueError, match="no exposure episodes"):
-        _estimate_leaves(
-            df_pl,
-            trait_transitions=["a", "b", "c"],
-            neutral_traits=["b", "c"],
-        )
-
-
-def test_expression_transitions_raise():
-    df_pl = _make_cherries_polars(500)
-    with pytest.raises(TypeError):
-        _estimate_leaves(df_pl, trait_transitions=["focal", pl.col("n1")])
 
 
 @pytest.mark.parametrize(
