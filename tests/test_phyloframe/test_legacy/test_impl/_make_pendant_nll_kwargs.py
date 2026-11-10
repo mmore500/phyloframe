@@ -12,8 +12,6 @@ def make_pendant_nll_kwargs(
     of leaf pendant branches, whose survival duration is 0."""
     return dict(
         coarsened_df=coarsened_df,
-        survival_duration_fractions=sparse.csr_matrix(
-            np.ones((len(coarsened_df), 1))
-        ),
+        survival_pool_mass=sparse.csr_matrix(np.ones((len(coarsened_df), 1))),
         distinct_survival_durations=np.zeros(1),
     )

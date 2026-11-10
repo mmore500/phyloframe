@@ -22,7 +22,7 @@ def _data():
     coarsened_df = pl.DataFrame(
         {"num_trials": n, "num_successes": k, "mean_episode_length": lengths}
     )
-    data = dict(coarsened_df=coarsened_df, survival_duration_fractions=shares)
+    data = dict(coarsened_df=coarsened_df, survival_pool_mass=shares)
     return data, np.array([0.0, 5.0, 30.0])
 
 
@@ -55,7 +55,7 @@ def _pendant_nll(coarsened_df, log_gain_rate, rate):
 def test_survival_discounts():
     data, times = _data()
     n, k, lengths = data["coarsened_df"].to_numpy().T
-    shares = data["survival_duration_fractions"]
+    shares = data["survival_pool_mass"]
     # equivalent to scaling each coarsened row's success probability
     rate = -0.05
     factor = shares @ np.exp(rate * times)
