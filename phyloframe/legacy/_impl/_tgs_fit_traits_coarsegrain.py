@@ -79,7 +79,7 @@ def _tgs_fit_trait_coarsegrain(
         # null of gain rate equal to the neutral reference's, taken as
         # known; start from the free fit, too
         selection_rescale = tgs_pick_selection_rescale(
-            nll_kwargs["coarsened_df"]
+            nll_kwargs["coarsegrain_df"]
         )
         free_start = fit["selection_coef"] / selection_rescale
         res["gain_ratio_lrt_naive"] = _tgs_calc_lrt(

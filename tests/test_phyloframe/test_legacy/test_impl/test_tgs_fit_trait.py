@@ -91,7 +91,7 @@ def test_empty_rows_ignored():
     padded = make_pendant_nll_kwargs(
         pl.concat(
             [
-                nll_kwargs["coarsened_df"],
+                nll_kwargs["coarsegrain_df"],
                 pl.DataFrame(
                     {
                         "num_trials": [0.0],
@@ -140,7 +140,7 @@ def test_keyword_only():
 
 
 def test_no_successes_skips_fit_without_warning():
-    coarsened_df = pl.DataFrame(
+    coarsegrain_df = pl.DataFrame(
         {
             "num_trials": [10.0],
             "num_successes": [0.0],
@@ -150,7 +150,7 @@ def test_no_successes_skips_fit_without_warning():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         res = _fit(
-            dict(coarsened_df=coarsened_df), selection_coef_starts=(0.0,)
+            dict(coarsegrain_df=coarsegrain_df), selection_coef_starts=(0.0,)
         )
     assert res["gain_rate"] == 0.0
     assert np.isnan(res["selection_coef"])
@@ -158,7 +158,7 @@ def test_no_successes_skips_fit_without_warning():
 
 def test_selection_bounded_by_growth_exponent_bound():
     nll_kwargs = _sample(1e-3, 0.0, seed=10)
-    max_episode_length = nll_kwargs["coarsened_df"][
+    max_episode_length = nll_kwargs["coarsegrain_df"][
         "mean_episode_length"
     ].max()
     # from far past the bound, clipped into it, staying finite
@@ -172,6 +172,6 @@ def test_selection_bounded_by_growth_exponent_bound():
     )
     assert np.isfinite(best.fun)
     selection_coef = best.x[1] * tgs_pick_selection_rescale(
-        nll_kwargs["coarsened_df"]
+        nll_kwargs["coarsegrain_df"]
     )
     assert selection_coef * max_episode_length <= 5.0 * (1 + 1e-9)

@@ -53,7 +53,7 @@ def _tgs_coarsegrain_episodes(
     so have nearly the same chance of gain. Each episode's length is
     calibrated by its calibration bin's entry of `calibration_factors`.
 
-    Returns `coarsened_df`, one row per granule (see Output Schema), and
+    Returns `coarsegrain_df`, one row per granule (see Output Schema), and
     `survival_duration_granule_mass`, a sparse matrix giving, per granule
     (row), the fraction of its episodes with each distinct survival duration
     (column, `survival_duration_id`).
@@ -93,7 +93,7 @@ def _tgs_coarsegrain_episodes(
         granule_id=granule_id
     )
 
-    coarsened_df = (
+    coarsegrain_df = (
         calibrated_episodes_df.group_by("granule_id")
         .agg(
             num_trials=pl.col("weight").sum(),
@@ -112,7 +112,7 @@ def _tgs_coarsegrain_episodes(
     )
 
     survival_duration_granule_mass = sparse.diags(
-        1 / coarsened_df["num_trials"].to_numpy()
+        1 / coarsegrain_df["num_trials"].to_numpy()
     ) @ sparse.csr_matrix(
         (
             calibrated_episodes_df["weight"].to_numpy(),
@@ -121,9 +121,9 @@ def _tgs_coarsegrain_episodes(
                 calibrated_episodes_df["survival_duration_id"].to_numpy(),
             ),
         ),
-        shape=(len(coarsened_df), num_survival_durations),
+        shape=(len(coarsegrain_df), num_survival_durations),
     )
-    return coarsened_df, survival_duration_granule_mass
+    return coarsegrain_df, survival_duration_granule_mass
 
 
 def tgs_fit_traits(
@@ -164,10 +164,10 @@ def tgs_fit_traits(
     )
 
     trait_nll_kwargs = []  # each trait's, but the rate parameters
-    # coarsen one trait at a time, to reduce peak memory
+    # coarsegrain one trait at a time, to reduce peak memory
     for trait_id in progress_wrap(range(num_traits)):
         (
-            coarsened_df,
+            coarsegrain_df,
             survival_duration_granule_mass,
         ) = _tgs_coarsegrain_episodes(
             exposure_df,
@@ -184,7 +184,7 @@ def tgs_fit_traits(
         )
         trait_nll_kwargs.append(
             dict(
-                coarsened_df=coarsened_df,
+                coarsegrain_df=coarsegrain_df,
                 survival_duration_granule_mass=survival_duration_granule_mass,
                 distinct_survival_durations=distinct_survival_durations,
             ),

@@ -17,7 +17,7 @@ def tgs_fit_trait(
     """Implementation detail for `tgs_fit_traits_coarsegrain`.
 
     Maximum likelihood fit of one trait's gain rate and selection
-    coefficient to its coarsened exposure episodes (see `tgs_calc_nll`),
+    coefficient to its coarsegrained exposure episodes (see `tgs_calc_nll`),
     keeping the best fit from each of `selection_coef_starts`. Returns
     `gain_rate`, `selection_coef`, and their negative log likelihood,
     `nll`; without gains, zero gain rate and nan otherwise.
@@ -38,12 +38,14 @@ def tgs_fit_trait(
     Biology, 56(5), 701-710.
     https://doi.org/10.1080/10635150701607033
     """
-    coarsened_df = nll_kwargs["coarsened_df"]
-    num_gains = coarsened_df["num_successes"].sum()
+    coarsegrain_df = nll_kwargs["coarsegrain_df"]
+    num_gains = coarsegrain_df["num_successes"].sum()
     if not num_gains:
         return dict(gain_rate=0.0, selection_coef=np.nan, nll=np.nan)
 
-    exposure = coarsened_df["num_trials"] * coarsened_df["mean_episode_length"]
+    exposure = (
+        coarsegrain_df["num_trials"] * coarsegrain_df["mean_episode_length"]
+    )
     log_gain_start = np.log(num_gains / exposure.sum())  # no selection
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
@@ -67,7 +69,7 @@ def tgs_fit_trait(
     return dict(
         gain_rate=float(np.exp(log_gain_rate)),
         selection_coef=float(
-            selection * tgs_pick_selection_rescale(coarsened_df)
+            selection * tgs_pick_selection_rescale(coarsegrain_df)
         ),
         nll=float(best.fun),
     )

@@ -7,14 +7,16 @@ from scipy import optimize
 from ._tgs_calc_nll import tgs_calc_nll
 
 
-def tgs_pick_selection_rescale(coarsened_df: pl.DataFrame) -> float:
+def tgs_pick_selection_rescale(coarsegrain_df: pl.DataFrame) -> float:
     """Implementation detail for `tgs_minimize_nll`.
 
     Returns the rate by which to rescale the selection coefficient for
-    optimization: 1 / mean length of `coarsened_df`'s episodes.
+    optimization: 1 / mean length of `coarsegrain_df`'s episodes.
     """
-    exposure = coarsened_df["num_trials"] * coarsened_df["mean_episode_length"]
-    return coarsened_df["num_trials"].sum() / exposure.sum()
+    exposure = (
+        coarsegrain_df["num_trials"] * coarsegrain_df["mean_episode_length"]
+    )
+    return coarsegrain_df["num_trials"].sum() / exposure.sum()
 
 
 def tgs_minimize_nll(
@@ -43,10 +45,10 @@ def tgs_minimize_nll(
     in `starts` and `.x`, so that L-BFGS-B sees parameters of order one. It
     is bounded so that growth exponents stay within `growth_exponent_bound`.
     """
-    coarsened_df = nll_kwargs["coarsened_df"]
-    selection_rescale = tgs_pick_selection_rescale(coarsened_df)
+    coarsegrain_df = nll_kwargs["coarsegrain_df"]
+    selection_rescale = tgs_pick_selection_rescale(coarsegrain_df)
     # longest granule of exposure episodes, by mean calibrated length
-    max_episode_length = coarsened_df["mean_episode_length"].max()
+    max_episode_length = coarsegrain_df["mean_episode_length"].max()
     max_survival_duration = nll_kwargs["distinct_survival_durations"].max(
         initial=0.0
     )

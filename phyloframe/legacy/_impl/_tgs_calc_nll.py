@@ -40,14 +40,14 @@ def tgs_calc_nll(
     *,
     gain_rate: float,
     growth_rate: float,
-    coarsened_df: pl.DataFrame,
+    coarsegrain_df: pl.DataFrame,
     survival_duration_granule_mass: sparse.csr_matrix,
     distinct_survival_durations: np.ndarray,
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `tgs_minimize_nll`.
 
     Returns negative log likelihood (up to a constant) of one trait's
-    coarsened exposure episodes, and its derivatives with respect to log
+    coarsegrained exposure episodes, and its derivatives with respect to log
     gain rate and to `growth_rate`, r, the carrier growth rate (selection
     coefficient minus loss rate). An episode of length `t` gains the trait
     with probability
@@ -55,14 +55,14 @@ def tgs_calc_nll(
         gain_rate * (exp(r * t) - 1) / r * exp(r * u)
 
     where `u` is its survival duration, the time until its clade's last leaf
-    is sampled (0 for a leaf's pendant branch). Each row of `coarsened_df`
+    is sampled (0 for a leaf's pendant branch). Each row of `coarsegrain_df`
     averages exp(r * u) over its episodes, weighted by its row of
     `survival_duration_granule_mass` over `distinct_survival_durations`; see
     `_tgs_coarsegrain_episodes`.
 
     Input Schema
     ------------
-    `coarsened_df` columns:
+    `coarsegrain_df` columns:
 
     'num_trials' : float
         (Weighted) count of the row's exposure episodes.
@@ -72,12 +72,12 @@ def tgs_calc_nll(
         Their mean calibrated length.
     """
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
-        length=coarsened_df["mean_episode_length"].to_numpy(),
+        length=coarsegrain_df["mean_episode_length"].to_numpy(),
         growth_rate=growth_rate,
     )
 
     # carrier lineage growth over each distinct survival duration, exp(r * u),
-    # then averaged over each coarsened row's episodes
+    # then averaged over each coarsegrained row's episodes
     growth_by_duration = np.exp(growth_rate * distinct_survival_durations)
     row_survival = survival_duration_granule_mass @ growth_by_duration
     row_survival_deriv = survival_duration_granule_mass @ (
@@ -86,8 +86,8 @@ def tgs_calc_nll(
 
     gain_prob = gain_rate * effective_length * row_survival
     nll, dnll_dgain_prob = calc_binomial_nll_proxy(
-        coarsened_df["num_trials"].to_numpy(),
-        coarsened_df["num_successes"].to_numpy(),
+        coarsegrain_df["num_trials"].to_numpy(),
+        coarsegrain_df["num_successes"].to_numpy(),
         gain_prob,
     )
 

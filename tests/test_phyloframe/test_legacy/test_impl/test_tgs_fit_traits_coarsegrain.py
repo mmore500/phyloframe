@@ -42,7 +42,7 @@ def fixture():
     # each trait's `tgs_calc_nll` arguments, but the rate parameters
     trait_nll_kwargs = []
     for trait in range(3):
-        coarsened_df, shares = _tgs_coarsegrain_episodes(
+        coarsegrain_df, shares = _tgs_coarsegrain_episodes(
             exposure_df,
             trait_id=trait,
             calibration_factors=np.ones(1),
@@ -51,7 +51,7 @@ def fixture():
         )
         trait_nll_kwargs.append(
             dict(
-                coarsened_df=coarsened_df,
+                coarsegrain_df=coarsegrain_df,
                 survival_duration_granule_mass=shares,
                 distinct_survival_durations=distinct_survival_durations,
             ),
@@ -64,9 +64,9 @@ def _nll_kwargs(fixture, trait: int):
 
 
 def test_calc_scales(fixture):
-    coarsened_df = _nll_kwargs(fixture, 0)["coarsened_df"]
-    n, x = coarsened_df["num_trials"], coarsened_df["mean_episode_length"]
-    selection_rescale = tgs_pick_selection_rescale(coarsened_df)
+    coarsegrain_df = _nll_kwargs(fixture, 0)["coarsegrain_df"]
+    n, x = coarsegrain_df["num_trials"], coarsegrain_df["mean_episode_length"]
+    selection_rescale = tgs_pick_selection_rescale(coarsegrain_df)
     assert selection_rescale == pytest.approx(n.sum() / (n * x).sum())
 
 
