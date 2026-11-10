@@ -217,6 +217,8 @@ def alifestd_tgs_estimate_polars(
         Marks clade size classes, e.g., as calibration partitions.
     alifestd_mark_joint_quantile_bins_polars :
         Marks joint quantile bins, e.g., as calibration bins.
+    alifestd_mark_max_descendant_origin_time_polars :
+        Marks each node's latest descendant, e.g., for survival durations.
     alifestd_mask_trait_mdcs_strict_polars :
         Marks trait gains from leaf trait data.
     alifestd_tgs_estimate_bootstrap_polars :
@@ -224,9 +226,15 @@ def alifestd_tgs_estimate_polars(
 
     Notes
     -----
-    Survival durations are not calibrated. Leaf pendant branches have zero
-    survival duration, so disagreement between estimates with and without
-    `episode_mask="is_leaf"` may suggest distorted inner branch lengths.
+    Survival durations themselves are not calibrated. However, absent loss,
+    a neutral trait's chance of gain does not depend on survival duration,
+    so any such dependence among neutral traits is bias. Calibration removes
+    it where calibration bins group episodes of similar survival duration;
+    see Examples.
+
+    Leaf pendant branches have zero survival duration, so disagreement
+    between estimates with and without `episode_mask="is_leaf"` may suggest
+    distorted inner branch lengths.
 
     Examples
     --------
@@ -253,6 +261,39 @@ def alifestd_tgs_estimate_polars(
     ...         neutral_traits=neutral_traits,
     ...         calibration_partition_by="clade_size_geom_class",
     ...         calibration_compare_by_bins="joint_quantile_bin",
+    ...     )
+    ... )
+
+    To calibrate by survival duration, too, mark it and add it to the
+    columns that bins are made from and compared by:
+
+    >>> by = ["branch_length", "origin_time", "survival_duration"]
+    >>> estimates_df = (
+    ...     alifestd_mark_origin_time_delta_polars(
+    ...         df, mark_as="branch_length"
+    ...     )
+    ...     .pipe(alifestd_mark_max_descendant_origin_time_polars)
+    ...     .with_columns(
+    ...         survival_duration=pl.col("max_descendant_origin_time")
+    ...         - pl.col("origin_time"),
+    ...     )
+    ...     .pipe(
+    ...         alifestd_mark_clade_size_geom_classes_polars,
+    ...         weight_by=neutral_traits,
+    ...         min_class_weight=20,
+    ...     )
+    ...     .pipe(
+    ...         alifestd_mark_joint_quantile_bins_polars,
+    ...         bin_by=by,
+    ...         partition_by="clade_size_geom_class",
+    ...     )
+    ...     .pipe(
+    ...         alifestd_tgs_estimate_polars,
+    ...         trait_transitions=trait_transitions,
+    ...         neutral_traits=neutral_traits,
+    ...         calibration_partition_by="clade_size_geom_class",
+    ...         calibration_compare_by_bins="joint_quantile_bin",
+    ...         calibration_compare_by_vals=by,
     ...     )
     ... )
     """
