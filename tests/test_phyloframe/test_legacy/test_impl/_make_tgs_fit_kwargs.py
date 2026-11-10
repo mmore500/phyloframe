@@ -12,7 +12,7 @@ def make_tgs_fit_kwargs(
 ) -> typing.Dict[str, typing.Any]:
     """Arguments for `tgs_fit_traits`, but `weights` and `progress_wrap`,
     treating traits after the first as neutral. If `calibrate`, bins
-    episodes into 64 equal-occupancy bins by branch length and origin time,
+    episodes into 64 equal-occupancy bins by episode length and origin time,
     each its own calibration neighborhood; else, one bin.
     """
     num_traits = sum(c.endswith("_starts_absent") for c in exposure_df.columns)

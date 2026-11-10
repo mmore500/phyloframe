@@ -143,7 +143,8 @@ def alifestd_tgs_estimate_polars(
     Raises
     ------
     ValueError
-        If there are no exposure episodes, or if an argument is invalid.
+        If there are no exposure episodes, if an argument is invalid, or if
+        a trait is gained more than once along a lineage.
     NotImplementedError
         For unsupported input, e.g., fewer than two neutral traits, a
         non-asexual phylogeny, unifurcations, null values, non-finite
@@ -153,7 +154,8 @@ def alifestd_tgs_estimate_polars(
     Warns
     -----
     UserWarning
-        For traits whose estimates are undefined (nan).
+        For traits whose estimates are undefined (nan), or if `origin_time`
+        values lose precision as float64.
 
     Input Schema
     ------------

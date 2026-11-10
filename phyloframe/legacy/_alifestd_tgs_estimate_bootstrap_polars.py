@@ -75,6 +75,14 @@ def alifestd_tgs_estimate_bootstrap_polars(
     ValueError
         If `num_bootstrap` is not positive, or as for
         `alifestd_tgs_estimate_polars`.
+    NotImplementedError
+        As for `alifestd_tgs_estimate_polars`.
+
+    Warns
+    -----
+    UserWarning
+        For traits with bootstrap replicates excluded for an undefined
+        estimate, or as for `alifestd_tgs_estimate_polars`.
 
     Output Schema
     -------------

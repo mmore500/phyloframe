@@ -158,7 +158,9 @@ def test_no_successes_skips_fit_without_warning():
 
 def test_selection_bounded_by_growth_exponent_bound():
     nll_kwargs = _sample(1e-3, 0.0, seed=10)
-    max_length = nll_kwargs["coarsened_df"]["mean_episode_length"].max()
+    max_episode_length = nll_kwargs["coarsened_df"][
+        "mean_episode_length"
+    ].max()
     # from far past the bound, clipped into it, staying finite
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
@@ -172,4 +174,4 @@ def test_selection_bounded_by_growth_exponent_bound():
     selection_coef = best.x[1] * tgs_pick_selection_rescale(
         nll_kwargs["coarsened_df"]
     )
-    assert selection_coef * max_length <= 5.0 * (1 + 1e-9)
+    assert selection_coef * max_episode_length <= 5.0 * (1 + 1e-9)

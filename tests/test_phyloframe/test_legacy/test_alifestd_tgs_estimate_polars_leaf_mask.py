@@ -472,7 +472,7 @@ def test_ancestor_list_column():
     assert res.equals(expected)
 
 
-def test_documented_unifurcation_collapse_matches():
+def test_unifurcation_collapse_matches():
     # to carry transitions over a collapse: sum them into states,
     # collapse, then remake transitions
     phylogeny_df, traits = _make_cherries(2_000)
