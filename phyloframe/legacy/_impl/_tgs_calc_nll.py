@@ -58,7 +58,7 @@ def tgs_calc_nll(
     is sampled (0 for a leaf's pendant branch). Each row of `coarsened_df`
     averages exp(r * u) over its episodes, weighted by its row of
     `survival_duration_granule_mass` over `distinct_survival_durations`; see
-    `_tgs_coarsen_episodes`.
+    `_tgs_coarsegrain_episodes`.
 
     Input Schema
     ------------

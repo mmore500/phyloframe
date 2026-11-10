@@ -8,7 +8,7 @@ from ._tgs_calc_nll import tgs_calc_nll
 from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
 from ._tgs_fit_trait import tgs_fit_trait
 from ._tgs_fit_traits import tgs_fit_traits
-from ._tgs_fit_traits_coarse import tgs_fit_traits_coarse
+from ._tgs_fit_traits_coarsegrain import tgs_fit_traits_coarsegrain
 from ._tgs_minimize_nll import tgs_minimize_nll
 from ._tgs_select_calibration_neighborhoods import (
     tgs_select_calibration_neighborhoods,
@@ -24,7 +24,7 @@ __all__ = [
     "tgs_count_trait_bin_exposures",
     "tgs_fit_trait",
     "tgs_fit_traits",
-    "tgs_fit_traits_coarse",
+    "tgs_fit_traits_coarsegrain",
     "tgs_minimize_nll",
     "tgs_select_calibration_neighborhoods",
     "tgs_summarize_bootstrap",

@@ -6,10 +6,10 @@ from phyloframe._auxlib._identity import identity
 from phyloframe.legacy._impl import (
     tgs_calc_nll,
     tgs_fit_trait,
-    tgs_fit_traits_coarse,
+    tgs_fit_traits_coarsegrain,
 )
-from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
-from phyloframe.legacy._impl._tgs_fit_traits_coarse import _tgs_calc_lrt
+from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsegrain_episodes
+from phyloframe.legacy._impl._tgs_fit_traits_coarsegrain import _tgs_calc_lrt
 from phyloframe.legacy._impl._tgs_minimize_nll import (
     tgs_pick_selection_rescale,
 )
@@ -20,7 +20,7 @@ from ._simulate_exposure_df import simulate_exposure_df
 def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
     """One trait's selection likelihood-ratio statistic, with copies of
     itself as its neutral reference."""
-    return tgs_fit_traits_coarse(
+    return tgs_fit_traits_coarsegrain(
         trait_nll_kwargs=[nll_kwargs] * 3,
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
@@ -42,7 +42,7 @@ def fixture():
     # each trait's `tgs_calc_nll` arguments, but the rate parameters
     trait_nll_kwargs = []
     for trait in range(3):
-        coarsened_df, shares = _tgs_coarsen_episodes(
+        coarsened_df, shares = _tgs_coarsegrain_episodes(
             exposure_df,
             trait_id=trait,
             calibration_factors=np.ones(1),
@@ -126,8 +126,8 @@ def test_loss_rate_shifts_selection(fixture):
     )
 
 
-def test_fit_coarsened_traits(fixture):
-    res = tgs_fit_traits_coarse(
+def test_fit_traits_coarsegrain(fixture):
+    res = tgs_fit_traits_coarsegrain(
         growth_exponent_bound=600.0,
         trait_nll_kwargs=fixture,
         neutral_trait_ids=[1, 2],
@@ -167,7 +167,7 @@ def test_fit_coarsened_traits(fixture):
 def test_negative_lrt_clipped_with_warning(monkeypatch):
     def calc_lrt(null_nll: float) -> float:
         monkeypatch.setattr(
-            "phyloframe.legacy._impl._tgs_fit_traits_coarse."
+            "phyloframe.legacy._impl._tgs_fit_traits_coarsegrain."
             "tgs_minimize_nll",
             lambda: optimize.OptimizeResult(fun=null_nll, num_converged=1),
         )

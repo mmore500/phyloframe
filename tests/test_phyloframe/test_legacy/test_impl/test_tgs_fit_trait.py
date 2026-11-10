@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from phyloframe._auxlib._identity import identity
-from phyloframe.legacy._impl import tgs_fit_trait, tgs_fit_traits_coarse
+from phyloframe.legacy._impl import tgs_fit_trait, tgs_fit_traits_coarsegrain
 from phyloframe.legacy._impl._tgs_minimize_nll import (
     tgs_minimize_nll,
     tgs_pick_selection_rescale,
@@ -17,7 +17,7 @@ from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
 def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
     """One trait's selection likelihood-ratio statistic, with copies of
     itself as its neutral reference."""
-    return tgs_fit_traits_coarse(
+    return tgs_fit_traits_coarsegrain(
         trait_nll_kwargs=[nll_kwargs] * 3,
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,

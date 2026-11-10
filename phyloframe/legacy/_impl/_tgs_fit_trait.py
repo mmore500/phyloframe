@@ -14,7 +14,7 @@ def tgs_fit_trait(
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
 ) -> typing.Dict[str, float]:
-    """Implementation detail for `tgs_fit_traits_coarse`.
+    """Implementation detail for `tgs_fit_traits_coarsegrain`.
 
     Maximum likelihood fit of one trait's gain rate and selection
     coefficient to its coarsened exposure episodes (see `tgs_calc_nll`),

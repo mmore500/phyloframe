@@ -27,7 +27,7 @@ def tgs_minimize_nll(
     growth_exponent_bound: float,
 ) -> optimize.OptimizeResult:
     """Implementation detail for `tgs_fit_trait` and
-    `tgs_fit_traits_coarse`.
+    `tgs_fit_traits_coarsegrain`.
 
     Minimizes `tgs_calc_nll(**nll_kwargs, gain_rate=..., growth_rate=...)`
     over log gain rate if `fit_gain` and selection coefficient if

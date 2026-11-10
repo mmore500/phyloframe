@@ -11,7 +11,7 @@ from ._tgs_minimize_nll import tgs_minimize_nll, tgs_pick_selection_rescale
 
 
 def _tgs_calc_lrt(*, free_nll: float, **null_kwargs) -> float:
-    """Implementation detail for `tgs_fit_traits_coarse`.
+    """Implementation detail for `tgs_fit_traits_coarsegrain`.
 
     Returns the likelihood-ratio statistic, twice the increase in negative
     log likelihood from `free_nll` to that of the null fit,
@@ -31,7 +31,7 @@ def _tgs_calc_lrt(*, free_nll: float, **null_kwargs) -> float:
     return clamp(2 * (null.fun - free_nll), lo=0.0)
 
 
-def _tgs_fit_trait_coarse(
+def _tgs_fit_trait_coarsegrain(
     *,
     fit: typing.Dict[str, float],
     nll_kwargs: typing.Dict[str, typing.Any],
@@ -40,10 +40,10 @@ def _tgs_fit_trait_coarse(
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
 ) -> typing.Dict[str, float]:
-    """Implementation detail for `tgs_fit_traits_coarse`.
+    """Implementation detail for `tgs_fit_traits_coarsegrain`.
 
     Returns one trait's estimates (see Output Schema of
-    `tgs_fit_traits_coarse`), given its `fit` (see `tgs_fit_trait`), its
+    `tgs_fit_traits_coarsegrain`), given its `fit` (see `tgs_fit_trait`), its
     `tgs_calc_nll` arguments but the rate parameters, and the mean gain rate
     of its neutral reference.
     """
@@ -95,7 +95,7 @@ def _tgs_fit_trait_coarse(
     return res
 
 
-def tgs_fit_traits_coarse(
+def tgs_fit_traits_coarsegrain(
     *,
     trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
     neutral_trait_ids: typing.Sequence[int],
@@ -147,7 +147,7 @@ def tgs_fit_traits_coarse(
 
     return pl.DataFrame(
         [
-            _tgs_fit_trait_coarse(
+            _tgs_fit_trait_coarsegrain(
                 fit=fit,
                 nll_kwargs=nll_kwargs,
                 reference_gain_rate=calc_reference_gain_rate(trait_id),

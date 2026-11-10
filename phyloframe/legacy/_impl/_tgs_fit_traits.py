@@ -12,11 +12,11 @@ from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
 from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
-from ._tgs_fit_traits_coarse import tgs_fit_traits_coarse
+from ._tgs_fit_traits_coarsegrain import tgs_fit_traits_coarsegrain
 
 
 def _tgs_calc_log_scale_bins(values: pl.Expr, *, rtol: float) -> pl.Expr:
-    """Implementation detail for `_tgs_coarsen_episodes`.
+    """Implementation detail for `_tgs_coarsegrain_episodes`.
 
     Returns each nonnegative value's bin on a log scale with ratio 1 +
     `rtol` (see `calc_geometric_bins`), numbering occupied bins from 0; zero
@@ -37,7 +37,7 @@ def _tgs_calc_log_scale_bins(values: pl.Expr, *, rtol: float) -> pl.Expr:
     return values.map_batches(do_calc_bins, return_dtype=pl.Int64)
 
 
-def _tgs_coarsen_episodes(
+def _tgs_coarsegrain_episodes(
     exposure_df: pl.DataFrame,
     *,
     trait_id: int,
@@ -146,9 +146,9 @@ def tgs_fit_traits(
     `tgs_build_exposure_df_polars`), each weighted by `weights` (e.g.,
     bootstrap draw counts): calibrates episode lengths by calibration bin
     (see `tgs_calc_calibration_rescaling`), groups episodes of similar
-    length into granules (see `_tgs_coarsen_episodes`), and fits gain rate
+    length into granules (see `_tgs_coarsegrain_episodes`), and fits gain rate
     and selection coefficient. Returns one row per trait; see
-    `tgs_fit_traits_coarse`.
+    `tgs_fit_traits_coarsegrain`.
     """
     trait_bin_counts_df = tgs_count_trait_bin_exposures(
         exposure_df, trait_ids=neutral_trait_ids, weights=weights
@@ -166,7 +166,10 @@ def tgs_fit_traits(
     trait_nll_kwargs = []  # each trait's, but the rate parameters
     # coarsen one trait at a time, to reduce peak memory
     for trait_id in progress_wrap(range(num_traits)):
-        coarsened_df, survival_duration_granule_mass = _tgs_coarsen_episodes(
+        (
+            coarsened_df,
+            survival_duration_granule_mass,
+        ) = _tgs_coarsegrain_episodes(
             exposure_df,
             trait_id=trait_id,
             calibration_factors=tgs_calc_calibration_rescaling(
@@ -192,7 +195,7 @@ def tgs_fit_traits(
     # called per bootstrap replicate, so log at debug level
     log_memory_usage(logging.debug)
 
-    return tgs_fit_traits_coarse(
+    return tgs_fit_traits_coarsegrain(
         trait_nll_kwargs=trait_nll_kwargs,
         neutral_trait_ids=neutral_trait_ids,
         loss_rate=loss_rate,
