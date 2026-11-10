@@ -10,9 +10,7 @@ def calc_tiebroken_ranks(
     """Rank items by each coordinate, breaking ties by the other
     coordinates rather than by item order.
 
-    So, ranks do not depend on item order unless items tie on every
-    coordinate. (`scipy.stats.rankdata`, by contrast, breaks ties by
-    averaging or by item order.)
+    Ranks do not depend on item order unless items tie on every coordinate.
 
     Parameters
     ----------

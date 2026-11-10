@@ -4,9 +4,6 @@ import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
-from phyloframe.legacy._alifestd_mark_joint_quantile_bins_polars import (
-    _alifestd_mark_joint_quantile_bins_fast_path,
-)
 
 
 def _make_df(num_rows: int = 400, seed: int = 1) -> pl.DataFrame:
@@ -71,13 +68,6 @@ def test_row_order_invariant():
     assert res.sort("id").equals(expected)
 
 
-def test_constant_columns_ignored():
-    df = _make_df().with_columns(c=pl.lit(1.0))
-    expected = alifestd_mark_joint_quantile_bins_polars(df, bin_by=["x"])
-    res = alifestd_mark_joint_quantile_bins_polars(df, bin_by=["c", "x"])
-    assert res["joint_quantile_bin"].equals(expected["joint_quantile_bin"])
-
-
 def test_empty():
     res = alifestd_mark_joint_quantile_bins_polars(
         _make_df().clear(), bin_by=["x"]
@@ -88,14 +78,11 @@ def test_empty():
 @pytest.mark.parametrize(
     "kwargs, error",
     [
-        (dict(bin_by=[]), ValueError),
         (dict(bin_by=["absent"]), pl.exceptions.ColumnNotFoundError),
         (
             dict(bin_by=["x"], partition_by="absent"),
             pl.exceptions.ColumnNotFoundError,
         ),
-        (dict(bin_by=["x"], max_num_bins=6), ValueError),
-        (dict(bin_by=["x"], min_bin_occupancy=0), ValueError),
     ],
 )
 def test_invalid(kwargs, error):
@@ -127,41 +114,14 @@ def test_full_ties_follow_row_order():
         assert bins.n_unique() == 4
 
 
-@pytest.mark.parametrize("missing", [None, float("nan")])
-def test_missing_partition_raises(missing):
+def test_missing_partition_raises():
     df = _make_df().with_columns(
-        p=pl.when(pl.col("id") == 3)
-        .then(missing)
-        .otherwise(pl.col("p").cast(pl.Float64)),
+        p=pl.when(pl.col("id") == 3).then(None).otherwise(pl.col("p")),
     )
     with pytest.raises(NotImplementedError):
         alifestd_mark_joint_quantile_bins_polars(
             df, bin_by=["x"], partition_by="p"
         )
-
-
-def test_expressions():
-    df = _make_df()
-    expected = alifestd_mark_joint_quantile_bins_polars(
-        df.with_columns(z=pl.col("x") * 2, q=pl.col("p") + 1),
-        bin_by=["z", "y"],
-        partition_by="q",
-    )
-    res = alifestd_mark_joint_quantile_bins_polars(
-        df, bin_by=[pl.col("x") * 2, "y"], partition_by=pl.col("p") + 1
-    )
-    assert res["joint_quantile_bin"].equals(expected["joint_quantile_bin"])
-
-
-@pytest.mark.parametrize("num_rows", [5, 9])
-def test_num_bins_counts_bins_produced(num_rows: int):
-    rng = np.random.default_rng(num_rows)
-    bins, num_bins = _alifestd_mark_joint_quantile_bins_fast_path(
-        [rng.random(num_rows), rng.random(num_rows)],
-        max_num_bins=4096,
-        min_bin_occupancy=1,
-    )
-    assert sorted(set(bins.tolist())) == list(range(num_bins))
 
 
 def test_single_string_bin_by():

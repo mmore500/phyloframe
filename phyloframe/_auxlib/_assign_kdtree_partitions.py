@@ -7,9 +7,8 @@ from ._iter_kdtree_nodes import iter_kdtree_nodes
 def assign_kdtree_partitions(points: np.ndarray, leafsize: int) -> np.ndarray:
     """Assign points to the leaves of a balanced k-d tree.
 
-    Splitting at the median until each node holds at most `leafsize` points
-    gives partitions of `leafsize / 2` to `leafsize` points, when coordinates
-    are distinct (e.g., ranks, with ties broken).
+    Partitions hold `leafsize / 2` to `leafsize` points, if coordinates are
+    distinct.
 
     Parameters
     ----------
@@ -22,13 +21,6 @@ def assign_kdtree_partitions(points: np.ndarray, leafsize: int) -> np.ndarray:
     -------
     np.ndarray
         Partition of each point, as integers numbered from 0 in tree order.
-
-    See Also
-    --------
-    scipy.spatial.cKDTree :
-        Builds the tree.
-    iter_kdtree_nodes :
-        Visits its leaves in order.
     """
     points = np.asarray(points, dtype=np.float64)
     if len(points) == 0:
