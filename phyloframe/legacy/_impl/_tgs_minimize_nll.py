@@ -27,21 +27,21 @@ def tgs_minimize_nll(
     growth_exponent_bound: float,
 ) -> optimize.OptimizeResult:
     """Implementation detail for `tgs_fit_trait` and
-    `tgs_fit_coarsened_traits`.
+    `tgs_fit_traits_coarse`.
 
     Minimizes `tgs_calc_nll(**nll_kwargs, gain_rate=..., growth_rate=...)`
     over log gain rate if `fit_gain` and selection coefficient if
-    `fit_selection`, holding the other at its `starts` value. Starts from
-    each of `starts`, pairs of log gain rate and selection coefficient, and
-    returns the best fit, preferring converged ones, with both parameters
-    in `.x` and the number of converged fits in `.num_converged`.
+    `fit_selection`, holding the other at its `starts` value.
 
-    The selection coefficient is optimized, and given in `starts` and `.x`,
-    in units of `tgs_pick_selection_rescale`, so that both parameters are
-    of order one; otherwise, with long episodes, L-BFGS-B stops early on a
-    tiny selection coefficient. It is bounded above so that growth
-    exponents, growth rate times episode length plus survival duration, stay
-    within `growth_exponent_bound`.
+    Returns the best fit over `starts`, pairs of log gain rate and selection
+    coefficient, preferring converged fits, with both parameters in `.x`
+    and the number of converged fits in `.num_converged`.
+
+    Notes
+    -----
+    The selection coefficient is in units of `tgs_pick_selection_rescale`,
+    in `starts` and `.x`, so that L-BFGS-B sees parameters of order one. It
+    is bounded so that growth exponents stay within `growth_exponent_bound`.
     """
     coarsened_df = nll_kwargs["coarsened_df"]
     selection_rescale = tgs_pick_selection_rescale(coarsened_df)
@@ -73,16 +73,21 @@ def tgs_minimize_nll(
             jac=True,  # objective function returns its own gradient
             method="L-BFGS-B",  # gradient-based, with box constraints
             bounds=[
-                (None, None) if fit_gain else (log_gain_start,) * 2,
+                (
+                    (None, None)
+                    if fit_gain
+                    else (log_gain_start,) * 2
+                ),
                 (
                     (None, max_selection)
                     if fit_selection
                     else (selection_start,) * 2
                 ),
-            ],
+            ],  # fmt: skip
         )
         for log_gain_start, selection_start in starts
     ]
+
     converged = [fit for fit in fits if fit.success]
     best = min(converged or fits, key=lambda fit: fit.fun)  # .fun is nll
     best.num_converged = len(converged)

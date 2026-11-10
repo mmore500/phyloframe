@@ -37,17 +37,18 @@ def tgs_count_trait_bin_exposures(
     sum_by_bin = functools.partial(np.bincount, bin_ids, minlength=num_bins)
 
     def count_trait_bin_exposures(trait_id: int) -> pl.DataFrame:
-        starts_absent, gain = (
-            exposure_df[f"trait{trait_id}_{which}"].to_numpy()
-            for which in ("starts_absent", "gain")
+        trait_weights = (
+            weights * exposure_df[f"trait{trait_id}_starts_absent"].to_numpy()
         )
-        trait_weights = weights * starts_absent
         return pl.DataFrame(
             {
                 "trait_id": np.full(num_bins, trait_id, dtype=np.int64),
                 "bin_id": np.arange(num_bins, dtype=np.int64),
                 "num_trials": sum_by_bin(trait_weights),
-                "num_successes": sum_by_bin(trait_weights * gain),
+                "num_successes": sum_by_bin(
+                    trait_weights
+                    * exposure_df[f"trait{trait_id}_gain"].to_numpy()
+                ),
                 "length_sum": sum_by_bin(trait_weights * episode_lengths),
             },
         )

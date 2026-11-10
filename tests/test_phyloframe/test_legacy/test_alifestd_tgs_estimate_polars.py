@@ -272,7 +272,7 @@ def test_calibration_compare_by_vals_clade_size():
 @pytest.mark.parametrize("neutral_traits", [[], [1], [1, 1]])
 def test_too_few_neutral_traits_raise(neutral_traits):
     phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(NotImplementedError, match="at least two"):
+    with pytest.raises(NotImplementedError, match="fewer than two"):
         _estimate_from_masks(
             phylogeny_df, trait_masks=traits, neutral_traits=neutral_traits
         )

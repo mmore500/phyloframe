@@ -5,11 +5,11 @@ from scipy import optimize
 from phyloframe._auxlib._identity import identity
 from phyloframe.legacy._impl import (
     tgs_calc_nll,
-    tgs_fit_coarsened_traits,
     tgs_fit_trait,
+    tgs_fit_traits_coarse,
 )
-from phyloframe.legacy._impl._tgs_fit_coarsened_traits import _tgs_calc_lrt
 from phyloframe.legacy._impl._tgs_fit_traits import _tgs_coarsen_episodes
+from phyloframe.legacy._impl._tgs_fit_traits_coarse import _tgs_calc_lrt
 from phyloframe.legacy._impl._tgs_minimize_nll import (
     tgs_pick_selection_rescale,
 )
@@ -20,7 +20,7 @@ from ._simulate_exposure_df import simulate_exposure_df
 def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
     """One trait's selection likelihood-ratio statistic, with copies of
     itself as its neutral reference."""
-    return tgs_fit_coarsened_traits(
+    return tgs_fit_traits_coarse(
         trait_nll_kwargs=[nll_kwargs] * 3,
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
@@ -52,7 +52,7 @@ def fixture():
         trait_nll_kwargs.append(
             dict(
                 coarsened_df=coarsened_df,
-                survival_shares=shares,
+                survival_duration_fractions=shares,
                 distinct_survival_durations=distinct_survival_durations,
             ),
         )
@@ -127,7 +127,7 @@ def test_loss_rate_shifts_selection(fixture):
 
 
 def test_fit_coarsened_traits(fixture):
-    res = tgs_fit_coarsened_traits(
+    res = tgs_fit_traits_coarse(
         growth_exponent_bound=600.0,
         trait_nll_kwargs=fixture,
         neutral_trait_ids=[1, 2],
@@ -167,7 +167,7 @@ def test_fit_coarsened_traits(fixture):
 def test_negative_lrt_clipped_with_warning(monkeypatch):
     def calc_lrt(null_nll: float) -> float:
         monkeypatch.setattr(
-            "phyloframe.legacy._impl._tgs_fit_coarsened_traits."
+            "phyloframe.legacy._impl._tgs_fit_traits_coarse."
             "tgs_minimize_nll",
             lambda: optimize.OptimizeResult(fun=null_nll, num_converged=1),
         )

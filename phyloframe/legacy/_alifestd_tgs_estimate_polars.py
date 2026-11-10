@@ -304,6 +304,7 @@ def _alifestd_tgs_estimate_polars_impl(
         neutral_traits = [neutral_traits]
     if isinstance(calibration_compare_by_vals, str):
         calibration_compare_by_vals = [calibration_compare_by_vals]
+
     tgs_validate_args(
         trait_transitions=trait_transitions,
         neutral_traits=neutral_traits,
@@ -329,6 +330,7 @@ def _alifestd_tgs_estimate_polars_impl(
         f"- alifestd_tgs_estimate_polars: fitting {len(trait_transitions)} "
         f"traits to {len(exposure_df)} exposure episodes...",
     )
+
     fit_traits = functools.partial(
         tgs_fit_traits,
         exposure_df,
@@ -360,13 +362,13 @@ def _alifestd_tgs_estimate_polars_impl(
     gc.collect()
     log_memory_usage(logging.info)
 
-    undefined_traits = estimates_df.filter(
+    traits_with_undefined_estimates = estimates_df.filter(
         pl.col("gain_ratio_lrt_naive").is_nan()
     )["trait"].to_list()
-    if undefined_traits:
+    if traits_with_undefined_estimates:
         warnings.warn(
-            f"traits {undefined_traits} have undefined (nan) estimates, as "
-            "they or their neutral reference have no gains",
+            f"traits {traits_with_undefined_estimates} have undefined (nan) "
+            "estimates, as they or their neutral reference have no gains",
         )
     return estimates_df, exposure_df, fit_traits
 

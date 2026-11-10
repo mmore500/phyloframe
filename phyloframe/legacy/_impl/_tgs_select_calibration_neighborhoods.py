@@ -45,9 +45,11 @@ def _tgs_calc_heldout_nll(
         trait_bin_counts_df=trait_bin_counts_df,
         **rescaling_kwargs,
     )
+
     exposure = (num_trials * calibrated_lengths).sum()
     if not (num_successes.any() and exposure):
-        return 0.0  # uninformative
+        return 0.0  # no gains, so every neighborhood size scores alike
+
     gain_rate = num_successes.sum() / exposure  # fit under no selection
     return calc_binomial_nll_proxy(
         num_trials, num_successes, gain_rate * calibrated_lengths
@@ -73,6 +75,7 @@ def _tgs_select_partition_neighborhoods(
         )
         for fraction in neighborhood_fractions
     ]
+
     nlls = [
         sum(  # holding out each neutral trait in turn
             _tgs_calc_heldout_nll(
@@ -85,19 +88,23 @@ def _tgs_select_partition_neighborhoods(
         )
         for calibration_neighborhoods in candidates
     ]
+
     for fraction, nll in zip(neighborhood_fractions, nlls):
         logging.info(
             f"- tgs: calibration neighborhoods of {fraction:.1%} of "
             f"{len(bin_coords)} bins give held-out neutral negative log "
             f"likelihood {nll:.1f}",
         )
+
     # first candidate among ties; nan scores lose
-    best = min(range(len(nlls)), key=lambda i: (np.isnan(nlls[i]), nlls[i]))
+    best_idx = min(
+        range(len(nlls)), key=lambda i: (np.isnan(nlls[i]), nlls[i])
+    )
     logging.info(
         "- tgs: selected calibration neighborhoods of "
-        f"{neighborhood_fractions[best]:.1%} of bins",
+        f"{neighborhood_fractions[best_idx]:.1%} of bins",
     )
-    return candidates[best]
+    return candidates[best_idx]
 
 
 def tgs_select_calibration_neighborhoods(
@@ -125,6 +132,7 @@ def tgs_select_calibration_neighborhoods(
         trait_ids=neutral_trait_ids,
         weights=np.ones(len(exposure_df)),
     )
+
     bin_coords_df = (
         exposure_df.select(
             "partition_id",
@@ -137,6 +145,7 @@ def tgs_select_calibration_neighborhoods(
         .mean()
         .sort("bin_id")
     )
+
     calibration_neighborhoods = sparse.block_diag(
         [
             _tgs_select_partition_neighborhoods(
@@ -147,7 +156,7 @@ def tgs_select_calibration_neighborhoods(
                 trait_bin_counts_df=trait_bin_counts_df.filter(
                     pl.col("bin_id").is_in(partition_df["bin_id"].implode())
                 ).with_columns(
-                    pl.col("bin_id") - partition_df["bin_id"].min()
+                    bin_id=pl.col("bin_id") - partition_df["bin_id"].min(),
                 ),
                 max_rate_ratio=max_rate_ratio,
             )
@@ -157,6 +166,7 @@ def tgs_select_calibration_neighborhoods(
         ],
         format="csr",
     )
+
     del trait_bin_counts_df, bin_coords_df  # clear memory
     gc.collect()
     log_memory_usage(logging.info)

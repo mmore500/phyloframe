@@ -23,6 +23,9 @@ from .._alifestd_is_topologically_sorted_polars import (
 from .._alifestd_mark_lineage_cumsum_asexual import (
     _alifestd_mark_lineage_cumsum_asexual_fast_path,
 )
+from .._alifestd_mark_lineage_delta_asexual import (
+    _alifestd_mark_lineage_delta_asexual_fast_path,
+)
 from .._alifestd_mark_max_descendant_origin_time_asexual import (
     _alifestd_mark_max_descendant_origin_time_asexual_fast_path,
 )
@@ -48,8 +51,7 @@ def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
         ).any()
     ):
         warnings.warn(
-            "origin_time values lose precision as float64, so episode "
-            "lengths may be inexact",
+            "origin_time values lose precision as float64",
         )
     return as_float
 
@@ -72,9 +74,10 @@ def _tgs_calc_trait_states(
     ):
         raise NotImplementedError(
             f"trait transitions {trait_name} must be 0 or +1, without nulls, "
-            "and 0 at roots; losses and traits present at a root are not "
+            "and 0 at roots; losses and traits present at a root are not yet "
             "supported",
         )
+
     states = _alifestd_mark_lineage_cumsum_asexual_fast_path(
         ancestor_ids, trait_transitions.astype(np.int64), reverse=False
     )
@@ -125,7 +128,7 @@ def tgs_build_exposure_df_polars(
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
-        raise NotImplementedError("only asexual phylogenies are supported")
+        raise NotImplementedError("non-asexual phylogenies not yet supported")
 
     computed_cols = (
         "origin_time", "episode_length", "survival_duration", "clade_size",
@@ -154,16 +157,16 @@ def tgs_build_exposure_df_polars(
     log_memory_usage(logging.info)
 
     if not alifestd_has_contiguous_ids_polars(nodes_df):
-        raise NotImplementedError("non-contiguous ids not supported")
+        raise NotImplementedError("non-contiguous ids not yet supported")
     if not alifestd_is_topologically_sorted_polars(nodes_df):
         raise NotImplementedError(
-            "non-topologically-sorted data not supported",
+            "non-topologically-sorted data not yet supported",
         )
     # a root may have one child, as each branch spans a node and its parent
     if alifestd_count_unifurcations_polars(
-        nodes_df
+        nodes_df,
     ) > alifestd_count_unifurcating_roots_polars(nodes_df):
-        raise NotImplementedError("unifurcations not supported")
+        raise NotImplementedError("unifurcations not yet supported")
 
     ancestor_ids = nodes_df["ancestor_id"].to_numpy().astype(np.int64)
     origin_time = _tgs_cast_origin_time_float(
@@ -171,29 +174,35 @@ def tgs_build_exposure_df_polars(
     ).to_numpy()  # nulls become nan
     if not np.isfinite(origin_time).all():
         raise NotImplementedError(
-            "null, nan, and infinite origin_time values not supported",
+            "null, nan, and infinite origin_time values not yet supported",
         )
+
     # latest leaf below each node, or the node itself
     latest_ot = _alifestd_mark_max_descendant_origin_time_asexual_fast_path(
         ancestor_ids, origin_time
     )
-    node_cols = {
+    episode_cols = {
         "origin_time": origin_time,
-        "episode_length": origin_time - origin_time[ancestor_ids],
+        "episode_length": _alifestd_mark_lineage_delta_asexual_fast_path(
+            ancestor_ids, origin_time
+        ),
         "survival_duration": latest_ot - origin_time,
         "clade_size": _alifestd_mark_num_leaves_asexual_fast_path(
             ancestor_ids
         ),
     }
-    for i, trait_name in enumerate(trait_transitions):
+
+    for trait_id, trait_name in enumerate(trait_transitions):
         transitions = nodes_df[trait_name].to_numpy()
         states = _tgs_calc_trait_states(
             ancestor_ids=ancestor_ids,
             trait_transitions=transitions,
             trait_name=trait_name,
         )
-        node_cols[f"trait{i}_starts_absent"] = states[ancestor_ids] == 0
-        node_cols[f"trait{i}_gain"] = transitions == 1
+        episode_cols[f"trait{trait_id}_starts_absent"] = (
+            states[ancestor_ids] == 0
+        )
+        episode_cols[f"trait{trait_id}_gain"] = transitions == 1
 
     # a root has no parent, so no branch over which to gain a trait
     is_episode = ancestor_ids != np.arange(len(ancestor_ids))
@@ -201,37 +210,44 @@ def tgs_build_exposure_df_polars(
         mask = nodes_df[episode_mask]
         if mask.dtype != pl.Boolean or mask.has_nulls():
             raise NotImplementedError(
-                "episode_mask column must be boolean, without nulls",
+                "non-boolean or null episode_mask values not yet supported",
             )
         is_episode &= mask.to_numpy()
 
     # episode columns take precedence over phylogeny_df's
-    episode_cols = [*node_cols]
-    episodes_df = nodes_df.with_columns(pl.DataFrame(node_cols)).filter(
+    episodes_df = nodes_df.with_columns(pl.DataFrame(episode_cols)).filter(
         is_episode
     )
-    del nodes_df, node_cols  # clear memory
+    del nodes_df  # clear memory
     gc.collect()
     log_memory_usage(logging.info)
+
     if episodes_df.is_empty():  # e.g., all masked out
         raise ValueError("phylogeny_df has no exposure episodes to fit")
     if sum(episodes_df.null_count().row(0)):
-        raise NotImplementedError("null values not supported")
+        raise NotImplementedError("null values not yet supported")
     if not (episodes_df["episode_length"] > 0).all():
         raise NotImplementedError(
-            "exposure episodes with zero or negative lengths not supported; "
-            "exclude them with episode_mask",
+            "exposure episodes with zero or negative lengths not yet "
+            "supported; exclude them with episode_mask",
         )
 
-    partition, bin_ = (
-        pl.lit(0) if col is None else pl.col(col)
-        for col in (calibration_partition_by, calibration_compare_by_bins)
+    partition = (
+        pl.lit(0)
+        if calibration_partition_by is None
+        else pl.col(calibration_partition_by)
     )
+    bin_ = (
+        pl.lit(0)
+        if calibration_compare_by_bins is None
+        else pl.col(calibration_compare_by_bins)
+    )
+
     partition_bin = pl.struct(partition.alias("partition"), bin_.alias("bin"))
     exposure_df = episodes_df.select(
         *episode_cols,
-        (partition.rank("dense") - 1).cast(pl.Int64).alias("partition_id"),
-        (partition_bin.rank("dense") - 1).cast(pl.Int64).alias("bin_id"),
+        (partition.rank("dense").cast(pl.Int64) - 1).alias("partition_id"),
+        (partition_bin.rank("dense").cast(pl.Int64) - 1).alias("bin_id"),
         *(
             # branch_length names the episode's own length
             pl.col({"branch_length": "episode_length"}.get(col, col)).alias(
@@ -240,13 +256,16 @@ def tgs_build_exposure_df_polars(
             for col in calibration_compare_by_vals
         ),
     )
-    del episodes_df  # clear memory
+    del episodes_df, episode_cols  # clear memory
     gc.collect()
     log_memory_usage(logging.info)
 
-    times = exposure_df.select(
-        "origin_time", "episode_length", "survival_duration"
-    )
-    assert np.isfinite(times.to_numpy()).all()
-    assert (times["survival_duration"] >= 0).all()
+    assert exposure_df.select(
+        pl.all_horizontal(
+            pl.col("origin_time", "episode_length", "survival_duration")
+            .is_finite()
+            .all(),
+        ),
+    ).item()
+    assert (exposure_df["survival_duration"] >= 0).all()
     return exposure_df

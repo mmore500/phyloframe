@@ -2,7 +2,7 @@ import numpy as np
 import polars as pl
 
 from phyloframe._auxlib._identity import identity
-from phyloframe.legacy._impl import tgs_fit_coarsened_traits
+from phyloframe.legacy._impl import tgs_fit_traits_coarse
 
 from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
 
@@ -30,7 +30,7 @@ def _simulate(gain_rate: float, selection_coef: float, seed: int):
 
 
 def _fit(traits, **kwargs) -> pl.DataFrame:
-    return tgs_fit_coarsened_traits(
+    return tgs_fit_traits_coarse(
         trait_nll_kwargs=[
             _simulate(gain_rate, selection_coef, seed)
             for seed, (gain_rate, selection_coef) in enumerate(traits)

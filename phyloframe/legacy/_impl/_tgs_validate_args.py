@@ -24,8 +24,8 @@ def tgs_validate_args(
         raise ValueError("neutral_traits must be among trait_transitions")
     if len(set(neutral_traits)) < 2:
         raise NotImplementedError(
-            "at least two distinct neutral traits are required, to calibrate "
-            "lengths and as the reference for gain ratios",
+            "fewer than two distinct neutral traits not yet supported; they "
+            "calibrate lengths and are the reference for gain ratios",
         )
     if not len(calibration_compare_by_vals):
         raise ValueError("calibration_compare_by_vals must be nonempty")

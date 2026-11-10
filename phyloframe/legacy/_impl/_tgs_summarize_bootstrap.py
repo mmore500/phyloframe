@@ -40,9 +40,11 @@ def tgs_summarize_bootstrap(
     log_gain_ratio = pl.col("gain_ratio").log()
     # finite only with gains of both the trait and its neutral reference
     is_gain_ratio_defined = log_gain_ratio.is_finite()
-    res = (
+
+    summary_df = (
         pl.concat(
-            fits_df.with_row_index("trait_id") for fits_df in replicate_fits
+            fits_df.lazy().with_row_index("trait_id")
+            for fits_df in replicate_fits
         )
         .group_by("trait_id")
         .agg(
@@ -76,9 +78,11 @@ def tgs_summarize_bootstrap(
             .alias("gain_ratio_p"),
             "num_bootstrap_degenerate",
         )
+        .collect()
     )
+
     degenerate_traits = estimates_df.filter(
-        res["num_bootstrap_degenerate"] > 0
+        summary_df["num_bootstrap_degenerate"] > 0
     )["trait"].to_list()
     if degenerate_traits:
         warnings.warn(
@@ -86,4 +90,5 @@ def tgs_summarize_bootstrap(
             f"traits {degenerate_traits}, so their standard errors may be "
             "underestimated; see num_bootstrap_degenerate.",
         )
-    return res
+
+    return summary_df

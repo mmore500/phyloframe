@@ -19,7 +19,7 @@ def _tgs_calc_effective_length(
     # exprel(x) = (exp(x) - 1) / x, finite at x = 0
     effective_length = length * special.exprel(cx)
 
-    # The exact derivative, (t * exp(r * t) - effective length) / r, loses
+    # exact derivative, (t * exp(r * t) - effective length) / r, loses
     # precision as r * t approaches 0 (and divides by zero at r = 0), so
     # below a cutoff use the Taylor series t**2 / 2 + r * t**3 / 3 + O(r**2)
     # see https://en.wikipedia.org/wiki/Exponential_function#Power_series
@@ -41,7 +41,7 @@ def tgs_calc_nll(
     gain_rate: float,
     growth_rate: float,
     coarsened_df: pl.DataFrame,
-    survival_shares: sparse.csr_matrix,
+    survival_duration_fractions: sparse.csr_matrix,
     distinct_survival_durations: np.ndarray,
 ) -> typing.Tuple[float, float, float]:
     """Implementation detail for `tgs_minimize_nll`.
@@ -56,9 +56,9 @@ def tgs_calc_nll(
 
     where `u` is its survival duration, the time until its clade's last leaf
     is sampled (0 for a leaf's pendant branch). Each row of `coarsened_df`
-    averages exp(r * u) over its episodes, whose shares over
-    `distinct_survival_durations` are rows of `survival_shares`; see
-    `_tgs_coarsen_episodes`.
+    averages exp(r * u) over its episodes, a fraction of which, given by
+    rows of `survival_duration_fractions`, have each of
+    `distinct_survival_durations`; see `_tgs_coarsen_episodes`.
 
     Input Schema
     ------------
@@ -79,8 +79,8 @@ def tgs_calc_nll(
     # carrier lineage growth over each distinct survival duration, exp(r * u),
     # then averaged over each coarsened row's episodes
     growth_by_duration = np.exp(growth_rate * distinct_survival_durations)
-    row_survival = survival_shares @ growth_by_duration
-    row_survival_deriv = survival_shares @ (
+    row_survival = survival_duration_fractions @ growth_by_duration
+    row_survival_deriv = survival_duration_fractions @ (
         distinct_survival_durations * growth_by_duration
     )
 

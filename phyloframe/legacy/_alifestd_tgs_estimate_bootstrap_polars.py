@@ -111,9 +111,11 @@ def alifestd_tgs_estimate_bootstrap_polars(
     """
     if not num_bootstrap > 0:
         raise ValueError("num_bootstrap must be positive")
+
     estimates_df, exposure_df, fit_traits = _alifestd_tgs_estimate_polars_impl(
         phylogeny_df, progress_wrap=progress_wrap, **kwargs
     )
+
     logging.info(
         f"- alifestd_tgs_estimate_bootstrap_polars: fitting {num_bootstrap} "
         "bootstrap replicates...",
