@@ -52,7 +52,7 @@ def fixture():
         trait_nll_kwargs.append(
             dict(
                 coarsened_df=coarsened_df,
-                survival_pool_mass=shares,
+                survival_duration_granule_mass=shares,
                 distinct_survival_durations=distinct_survival_durations,
             ),
         )

@@ -54,9 +54,9 @@ def _tgs_coarsen_episodes(
     entry of `calibration_factors`.
 
     Returns `coarsened_df`, one row per pool (see Output Schema), and
-    `survival_pool_mass`, a sparse matrix giving, per pool (row), the
-    fraction of its episodes with each distinct survival duration (column,
-    `survival_duration_id`).
+    `survival_duration_granule_mass`, a sparse matrix giving, per pool
+    (row), the fraction of its episodes with each distinct survival duration
+    (column, `survival_duration_id`).
 
     Output Schema
     -------------
@@ -111,7 +111,7 @@ def _tgs_coarsen_episodes(
         )
     )
 
-    survival_pool_mass = sparse.diags(
+    survival_duration_granule_mass = sparse.diags(
         1 / coarsened_df["num_trials"].to_numpy()
     ) @ sparse.csr_matrix(
         (
@@ -123,7 +123,7 @@ def _tgs_coarsen_episodes(
         ),
         shape=(len(coarsened_df), num_survival_durations),
     )
-    return coarsened_df, survival_pool_mass
+    return coarsened_df, survival_duration_granule_mass
 
 
 def tgs_fit_traits(
@@ -165,7 +165,7 @@ def tgs_fit_traits(
     trait_nll_kwargs = []  # each trait's, but the rate parameters
     # coarsen one trait at a time, to reduce peak memory
     for trait_id in progress_wrap(range(num_traits)):
-        coarsened_df, survival_pool_mass = _tgs_coarsen_episodes(
+        coarsened_df, survival_duration_granule_mass = _tgs_coarsen_episodes(
             exposure_df,
             trait_id=trait_id,
             calibration_factors=tgs_calc_calibration_rescaling(
@@ -181,7 +181,7 @@ def tgs_fit_traits(
         trait_nll_kwargs.append(
             dict(
                 coarsened_df=coarsened_df,
-                survival_pool_mass=survival_pool_mass,
+                survival_duration_granule_mass=survival_duration_granule_mass,
                 distinct_survival_durations=distinct_survival_durations,
             ),
         )
