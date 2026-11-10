@@ -362,12 +362,12 @@ def _alifestd_tgs_estimate_polars_impl(
     gc.collect()
     log_memory_usage(logging.info)
 
-    traits_with_undefined_estimates = estimates_df.filter(
+    undefined_estimate_traits = estimates_df.filter(
         pl.col("gain_ratio_lrt_naive").is_nan()
     )["trait"].to_list()
-    if traits_with_undefined_estimates:
+    if undefined_estimate_traits:
         warnings.warn(
-            f"traits {traits_with_undefined_estimates} have undefined (nan) "
+            f"traits {undefined_estimate_traits} have undefined (nan) "
             "estimates, as they or their neutral reference have no gains",
         )
     return estimates_df, exposure_df, fit_traits
