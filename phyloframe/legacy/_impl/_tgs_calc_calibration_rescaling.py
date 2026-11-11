@@ -15,16 +15,14 @@ def tgs_calc_calibration_rescaling(
     trait_id: int,
     neutral_trait_ids: typing.Sequence[int],
     calibration_neighborhoods: sparse.spmatrix,
-    max_rate_ratio: float,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_tgs_estimate_polars`.
 
     Returns, for each calibration bin, the factor rescaling `trait_id`'s
     episode lengths there: the gain rate of the neutral traits other than
     `trait_id` within the bin's calibration neighborhood, relative to
-    overall (see `calc_neighborhood_rate_ratios`), capped at
-    `max_rate_ratio`. Takes the neutral traits' `trait_bin_counts_df` (see
-    `tgs_count_trait_bin_exposures`).
+    overall (see `calc_neighborhood_rate_ratios`). Takes the neutral traits'
+    `trait_bin_counts_df` (see `tgs_count_trait_bin_exposures`).
     """
     reference_counts_df = (
         # exclude neutral traits from own calibration set
@@ -39,6 +37,5 @@ def tgs_calc_calibration_rescaling(
         neighborhoods=calibration_neighborhoods,
         num_events=reference_counts_df["num_gains"].to_numpy(),
         exposure=reference_counts_df["total_episode_duration"].to_numpy(),
-        max_ratio=max_rate_ratio,
         pseudocount=1.0,  # stabilizes calibration against sparse gains
     )

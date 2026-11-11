@@ -51,11 +51,10 @@ def alifestd_tgs_estimate_polars(
         0.5,
         1.0,
     ),
-    calibration_max_rate_ratio: float = np.inf,
     length_rtol: float = 1e-2,
     loss_rate: float = 0.0,
-    selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    growth_exponent_bound: float = 600.0,
+    fit_selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    fit_growth_exponent_bound: float = 600.0,
     progress_wrap: typing.Callable = identity,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and selection coefficient (tgs, for
@@ -90,27 +89,31 @@ def alifestd_tgs_estimate_polars(
         See `alifestd_mark_lineage_delta_polars` to make transitions from
         trait states.
     trait_transitions_neutral : Sequence[str]
-        Names of such columns for at least two other traits, known to be
-        neutral, used to calibrate episode lengths and as the reference for
-        gain ratios.
+        Names of integer columns, one per trait known to be neutral, with
+        each node's trait state transition on the branch from its parent: +1
+        for a gain and 0 for none. At least two are required.
 
-        Neutral traits are estimated, too, each against the others.
+        Used to calibrate exposure episode durations and as the reference for
+        gain ratios. Neutral trait gain/selection estimates are reported using
+        leave-one-out calibration and reference, i.e., each against the other
+        neutral traits.
     episode_mask : str, optional
         Name of a boolean column marking, at each exposure episode's end
-        node, whether to fit that episode, e.g., `is_leaf` for leaf pendant
-        branches only.
+        node, whether to include that episode. Use `is_leaf` to consider only
+        leaf pendants.
     calibration_partition_by : str, optional
-        Name of a column of calibration partition ids, e.g., from
-        `alifestd_mark_clade_size_geom_classes_polars`. Bins are only
-        compared within a partition.
+        Partition calibration bins by this column's ids, e.g., clade size
+        classes from `alifestd_mark_clade_size_geom_classes_polars`.
+
+        A bin's comparator bins are selected only within its partition, and
+        neighborhood size is chosen separately for each partition.
     calibration_compare_by_bins : str, optional
         Name of a column of calibration bin ids, at each exposure episode's
         end node, e.g., from `alifestd_mark_joint_quantile_bins_polars`.
 
         Calibration rescales each episode's length by the neutral gain rate
-        in its bin's neighborhood relative to global rate, removing distortion
-        that neutral traits share (e.g., from tree reconstruction). If not
-        given, each partition is one bin.
+        in its bin's neighborhood relative to global rate, removing tree shape
+        distortion. If not given, each partition is one bin.
     calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time")
         Columns used to select comparator bins for calibration against neutral
         traits (see Notes).
@@ -122,22 +125,20 @@ def alifestd_tgs_estimate_polars(
         Candidate calibration neighborhood sizes, as fractions of a
         partition's available bins.
 
-        The candidate neighborhood size that best aligns neutral traits'
-        gains to neutral expectation, when calibrated against other neutral
-        traits, is used.
-    calibration_max_rate_ratio : float, default np.inf
-        Cap on the neutral gain rate ratios that rescale episode lengths.
+        Among candidates, neighborhood size is chosen that best aligns
+        neutral traits' gains to neutral expectation when calibrated against
+        other neutral traits.
     length_rtol : float, default 1e-2
-        Relative tolerance for pooling similar episodes, so that their
-        likelihoods are evaluated in bulk for efficiency. Episodes whose
-        calibrated lengths and survival durations both agree within this
-        tolerance are fit together, as one granule; 0 to disable coarsening.
+        Relative tolerance for pooling similar episodes, to streamline bulk
+        likelihood evaluation. Episodes whose calibrated lengths and survival
+        durations both agree within this tolerance are pooled as one granule;
+        0 to disable coarsening.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
-    selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
+    fit_selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Optimizer starting values for the selection coefficient, in units
         of 1 / mean episode length.
-    growth_exponent_bound : float, default 600.0
+    fit_growth_exponent_bound : float, default 600.0
         Bound on `c * (length + survival)`, to stabilize optimizer fit.
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display progress over traits.
@@ -354,11 +355,10 @@ def _alifestd_tgs_estimate_polars_impl(
         0.5,
         1.0,
     ),
-    calibration_max_rate_ratio: float = np.inf,
     length_rtol: float = 1e-2,
     loss_rate: float = 0.0,
-    selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
-    growth_exponent_bound: float = 600.0,
+    fit_selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
+    fit_growth_exponent_bound: float = 600.0,
     progress_wrap: typing.Callable = identity,
 ) -> typing.Tuple[pl.DataFrame, pl.DataFrame, typing.Callable]:
     """Implementation detail for `alifestd_tgs_estimate_polars` and
@@ -381,9 +381,8 @@ def _alifestd_tgs_estimate_polars_impl(
         trait_transitions_neutral=trait_transitions_neutral,
         calibration_compare_by_vals=calibration_compare_by_vals,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        calibration_max_rate_ratio=calibration_max_rate_ratio,
         length_rtol=length_rtol,
-        growth_exponent_bound=growth_exponent_bound,
+        fit_growth_exponent_bound=fit_growth_exponent_bound,
     )
     # candidate traits first, then neutral traits
     trait_transitions = [
@@ -423,13 +422,11 @@ def _alifestd_tgs_estimate_polars_impl(
             exposure_df,
             neighborhood_fractions=calibration_neighborhood_fractions,
             neutral_trait_ids=neutral_trait_ids,
-            max_rate_ratio=calibration_max_rate_ratio,
         ),
-        calibration_max_rate_ratio=calibration_max_rate_ratio,
         length_rtol=length_rtol,
         loss_rate=loss_rate,
-        selection_coef_starts=selection_coef_starts,
-        growth_exponent_bound=growth_exponent_bound,
+        fit_selection_coef_starts=fit_selection_coef_starts,
+        fit_growth_exponent_bound=fit_growth_exponent_bound,
     )
     estimates_df = pl.concat(
         [
@@ -623,22 +620,13 @@ def _add_estimate_arguments(
         ),
     )
     parser.add_argument(
-        "--calibration-max-rate-ratio",
-        default=np.inf,
-        type=float,
-        help=(
-            "Cap on calibration's neutral gain rate ratios "
-            "(default: uncapped)."
-        ),
-    )
-    parser.add_argument(
         "--loss-rate",
         default=0.0,
         type=float,
         help="Known per-unit-time trait loss rate (default: 0.0).",
     )
     parser.add_argument(
-        "--selection-coef-starts",
+        "--fit-selection-coef-starts",
         default=(0.0, -0.3, -1.8),
         nargs="+",
         type=float,
@@ -648,7 +636,7 @@ def _add_estimate_arguments(
         ),
     )
     parser.add_argument(
-        "--growth-exponent-bound",
+        "--fit-growth-exponent-bound",
         default=600.0,
         type=float,
         help="Bound on carrier growth exponents (default: 600.0).",
@@ -673,11 +661,10 @@ def _get_estimate_kwargs(
         calibration_compare_by_bins=args.calibration_compare_by_bins,
         calibration_compare_by_vals=args.calibration_compare_by_vals,
         calibration_neighborhood_fractions=args.calibration_neighborhood_fractions,
-        calibration_max_rate_ratio=args.calibration_max_rate_ratio,
         length_rtol=args.length_rtol,
         loss_rate=args.loss_rate,
-        selection_coef_starts=args.selection_coef_starts,
-        growth_exponent_bound=args.growth_exponent_bound,
+        fit_selection_coef_starts=args.fit_selection_coef_starts,
+        fit_growth_exponent_bound=args.fit_growth_exponent_bound,
     )
 
 

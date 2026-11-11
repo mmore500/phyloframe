@@ -1,4 +1,3 @@
-import numpy as np
 import polars as pl
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
@@ -14,7 +13,6 @@ def _select(exposure_df: pl.DataFrame):
         ),
         neighborhood_fractions=(0.25, 1.0),
         neutral_trait_ids=[1, 2, 3],
-        max_rate_ratio=np.inf,
     )
 
 

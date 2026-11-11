@@ -11,14 +11,14 @@ def tgs_fit_trait(
     *,
     nll_kwargs: typing.Dict[str, typing.Any],
     loss_rate: float,
-    selection_coef_starts: typing.Sequence[float],
-    growth_exponent_bound: float,
+    fit_selection_coef_starts: typing.Sequence[float],
+    fit_growth_exponent_bound: float,
 ) -> typing.Dict[str, float]:
     """Implementation detail for `tgs_fit_traits_coarsegrain`.
 
     Maximum likelihood fit of one trait's gain rate and selection
     coefficient to its coarsegrained exposure episodes (see `tgs_calc_nll`),
-    keeping the best fit from each of `selection_coef_starts`. Returns
+    keeping the best fit from each of `fit_selection_coef_starts`. Returns
     `gain_rate`, `selection_coef`, and their negative log likelihood,
     `nll`; without gains, zero gain rate and nan otherwise.
 
@@ -50,11 +50,13 @@ def tgs_fit_trait(
     log_gain_start = np.log(num_gains / exposure.sum())  # no selection
     best = tgs_minimize_nll(
         nll_kwargs=nll_kwargs,
-        starts=[(log_gain_start, start) for start in selection_coef_starts],
+        starts=[
+            (log_gain_start, start) for start in fit_selection_coef_starts
+        ],
         fit_gain=True,
         fit_selection=True,
         loss_rate=loss_rate,
-        growth_exponent_bound=growth_exponent_bound,
+        fit_growth_exponent_bound=fit_growth_exponent_bound,
     )
 
     if not best.num_converged:
@@ -63,7 +65,7 @@ def tgs_fit_trait(
             f"({best.message}); estimates may be unreliable.",
         )
     logging.debug(
-        f"- tgs fit: {best.num_converged} of {len(selection_coef_starts)} "
+        f"- tgs fit: {best.num_converged} of {len(fit_selection_coef_starts)} "
         f"starts converged; best negative log likelihood {best.fun:.6g}",
     )
     log_gain_rate, selection = best.x

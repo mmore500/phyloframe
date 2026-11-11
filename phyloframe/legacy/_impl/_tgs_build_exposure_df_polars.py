@@ -56,7 +56,7 @@ def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
     return as_float
 
 
-def _tgs_calc_trait_states(
+def _tgs_calc_trait_states_from_transitions(
     *,
     ancestor_ids: np.ndarray,
     trait_transitions: np.ndarray,
@@ -193,7 +193,7 @@ def tgs_build_exposure_df_polars(
 
     for trait_id, trait_name in enumerate(trait_transitions):
         transitions = nodes_df[trait_name].to_numpy()
-        states = _tgs_calc_trait_states(
+        states = _tgs_calc_trait_states_from_transitions(
             ancestor_ids=ancestor_ids,
             trait_transitions=transitions,
             trait_name=trait_name,

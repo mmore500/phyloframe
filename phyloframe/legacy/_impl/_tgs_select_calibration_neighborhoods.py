@@ -132,7 +132,6 @@ def tgs_select_calibration_neighborhoods(
     *,
     neighborhood_fractions: typing.Sequence[float],
     neutral_trait_ids: typing.Sequence[int],
-    max_rate_ratio: float,
 ) -> sparse.csr_matrix:
     """Implementation detail for `alifestd_tgs_estimate_polars`.
 
@@ -175,7 +174,6 @@ def tgs_select_calibration_neighborhoods(
             neighborhood_fractions=neighborhood_fractions,
             neutral_trait_ids=neutral_trait_ids,
             trait_bin_counts_df=trait_bin_counts_df,
-            max_rate_ratio=max_rate_ratio,
         )
         for partition_df in bin_coords_df.partition_by(
             "partition_id", maintain_order=True

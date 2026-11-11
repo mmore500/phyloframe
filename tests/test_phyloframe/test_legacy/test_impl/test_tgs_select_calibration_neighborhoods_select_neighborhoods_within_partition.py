@@ -42,7 +42,6 @@ def test_select(first_bin: int, caplog):
                 weights=np.ones(len(exposure_df)),
             ),
             neutral_trait_ids=[1, 2, 3],
-            max_rate_ratio=np.inf,
         )
     assert res.shape == (num_bins, num_bins)
     # each of the partition's bins is in its own neighborhood

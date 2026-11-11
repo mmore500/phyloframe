@@ -26,7 +26,7 @@ def tgs_minimize_nll(
     fit_gain: bool,
     fit_selection: bool,
     loss_rate: float,
-    growth_exponent_bound: float,
+    fit_growth_exponent_bound: float,
 ) -> optimize.OptimizeResult:
     """Implementation detail for `tgs_fit_trait` and
     `tgs_fit_traits_coarsegrain`.
@@ -43,7 +43,7 @@ def tgs_minimize_nll(
     -----
     The selection coefficient is in units of `tgs_pick_selection_rescale`,
     in `starts` and `.x`, so that L-BFGS-B sees parameters of order one. It
-    is bounded so that growth exponents stay within `growth_exponent_bound`.
+    is bounded so that growth exponents stay within `fit_growth_exponent_bound`.
     """
     coarsegrain_df = nll_kwargs["coarsegrain_df"]
     selection_rescale = tgs_pick_selection_rescale(coarsegrain_df)
@@ -56,7 +56,7 @@ def tgs_minimize_nll(
     max_exponent_time = max_episode_length + max_survival_duration
     assert np.isfinite(max_exponent_time) and max_exponent_time > 0
     max_selection = (
-        growth_exponent_bound / max_exponent_time + loss_rate
+        fit_growth_exponent_bound / max_exponent_time + loss_rate
     ) / selection_rescale
 
     def nll(params: np.ndarray) -> typing.Tuple[float, np.ndarray]:

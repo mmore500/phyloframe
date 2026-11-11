@@ -5,9 +5,8 @@ from phyloframe.legacy._impl import tgs_validate_args
 
 _KWARGS = dict(
     calibration_neighborhood_fractions=(0.1, 1.0),
-    calibration_max_rate_ratio=np.inf,
     length_rtol=1e-3,
-    growth_exponent_bound=600.0,
+    fit_growth_exponent_bound=600.0,
     calibration_compare_by_vals=("branch_length", "origin_time"),
 )
 
@@ -41,9 +40,6 @@ def test_too_few_neutral_traits(trait_transitions_neutral):
         dict(calibration_neighborhood_fractions=()),
         dict(calibration_neighborhood_fractions=(0.0,)),
         dict(calibration_neighborhood_fractions=(1.5,)),
-        dict(calibration_max_rate_ratio=0.0),
-        dict(calibration_max_rate_ratio=-1.0),
-        dict(calibration_max_rate_ratio=np.nan),
         dict(length_rtol=-1e-3),
         dict(length_rtol=np.nan),
         dict(calibration_compare_by_vals=()),
@@ -80,11 +76,14 @@ def test_duplicate_trait_transitions_raise(
         )
 
 
-@pytest.mark.parametrize("growth_exponent_bound", [710.0, np.inf])
-def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
-    with pytest.raises(ValueError, match="growth_exponent_bound"):
+@pytest.mark.parametrize("fit_growth_exponent_bound", [710.0, np.inf])
+def test_growth_exponent_bound_too_large_raises(fit_growth_exponent_bound):
+    with pytest.raises(ValueError, match="fit_growth_exponent_bound"):
         tgs_validate_args(
             trait_transitions_candidate=[],
             trait_transitions_neutral=["a", "b"],
-            **{**_KWARGS, "growth_exponent_bound": growth_exponent_bound},
+            **{
+                **_KWARGS,
+                "fit_growth_exponent_bound": fit_growth_exponent_bound,
+            },
         )

@@ -24,7 +24,7 @@ def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
         trait_nll_kwargs=[nll_kwargs] * 3,
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
-        growth_exponent_bound=600.0,
+        fit_growth_exponent_bound=600.0,
         calc_lrts=True,
         progress_wrap=identity,
         **kwargs,
@@ -89,15 +89,15 @@ def test_true_parameters_fit_better(fixture):
 def test_recovers_focal(fixture):
     nll_kwargs = _nll_kwargs(fixture, 0)
     res = tgs_fit_trait(
-        growth_exponent_bound=600.0,
+        fit_growth_exponent_bound=600.0,
         nll_kwargs=nll_kwargs,
         loss_rate=0.0,
-        selection_coef_starts=(0.0, -0.3, -1.8),
+        fit_selection_coef_starts=(0.0, -0.3, -1.8),
     )
     assert res["gain_rate"] == pytest.approx(2e-3, rel=0.15)
     assert res["selection_coef"] == pytest.approx(-0.05, abs=0.01)
     lrt = _calc_selection_lrt(
-        nll_kwargs, selection_coef_starts=(0.0, -0.3, -1.8)
+        nll_kwargs, fit_selection_coef_starts=(0.0, -0.3, -1.8)
     )
     assert lrt > 10
 
@@ -105,24 +105,27 @@ def test_recovers_focal(fixture):
 def test_recovers_neutral(fixture):
     nll_kwargs = _nll_kwargs(fixture, 1)
     res = tgs_fit_trait(
-        growth_exponent_bound=600.0,
+        fit_growth_exponent_bound=600.0,
         nll_kwargs=nll_kwargs,
         loss_rate=0.0,
-        selection_coef_starts=(0.0,),
+        fit_selection_coef_starts=(0.0,),
     )
     assert res["gain_rate"] == pytest.approx(1e-3, rel=0.15)
     assert abs(res["selection_coef"]) < 0.01
-    lrt = _calc_selection_lrt(nll_kwargs, selection_coef_starts=(0.0,))
+    lrt = _calc_selection_lrt(nll_kwargs, fit_selection_coef_starts=(0.0,))
     assert -1e-6 < lrt < 10
 
 
 def test_loss_rate_shifts_selection(fixture):
     kwargs = dict(
-        nll_kwargs=_nll_kwargs(fixture, 0), selection_coef_starts=(0.0, -0.3)
+        nll_kwargs=_nll_kwargs(fixture, 0),
+        fit_selection_coef_starts=(0.0, -0.3),
     )
-    res = tgs_fit_trait(loss_rate=0.0, growth_exponent_bound=600.0, **kwargs)
+    res = tgs_fit_trait(
+        loss_rate=0.0, fit_growth_exponent_bound=600.0, **kwargs
+    )
     lossy = tgs_fit_trait(
-        loss_rate=0.01, growth_exponent_bound=600.0, **kwargs
+        loss_rate=0.01, fit_growth_exponent_bound=600.0, **kwargs
     )
     # fitted rate, selection coefficient - loss rate, is unchanged
     assert lossy["selection_coef"] - 0.01 == pytest.approx(
@@ -132,11 +135,11 @@ def test_loss_rate_shifts_selection(fixture):
 
 def test_fit_traits_coarsegrain(fixture):
     res = tgs_fit_traits_coarsegrain(
-        growth_exponent_bound=600.0,
+        fit_growth_exponent_bound=600.0,
         trait_nll_kwargs=fixture,
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
-        selection_coef_starts=(0.0, -0.3),
+        fit_selection_coef_starts=(0.0, -0.3),
         calc_lrts=True,
         progress_wrap=identity,
     )
@@ -152,17 +155,19 @@ def test_fit_traits_coarsegrain(fixture):
     for trait in range(3):
         nll_kwargs = _nll_kwargs(fixture, trait)
         alone = tgs_fit_trait(
-            growth_exponent_bound=600.0,
+            fit_growth_exponent_bound=600.0,
             nll_kwargs=nll_kwargs,
             loss_rate=0.0,
-            selection_coef_starts=(0.0, -0.3),
+            fit_selection_coef_starts=(0.0, -0.3),
         )
         assert res["gain_rate"][trait] == pytest.approx(alone["gain_rate"])
         assert res["selection_coef"][trait] == pytest.approx(
             alone["selection_coef"]
         )
         assert res["selection_coef_lrt_naive"][trait] == pytest.approx(
-            _calc_selection_lrt(nll_kwargs, selection_coef_starts=(0.0, -0.3))
+            _calc_selection_lrt(
+                nll_kwargs, fit_selection_coef_starts=(0.0, -0.3)
+            )
         )
     # focal gains at twice the neutral rate
     assert res["gain_ratio"][0] == pytest.approx(2.0, rel=0.2)

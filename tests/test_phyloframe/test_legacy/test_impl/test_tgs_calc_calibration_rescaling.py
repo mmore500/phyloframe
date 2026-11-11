@@ -26,7 +26,6 @@ def test_rate_ratios_of_other_neutral_traits():
         trait_bin_counts_df=counts,
         neutral_trait_ids=[1, 2],
         calibration_neighborhoods=sparse.identity(2, format="csr"),
-        max_rate_ratio=np.inf,
     )
     # (observed + 1) / (expected + 1), from pseudocount 1; trait 0's
     # reference is both neutral traits, each neutral trait's the other
@@ -46,21 +45,8 @@ def test_one_neighborhood_is_uncalibrated():
         trait_id=0,
         neutral_trait_ids=[1, 2],
         calibration_neighborhoods=sparse.csr_matrix(np.ones((2, 2))),
-        max_rate_ratio=np.inf,
     )
     np.testing.assert_allclose(res, [1.0, 1.0])
-
-
-def test_max_rate_ratio_caps():
-    counts = _counts([[5, 5], [1, 99], [1, 99]])
-    res = tgs_calc_calibration_rescaling(
-        trait_bin_counts_df=counts,
-        trait_id=0,
-        neutral_trait_ids=[1, 2],
-        calibration_neighborhoods=sparse.identity(2, format="csr"),
-        max_rate_ratio=1.5,
-    )
-    assert res.max() == 1.5
 
 
 def test_neighborhood_without_reference_gains_shrunk():
@@ -72,6 +58,5 @@ def test_neighborhood_without_reference_gains_shrunk():
         trait_id=0,
         neutral_trait_ids=[1, 2],
         calibration_neighborhoods=sparse.identity(2, format="csr"),
-        max_rate_ratio=np.inf,
     )
     np.testing.assert_allclose(res, [21 / 11, 1 / 11])

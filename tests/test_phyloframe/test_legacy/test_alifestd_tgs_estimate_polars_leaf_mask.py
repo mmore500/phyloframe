@@ -258,7 +258,6 @@ def test_tgs_select_calibration_neighborhoods():
         neighborhood_fractions=(0.01, 0.1, 0.5),
         trait_bin_counts_df=counts,
         neutral_trait_ids=[0, 1, 2],
-        max_rate_ratio=np.inf,
     )
     assert res.shape == (256, 256)
     # each cell belongs to its own neighborhood
@@ -363,38 +362,6 @@ def test_invalid_length_rtol_raises(length_rtol: float):
     with pytest.raises(ValueError, match="length_rtol"):
         _estimate_from_masks(
             phylogeny_df, trait_masks=traits, length_rtol=length_rtol
-        )
-
-
-def test_calibration_max_rate_ratio():
-    phylogeny_df, traits = _make_cherries(4_000)
-    kwargs = dict(
-        trait_masks=traits,
-        calibrate=True,
-        calibration_neighborhood_fractions=[0.1],
-    )
-    default = _estimate_from_masks(phylogeny_df, **kwargs)
-    uncapped = _estimate_from_masks(
-        phylogeny_df, calibration_max_rate_ratio=np.inf, **kwargs
-    )
-    pd.testing.assert_frame_equal(default, uncapped)
-    # a tight cap clips the larger calibration factors, changing the fit
-    capped = _estimate_from_masks(
-        phylogeny_df, calibration_max_rate_ratio=1.0, **kwargs
-    )
-    assert not np.allclose(capped["gain_rate"], default["gain_rate"])
-
-
-@pytest.mark.parametrize("calibration_max_rate_ratio", [0.0, -1.0, np.nan])
-def test_calibration_max_rate_ratio_not_positive_raises(
-    calibration_max_rate_ratio: float,
-):
-    phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError, match="calibration_max_rate_ratio"):
-        _estimate_from_masks(
-            phylogeny_df,
-            trait_masks=traits,
-            calibration_max_rate_ratio=calibration_max_rate_ratio,
         )
 
 

@@ -36,8 +36,8 @@ def _fit(traits, *, calc_lrts: bool = True, **kwargs) -> pl.DataFrame:
             for seed, (gain_rate, selection_coef) in enumerate(traits)
         ],
         loss_rate=0.0,
-        selection_coef_starts=(0.0, -0.3, -1.8),
-        growth_exponent_bound=600.0,
+        fit_selection_coef_starts=(0.0, -0.3, -1.8),
+        fit_growth_exponent_bound=600.0,
         calc_lrts=calc_lrts,
         progress_wrap=identity,
         **kwargs,

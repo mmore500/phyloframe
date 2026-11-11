@@ -37,8 +37,8 @@ def _tgs_fit_trait_coarsegrain(
     nll_kwargs: typing.Dict[str, typing.Any],
     reference_gain_rate: float,
     loss_rate: float,
-    selection_coef_starts: typing.Sequence[float],
-    growth_exponent_bound: float,
+    fit_selection_coef_starts: typing.Sequence[float],
+    fit_growth_exponent_bound: float,
     calc_lrts: bool,
 ) -> typing.Dict[str, float]:
     """Implementation detail for `tgs_fit_traits_coarsegrain`.
@@ -66,7 +66,7 @@ def _tgs_fit_trait_coarsegrain(
         free_nll=fit["nll"],
         nll_kwargs=nll_kwargs,
         loss_rate=loss_rate,
-        growth_exponent_bound=growth_exponent_bound,
+        fit_growth_exponent_bound=fit_growth_exponent_bound,
     )
     # null hypothesis of no selection: one start suffices, as the negative
     # log likelihood is then convex in log gain rate
@@ -80,7 +80,7 @@ def _tgs_fit_trait_coarsegrain(
     if np.isfinite(reference_gain_rate):
         # null hypothesis of gain ratio 1: fix the gain rate at the neutral
         # reference's and refit the selection coefficient, starting from
-        # its free fit as well as selection_coef_starts
+        # its free fit as well as fit_selection_coef_starts
         selection_rescale = tgs_pick_selection_rescale(
             nll_kwargs["coarsegrain_df"]
         )
@@ -88,7 +88,7 @@ def _tgs_fit_trait_coarsegrain(
         res["gain_ratio_lrt_naive"] = _tgs_calc_lrt(
             starts=[
                 (np.log(reference_gain_rate), start)
-                for start in (free_start, *selection_coef_starts)
+                for start in (free_start, *fit_selection_coef_starts)
             ],
             fit_gain=False,
             fit_selection=True,
@@ -103,8 +103,8 @@ def tgs_fit_traits_coarsegrain(
     trait_nll_kwargs: typing.Sequence[typing.Dict[str, typing.Any]],
     neutral_trait_ids: typing.Sequence[int],
     loss_rate: float,
-    selection_coef_starts: typing.Sequence[float],
-    growth_exponent_bound: float,
+    fit_selection_coef_starts: typing.Sequence[float],
+    fit_growth_exponent_bound: float,
     calc_lrts: bool,
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
@@ -131,12 +131,13 @@ def tgs_fit_traits_coarsegrain(
         selection coefficient; nan without gains or gain ratio.
     """
     minimize_kwargs = dict(
-        loss_rate=loss_rate, growth_exponent_bound=growth_exponent_bound
+        loss_rate=loss_rate,
+        fit_growth_exponent_bound=fit_growth_exponent_bound,
     )
     fits = [
         tgs_fit_trait(
             nll_kwargs=nll_kwargs,
-            selection_coef_starts=selection_coef_starts,
+            fit_selection_coef_starts=fit_selection_coef_starts,
             **minimize_kwargs,
         )
         for nll_kwargs in progress_wrap(trait_nll_kwargs)
@@ -155,7 +156,7 @@ def tgs_fit_traits_coarsegrain(
                 fit=fit,
                 nll_kwargs=nll_kwargs,
                 reference_gain_rate=calc_reference_gain_rate(trait_id),
-                selection_coef_starts=selection_coef_starts,
+                fit_selection_coef_starts=fit_selection_coef_starts,
                 calc_lrts=calc_lrts,
                 **minimize_kwargs,
             )

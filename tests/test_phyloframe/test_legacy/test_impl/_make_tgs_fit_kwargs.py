@@ -1,6 +1,5 @@
 import typing
 
-import numpy as np
 import polars as pl
 from scipy import sparse
 
@@ -30,11 +29,10 @@ def make_tgs_fit_kwargs(
             num_traits=num_traits,
             calibration_neighborhoods=sparse.identity(num_bins, format="csr"),
             neutral_trait_ids=list(range(1, num_traits)),
-            calibration_max_rate_ratio=np.inf,
             length_rtol=1e-3,
             loss_rate=0.0,
-            selection_coef_starts=(0.0, -0.3, -1.8),
-            growth_exponent_bound=600.0,
+            fit_selection_coef_starts=(0.0, -0.3, -1.8),
+            fit_growth_exponent_bound=600.0,
         ),
         **kwargs,
     }

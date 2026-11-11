@@ -21,7 +21,7 @@ def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
         trait_nll_kwargs=[nll_kwargs] * 3,
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
-        growth_exponent_bound=600.0,
+        fit_growth_exponent_bound=600.0,
         calc_lrts=True,
         progress_wrap=identity,
         **kwargs,
@@ -51,13 +51,13 @@ def _sample(gain_rate: float, selection_coef: float, seed: int):
 
 
 def _fit(
-    nll_kwargs, *, loss_rate=0.0, selection_coef_starts=(0.0, -0.3, -1.8)
+    nll_kwargs, *, loss_rate=0.0, fit_selection_coef_starts=(0.0, -0.3, -1.8)
 ):
     return tgs_fit_trait(
-        growth_exponent_bound=600.0,
+        fit_growth_exponent_bound=600.0,
         nll_kwargs=nll_kwargs,
         loss_rate=loss_rate,
-        selection_coef_starts=selection_coef_starts,
+        fit_selection_coef_starts=fit_selection_coef_starts,
     )
 
 
@@ -69,7 +69,7 @@ def test_recovers_parameters(gain_rate: float, selection_coef: float):
     assert res["gain_rate"] == pytest.approx(gain_rate, rel=0.1)
     assert res["selection_coef"] == pytest.approx(selection_coef, abs=0.01)
     lrt = _calc_selection_lrt(
-        nll_kwargs, selection_coef_starts=(0.0, -0.3, -1.8)
+        nll_kwargs, fit_selection_coef_starts=(0.0, -0.3, -1.8)
     )
     if selection_coef == 0:
         assert lrt < 10
@@ -107,12 +107,12 @@ def test_empty_rows_ignored():
 
 
 @pytest.mark.parametrize(
-    "selection_coef_starts", [(0.0,), (-1.8,), (-0.3, 0.0)]
+    "fit_selection_coef_starts", [(0.0,), (-1.8,), (-0.3, 0.0)]
 )
-def test_selection_starts(selection_coef_starts):
+def test_selection_starts(fit_selection_coef_starts):
     nll_kwargs = _sample(1e-3, -0.05, seed=6)
     expected = _fit(nll_kwargs)
-    res = _fit(nll_kwargs, selection_coef_starts=selection_coef_starts)
+    res = _fit(nll_kwargs, fit_selection_coef_starts=fit_selection_coef_starts)
     assert res["selection_coef"] == pytest.approx(
         expected["selection_coef"], rel=1e-3
     )
@@ -151,7 +151,8 @@ def test_no_successes_skips_fit_without_warning():
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         res = _fit(
-            dict(coarsegrain_df=coarsegrain_df), selection_coef_starts=(0.0,)
+            dict(coarsegrain_df=coarsegrain_df),
+            fit_selection_coef_starts=(0.0,),
         )
     assert res["gain_rate"] == 0.0
     assert np.isnan(res["selection_coef"])
@@ -169,7 +170,7 @@ def test_selection_bounded_by_growth_exponent_bound():
         fit_gain=True,
         fit_selection=True,
         loss_rate=0.0,
-        growth_exponent_bound=5.0,
+        fit_growth_exponent_bound=5.0,
     )
     assert np.isfinite(best.fun)
     selection_coef = best.x[1] * tgs_pick_selection_rescale(
