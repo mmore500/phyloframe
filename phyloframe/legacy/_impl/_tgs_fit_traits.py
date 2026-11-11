@@ -9,7 +9,9 @@ from ..._auxlib._calc_geometric_bins import calc_geometric_bins
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
-from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
+from ._tgs_count_trait_exposures_binwise import (
+    tgs_count_trait_exposures_binwise,
+)
 from ._tgs_fit_traits_coarsegrain import tgs_fit_traits_coarsegrain
 
 
@@ -46,10 +48,11 @@ def _tgs_coarsegrain_episodes(
     """Implementation detail for `tgs_fit_traits`.
 
     Groups `trait_id`'s exposure episodes into granules, each holding
-    episodes whose calibrated lengths and survival durations both agree
-    within relative tolerance `exposure_duration_rtol` (0 for one granule per episode),
-    so have nearly the same chance of gain. Each episode's length is
-    calibrated by its calibration bin's entry of `calibration_factors`.
+    episodes whose calibrated durations and survival durations both agree
+    within relative tolerance `exposure_duration_rtol` (0 for no coarsening,
+    one granule per episode), so have nearly the same chance of gain. Each
+    episode's duration is calibrated by its calibration bin's entry of
+    `calibration_factors`.
 
     Returns `coarsegrain_df`, one row per granule (see Output Schema), and
     `survival_duration_granule_mass`, a sparse matrix giving, per granule
@@ -63,28 +66,28 @@ def _tgs_coarsegrain_episodes(
     'num_gains' : float
         Of those, the weighted count that gained the trait.
     'mean_episode_duration' : float
-        Their weighted average calibrated length.
+        Their weighted average calibrated duration.
     """
     calibrated_episodes_df = exposure_df.filter(
-        pl.col(f"trait{trait_id}_starts_absent"),
+        pl.col(f"trait{trait_id}_episode_starts_absent"),
         pl.col("weight") > 0,  # optimization
     ).select(
         "weight",
         "survival_duration",
         "survival_duration_id",
         gained_trait=f"trait{trait_id}_gain",
-        calibrated_length=pl.col("episode_length")
+        calibrated_duration=pl.col("episode_duration")
         * pl.lit(pl.Series(calibration_factors)).gather("bin_id"),
     )
 
     if exposure_duration_rtol > 0:
-        length_bin = _tgs_calc_log_scale_bins(
-            pl.col("calibrated_length"), rtol=exposure_duration_rtol
+        duration_bin = _tgs_calc_log_scale_bins(
+            pl.col("calibrated_duration"), rtol=exposure_duration_rtol
         )
         survival_bin = _tgs_calc_log_scale_bins(
             pl.col("survival_duration"), rtol=exposure_duration_rtol
         )
-        granule_id = pl.struct(length_bin, survival_bin).rank("dense") - 1
+        granule_id = pl.struct(duration_bin, survival_bin).rank("dense") - 1
     else:
         granule_id = pl.int_range(pl.len())
     calibrated_episodes_df = calibrated_episodes_df.with_columns(
@@ -96,15 +99,15 @@ def _tgs_coarsegrain_episodes(
         .agg(
             num_episodes=pl.col("weight").sum(),
             num_gains=pl.col("weight").filter("gained_trait").sum(),
-            calibrated_length_sum=(
-                pl.col("weight") * pl.col("calibrated_length")
+            calibrated_duration_sum=(
+                pl.col("weight") * pl.col("calibrated_duration")
             ).sum(),
         )
         .sort("granule_id")
         .select(
             "num_episodes",
             "num_gains",
-            mean_episode_duration=pl.col("calibrated_length_sum")
+            mean_episode_duration=pl.col("calibrated_duration_sum")
             / pl.col("num_episodes"),
         )
     )
@@ -114,7 +117,7 @@ def _tgs_coarsegrain_episodes(
     ) @ sparse.csr_matrix(
         (
             calibrated_episodes_df["weight"].to_numpy(),
-            (
+            (  # row indices, col indices
                 calibrated_episodes_df["granule_id"].to_numpy(),
                 calibrated_episodes_df["survival_duration_id"].to_numpy(),
             ),
@@ -145,12 +148,12 @@ def tgs_fit_traits(
     bootstrap draw counts). Returns one row per trait; see
     `tgs_fit_traits_coarsegrain`.
 
-    Episode lengths are first calibrated by calibration bin (see
-    `tgs_calc_calibration_rescaling`). Episodes of similar length are then
+    Episode durations are first calibrated by calibration bin (see
+    `tgs_calc_calibration_rescaling`). Episodes of similar duration are then
     grouped into granules (see `_tgs_coarsegrain_episodes`), to which gain
     rate and selection coefficient are fit.
     """
-    trait_bin_counts_df = tgs_count_trait_bin_exposures(
+    trait_bin_counts_df = tgs_count_trait_exposures_binwise(
         exposure_df, trait_ids=neutral_trait_ids, weights=weights
     )
 

@@ -7,9 +7,9 @@ def test_count():
     exposure_df = pl.DataFrame(
         {
             "clade_size": [1, 1, 2, 1, 5],
-            "trait0_starts_absent": [True] * 5,
+            "trait0_episode_starts_absent": [True] * 5,
             "trait0_gain": [False, True, True, False, False],
-            "trait1_starts_absent": [True, False, True, False, False],
+            "trait1_episode_starts_absent": [True, False, True, False, False],
             "trait1_gain": [False] * 5,
         },
     )

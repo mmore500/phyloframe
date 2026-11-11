@@ -23,7 +23,7 @@ def tgs_validate_args(
     ):
         raise NotImplementedError(
             "fewer than two neutral traits not yet supported; they calibrate "
-            "lengths and are the reference for gain ratios",
+            "episode durations and are the reference for gain ratios",
         )
     trait_transitions = [
         *trait_transitions_candidate,
@@ -40,8 +40,8 @@ def tgs_validate_args(
         0 < fraction <= 1 for fraction in calibration_neighborhood_fractions
     ):
         raise ValueError(
-            "calibration_neighborhood_fractions must be nonempty, with each in "
-            "(0, 1]",
+            "calibration_neighborhood_fractions must be nonempty, with each "
+            "in (0, 1]",
         )
     if not exposure_duration_rtol >= 0:
         raise ValueError("exposure_duration_rtol must be nonnegative")

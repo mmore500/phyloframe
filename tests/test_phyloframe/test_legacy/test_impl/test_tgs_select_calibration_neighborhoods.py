@@ -9,7 +9,7 @@ from ._simulate_exposure_df import simulate_exposure_df
 def _select(exposure_df: pl.DataFrame):
     return tgs_select_calibration_neighborhoods(
         exposure_df.with_columns(
-            calibration_compare_by_branch_length=pl.col("episode_length"),
+            calibration_compare_by_branch_length=pl.col("episode_duration"),
         ),
         neighborhood_fractions=(0.25, 1.0),
         neutral_trait_ids=[1, 2, 3],
@@ -23,7 +23,7 @@ def test_block_diagonal():
     # bins numbered partition-major
     exposure_df = alifestd_mark_joint_quantile_bins_polars(
         exposure_df,
-        bin_by=["episode_length", "origin_time"],
+        bin_by=["episode_duration", "origin_time"],
         partition_by="partition_id",
         max_num_bins=8,
         mark_as="bin_id",

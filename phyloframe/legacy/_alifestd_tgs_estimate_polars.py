@@ -60,8 +60,8 @@ def alifestd_tgs_estimate_polars(
     """Estimate per-trait gain rate and selection coefficient (tgs, for
     trait gain/selection) from how often branches gain each trait.
 
-    Each branch whose parent lacks a trait is an exposure episode, which
-    gains the trait with probability
+    Each branch edge whose subtending node lacks a trait is an exposure
+    episode, which gains the trait with probability
 
         gain_rate * (exp(c * length) - 1) / c * exp(c * survival)
 
@@ -71,7 +71,7 @@ def alifestd_tgs_estimate_polars(
     at every leaf of its clade. Growth rate `c` is the selection
     coefficient minus the loss rate, `selection_coef - loss_rate`.
 
-    Episode lengths are calibrated against the gain rates of traits known to
+    Episode durations are calibrated against the gain rates of traits known to
     be neutral, to remove distortion that neutral traits share (see Notes).
 
     Only supports asexual phylogenies.
@@ -112,14 +112,14 @@ def alifestd_tgs_estimate_polars(
         Name of a column of calibration bin ids, at each exposure episode's
         end node, e.g., from `alifestd_mark_joint_quantile_bins_polars`.
 
-        Calibration rescales each episode's length by the neutral gain rate
+        Calibration rescales each episode's duration by the neutral gain rate
         in its bin's neighborhood relative to global rate, removing tree shape
         distortion. If not given, each partition is one bin.
     calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time")
         Columns used to select comparator bins for calibration against neutral
         traits (see Notes).
 
-        May be episode columns `branch_length` (the episode's length),
+        May be episode columns `branch_length` (the episode's duration),
         `origin_time`, `clade_size`, or `survival_duration`, or other
         columns of `phylogeny_df`. Values taken at each episode's end node.
     calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
@@ -132,13 +132,13 @@ def alifestd_tgs_estimate_polars(
     exposure_duration_rtol : float, default 1e-2
         Relative tolerance for pooling similar exposure episodes, to
         streamline bulk likelihood evaluation. Episodes whose calibrated
-        lengths and survival durations both agree within this tolerance are
-        pooled as one granule; 0 to disable coarsening.
+        durations and survival durations both agree within this tolerance
+        are pooled as one granule; 0 to disable coarsening.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     fit_selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Optimizer starting values for the selection coefficient, in units
-        of 1 / mean episode length.
+        of 1 / mean episode duration.
     fit_growth_exponent_bound : float, default 600.0
         Bound on `c * (length + survival)`, to stabilize optimizer fit.
     progress_wrap : Callable, default identity
@@ -158,7 +158,7 @@ def alifestd_tgs_estimate_polars(
     NotImplementedError
         For unsupported input, e.g., fewer than two neutral traits, a
         non-asexual phylogeny, unifurcations, null values, non-finite
-        origin times, exposure episodes with zero or negative lengths,
+        origin times, exposure episodes with zero or negative durations,
         trait losses, or a trait present at a root.
 
     Warns
@@ -176,7 +176,7 @@ def alifestd_tgs_estimate_polars(
 
         Non-root nodes with one child (unifurcations) are not supported.
     'origin_time' : float
-        Time of each taxon's origin, from which episode lengths and survival
+        Time of each taxon's origin, from which episode durations and survival
         durations are taken; must be finite.
     `trait_transitions_candidate` columns : integer
         See Parameters.
@@ -205,7 +205,7 @@ def alifestd_tgs_estimate_polars(
     'num_inner_gains' : integer
         Of those, the number that gained the trait.
     'gain_rate' : float
-        Estimated rate of trait gain, per unit episode length.
+        Estimated rate of trait gain, per unit episode duration.
     'selection_coef' : float
         Estimated rate at which a carrier lineage's expected number of
         sampled descendants changes relative to a non-carrier's (negative
@@ -239,7 +239,7 @@ def alifestd_tgs_estimate_polars(
 
     Notes
     -----
-    Calibration rescales each episode's length by the neutral gain rate
+    Calibration rescales each episode's duration by the neutral gain rate
     in similar calibration bins, relative to the global rate. A bin's
     neighborhood is its nearest bins within its partition, by mean rank of
     the `calibration_compare_by_vals` columns. Each partition's neighborhood
@@ -251,7 +251,7 @@ def alifestd_tgs_estimate_polars(
     durations are used as measured on the tree.
 
     With `loss_rate` 0, a neutral trait should be gained equally often per
-    unit episode length, whatever the survival duration. If neutral traits
+    unit episode duration, whatever the survival duration. If neutral traits
     are instead gained more or less often on episodes with longer survival
     durations (e.g., from distorted inner branch lengths), selection
     coefficients may be biased. To correct for this, additionally calibrate
@@ -403,7 +403,7 @@ def _alifestd_tgs_estimate_polars_impl(
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
     for trait_id in neutral_trait_ids:
-        if not exposure_df[f"trait{trait_id}_starts_absent"].any():
+        if not exposure_df[f"trait{trait_id}_episode_starts_absent"].any():
             raise ValueError(
                 f"neutral trait {trait_transitions[trait_id]} has no exposure "
                 "episodes to fit",
@@ -605,8 +605,9 @@ def _add_estimate_arguments(
         default=1e-2,
         type=float,
         help=(
-            "Relative tolerance within which episodes of similar calibrated "
-            "length are fit together, as one granule (default: 1e-2)."
+            "Relative tolerance for pooling exposure episodes of similar "
+            "calibrated duration and survival duration as one granule "
+            "(default: 1e-2)."
         ),
     )
     parser.add_argument(
@@ -633,7 +634,7 @@ def _add_estimate_arguments(
         type=float,
         help=(
             "Starting values for the selection coefficient, in units of "
-            "1 / mean episode length (default: 0.0 -0.3 -1.8)."
+            "1 / mean episode duration (default: 0.0 -0.3 -1.8)."
         ),
     )
     parser.add_argument(

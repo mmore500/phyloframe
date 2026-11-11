@@ -11,14 +11,16 @@ def make_tgs_fit_kwargs(
 ) -> typing.Dict[str, typing.Any]:
     """Arguments for `tgs_fit_traits`, but `weights` and `progress_wrap`,
     treating traits after the first as neutral. If `calibrate`, bins
-    episodes into 64 equal-occupancy bins by episode length and origin time,
+    episodes into 64 equal-occupancy bins by episode duration and origin time,
     each its own calibration neighborhood; else, one bin.
     """
-    num_traits = sum(c.endswith("_starts_absent") for c in exposure_df.columns)
+    num_traits = sum(
+        c.endswith("_episode_starts_absent") for c in exposure_df.columns
+    )
     if calibrate:
         exposure_df = alifestd_mark_joint_quantile_bins_polars(
             exposure_df,
-            bin_by=["episode_length", "origin_time"],
+            bin_by=["episode_duration", "origin_time"],
             max_num_bins=64,
             mark_as="bin_id",
         )

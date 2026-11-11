@@ -7,7 +7,7 @@ import pytest
 from scipy import optimize
 
 from phyloframe.legacy._impl import tgs_calc_nll
-from phyloframe.legacy._impl._tgs_calc_nll import _tgs_calc_effective_length
+from phyloframe.legacy._impl._tgs_calc_nll import _tgs_calc_effective_duration
 
 from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
 
@@ -32,18 +32,18 @@ def _pendant_coarsegrain_df(
     gain_rate: float, selection_coef: float, seed: int
 ):
     rng = np.random.default_rng(seed)
-    length = np.linspace(0.5, 60.0, 120)
-    num_episodes = np.full_like(length, 20_000)
+    duration = np.linspace(0.5, 60.0, 120)
+    num_episodes = np.full_like(duration, 20_000)
     p = (
-        gain_rate * length
+        gain_rate * duration
         if selection_coef == 0
-        else gain_rate * np.expm1(selection_coef * length) / selection_coef
+        else gain_rate * np.expm1(selection_coef * duration) / selection_coef
     )
     return pl.DataFrame(
         {
             "num_episodes": num_episodes,
             "num_gains": rng.binomial(num_episodes.astype(int), p),
-            "mean_episode_duration": length,
+            "mean_episode_duration": duration,
         },
     )
 
@@ -116,10 +116,10 @@ def test_continuous_at_zero_rate():
 @pytest.mark.parametrize(
     "rate", [-0.1, -1e-4, -1e-7, -1e-9, 0.0, 1e-9, 1e-7, 1e-4, 0.05]
 )
-def test_effective_length(rate: float):
-    length = np.array([0.01, 1.0, 7.0, 30.0])
-    res, res_deriv = _tgs_calc_effective_length(
-        length=length, growth_rate=rate
+def test_effective_duration(rate: float):
+    duration = np.array([0.01, 1.0, 7.0, 30.0])
+    res, res_deriv = _tgs_calc_effective_duration(
+        duration=duration, growth_rate=rate
     )
     # exact values, from the series sums over j >= 1 of
     # rate**(j - 1) * t**j / j!, and over j >= 2 of its derivative,
@@ -131,7 +131,7 @@ def test_effective_length(rate: float):
                 for j in range(1, 80)
             )
         )
-        for t in length
+        for t in duration
     ]
     expected_deriv = [
         float(
@@ -143,7 +143,7 @@ def test_effective_length(rate: float):
                 for j in range(2, 80)
             )
         )
-        for t in length
+        for t in duration
     ]
     np.testing.assert_allclose(res, expected, rtol=1e-12)
     np.testing.assert_allclose(res_deriv, expected_deriv, rtol=1e-9)

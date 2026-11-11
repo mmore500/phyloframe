@@ -5,7 +5,7 @@ import numpy as np
 import polars as pl
 
 
-def tgs_count_trait_bin_exposures(
+def tgs_count_trait_exposures_binwise(
     exposure_df: pl.DataFrame,
     *,
     trait_ids: typing.Sequence[int],
@@ -28,17 +28,18 @@ def tgs_count_trait_bin_exposures(
     'num_gains' : float
         Of those, the weighted count that gained the trait.
     'total_episode_duration' : float
-        Weighted sum of those episodes' lengths.
+        Weighted sum of those episodes' durations.
     """
-    episode_lengths = exposure_df["episode_length"].to_numpy()
-    assert np.isfinite(episode_lengths).all()
+    episode_durations = exposure_df["episode_duration"].to_numpy()
+    assert np.isfinite(episode_durations).all()
     bin_ids = exposure_df["bin_id"].to_numpy()
     num_bins = bin_ids.max() + 1  # bins are numbered densely
     sum_by_bin = functools.partial(np.bincount, bin_ids, minlength=num_bins)
 
-    def count_trait_bin_exposures(trait_id: int) -> pl.DataFrame:
+    def count_trait_exposures_binwise(trait_id: int) -> pl.DataFrame:
         trait_weights = (
-            weights * exposure_df[f"trait{trait_id}_starts_absent"].to_numpy()
+            weights
+            * exposure_df[f"trait{trait_id}_episode_starts_absent"].to_numpy()
         )
         return pl.DataFrame(
             {
@@ -50,9 +51,11 @@ def tgs_count_trait_bin_exposures(
                     * exposure_df[f"trait{trait_id}_gain"].to_numpy()
                 ),
                 "total_episode_duration": sum_by_bin(
-                    trait_weights * episode_lengths
+                    trait_weights * episode_durations
                 ),
             },
         )
 
-    return pl.concat(map(count_trait_bin_exposures, trait_ids), how="vertical")
+    return pl.concat(
+        map(count_trait_exposures_binwise, trait_ids), how="vertical"
+    )

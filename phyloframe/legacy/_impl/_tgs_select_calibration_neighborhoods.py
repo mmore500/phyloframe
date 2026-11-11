@@ -13,7 +13,9 @@ from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
-from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
+from ._tgs_count_trait_exposures_binwise import (
+    tgs_count_trait_exposures_binwise,
+)
 
 
 def _tgs_calc_heldout_nll(
@@ -21,42 +23,44 @@ def _tgs_calc_heldout_nll(
     trait_id: int,
     bin_ids: np.ndarray,
     trait_bin_counts_df: pl.DataFrame,
-    **rescaling_kwargs,
+    **calibration_rescaling_kwargs,
 ) -> float:
     """Implementation detail for `tgs_select_calibration_neighborhoods`.
 
     Returns the negative log likelihood of neutral `trait_id`'s gains in
     one partition's bins, `bin_ids`, under no selection, with episode
-    lengths calibrated against the other neutral traits only (see
+    durations calibrated against the other neutral traits only (see
     `tgs_calc_calibration_rescaling`); 0 without gains.
     """
     trait_counts_df = trait_bin_counts_df.filter(
-        pl.col("trait_id") == trait_id, pl.col("bin_id").is_in(bin_ids)
+        pl.col("trait_id") == trait_id,
+        pl.col("bin_id").is_in(bin_ids),
     )
     num_episodes = trait_counts_df["num_episodes"].to_numpy()
     num_gains = trait_counts_df["num_gains"].to_numpy()
-    mean_lengths = np.divide(
+    mean_durations = np.divide(
         trait_counts_df["total_episode_duration"].to_numpy(),
         num_episodes,
         out=np.zeros(num_episodes.shape),
         where=num_episodes > 0,
     )
-    calibrated_lengths = (
-        mean_lengths
+    calibrated_durations = (
+        mean_durations
         * tgs_calc_calibration_rescaling(
             trait_id=trait_id,
             trait_bin_counts_df=trait_bin_counts_df,
-            **rescaling_kwargs,
+            **calibration_rescaling_kwargs,
         )[bin_ids]
     )
 
-    exposure = (num_episodes * calibrated_lengths).sum()
-    if not (num_gains.any() and exposure):
+    # over the partition's bins
+    total_exposure = (num_episodes * calibrated_durations).sum()
+    if not (num_gains.any() and total_exposure):
         return 0.0  # no gains, so every neighborhood size scores alike
 
-    gain_rate = num_gains.sum() / exposure  # fit under no selection
+    gain_rate = num_gains.sum() / total_exposure  # fit under no selection
     return calc_binomial_nll_proxy(
-        num_episodes, num_gains, gain_rate * calibrated_lengths
+        num_episodes, num_gains, gain_rate * calibrated_durations
     )[0]
 
 
@@ -116,7 +120,7 @@ def _tgs_select_neighborhoods_within_partition(
             f"likelihood {nll:.1f}",
         )
 
-    # first candidate among ties; nan scores lose
+    # first-seen candidate wins ties; nan scores lose
     best_idx = min(
         range(len(nlls)), key=lambda i: (np.isnan(nlls[i]), nlls[i])
     )
@@ -137,7 +141,7 @@ def tgs_select_calibration_neighborhoods(
 
     Returns a sparse 0/1 bin-by-bin matrix whose row `i` marks calibration
     bin `i`'s neighborhood, i.e., the bins whose neutral trait gains
-    calibrate its episode lengths (see `tgs_calc_calibration_rescaling`).
+    calibrate its episode durations (see `tgs_calc_calibration_rescaling`).
 
     A bin's neighborhood is its nearest bins within its partition, by its
     episodes' mean ranks of `exposure_df`'s `calibration_compare_by_*`
@@ -146,7 +150,7 @@ def tgs_select_calibration_neighborhoods(
     `neighborhood_fractions` that best predicts each neutral trait's gains
     when calibrating against the other neutral traits.
     """
-    trait_bin_counts_df = tgs_count_trait_bin_exposures(
+    trait_bin_counts_df = tgs_count_trait_exposures_binwise(
         exposure_df,
         trait_ids=neutral_trait_ids,
         weights=np.ones(len(exposure_df)),
@@ -164,13 +168,14 @@ def tgs_select_calibration_neighborhoods(
         .mean()
         .sort("bin_id")
     )
+    num_bins = len(bin_coords_df)  # one row per bin
 
     # each partition fills its own bins' rows, combined by sum
     calibration_neighborhoods = sum(
         _tgs_select_neighborhoods_within_partition(
             partition_df.drop("partition_id", "bin_id").to_numpy(),
             bin_ids=partition_df["bin_id"].to_numpy(),
-            num_bins=len(bin_coords_df),
+            num_bins=num_bins,
             neighborhood_fractions=neighborhood_fractions,
             neutral_trait_ids=neutral_trait_ids,
             trait_bin_counts_df=trait_bin_counts_df,

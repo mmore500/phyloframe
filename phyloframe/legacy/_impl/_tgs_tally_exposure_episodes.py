@@ -27,7 +27,7 @@ def tgs_tally_exposure_episodes(
     is_leaf = pl.col("clade_size") == 1
 
     def tally_trait(trait_id: int) -> pl.DataFrame:
-        starts_absent = pl.col(f"trait{trait_id}_starts_absent")
+        starts_absent = pl.col(f"trait{trait_id}_episode_starts_absent")
         gain = pl.col(f"trait{trait_id}_gain")
         return exposure_df.select(
             num_leaf_episodes=(starts_absent & is_leaf).sum(),
@@ -36,6 +36,6 @@ def tgs_tally_exposure_episodes(
             num_inner_gains=(gain & ~is_leaf).sum(),
         ).cast(pl.Int64)
 
-    return pl.concat(map(tally_trait, range(len(trait_names)))).select(
-        pl.Series("trait_name", trait_names, dtype=pl.String), pl.all()
+    return pl.concat(map(tally_trait, range(len(trait_names)))).insert_column(
+        0, pl.Series("trait_name", trait_names, dtype=pl.String)
     )

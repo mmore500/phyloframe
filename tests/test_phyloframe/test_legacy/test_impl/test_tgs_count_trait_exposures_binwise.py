@@ -1,24 +1,24 @@
 import numpy as np
 import polars as pl
 
-from phyloframe.legacy._impl import tgs_count_trait_bin_exposures
+from phyloframe.legacy._impl import tgs_count_trait_exposures_binwise
 
 
 def _exposure_df() -> pl.DataFrame:
     return pl.DataFrame(
         {
             "bin_id": [0, 0, 2, 2],
-            "episode_length": [1.0, 2.0, 3.0, 4.0],
-            "trait0_starts_absent": [True, True, True, False],
+            "episode_duration": [1.0, 2.0, 3.0, 4.0],
+            "trait0_episode_starts_absent": [True, True, True, False],
             "trait0_gain": [False, True, False, False],
-            "trait1_starts_absent": [True, True, True, True],
+            "trait1_episode_starts_absent": [True, True, True, True],
             "trait1_gain": [False, False, True, True],
         },
     )
 
 
 def test_counts():
-    res = tgs_count_trait_bin_exposures(
+    res = tgs_count_trait_exposures_binwise(
         _exposure_df(),
         trait_ids=[0, 1],
         weights=np.array([1.0, 2.0, 1.0, 1.0]),
