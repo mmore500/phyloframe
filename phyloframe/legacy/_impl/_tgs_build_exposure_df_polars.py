@@ -219,7 +219,7 @@ def tgs_build_exposure_df_polars(
         # branch_length names the episode's own length
         .with_columns(branch_length="episode_length").filter(is_episode)
     )
-    del nodes_df  # clear memory
+    del nodes_df  # free memory
     gc.collect()
     log_memory_usage(logging.info)
 
@@ -260,7 +260,7 @@ def tgs_build_exposure_df_polars(
             for col in calibration_compare_by_vals
         ),
     )
-    del episodes_df, episode_cols  # clear memory
+    del episodes_df, episode_cols  # free memory
     gc.collect()
     log_memory_usage(logging.info)
 

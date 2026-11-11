@@ -182,7 +182,7 @@ def tgs_select_calibration_neighborhoods(
         )
     )
 
-    del trait_bin_counts_df, bin_coords_df  # clear memory
+    del trait_bin_counts_df, bin_coords_df  # free memory
     gc.collect()
     log_memory_usage(logging.info)
     return calibration_neighborhoods

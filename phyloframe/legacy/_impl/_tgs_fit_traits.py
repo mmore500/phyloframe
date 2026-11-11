@@ -191,7 +191,7 @@ def tgs_fit_traits(
             ),
         )
 
-    del exposure_df, trait_bin_counts_df  # clear memory
+    del exposure_df, trait_bin_counts_df  # free memory
     gc.collect()
 
     return tgs_fit_traits_coarsegrain(
