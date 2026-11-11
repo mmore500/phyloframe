@@ -9,7 +9,6 @@ import warnings
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
-import opytional as opyt
 import polars as pl
 from tqdm import tqdm
 
@@ -38,9 +37,11 @@ def alifestd_tgs_estimate_polars(
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Optional[
-        typing.Union[str, typing.Sequence[str]]
-    ] = None,
+    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
+        "branch_length",
+        "origin_time",
+        "survival_duration",
+    ),
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
@@ -115,13 +116,10 @@ def alifestd_tgs_estimate_polars(
         Calibration rescales each episode's duration by the neutral gain rate
         in its bin's neighborhood relative to global rate, removing tree shape
         distortion. If not given, each partition is one bin.
-    calibration_compare_by_vals : str or Sequence[str], optional
+    calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time", "survival_duration")
         Columns used to select comparator bins for calibration against neutral
-        traits (see Notes); if not given, `branch_length`, `origin_time`, and
-        `survival_duration`. Calibration bins should be made from the same
+        traits (see Notes). Calibration bins should be made from the same
         columns; see Examples.
-
-        May only be given with `calibration_compare_by_bins`.
 
         May be episode columns `branch_length` (the episode's duration),
         `origin_time`, `clade_size`, or `survival_duration`, or other
@@ -343,9 +341,11 @@ def _alifestd_tgs_estimate_polars_impl(
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Optional[
-        typing.Union[str, typing.Sequence[str]]
-    ] = None,
+    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
+        "branch_length",
+        "origin_time",
+        "survival_duration",
+    ),
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
@@ -380,15 +380,10 @@ def _alifestd_tgs_estimate_polars_impl(
     tgs_validate_args(
         trait_transitions_candidate=trait_transitions_candidate,
         trait_transitions_neutral=trait_transitions_neutral,
-        calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
         nll_coarsegrain_rtol=nll_coarsegrain_rtol,
         fit_growth_exponent_bound=fit_growth_exponent_bound,
-    )
-    calibration_compare_by_vals = opyt.or_value(
-        calibration_compare_by_vals,
-        ("branch_length", "origin_time", "survival_duration"),
     )
     # candidate traits first, then neutral traits
     trait_transitions = [
@@ -597,13 +592,12 @@ def _add_estimate_arguments(
     )
     parser.add_argument(
         "--calibration-compare-by-vals",
-        default=None,
+        default=("branch_length", "origin_time", "survival_duration"),
         nargs="+",
         type=str,
         help=(
-            "Columns by which calibration bins are compared; only with "
-            "--calibration-compare-by-bins (default: branch_length "
-            "origin_time survival_duration)."
+            "Columns by which calibration bins are compared (default: "
+            "branch_length origin_time survival_duration)."
         ),
     )
     parser.add_argument(
