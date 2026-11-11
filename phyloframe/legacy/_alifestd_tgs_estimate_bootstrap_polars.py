@@ -82,7 +82,7 @@ def alifestd_tgs_estimate_bootstrap_polars(
     -----
     UserWarning
         For traits with bootstrap replicates excluded for an undefined
-        estimate, or as for `alifestd_tgs_estimate_polars`.
+        estimate. See also `alifestd_tgs_estimate_polars`.
 
     Output Schema
     -------------
@@ -92,7 +92,7 @@ def alifestd_tgs_estimate_bootstrap_polars(
         Standard deviations of the selection coefficient and log gain ratio
         across bootstrap replicates.
     'selection_coef_z', 'gain_ratio_z' : float
-        Corresponding z-scores, against 0 and 1, respectively.
+        Corresponding z-scores, against null hypotheses 0 and 1, respectively.
     'selection_coef_p', 'gain_ratio_p' : float
         Corresponding two-sided p-values, by normal approximation.
     'num_bootstrap_degenerate' : integer
@@ -102,7 +102,9 @@ def alifestd_tgs_estimate_bootstrap_polars(
     Warnings
     --------
     Bootstrap resampling treats exposure episodes as independent, but
-    nested episodes share leaves, so standard errors tend to be too small.
+    nested episodes share leaves, so bootstrap statistics tend towards
+    underdispersion (including significance values, which may overstate
+    confidence).
 
     See Also
     --------
@@ -121,7 +123,6 @@ def alifestd_tgs_estimate_bootstrap_polars(
         "bootstrap replicates...",
     )
     replicate_fits = run_weighted_bootstrap(
-        # standard errors take replicates' estimates only
         functools.partial(fit_traits, calc_lrts=False, progress_wrap=identity),
         num_items=len(exposure_df),
         num_replicates=num_bootstrap,
@@ -129,7 +130,7 @@ def alifestd_tgs_estimate_bootstrap_polars(
         parallel_backend=parallel_backend,
         progress_wrap=progress_wrap,
     )
-    del exposure_df, fit_traits  # clear memory
+    del exposure_df, fit_traits  # free memory
     gc.collect()
     log_memory_usage(logging.info)
 

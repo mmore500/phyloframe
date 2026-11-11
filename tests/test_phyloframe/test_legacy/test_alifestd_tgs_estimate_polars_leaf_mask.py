@@ -274,7 +274,7 @@ def test_invalid_neighborhood_fractions_raise(fractions):
         _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
-            calibrate_neighborhood_fractions=fractions,
+            calibration_neighborhood_fractions=fractions,
         )
 
 
@@ -285,7 +285,7 @@ def test_neighborhood_fractions_single_candidate():
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        calibrate_neighborhood_fractions=[0.1],
+        calibration_neighborhood_fractions=[0.1],
     )
     assert np.isfinite(res["selection_coef"]).all()
 
@@ -366,35 +366,35 @@ def test_invalid_length_rtol_raises(length_rtol: float):
         )
 
 
-def test_calibrate_max_rate_ratio():
+def test_calibration_max_rate_ratio():
     phylogeny_df, traits = _make_cherries(4_000)
     kwargs = dict(
         trait_masks=traits,
         calibrate=True,
-        calibrate_neighborhood_fractions=[0.1],
+        calibration_neighborhood_fractions=[0.1],
     )
     default = _estimate_from_masks(phylogeny_df, **kwargs)
     uncapped = _estimate_from_masks(
-        phylogeny_df, calibrate_max_rate_ratio=np.inf, **kwargs
+        phylogeny_df, calibration_max_rate_ratio=np.inf, **kwargs
     )
     pd.testing.assert_frame_equal(default, uncapped)
     # a tight cap clips the larger calibration factors, changing the fit
     capped = _estimate_from_masks(
-        phylogeny_df, calibrate_max_rate_ratio=1.0, **kwargs
+        phylogeny_df, calibration_max_rate_ratio=1.0, **kwargs
     )
     assert not np.allclose(capped["gain_rate"], default["gain_rate"])
 
 
-@pytest.mark.parametrize("calibrate_max_rate_ratio", [0.0, -1.0, np.nan])
-def test_calibrate_max_rate_ratio_not_positive_raises(
-    calibrate_max_rate_ratio: float,
+@pytest.mark.parametrize("calibration_max_rate_ratio", [0.0, -1.0, np.nan])
+def test_calibration_max_rate_ratio_not_positive_raises(
+    calibration_max_rate_ratio: float,
 ):
     phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError, match="calibrate_max_rate_ratio"):
+    with pytest.raises(ValueError, match="calibration_max_rate_ratio"):
         _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
-            calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+            calibration_max_rate_ratio=calibration_max_rate_ratio,
         )
 
 

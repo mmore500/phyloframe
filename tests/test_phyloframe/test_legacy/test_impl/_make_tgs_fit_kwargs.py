@@ -30,7 +30,7 @@ def make_tgs_fit_kwargs(
             num_traits=num_traits,
             calibration_neighborhoods=sparse.identity(num_bins, format="csr"),
             neutral_trait_ids=list(range(1, num_traits)),
-            calibrate_max_rate_ratio=np.inf,
+            calibration_max_rate_ratio=np.inf,
             length_rtol=1e-3,
             loss_rate=0.0,
             selection_coef_starts=(0.0, -0.3, -1.8),

@@ -41,7 +41,7 @@ def alifestd_tgs_estimate_polars(
         "branch_length",
         "origin_time",
     ),
-    calibrate_neighborhood_fractions: typing.Sequence[float] = (
+    calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -51,7 +51,7 @@ def alifestd_tgs_estimate_polars(
         0.5,
         1.0,
     ),
-    calibrate_max_rate_ratio: float = np.inf,
+    calibration_max_rate_ratio: float = np.inf,
     length_rtol: float = 1e-2,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -71,6 +71,9 @@ def alifestd_tgs_estimate_polars(
     Survival describes how long a carrier lineage must persist to be seen
     at every leaf of its clade. Growth rate `c` is the selection
     coefficient minus the loss rate, `selection_coef - loss_rate`.
+
+    Episode lengths are calibrated against the gain rates of traits known to
+    be neutral, to remove distortion that neutral traits share (see Notes).
 
     Only supports asexual phylogenies.
 
@@ -105,35 +108,37 @@ def alifestd_tgs_estimate_polars(
         end node, e.g., from `alifestd_mark_joint_quantile_bins_polars`.
 
         Calibration rescales each episode's length by the neutral gain rate
-        in its bin's neighborhood relative to overall, removing distortion
+        in its bin's neighborhood relative to global rate, removing distortion
         that neutral traits share (e.g., from tree reconstruction). If not
         given, each partition is one bin.
     calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time")
-        Columns by which bins are compared: a bin's neighborhood is its
-        nearest bins in its partition by mean rank of these columns.
+        Columns used to select comparator bins for calibration against neutral
+        traits (see Notes).
 
         May be episode columns `branch_length` (the episode's length),
         `origin_time`, `clade_size`, or `survival_duration`, or other
-        columns of `phylogeny_df`, at each episode's end node.
-    calibrate_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+        columns of `phylogeny_df`. Values taken at each episode's end node.
+    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of a
-        partition's bins.
+        partition's available bins.
 
-        The candidate that best predicts each neutral trait's gains, when
-        calibrating against the other neutral traits, is used.
-    calibrate_max_rate_ratio : float, default np.inf
+        The candidate neighborhood size that best aligns neutral traits'
+        gains to neutral expectation, when calibrated against other neutral
+        traits, is used.
+    calibration_max_rate_ratio : float, default np.inf
         Cap on the neutral gain rate ratios that rescale episode lengths.
     length_rtol : float, default 1e-2
-        Relative tolerance within which episodes' calibrated lengths
-        and survival durations must agree to be fit together, as one
-        granule; 0 for one granule per episode.
+        Relative tolerance for pooling similar episodes, so that their
+        likelihoods are evaluated in bulk for efficiency. Episodes whose
+        calibrated lengths and survival durations both agree within this
+        tolerance are fit together, as one granule; 0 to disable coarsening.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
         Optimizer starting values for the selection coefficient, in units
         of 1 / mean episode length.
     growth_exponent_bound : float, default 600.0
-        Bound on `c * (length + survival)`, so likelihoods stay finite.
+        Bound on `c * (length + survival)`, to stabilize optimizer fit.
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display progress over traits.
 
@@ -187,7 +192,7 @@ def alifestd_tgs_estimate_polars(
     Output Schema
     -------------
     'trait_name' : string
-        Trait, named by its transitions column; candidate traits come
+        Trait, named by its transitions column key. Candidate traits come
         first, then neutral traits.
     'num_leaf_episodes' : integer
         Leaf branches that started without the trait.
@@ -204,12 +209,12 @@ def alifestd_tgs_estimate_polars(
         sampled descendants changes relative to a non-carrier's (negative
         for a cost); nan without gains.
     'gain_ratio' : float
-        Gain rate relative to the mean gain rate of the other neutral
-        traits.
+        Gain rate relative to the mean gain rate of neutral traits.
     'selection_coef_lrt_naive' : float
-        Likelihood-ratio statistic for selection coefficient = 0.
+        Likelihood-ratio statistic for null hypothesis that selection
+        coefficient = 0.
     'gain_ratio_lrt_naive' : float
-        Likelihood-ratio statistic for gain ratio = 1.
+        Likelihood-ratio statistic for null hypothesis that gain ratio = 1.
 
     Warnings
     --------
@@ -232,6 +237,14 @@ def alifestd_tgs_estimate_polars(
 
     Notes
     -----
+    Calibration rescales each episode's length by the neutral gain rate
+    around its calibration bin, relative to the global rate. A bin's
+    neighborhood is its nearest bins within its partition, by mean rank of
+    the `calibration_compare_by_vals` columns. Each partition's neighborhood
+    size is chosen among `calibration_neighborhood_fractions`, by how well
+    each neutral trait's gains are predicted when calibrated against the
+    other neutral traits.
+
     Calibration rescales episode lengths only. Survival durations are used
     as measured on the tree.
 
@@ -331,7 +344,7 @@ def _alifestd_tgs_estimate_polars_impl(
         "branch_length",
         "origin_time",
     ),
-    calibrate_neighborhood_fractions: typing.Sequence[float] = (
+    calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -341,7 +354,7 @@ def _alifestd_tgs_estimate_polars_impl(
         0.5,
         1.0,
     ),
-    calibrate_max_rate_ratio: float = np.inf,
+    calibration_max_rate_ratio: float = np.inf,
     length_rtol: float = 1e-2,
     loss_rate: float = 0.0,
     selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
@@ -367,8 +380,8 @@ def _alifestd_tgs_estimate_polars_impl(
         trait_transitions_candidate=trait_transitions_candidate,
         trait_transitions_neutral=trait_transitions_neutral,
         calibration_compare_by_vals=calibration_compare_by_vals,
-        calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
-        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        calibration_max_rate_ratio=calibration_max_rate_ratio,
         length_rtol=length_rtol,
         growth_exponent_bound=growth_exponent_bound,
     )
@@ -408,11 +421,11 @@ def _alifestd_tgs_estimate_polars_impl(
         neutral_trait_ids=neutral_trait_ids,
         calibration_neighborhoods=tgs_select_calibration_neighborhoods(
             exposure_df,
-            neighborhood_fractions=calibrate_neighborhood_fractions,
+            neighborhood_fractions=calibration_neighborhood_fractions,
             neutral_trait_ids=neutral_trait_ids,
-            max_rate_ratio=calibrate_max_rate_ratio,
+            max_rate_ratio=calibration_max_rate_ratio,
         ),
-        calibrate_max_rate_ratio=calibrate_max_rate_ratio,
+        calibration_max_rate_ratio=calibration_max_rate_ratio,
         length_rtol=length_rtol,
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
@@ -476,8 +489,8 @@ Output Schema
 One row per trait, not a phylogeny.
 
 'trait_name' : string
-    Trait, named by its transition column; candidate traits come first,
-    then neutral traits.
+    Trait, named by its transitions column key. Candidate traits come
+    first, then neutral traits.
 
 'num_leaf_episodes', 'num_leaf_gains' : integer
     Leaf branches that started without the trait, and of those, the number
@@ -491,8 +504,8 @@ One row per trait, not a phylogeny.
     the other neutral traits'.
 
 'selection_coef_lrt_naive', 'gain_ratio_lrt_naive' : float
-    Naive likelihood-ratio statistics for selection coefficient = 0 and for
-    gain ratio = 1.
+    Naive likelihood-ratio statistics for null hypotheses that selection
+    coefficient = 0 and that gain ratio = 1.
 
 
 Additional Notes
@@ -599,7 +612,7 @@ def _add_estimate_arguments(
         ),
     )
     parser.add_argument(
-        "--calibrate-neighborhood-fractions",
+        "--calibration-neighborhood-fractions",
         default=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
         nargs="+",
         type=float,
@@ -610,7 +623,7 @@ def _add_estimate_arguments(
         ),
     )
     parser.add_argument(
-        "--calibrate-max-rate-ratio",
+        "--calibration-max-rate-ratio",
         default=np.inf,
         type=float,
         help=(
@@ -659,8 +672,8 @@ def _get_estimate_kwargs(
         calibration_partition_by=args.calibration_partition_by,
         calibration_compare_by_bins=args.calibration_compare_by_bins,
         calibration_compare_by_vals=args.calibration_compare_by_vals,
-        calibrate_neighborhood_fractions=args.calibrate_neighborhood_fractions,
-        calibrate_max_rate_ratio=args.calibrate_max_rate_ratio,
+        calibration_neighborhood_fractions=args.calibration_neighborhood_fractions,
+        calibration_max_rate_ratio=args.calibration_max_rate_ratio,
         length_rtol=args.length_rtol,
         loss_rate=args.loss_rate,
         selection_coef_starts=args.selection_coef_starts,

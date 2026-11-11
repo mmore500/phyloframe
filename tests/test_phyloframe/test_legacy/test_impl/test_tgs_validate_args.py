@@ -4,8 +4,8 @@ import pytest
 from phyloframe.legacy._impl import tgs_validate_args
 
 _KWARGS = dict(
-    calibrate_neighborhood_fractions=(0.1, 1.0),
-    calibrate_max_rate_ratio=np.inf,
+    calibration_neighborhood_fractions=(0.1, 1.0),
+    calibration_max_rate_ratio=np.inf,
     length_rtol=1e-3,
     growth_exponent_bound=600.0,
     calibration_compare_by_vals=("branch_length", "origin_time"),
@@ -38,12 +38,12 @@ def test_too_few_neutral_traits(trait_transitions_neutral):
 @pytest.mark.parametrize(
     "kwargs",
     [
-        dict(calibrate_neighborhood_fractions=()),
-        dict(calibrate_neighborhood_fractions=(0.0,)),
-        dict(calibrate_neighborhood_fractions=(1.5,)),
-        dict(calibrate_max_rate_ratio=0.0),
-        dict(calibrate_max_rate_ratio=-1.0),
-        dict(calibrate_max_rate_ratio=np.nan),
+        dict(calibration_neighborhood_fractions=()),
+        dict(calibration_neighborhood_fractions=(0.0,)),
+        dict(calibration_neighborhood_fractions=(1.5,)),
+        dict(calibration_max_rate_ratio=0.0),
+        dict(calibration_max_rate_ratio=-1.0),
+        dict(calibration_max_rate_ratio=np.nan),
         dict(length_rtol=-1e-3),
         dict(length_rtol=np.nan),
         dict(calibration_compare_by_vals=()),
