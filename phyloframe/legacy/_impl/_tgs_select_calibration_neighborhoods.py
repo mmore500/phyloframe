@@ -53,7 +53,6 @@ def _tgs_calc_heldout_nll(
         )[bin_ids]
     )
 
-    # over the partition's bins
     total_exposure = (num_episodes * calibrated_durations).sum()
     if not (num_gains.any() and total_exposure):
         return 0.0  # no gains, so every neighborhood size scores alike
