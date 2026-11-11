@@ -7,7 +7,11 @@ import polars.testing as pltest
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_mark_clade_size_geom_classes_polars,
+    alifestd_mark_joint_quantile_bins_polars,
     alifestd_mark_leaves_polars,
+    alifestd_mark_max_descendant_origin_time_polars,
+    alifestd_mark_origin_time_delta_polars,
     alifestd_tgs_estimate_polars,
     alifestd_to_working_format,
 )
@@ -536,3 +540,64 @@ def test_neutral_trait_without_exposure_episodes_raises():
             trait_transitions_neutral=["a", "b"],
             episode_mask="is_leaf",
         )
+
+
+def test_docstring_example():
+    # the pipeline in the Examples of alifestd_tgs_estimate_polars
+    df = _make_cherries_polars(2_000)
+    trait_transitions_candidate = ["focal"]
+    trait_transitions_neutral = ["n1", "n2", "n3", "n4"]
+
+    calibration_cols = [
+        "branch_length",
+        "origin_time",
+        "survival_duration",
+    ]
+    is_fitted = pl.col("id") != pl.col("ancestor_id")  # exclude root
+    estimates_df = (
+        alifestd_mark_origin_time_delta_polars(df, mark_as="branch_length")
+        .pipe(
+            alifestd_mark_max_descendant_origin_time_polars,
+            mark_as="max_descendant_origin_time",
+        )
+        .with_columns(
+            survival_duration=pl.col("max_descendant_origin_time")
+            - pl.col("origin_time"),
+        )
+        .pipe(
+            alifestd_mark_clade_size_geom_classes_polars,
+            mark_as="clade_size_geom_class",
+            min_class_weight=20,
+            weight_by=trait_transitions_neutral,
+        )
+        .pipe(
+            alifestd_mark_joint_quantile_bins_polars,
+            bin_by=calibration_cols,
+            mark_as="joint_quantile_bin",
+            partition_by="clade_size_geom_class",
+        )
+        .with_columns(
+            pl.when(is_fitted)
+            .then(pl.col(calibration_cols))
+            .rank()
+            .name.suffix("_rank"),
+        )
+        .pipe(
+            alifestd_tgs_estimate_polars,
+            trait_transitions_candidate=trait_transitions_candidate,
+            trait_transitions_neutral=trait_transitions_neutral,
+            calibration_compare_by_bins="joint_quantile_bin",
+            calibration_compare_by_vals=[
+                f"{col}_rank" for col in calibration_cols
+            ],
+            calibration_partition_by="clade_size_geom_class",
+        )
+    )
+
+    assert estimates_df["trait_name"].to_list() == [
+        *trait_transitions_candidate,
+        *trait_transitions_neutral,
+    ]
+    assert estimates_df["gain_rate"].is_finite().all()
+    assert estimates_df["selection_coef"].is_finite().all()
+    assert estimates_df["gain_ratio"].is_finite().all()
