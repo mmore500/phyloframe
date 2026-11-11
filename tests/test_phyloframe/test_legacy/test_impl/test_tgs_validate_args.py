@@ -7,6 +7,7 @@ _KWARGS = dict(
     calibration_neighborhood_fractions=(0.1, 1.0),
     nll_coarsegrain_rtol=1e-3,
     fit_growth_exponent_bound=600.0,
+    calibration_compare_by_bins="bin",
     calibration_compare_by_vals=("branch_length", "origin_time"),
 )
 
@@ -16,6 +17,16 @@ def test_valid():
         trait_transitions_candidate=["a", "c"],
         trait_transitions_neutral=["d", "b"],
         **_KWARGS,
+    )
+    # without bins, there are no columns to compare them by
+    tgs_validate_args(
+        trait_transitions_candidate=["a", "c"],
+        trait_transitions_neutral=["d", "b"],
+        **{
+            **_KWARGS,
+            "calibration_compare_by_bins": None,
+            "calibration_compare_by_vals": None,
+        },
     )
     tgs_validate_args(
         trait_transitions_candidate=[],
@@ -43,6 +54,7 @@ def test_too_few_neutral_traits(trait_transitions_neutral):
         dict(nll_coarsegrain_rtol=-1e-3),
         dict(nll_coarsegrain_rtol=np.nan),
         dict(calibration_compare_by_vals=()),
+        dict(calibration_compare_by_bins=None),
     ],
 )
 def test_invalid(kwargs: dict):
