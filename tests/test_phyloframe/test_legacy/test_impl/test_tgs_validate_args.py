@@ -5,7 +5,7 @@ from phyloframe.legacy._impl import tgs_validate_args
 
 _KWARGS = dict(
     calibration_neighborhood_fractions=(0.1, 1.0),
-    exposure_duration_rtol=1e-3,
+    nll_coarsegrain_rtol=1e-3,
     fit_growth_exponent_bound=600.0,
     calibration_compare_by_vals=("branch_length", "origin_time"),
 )
@@ -40,8 +40,8 @@ def test_too_few_neutral_traits(trait_transitions_neutral):
         dict(calibration_neighborhood_fractions=()),
         dict(calibration_neighborhood_fractions=(0.0,)),
         dict(calibration_neighborhood_fractions=(1.5,)),
-        dict(exposure_duration_rtol=-1e-3),
-        dict(exposure_duration_rtol=np.nan),
+        dict(nll_coarsegrain_rtol=-1e-3),
+        dict(nll_coarsegrain_rtol=np.nan),
         dict(calibration_compare_by_vals=()),
     ],
 )

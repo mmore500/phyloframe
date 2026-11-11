@@ -51,7 +51,7 @@ def alifestd_tgs_estimate_polars(
         0.5,
         1.0,
     ),
-    exposure_duration_rtol: float = 1e-2,
+    nll_coarsegrain_rtol: float = 1e-2,
     loss_rate: float = 0.0,
     fit_selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     fit_growth_exponent_bound: float = 600.0,
@@ -129,7 +129,7 @@ def alifestd_tgs_estimate_polars(
         Among candidate values, neighborhood size is chosen per partition
         that best aligns neutral traits' gains to neutral expectation when
         calibrated against other neutral traits.
-    exposure_duration_rtol : float, default 1e-2
+    nll_coarsegrain_rtol : float, default 1e-2
         Relative tolerance for pooling similar exposure episodes, to
         streamline bulk likelihood evaluation. Episodes whose calibrated
         durations and survival durations both agree within this tolerance
@@ -356,7 +356,7 @@ def _alifestd_tgs_estimate_polars_impl(
         0.5,
         1.0,
     ),
-    exposure_duration_rtol: float = 1e-2,
+    nll_coarsegrain_rtol: float = 1e-2,
     loss_rate: float = 0.0,
     fit_selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     fit_growth_exponent_bound: float = 600.0,
@@ -382,7 +382,7 @@ def _alifestd_tgs_estimate_polars_impl(
         trait_transitions_neutral=trait_transitions_neutral,
         calibration_compare_by_vals=calibration_compare_by_vals,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        exposure_duration_rtol=exposure_duration_rtol,
+        nll_coarsegrain_rtol=nll_coarsegrain_rtol,
         fit_growth_exponent_bound=fit_growth_exponent_bound,
     )
     # candidate traits first, then neutral traits
@@ -424,7 +424,7 @@ def _alifestd_tgs_estimate_polars_impl(
             neighborhood_fractions=calibration_neighborhood_fractions,
             neutral_trait_ids=neutral_trait_ids,
         ),
-        exposure_duration_rtol=exposure_duration_rtol,
+        nll_coarsegrain_rtol=nll_coarsegrain_rtol,
         loss_rate=loss_rate,
         fit_selection_coef_starts=fit_selection_coef_starts,
         fit_growth_exponent_bound=fit_growth_exponent_bound,
@@ -601,7 +601,7 @@ def _add_estimate_arguments(
         ),
     )
     parser.add_argument(
-        "--exposure-duration-rtol",
+        "--nll-coarsegrain-rtol",
         default=1e-2,
         type=float,
         help=(
@@ -663,7 +663,7 @@ def _get_estimate_kwargs(
         calibration_compare_by_bins=args.calibration_compare_by_bins,
         calibration_compare_by_vals=args.calibration_compare_by_vals,
         calibration_neighborhood_fractions=args.calibration_neighborhood_fractions,
-        exposure_duration_rtol=args.exposure_duration_rtol,
+        nll_coarsegrain_rtol=args.nll_coarsegrain_rtol,
         loss_rate=args.loss_rate,
         fit_selection_coef_starts=args.fit_selection_coef_starts,
         fit_growth_exponent_bound=args.fit_growth_exponent_bound,

@@ -9,7 +9,7 @@ def tgs_validate_args(
     trait_transitions_neutral: typing.Sequence[str],
     calibration_compare_by_vals: typing.Sequence[str],
     calibration_neighborhood_fractions: typing.Sequence[float],
-    exposure_duration_rtol: float,
+    nll_coarsegrain_rtol: float,
     fit_growth_exponent_bound: float,
 ) -> None:
     """Implementation detail for `alifestd_tgs_estimate_polars`.
@@ -43,7 +43,7 @@ def tgs_validate_args(
             "calibration_neighborhood_fractions must be nonempty, with each "
             "in (0, 1]",
         )
-    if not exposure_duration_rtol >= 0:
-        raise ValueError("exposure_duration_rtol must be nonnegative")
+    if not nll_coarsegrain_rtol >= 0:
+        raise ValueError("nll_coarsegrain_rtol must be nonnegative")
     if not fit_growth_exponent_bound < np.log(np.finfo(np.float64).max):
         raise ValueError("fit_growth_exponent_bound overflows float64")

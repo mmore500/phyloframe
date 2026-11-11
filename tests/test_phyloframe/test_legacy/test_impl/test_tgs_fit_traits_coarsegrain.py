@@ -47,7 +47,7 @@ def fixture():
             exposure_df,
             trait_id=trait,
             calibration_factors=np.ones(1),
-            exposure_duration_rtol=1e-2,
+            nll_coarsegrain_rtol=1e-2,
             num_survival_durations=len(distinct_survival_durations),
         )
         trait_nll_kwargs.append(

@@ -45,10 +45,10 @@ def test_recovers(calibrate: bool):
     assert (res["selection_coef"][1:].abs() < 0.01).all()
 
 
-def test_exposure_duration_rtol_approximates_exact():
+def test_nll_coarsegrain_rtol_approximates_exact():
     exposure_df = simulate_exposure_df(8_000)
-    exact = _fit(exposure_df, calibrate=True, exposure_duration_rtol=0.0)
-    merged = _fit(exposure_df, calibrate=True, exposure_duration_rtol=1e-3)
+    exact = _fit(exposure_df, calibrate=True, nll_coarsegrain_rtol=0.0)
+    merged = _fit(exposure_df, calibrate=True, nll_coarsegrain_rtol=1e-3)
     # absolute tolerance for likelihood-ratio statistics near 0
     pltest.assert_frame_equal(merged, exact, rel_tol=1e-3, abs_tol=1e-3)
 
