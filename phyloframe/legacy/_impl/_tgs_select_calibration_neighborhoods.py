@@ -19,18 +19,19 @@ from ._tgs_count_trait_bin_exposures import tgs_count_trait_bin_exposures
 def _tgs_calc_heldout_nll(
     *,
     trait_id: int,
+    bin_ids: np.ndarray,
     trait_bin_counts_df: pl.DataFrame,
     **rescaling_kwargs,
 ) -> float:
     """Implementation detail for `tgs_select_calibration_neighborhoods`.
 
-    Returns the negative log likelihood of neutral `trait_id`'s gains
-    under no selection, with episode lengths calibrated against the other
-    neutral traits only (see `tgs_calc_calibration_rescaling`); 0 without
-    gains.
+    Returns the negative log likelihood of neutral `trait_id`'s gains in
+    one partition's bins, `bin_ids`, under no selection, with episode
+    lengths calibrated against the other neutral traits only (see
+    `tgs_calc_calibration_rescaling`); 0 without gains.
     """
     trait_counts_df = trait_bin_counts_df.filter(
-        pl.col("trait_id") == trait_id
+        pl.col("trait_id") == trait_id, pl.col("bin_id").is_in(bin_ids)
     )
     num_trials = trait_counts_df["num_trials"].to_numpy()
     num_successes = trait_counts_df["num_successes"].to_numpy()
@@ -40,10 +41,13 @@ def _tgs_calc_heldout_nll(
         out=np.zeros(num_trials.shape),
         where=num_trials > 0,
     )
-    calibrated_lengths = mean_lengths * tgs_calc_calibration_rescaling(
-        trait_id=trait_id,
-        trait_bin_counts_df=trait_bin_counts_df,
-        **rescaling_kwargs,
+    calibrated_lengths = (
+        mean_lengths
+        * tgs_calc_calibration_rescaling(
+            trait_id=trait_id,
+            trait_bin_counts_df=trait_bin_counts_df,
+            **rescaling_kwargs,
+        )[bin_ids]
     )
 
     exposure = (num_trials * calibrated_lengths).sum()
@@ -59,27 +63,37 @@ def _tgs_calc_heldout_nll(
 def _tgs_select_partition_neighborhoods(
     bin_coords: np.ndarray,
     *,
+    bin_ids: np.ndarray,
+    num_bins: int,
     neighborhood_fractions: typing.Sequence[float],
     neutral_trait_ids: typing.Sequence[int],
     **heldout_kwargs,
 ) -> sparse.csr_matrix:
     """Implementation detail for `tgs_select_calibration_neighborhoods`.
 
-    Returns calibration neighborhoods for one partition's bins, located at
-    `bin_coords`.
+    Returns calibration neighborhoods for one partition's bins, `bin_ids`,
+    located at `bin_coords`, as their rows of a matrix over all `num_bins`
+    bins; other bins' rows are empty.
     """
-    candidates = [
-        # each bin's nearest bins, itself included
-        calc_knn_neighborhoods(
+
+    def calc_neighborhoods(fraction: float) -> sparse.csr_matrix:
+        # each bin's nearest bins in the partition, itself included
+        rows, cols = calc_knn_neighborhoods(
             bin_coords, num_neighbors=round(fraction * len(bin_coords))
+        ).nonzero()
+        # among all bins, so gain rates compare to overall, as when fitting
+        return sparse.csr_matrix(
+            (np.ones(len(rows)), (bin_ids[rows], bin_ids[cols])),
+            shape=(num_bins, num_bins),
         )
-        for fraction in neighborhood_fractions
-    ]
+
+    candidates = [*map(calc_neighborhoods, neighborhood_fractions)]
 
     nlls = [
         sum(  # holding out each neutral trait in turn
             _tgs_calc_heldout_nll(
                 trait_id=trait_id,
+                bin_ids=bin_ids,
                 calibration_neighborhoods=calibration_neighborhoods,
                 neutral_trait_ids=neutral_trait_ids,
                 **heldout_kwargs,
@@ -146,25 +160,20 @@ def tgs_select_calibration_neighborhoods(
         .sort("bin_id")
     )
 
-    calibration_neighborhoods = sparse.block_diag(
-        [
-            _tgs_select_partition_neighborhoods(
-                partition_df.drop("partition_id", "bin_id").to_numpy(),
-                neighborhood_fractions=neighborhood_fractions,
-                neutral_trait_ids=neutral_trait_ids,
-                # bins are numbered partition-major, so renumber from 0
-                trait_bin_counts_df=trait_bin_counts_df.filter(
-                    pl.col("bin_id").is_in(partition_df["bin_id"].implode())
-                ).with_columns(
-                    bin_id=pl.col("bin_id") - partition_df["bin_id"].min(),
-                ),
-                max_rate_ratio=max_rate_ratio,
-            )
-            for partition_df in bin_coords_df.partition_by(
-                "partition_id", maintain_order=True
-            )
-        ],
-        format="csr",
+    # each partition fills its own bins' rows
+    calibration_neighborhoods = sum(
+        _tgs_select_partition_neighborhoods(
+            partition_df.drop("partition_id", "bin_id").to_numpy(),
+            bin_ids=partition_df["bin_id"].to_numpy(),
+            num_bins=len(bin_coords_df),
+            neighborhood_fractions=neighborhood_fractions,
+            neutral_trait_ids=neutral_trait_ids,
+            trait_bin_counts_df=trait_bin_counts_df,
+            max_rate_ratio=max_rate_ratio,
+        )
+        for partition_df in bin_coords_df.partition_by(
+            "partition_id", maintain_order=True
+        )
     )
 
     del trait_bin_counts_df, bin_coords_df  # clear memory

@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 import polars as pl
+import pytest
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import tgs_count_trait_bin_exposures
@@ -12,7 +13,9 @@ from phyloframe.legacy._impl._tgs_select_calibration_neighborhoods import (
 from ._simulate_exposure_df import simulate_exposure_df
 
 
-def test_select(caplog):
+@pytest.mark.parametrize("first_bin", [0, 20])
+def test_select(first_bin: int, caplog):
+    # the partition holds bins from first_bin on
     exposure_df = simulate_exposure_df(8_000, num_neutral=3)
     exposure_df = exposure_df.filter(pl.col("clade_size") == 1)
     exposure_df = alifestd_mark_joint_quantile_bins_polars(
@@ -29,7 +32,9 @@ def test_select(caplog):
             .mean()
             .sort("bin_id")
             .drop("bin_id")
-            .to_numpy(),
+            .to_numpy()[first_bin:],
+            bin_ids=np.arange(first_bin, num_bins),
+            num_bins=num_bins,
             neighborhood_fractions=(0.25, 1.0),
             trait_bin_counts_df=tgs_count_trait_bin_exposures(
                 exposure_df,
@@ -40,6 +45,10 @@ def test_select(caplog):
             max_rate_ratio=np.inf,
         )
     assert res.shape == (num_bins, num_bins)
-    # each bin is in its own neighborhood
-    assert (res.diagonal() == 1).all()
+    # each of the partition's bins is in its own neighborhood
+    assert (res.diagonal()[first_bin:] == 1).all()
+    # other bins have no neighborhood, and are in none
+    dense = res.toarray()
+    assert not dense[:first_bin].any()
+    assert not dense[:, :first_bin].any()
     assert "selected calibration neighborhoods" in caplog.text
