@@ -275,9 +275,11 @@ def alifestd_tgs_estimate_polars(
     >>> trait_transitions_neutral = ["site2", "site3"]
 
     To calibrate within clade size classes, by bins of similar branch length,
-    origin time, and survival duration, compared by rank:
+    origin time, and survival duration, compared by rank among fitted
+    episodes (here, every non-root node's):
 
     >>> calibration_cols = ["branch_length", "origin_time", "survival_duration"]
+    >>> is_fitted = pl.col("id") != pl.col("ancestor_id")
     >>> estimates_df = (
     ...     alifestd_mark_origin_time_delta_polars(
     ...         df, mark_as="branch_length"
@@ -303,7 +305,9 @@ def alifestd_tgs_estimate_polars(
     ...         partition_by="clade_size_geom_class",
     ...     )
     ...     .with_columns(
-    ...         (pl.col(calibration_cols).rank() / pl.len())
+    ...         pl.when(is_fitted)
+    ...         .then(pl.col(calibration_cols))
+    ...         .rank()
     ...         .name.suffix("_rank"),
     ...     )
     ...     .pipe(
