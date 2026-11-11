@@ -226,11 +226,17 @@ def alifestd_tgs_estimate_polars(
 
     Notes
     -----
-    Survival durations themselves are not calibrated. However, absent loss,
-    a neutral trait's chance of gain does not depend on survival duration,
-    so any such dependence among neutral traits is bias. Calibration removes
-    it where calibration bins group episodes of similar survival duration;
-    see Examples.
+    Calibration rescales episode lengths only. Survival durations are used
+    as measured on the tree.
+
+    With `loss_rate` 0, a neutral trait should be gained equally often per
+    unit episode length, whatever the survival duration. If neutral traits
+    are instead gained more or less often on episodes with longer survival
+    durations (e.g., from distorted inner branch lengths), selection
+    coefficients are biased. To correct for this, make calibration bins from
+    survival duration, too; see Examples. Each episode's length is then
+    rescaled by the neutral gain rate among episodes of similar survival
+    duration.
 
     Leaf pendant branches have zero survival duration, so disagreement
     between estimates with and without `episode_mask="is_leaf"` may suggest
