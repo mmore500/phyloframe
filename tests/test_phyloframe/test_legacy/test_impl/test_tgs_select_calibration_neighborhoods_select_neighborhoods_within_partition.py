@@ -27,7 +27,9 @@ def test_select(first_bin: int, caplog):
     num_bins = exposure_df["bin_id"].max() + 1
     with caplog.at_level(logging.INFO):
         res = _tgs_select_neighborhoods_within_partition(
-            exposure_df.select("episode_duration", "origin_time", "bin_id")
+            bin_coords=exposure_df.select(
+                "episode_duration", "origin_time", "bin_id"
+            )
             .group_by("bin_id")
             .mean()
             .sort("bin_id")

@@ -64,8 +64,8 @@ def _tgs_calc_heldout_nll(
 
 
 def _tgs_select_neighborhoods_within_partition(
-    bin_coords: np.ndarray,
     *,
+    bin_coords: np.ndarray,
     bin_ids: np.ndarray,
     num_bins: int,
     neighborhood_fractions: typing.Sequence[float],
@@ -172,7 +172,7 @@ def tgs_select_calibration_neighborhoods(
     # each partition fills its own bins' rows, combined by sum
     calibration_neighborhoods = sum(
         _tgs_select_neighborhoods_within_partition(
-            partition_df.drop("partition_id", "bin_id").to_numpy(),
+            bin_coords=partition_df.drop("partition_id", "bin_id").to_numpy(),
             bin_ids=partition_df["bin_id"].to_numpy(),
             num_bins=num_bins,
             neighborhood_fractions=neighborhood_fractions,

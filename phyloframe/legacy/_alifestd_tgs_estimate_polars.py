@@ -71,8 +71,9 @@ def alifestd_tgs_estimate_polars(
     at every leaf of its clade. Growth rate `c` is the selection
     coefficient minus the loss rate, `selection_coef - loss_rate`.
 
-    Episode durations are calibrated against the gain rates of traits known to
-    be neutral, to remove distortion that neutral traits share (see Notes).
+    Episode durations can be calibrated against the gain rates of traits
+    known to be neutral, to counteract distortion in tree structure (e.g.,
+    reconstruction error); see Notes.
 
     Only supports asexual phylogenies.
 
@@ -88,23 +89,16 @@ def alifestd_tgs_estimate_polars(
 
         Calibration rescales each episode's duration by the neutral gain rate
         in its bin's neighborhood relative to global rate, removing tree shape
-        distortion. If not given, each partition is one bin.
+        distortion. If not given, binning is performed by partition only (if
+        any).
     calibration_compare_by_vals : str or Sequence[str], optional
         Columns used to select comparator bins for calibration against neutral
         traits (see Notes). Requires `calibration_compare_by_bins`.
-
-        Values are compared as given, so rank or otherwise normalize them
-        beforehand; see Examples. Calibration bins should be made from the
-        same quantities.
-
-        May be episode columns `branch_length` (the episode's duration),
-        `origin_time`, `clade_size`, or `survival_duration`, or other
-        columns of `phylogeny_df`. Values taken at each episode's end node.
     calibration_neighborhood_candidates : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of a
         partition's available bins.
 
-        Among candidate values, neighborhood size is chosen per partition
+        Among candidate values, the neighborhood size is chosen per partition
         that best aligns neutral traits' gains to neutral expectation when
         calibrated against other neutral traits.
     calibration_partition_by : str, optional
@@ -114,8 +108,8 @@ def alifestd_tgs_estimate_polars(
         A bin's comparator bins are selected only within its partition, and
         neighborhood size is chosen separately for each partition.
     episode_mask : str, optional
-        Name of a boolean column marking, at each exposure episode's end
-        node, whether to include that episode. Use `is_leaf` to consider only
+        Name of a boolean column marking (at each exposure episode's end
+        node) whether to include that episode. Use `is_leaf` to consider only
         leaf pendants.
     fit_growth_exponent_bound : float, default 600.0
         Bound on `c * (length + survival)`, to stabilize optimizer fit.
@@ -126,28 +120,26 @@ def alifestd_tgs_estimate_polars(
         Known per-unit-time trait loss rate.
     nll_coarsegrain_rtol : float, default 1e-2
         Relative tolerance for pooling similar exposure episodes, to
-        streamline bulk likelihood evaluation. Episodes whose calibrated
-        durations and survival durations both agree within this tolerance
-        are pooled as one granule; 0 to disable coarsening.
+        streamline bulk likelihood evaluation. Passing 0 disables coarsening
+        (exact calculation).
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display progress over traits.
     trait_transitions_candidate : str or Sequence[str]
-        Names of columns with trait state transitions for traits to assess,
-        with each node's trait state transition on the branch from its
-        parent: +1 for a gain and 0 for none.
+        For traits to screen, names of columns with trait state transitions
+        (+1 gain, 0 otherwise).
 
-        See `alifestd_mark_lineage_delta_polars` to make transitions from
-        trait states.
+        See `alifestd_mark_lineage_delta_polars`.
     trait_transitions_neutral : Sequence[str]
-        Names of columns with trait state transitions for known-neutral
-        traits, with each node's trait state transition on the branch from
-        its parent: +1 for a gain and 0 for none. At least two neutral traits
-        are required.
+        For known-neutral traits, names of columns with trait state
+        transitions (+1 gain, 0 otherwise). At least two neutral traits are
+        required.
+
+        See `alifestd_mark_lineage_delta_polars`.
 
         Used to calibrate exposure episode durations and as the reference for
         gain ratios. Neutral trait gain/selection estimates are reported using
-        leave-one-out calibration and reference, i.e., each against the other
-        neutral traits.
+        leave-one-out calibration and reference, i.e., each neutral trait
+        against the other neutral traits.
 
     Returns
     -------

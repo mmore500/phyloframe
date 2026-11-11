@@ -256,7 +256,7 @@ def test_tgs_select_calibration_neighborhoods():
         },
     )
     res = _tgs_select_neighborhoods_within_partition(
-        bin_coords,
+        bin_coords=bin_coords,
         bin_ids=np.arange(256),
         num_bins=256,
         neighborhood_fractions=(0.01, 0.1, 0.5),
