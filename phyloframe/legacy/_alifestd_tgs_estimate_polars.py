@@ -276,9 +276,8 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ... )
 
-    To calibrate by survival duration, too, make bins from it as well as
-    compare bins by it. Bins are made before estimation, so mark survival
-    duration first; comparing bins by it is not enough alone:
+    To additionally calibrate by survival duration, mark it and add it to the
+    columns that bins are made from and compared by:
 
     >>> estimates_df = (
     ...     alifestd_mark_origin_time_delta_polars(
