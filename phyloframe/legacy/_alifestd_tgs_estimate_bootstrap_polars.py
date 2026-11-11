@@ -62,8 +62,8 @@ def alifestd_tgs_estimate_bootstrap_polars(
         Pass tqdm or equivalent to display progress over traits and
         bootstrap replicates.
     **kwargs
-        Passed to `alifestd_tgs_estimate_polars`, e.g., `trait_transitions`
-        and `neutral_traits`.
+        Passed to `alifestd_tgs_estimate_polars`, e.g.,
+        `trait_transitions_candidate` and `trait_transitions_neutral`.
 
     Returns
     -------

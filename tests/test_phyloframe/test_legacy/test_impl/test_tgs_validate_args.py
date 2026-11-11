@@ -14,18 +14,23 @@ _KWARGS = dict(
 
 def test_valid():
     tgs_validate_args(
-        trait_transitions=["a", "b", "c", "d"],
-        neutral_traits=["d", "b", "d"],
+        trait_transitions_candidate=["a", "c"],
+        trait_transitions_neutral=["d", "b"],
+        **_KWARGS,
+    )
+    tgs_validate_args(
+        trait_transitions_candidate=[],
+        trait_transitions_neutral=["d", "b"],
         **_KWARGS,
     )
 
 
-@pytest.mark.parametrize("neutral_traits", [(), ["b"], ["b", "b"]])
-def test_too_few_neutral_traits(neutral_traits):
+@pytest.mark.parametrize("trait_transitions_neutral", [(), ["b"]])
+def test_too_few_neutral_traits(trait_transitions_neutral):
     with pytest.raises(NotImplementedError, match="fewer than two"):
         tgs_validate_args(
-            trait_transitions=["a", "b", "c"],
-            neutral_traits=neutral_traits,
+            trait_transitions_candidate=["a"],
+            trait_transitions_neutral=trait_transitions_neutral,
             **_KWARGS,
         )
 
@@ -33,8 +38,6 @@ def test_too_few_neutral_traits(neutral_traits):
 @pytest.mark.parametrize(
     "kwargs",
     [
-        dict(neutral_traits=["b", "x"]),
-        dict(neutral_traits=[1, 2]),
         dict(calibrate_neighborhood_fractions=()),
         dict(calibrate_neighborhood_fractions=(0.0,)),
         dict(calibrate_neighborhood_fractions=(1.5,)),
@@ -50,19 +53,29 @@ def test_invalid(kwargs: dict):
     with pytest.raises(ValueError):
         tgs_validate_args(
             **{
-                "trait_transitions": ["a", "b", "c"],
-                "neutral_traits": ("b", "c"),
+                "trait_transitions_candidate": ["a"],
+                "trait_transitions_neutral": ("b", "c"),
                 **_KWARGS,
                 **kwargs,
             },
         )
 
 
-def test_duplicate_trait_transitions_raise():
+@pytest.mark.parametrize(
+    "trait_transitions_candidate, trait_transitions_neutral",
+    [
+        (["a", "a"], ["b", "c"]),  # within candidate traits
+        (["a"], ["b", "b"]),  # within neutral traits
+        (["a", "b"], ["b", "c"]),  # between them
+    ],
+)
+def test_duplicate_trait_transitions_raise(
+    trait_transitions_candidate, trait_transitions_neutral
+):
     with pytest.raises(ValueError, match="duplicate"):
         tgs_validate_args(
-            trait_transitions=["a", "b", "a"],
-            neutral_traits=["a", "b"],
+            trait_transitions_candidate=trait_transitions_candidate,
+            trait_transitions_neutral=trait_transitions_neutral,
             **_KWARGS,
         )
 
@@ -71,7 +84,7 @@ def test_duplicate_trait_transitions_raise():
 def test_growth_exponent_bound_too_large_raises(growth_exponent_bound):
     with pytest.raises(ValueError, match="growth_exponent_bound"):
         tgs_validate_args(
-            trait_transitions=["a", "b"],
-            neutral_traits=["a", "b"],
+            trait_transitions_candidate=[],
+            trait_transitions_neutral=["a", "b"],
             **{**_KWARGS, "growth_exponent_bound": growth_exponent_bound},
         )

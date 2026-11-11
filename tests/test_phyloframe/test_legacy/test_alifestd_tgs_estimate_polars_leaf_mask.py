@@ -52,7 +52,7 @@ def _estimate_pandas(
     if calibrate:
         df_pl = mark_tgs_calibration_columns(
             df_pl.drop("ancestor_list", strict=False),
-            neutral_traits=kwargs["neutral_traits"],
+            neutral_traits=kwargs["trait_transitions_neutral"],
             max_num_bins=calibrate_max_num_bins,
         )
         kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
@@ -72,8 +72,15 @@ def _estimate_from_masks(
     phylogeny_df, names = add_trait_transitions(
         phylogeny_df, trait_masks, trait_names
     )
-    kwargs["neutral_traits"] = [names[i] for i in neutral_traits]
-    return _estimate_pandas(phylogeny_df, trait_transitions=names, **kwargs)
+    neutral = [names[i] for i in neutral_traits]
+    return _estimate_pandas(
+        phylogeny_df,
+        trait_transitions_candidate=[
+            name for name in names if name not in neutral
+        ],
+        trait_transitions_neutral=neutral,
+        **kwargs,
+    )
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
@@ -184,18 +191,6 @@ def test_drops_inherited_and_rootward():
     assert np.isnan(res["gain_ratio"]).all()
 
 
-def test_neutral_traits_normalized():
-    phylogeny_df, traits = _make_cherries(2_000)
-    kwargs = dict(trait_masks=traits, calibrate=True)
-    expected = _estimate_from_masks(
-        phylogeny_df, neutral_traits=[1, 2, 3, 4], **kwargs
-    )
-    res = _estimate_from_masks(
-        phylogeny_df, neutral_traits=[4, 3, 2, 1, 4], **kwargs
-    )
-    pd.testing.assert_frame_equal(res, expected)
-
-
 def test_unifurcations_raise():
     phylogeny_df, traits = _make_cherries(2_000)
     # insert a knuckle midway along each pendant branch
@@ -291,15 +286,6 @@ def test_neighborhood_fractions_single_candidate():
         calibrate_neighborhood_fractions=[0.1],
     )
     assert np.isfinite(res["selection_coef"]).all()
-
-
-def test_neutral_trait_not_among_transitions_raises():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    with pytest.raises(ValueError):
-        _estimate_pandas(
-            phylogeny_df, trait_transitions=names, neutral_traits=["absent"]
-        )
 
 
 @pytest.mark.parametrize("calibrate_max_num_bins", [1, 64, 2**20])
@@ -435,8 +421,8 @@ def test_unsupported(df_pl: pl.DataFrame):
     with pytest.raises(NotImplementedError, match="not supported"):
         _estimate_leaves(
             df_pl.with_columns(a=pl.lit(0), b=pl.lit(0), c=pl.lit(0)),
-            trait_transitions=["a", "b", "c"],
-            neutral_traits=["b", "c"],
+            trait_transitions_candidate=["a"],
+            trait_transitions_neutral=["b", "c"],
         )
 
 
@@ -447,8 +433,8 @@ def test_null_transitions_raise():
     with pytest.raises(NotImplementedError, match="null"):
         _estimate_leaves(
             df_pl,
-            trait_transitions=["focal", "n1", "n2"],
-            neutral_traits=["n1", "n2"],
+            trait_transitions_candidate=["focal"],
+            trait_transitions_neutral=["n1", "n2"],
         )
 
 
@@ -456,8 +442,8 @@ def test_ancestor_list_column():
     df_pl = _make_cherries_polars(2_000)
     expected = _estimate_leaves(
         df_pl,
-        trait_transitions=["focal", "n1", "n2"],
-        neutral_traits=["n1", "n2"],
+        trait_transitions_candidate=["focal"],
+        trait_transitions_neutral=["n1", "n2"],
     )
     with_list = df_pl.with_columns(
         ancestor_list=pl.when(pl.col("id") == pl.col("ancestor_id"))
@@ -466,8 +452,8 @@ def test_ancestor_list_column():
     )
     res = _estimate_leaves(
         with_list,
-        trait_transitions=["focal", "n1", "n2"],
-        neutral_traits=["n1", "n2"],
+        trait_transitions_candidate=["focal"],
+        trait_transitions_neutral=["n1", "n2"],
     )
     assert res.equals(expected)
 
@@ -508,7 +494,10 @@ def test_unifurcation_collapse_matches():
         df_pl = alifestd_mark_lineage_delta_polars(
             df_pl, name, basal_value=False, mark_as=name
         )
-    kwargs = dict(trait_transitions=names, neutral_traits=names[1:])
+    kwargs = dict(
+        trait_transitions_candidate=names[:1],
+        trait_transitions_neutral=names[1:],
+    )
     res = _estimate_leaves(df_pl, **kwargs)
     expected = _estimate_leaves(
         pl.from_pandas(alifestd_to_working_format(phylogeny_df)).drop(

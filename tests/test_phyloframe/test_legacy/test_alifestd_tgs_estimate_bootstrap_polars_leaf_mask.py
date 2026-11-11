@@ -37,8 +37,8 @@ def test_num_bootstrap_not_positive_raises(num_bootstrap: int):
     with pytest.raises(ValueError, match="num_bootstrap"):
         _estimate_leaves_bootstrap(
             _make_cherries_polars(100),
-            trait_transitions=["focal", "n1", "n2"],
-            neutral_traits=["n1", "n2"],
+            trait_transitions_candidate=["focal"],
+            trait_transitions_neutral=["n1", "n2"],
             num_bootstrap=num_bootstrap,
         )
 
