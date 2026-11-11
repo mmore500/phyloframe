@@ -132,7 +132,7 @@ def tgs_build_exposure_df_polars(
         raise NotImplementedError("non-asexual phylogenies not yet supported")
 
     computed_cols = (
-        "origin_time", "episode_length", "survival_duration", "clade_size",
+        "origin_time", "episode_length", "survival_duration", "clade_size"
     )  # fmt: skip
     phylogeny_cols = {
         episode_mask,
