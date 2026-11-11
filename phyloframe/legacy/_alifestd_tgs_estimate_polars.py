@@ -233,10 +233,8 @@ def alifestd_tgs_estimate_polars(
     unit episode length, whatever the survival duration. If neutral traits
     are instead gained more or less often on episodes with longer survival
     durations (e.g., from distorted inner branch lengths), selection
-    coefficients are biased. To correct for this, make calibration bins from
-    survival duration, too; see Examples. Each episode's length is then
-    rescaled by the neutral gain rate among episodes of similar survival
-    duration.
+    coefficients may be biased. To correct for this, additionally calibrate
+    by survival duration; see Examples.
 
     Leaf pendant branches have zero survival duration, so disagreement
     between estimates with and without `episode_mask="is_leaf"` may suggest
