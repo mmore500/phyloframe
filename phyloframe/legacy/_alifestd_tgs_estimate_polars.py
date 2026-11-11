@@ -244,6 +244,12 @@ def alifestd_tgs_estimate_polars(
 
     Examples
     --------
+    Take phylogeny `df` with trait transition columns `site0` to `site3`,
+    the last two for traits known to be neutral:
+
+    >>> trait_transitions = ["site0", "site1", "site2", "site3"]
+    >>> neutral_traits = ["site2", "site3"]
+
     To calibrate within clade size classes, by bins of similar branch length
     and origin time:
 
@@ -270,10 +276,10 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ... )
 
-    To calibrate by survival duration, too, mark it and add it to the
-    columns that bins are made from and compared by:
+    To calibrate by survival duration, too, make bins from it as well as
+    compare bins by it. Bins are made before estimation, so mark survival
+    duration first; comparing bins by it is not enough alone:
 
-    >>> by = ["branch_length", "origin_time", "survival_duration"]
     >>> estimates_df = (
     ...     alifestd_mark_origin_time_delta_polars(
     ...         df, mark_as="branch_length"
@@ -290,7 +296,7 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ...     .pipe(
     ...         alifestd_mark_joint_quantile_bins_polars,
-    ...         bin_by=by,
+    ...         bin_by=["branch_length", "origin_time", "survival_duration"],
     ...         partition_by="clade_size_geom_class",
     ...     )
     ...     .pipe(
@@ -299,7 +305,11 @@ def alifestd_tgs_estimate_polars(
     ...         neutral_traits=neutral_traits,
     ...         calibration_partition_by="clade_size_geom_class",
     ...         calibration_compare_by_bins="joint_quantile_bin",
-    ...         calibration_compare_by_vals=by,
+    ...         calibration_compare_by_vals=[
+    ...             "branch_length",
+    ...             "origin_time",
+    ...             "survival_duration",
+    ...         ],
     ...     )
     ... )
     """
