@@ -145,10 +145,9 @@ def tgs_select_calibration_neighborhoods(
     A bin's neighborhood is its nearest bins within its partition, by its
     episodes' mean values of `exposure_df`'s `calibration_compare_by_*`
     columns (see `tgs_build_exposure_df_polars`); itself alone without such
-    columns. Each partition's
-    neighborhood size is the fraction of its bins among
-    `neighborhood_fractions` that best predicts each neutral trait's gains
-    when calibrating against the other neutral traits.
+    columns. Each partition's neighborhood size is the fraction of its bins
+    among `neighborhood_fractions` that best predicts each neutral trait's
+    gains when calibrating against the other neutral traits.
     """
     compare_by = cs.starts_with("calibration_compare_by_")
     if not cs.expand_selector(exposure_df, compare_by):
