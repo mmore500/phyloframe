@@ -268,7 +268,7 @@ def alifestd_tgs_estimate_polars(
 
     To calibrate within clade size classes, by bins of similar branch length,
     origin time, and survival duration, compared by rank among fitted
-    episodes (here, every non-root node's):
+    episodes (here, only excluding root node):
 
     >>> calibration_cols = ["branch_length", "origin_time", "survival_duration"]
     >>> is_fitted = pl.col("id") != pl.col("ancestor_id")  # exclude root
