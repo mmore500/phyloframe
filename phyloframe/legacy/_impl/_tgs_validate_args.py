@@ -5,8 +5,8 @@ import numpy as np
 
 def tgs_validate_args(
     *,
-    trait_transitions: typing.Sequence[str],
-    neutral_traits: typing.Sequence[str],
+    trait_transitions_candidate: typing.Sequence[str],
+    trait_transitions_neutral: typing.Sequence[str],
     calibration_compare_by_vals: typing.Sequence[str],
     calibrate_neighborhood_fractions: typing.Sequence[float],
     calibrate_max_rate_ratio: float,
@@ -18,14 +18,19 @@ def tgs_validate_args(
     Raises ValueError for invalid arguments, and NotImplementedError for
     fewer than two neutral traits.
     """
+    trait_transitions = [
+        *trait_transitions_candidate,
+        *trait_transitions_neutral,
+    ]
     if len(set(trait_transitions)) != len(trait_transitions):
-        raise ValueError("trait_transitions must not have duplicate columns")
-    if not set(neutral_traits) <= set(trait_transitions):
-        raise ValueError("neutral_traits must be among trait_transitions")
-    if len(set(neutral_traits)) < 2:
+        raise ValueError(
+            "trait_transitions_candidate and trait_transitions_neutral must "
+            "not have duplicate columns",
+        )
+    if len(trait_transitions_neutral) < 2:
         raise NotImplementedError(
-            "fewer than two distinct neutral traits not yet supported; they "
-            "calibrate lengths and are the reference for gain ratios",
+            "fewer than two neutral traits not yet supported; they calibrate "
+            "lengths and are the reference for gain ratios",
         )
     if not len(calibration_compare_by_vals):
         raise ValueError("calibration_compare_by_vals must be nonempty")

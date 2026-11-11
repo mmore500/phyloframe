@@ -30,7 +30,7 @@ def _estimate(
     if calibrate:
         df_pl = mark_tgs_calibration_columns(
             df_pl.drop("ancestor_list", strict=False),
-            neutral_traits=kwargs["neutral_traits"],
+            neutral_traits=kwargs["trait_transitions_neutral"],
             size_ratio=calibrate_size_ratio,
         )
         kwargs["calibration_partition_by"] = "clade_size_geom_class"
@@ -65,8 +65,15 @@ def _estimate_from_masks(
     phylogeny_df, names = add_trait_transitions(
         phylogeny_df, trait_masks, trait_names
     )
-    kwargs["neutral_traits"] = [names[i] for i in neutral_traits]
-    return _estimate_all(phylogeny_df, trait_transitions=names, **kwargs)
+    neutral = [names[i] for i in neutral_traits]
+    return _estimate_all(
+        phylogeny_df,
+        trait_transitions_candidate=[
+            name for name in names if name not in neutral
+        ],
+        trait_transitions_neutral=neutral,
+        **kwargs,
+    )
 
 
 def _make_cherries(num_cherries: int = 40_000, seed: int = 1):
@@ -163,8 +170,8 @@ def test_matches_pendant_without_inner_branches(calibrate: bool):
     )
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     kwargs = dict(
-        trait_transitions=names,
-        neutral_traits=names[1:],
+        trait_transitions_candidate=names[:1],
+        trait_transitions_neutral=names[1:],
         calibrate=calibrate,
     )
     res = _estimate_all(phylogeny_df, **kwargs)
@@ -269,7 +276,7 @@ def test_calibration_compare_by_vals_clade_size():
     assert np.isfinite(res["gain_ratio"]).all()
 
 
-@pytest.mark.parametrize("neutral_traits", [[], [1], [1, 1]])
+@pytest.mark.parametrize("neutral_traits", [[], [1]])
 def test_too_few_neutral_traits_raise(neutral_traits):
     phylogeny_df, traits = _make_cherries(100)
     with pytest.raises(NotImplementedError, match="fewer than two"):
@@ -278,21 +285,14 @@ def test_too_few_neutral_traits_raise(neutral_traits):
         )
 
 
-def test_neutral_trait_index_raises():
-    phylogeny_df, traits = _make_cherries(100)
-    phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
-    with pytest.raises(ValueError):
-        _estimate_all(
-            phylogeny_df, trait_transitions=names, neutral_traits=[1]
-        )
-
-
 def test_input_not_mutated():
     phylogeny_df, traits = _make_cherries(100)
     phylogeny_df, names = add_trait_transitions(phylogeny_df, traits)
     original_df = phylogeny_df.copy()
     _estimate_all(
-        phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+        phylogeny_df,
+        trait_transitions_candidate=names[:1],
+        trait_transitions_neutral=names[1:],
     )
     pd.testing.assert_frame_equal(phylogeny_df, original_df)
 
@@ -307,8 +307,8 @@ def test_missing_transitions_column_raises():
     with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
         _estimate_all(
             phylogeny_df,
-            trait_transitions=["absent", *names[1:]],
-            neutral_traits=names[1:],
+            trait_transitions_candidate=["absent"],
+            trait_transitions_neutral=names[1:],
         )
 
 
@@ -317,8 +317,8 @@ def test_missing_calibration_column_raises():
     with pytest.raises(pl.exceptions.ColumnNotFoundError, match="absent"):
         _estimate_all(
             phylogeny_df,
-            trait_transitions=names,
-            neutral_traits=names[1:],
+            trait_transitions_candidate=names[:1],
+            trait_transitions_neutral=names[1:],
             calibration_partition_by="absent",
         )
 
@@ -329,7 +329,9 @@ def test_invalid_transitions_raise(value: int):
     phylogeny_df.loc[5, names[0]] = value
     with pytest.raises(NotImplementedError):
         _estimate_all(
-            phylogeny_df, trait_transitions=names, neutral_traits=names[1:]
+            phylogeny_df,
+            trait_transitions_candidate=names[:1],
+            trait_transitions_neutral=names[1:],
         )
 
 
@@ -341,8 +343,8 @@ def test_repeated_gain_raises():
     with pytest.raises(ValueError):
         _estimate_all(
             phylogeny_df,
-            trait_transitions=["trait", *names[1:]],
-            neutral_traits=names[1:],
+            trait_transitions_candidate=["trait"],
+            trait_transitions_neutral=names[1:],
         )
 
 
@@ -354,8 +356,8 @@ def test_losses_not_supported():
     with pytest.raises(NotImplementedError, match="loss"):
         _estimate_all(
             phylogeny_df,
-            trait_transitions=["trait", *names[1:]],
-            neutral_traits=names[1:],
+            trait_transitions_candidate=["trait"],
+            trait_transitions_neutral=names[1:],
         )
 
 
@@ -364,10 +366,11 @@ def test_trait_named_by_columns():
     phylogeny_df = phylogeny_df.rename(columns=dict(zip(names, "abcde")))
     res = _estimate_all(
         phylogeny_df,
-        trait_transitions=list("abcde"),
-        neutral_traits=["b", "c"],
+        trait_transitions_candidate=["a", "d", "e"],
+        trait_transitions_neutral=["b", "c"],
     )
-    assert res["trait"].tolist() == list("abcde")
+    # candidate traits come first, then neutral traits
+    assert res["trait"].tolist() == list("adebc")
 
 
 apply_params = pytest.mark.parametrize(
@@ -404,16 +407,8 @@ def test_empty(apply: typing.Callable):
     with pytest.raises(ValueError, match="no exposure episodes"):
         alifestd_tgs_estimate_polars(
             df_pl,
-            trait_transitions=["a", "b", "c"],
-            neutral_traits=["b", "c"],
-        )
-
-
-def test_expression_transitions_raise():
-    df_pl = _make_cherries_polars(2_000)
-    with pytest.raises(TypeError):
-        alifestd_tgs_estimate_polars(
-            df_pl, trait_transitions=[pl.col("focal")]
+            trait_transitions_candidate=["a"],
+            trait_transitions_neutral=["b", "c"],
         )
 
 
@@ -430,13 +425,15 @@ def test_not_asexual():
     ).with_columns(ancestor_list=pl.lit("[0, 1]"))
     with pytest.raises(NotImplementedError, match="asexual"):
         alifestd_tgs_estimate_polars(
-            df_pl, trait_transitions=["a", "b", "c"], neutral_traits=["b", "c"]
+            df_pl,
+            trait_transitions_candidate=["a"],
+            trait_transitions_neutral=["b", "c"],
         )
 
 
 _MASK_KWARGS = dict(
-    trait_transitions=["focal", "n1", "n2", "n3", "n4"],
-    neutral_traits=["n1", "n2", "n3", "n4"],
+    trait_transitions_candidate=["focal"],
+    trait_transitions_neutral=["n1", "n2", "n3", "n4"],
 )
 
 

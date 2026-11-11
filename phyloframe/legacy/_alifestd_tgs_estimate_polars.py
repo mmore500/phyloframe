@@ -32,8 +32,8 @@ from ._impl import (
 def alifestd_tgs_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_transitions: typing.Union[str, typing.Sequence[str]],
-    neutral_traits: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_neutral: typing.Sequence[str],
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
@@ -79,17 +79,19 @@ def alifestd_tgs_estimate_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format; see Input
         Schema.
-    trait_transitions : str or Sequence[str]
-        Names of integer columns, one per trait, with each node's trait
-        state transition on the branch from its parent: +1 for a gain and 0
-        for none.
+    trait_transitions_candidate : str or Sequence[str]
+        Names of integer columns, one per trait to assess, with each node's
+        trait state transition on the branch from its parent: +1 for a gain
+        and 0 for none.
 
         See `alifestd_mark_lineage_delta_polars` to make transitions from
         trait states.
-    neutral_traits : str or Sequence[str]
-        Names, among `trait_transitions`, of at least two traits known to
-        be neutral, used to calibrate episode lengths and as the reference
-        for gain ratios.
+    trait_transitions_neutral : Sequence[str]
+        Names of such columns for at least two other traits, known to be
+        neutral, used to calibrate episode lengths and as the reference for
+        gain ratios.
+
+        Neutral traits are estimated, too, each against the others.
     episode_mask : str, optional
         Name of a boolean column marking, at each exposure episode's end
         node, whether to fit that episode, e.g., `is_leaf` for leaf pendant
@@ -168,7 +170,9 @@ def alifestd_tgs_estimate_polars(
     'origin_time' : float
         Time of each taxon's origin, from which episode lengths and survival
         durations are taken; must be finite.
-    `trait_transitions` columns : integer
+    `trait_transitions_candidate` columns : integer
+        See Parameters.
+    `trait_transitions_neutral` columns : integer
         See Parameters.
     `episode_mask` column : boolean, optional
         See Parameters.
@@ -182,7 +186,8 @@ def alifestd_tgs_estimate_polars(
     Output Schema
     -------------
     'trait' : string
-        Trait, named by its `trait_transitions` column.
+        Trait, named by its transitions column; candidate traits come
+        first, then neutral traits.
     'num_leaf_episodes' : integer
         Leaf branches that started without the trait.
     'num_leaf_gains' : integer
@@ -245,8 +250,8 @@ def alifestd_tgs_estimate_polars(
     Take phylogeny `df` with trait transition columns `site0` to `site3`,
     the last two for traits known to be neutral:
 
-    >>> trait_transitions = ["site0", "site1", "site2", "site3"]
-    >>> neutral_traits = ["site2", "site3"]
+    >>> trait_transitions_candidate = ["site0", "site1"]
+    >>> trait_transitions_neutral = ["site2", "site3"]
 
     To calibrate within clade size classes, by bins of similar branch length
     and origin time:
@@ -257,7 +262,7 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ...     .pipe(
     ...         alifestd_mark_clade_size_geom_classes_polars,
-    ...         weight_by=neutral_traits,
+    ...         weight_by=trait_transitions_neutral,
     ...         min_class_weight=20,
     ...     )
     ...     .pipe(
@@ -267,8 +272,8 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ...     .pipe(
     ...         alifestd_tgs_estimate_polars,
-    ...         trait_transitions=trait_transitions,
-    ...         neutral_traits=neutral_traits,
+    ...         trait_transitions_candidate=trait_transitions_candidate,
+    ...         trait_transitions_neutral=trait_transitions_neutral,
     ...         calibration_partition_by="clade_size_geom_class",
     ...         calibration_compare_by_bins="joint_quantile_bin",
     ...     )
@@ -288,7 +293,7 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ...     .pipe(
     ...         alifestd_mark_clade_size_geom_classes_polars,
-    ...         weight_by=neutral_traits,
+    ...         weight_by=trait_transitions_neutral,
     ...         min_class_weight=20,
     ...     )
     ...     .pipe(
@@ -298,8 +303,8 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ...     .pipe(
     ...         alifestd_tgs_estimate_polars,
-    ...         trait_transitions=trait_transitions,
-    ...         neutral_traits=neutral_traits,
+    ...         trait_transitions_candidate=trait_transitions_candidate,
+    ...         trait_transitions_neutral=trait_transitions_neutral,
     ...         calibration_partition_by="clade_size_geom_class",
     ...         calibration_compare_by_bins="joint_quantile_bin",
     ...         calibration_compare_by_vals=[
@@ -316,8 +321,8 @@ def alifestd_tgs_estimate_polars(
 def _alifestd_tgs_estimate_polars_impl(
     phylogeny_df: pl.DataFrame,
     *,
-    trait_transitions: typing.Union[str, typing.Sequence[str]],
-    neutral_traits: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_neutral: typing.Sequence[str],
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
@@ -352,24 +357,27 @@ def _alifestd_tgs_estimate_polars_impl(
     """
     log_memory_usage(logging.info)
 
-    if isinstance(trait_transitions, str):
-        trait_transitions = [trait_transitions]
-    if isinstance(neutral_traits, str):
-        neutral_traits = [neutral_traits]
+    if isinstance(trait_transitions_candidate, str):
+        trait_transitions_candidate = [trait_transitions_candidate]
     if isinstance(calibration_compare_by_vals, str):
         calibration_compare_by_vals = [calibration_compare_by_vals]
 
     tgs_validate_args(
-        trait_transitions=trait_transitions,
-        neutral_traits=neutral_traits,
+        trait_transitions_candidate=trait_transitions_candidate,
+        trait_transitions_neutral=trait_transitions_neutral,
         calibration_compare_by_vals=calibration_compare_by_vals,
         calibrate_neighborhood_fractions=calibrate_neighborhood_fractions,
         calibrate_max_rate_ratio=calibrate_max_rate_ratio,
         length_rtol=length_rtol,
         growth_exponent_bound=growth_exponent_bound,
     )
-    neutral_trait_ids = sorted(
-        {list(trait_transitions).index(trait) for trait in neutral_traits}
+    # candidate traits first, then neutral traits
+    trait_transitions = [
+        *trait_transitions_candidate,
+        *trait_transitions_neutral,
+    ]
+    neutral_trait_ids = list(
+        range(len(trait_transitions_candidate), len(trait_transitions))
     )
 
     exposure_df = tgs_build_exposure_df_polars(
@@ -448,7 +456,7 @@ Input Schema: Required Columns
 'origin_time' : float
     Time of each taxon's origin.
 
-`--trait-transitions` columns : integer
+`--trait-transitions-candidate`, `--trait-transitions-neutral` columns : integer
     Each node's trait state transition on the branch from its parent: +1
     for a gain and 0 for none.
 
@@ -458,7 +466,8 @@ Output Schema
 One row per trait, not a phylogeny.
 
 'trait' : string
-    Trait, named by its transition column.
+    Trait, named by its transition column; candidate traits come first,
+    then neutral traits.
 
 'num_leaf_episodes', 'num_leaf_gains' : integer
     Leaf branches that started without the trait, and of those, the number
@@ -511,23 +520,24 @@ def _add_estimate_arguments(
     """Implementation detail for `_create_parser` here and in
     `_alifestd_tgs_estimate_bootstrap_polars`."""
     parser.add_argument(
-        "--trait-transitions",
-        nargs="+",
-        required=True,
+        "--trait-transitions-candidate",
+        default=(),
+        nargs="*",
         type=str,
         help=(
-            "Names of integer columns giving each trait's state transition "
-            "on the branch into each node (+1 gain, 0 none)."
+            "Names of integer columns giving the state transition on the "
+            "branch into each node (+1 gain, 0 none) of each trait to assess "
+            "(default: none)."
         ),
     )
     parser.add_argument(
-        "--neutral-traits",
+        "--trait-transitions-neutral",
         nargs="+",
         required=True,
         type=str,
         help=(
-            "Names of trait transition columns of traits known to be neutral; "
-            "at least two."
+            "Names of such columns for other traits, known to be neutral; at "
+            "least two."
         ),
     )
     parser.add_argument(
@@ -633,8 +643,8 @@ def _get_estimate_kwargs(
     `_add_estimate_arguments`).
     """
     return dict(
-        trait_transitions=args.trait_transitions,
-        neutral_traits=args.neutral_traits,
+        trait_transitions_candidate=args.trait_transitions_candidate,
+        trait_transitions_neutral=args.trait_transitions_neutral,
         episode_mask=args.episode_mask,
         calibration_partition_by=args.calibration_partition_by,
         calibration_compare_by_bins=args.calibration_compare_by_bins,

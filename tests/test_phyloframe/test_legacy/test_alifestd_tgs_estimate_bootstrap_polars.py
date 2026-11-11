@@ -32,8 +32,8 @@ def _estimate_bootstrap_from_masks(
 def test_point_columns_match_point_estimate():
     df_pl = _make_cherries_polars(2_000)
     kwargs = dict(
-        trait_transitions=["focal", "n1", "n2", "n3", "n4"],
-        neutral_traits=["n1", "n2", "n3", "n4"],
+        trait_transitions_candidate=["focal"],
+        trait_transitions_neutral=["n1", "n2", "n3", "n4"],
     )
     point = alifestd_tgs_estimate_polars(df_pl, **kwargs)
     res = alifestd_tgs_estimate_bootstrap_polars(
@@ -87,8 +87,8 @@ def test_empty(apply: typing.Callable):
     with pytest.raises(ValueError, match="no exposure episodes"):
         alifestd_tgs_estimate_bootstrap_polars(
             df_pl,
-            trait_transitions=["a", "b", "c"],
-            neutral_traits=["b", "c"],
+            trait_transitions_candidate=["a"],
+            trait_transitions_neutral=["b", "c"],
             num_bootstrap=2,
         )
 
@@ -97,8 +97,8 @@ def test_unknown_kwarg_raises():
     with pytest.raises(TypeError):
         alifestd_tgs_estimate_bootstrap_polars(
             _make_cherries_polars(100),
-            trait_transitions=["focal", "n1", "n2"],
-            neutral_traits=["n1", "n2"],
+            trait_transitions_candidate=["focal"],
+            trait_transitions_neutral=["n1", "n2"],
             num_bootstrap=2,
             not_an_argument=1,
         )
