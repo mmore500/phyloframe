@@ -40,6 +40,7 @@ def alifestd_tgs_estimate_polars(
     calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
         "branch_length",
         "origin_time",
+        "survival_duration",
     ),
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -115,9 +116,10 @@ def alifestd_tgs_estimate_polars(
         Calibration rescales each episode's duration by the neutral gain rate
         in its bin's neighborhood relative to global rate, removing tree shape
         distortion. If not given, each partition is one bin.
-    calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time")
+    calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time", "survival_duration")
         Columns used to select comparator bins for calibration against neutral
-        traits (see Notes).
+        traits (see Notes). Calibration bins should be made from the same
+        columns; see Examples.
 
         May be episode columns `branch_length` (the episode's duration),
         `origin_time`, `clade_size`, or `survival_duration`, or other
@@ -254,8 +256,9 @@ def alifestd_tgs_estimate_polars(
     unit episode duration, whatever the survival duration. If neutral traits
     are instead gained more or less often on episodes with longer survival
     durations (e.g., from distorted inner branch lengths), selection
-    coefficients may be biased. To correct for this, additionally calibrate
-    by survival duration; see Examples.
+    coefficients may be biased. To correct for this, calibration bins are
+    compared by survival duration by default, and should be made from it,
+    too; see Examples.
 
     Leaf pendant branches have zero survival duration, so disagreement
     between estimates with and without `episode_mask="is_leaf"` may suggest
@@ -269,34 +272,8 @@ def alifestd_tgs_estimate_polars(
     >>> trait_transitions_candidate = ["site0", "site1"]
     >>> trait_transitions_neutral = ["site2", "site3"]
 
-    To calibrate within clade size classes, by bins of similar branch length
-    and origin time:
-
-    >>> estimates_df = (
-    ...     alifestd_mark_origin_time_delta_polars(
-    ...         df, mark_as="branch_length"
-    ...     )
-    ...     .pipe(
-    ...         alifestd_mark_clade_size_geom_classes_polars,
-    ...         weight_by=trait_transitions_neutral,
-    ...         min_class_weight=20,
-    ...     )
-    ...     .pipe(
-    ...         alifestd_mark_joint_quantile_bins_polars,
-    ...         bin_by=["branch_length", "origin_time"],
-    ...         partition_by="clade_size_geom_class",
-    ...     )
-    ...     .pipe(
-    ...         alifestd_tgs_estimate_polars,
-    ...         trait_transitions_candidate=trait_transitions_candidate,
-    ...         trait_transitions_neutral=trait_transitions_neutral,
-    ...         calibration_partition_by="clade_size_geom_class",
-    ...         calibration_compare_by_bins="joint_quantile_bin",
-    ...     )
-    ... )
-
-    To additionally calibrate by survival duration, mark it and add it to the
-    columns that bins are made from and compared by:
+    To calibrate within clade size classes, by bins of similar branch length,
+    origin time, and survival duration:
 
     >>> estimates_df = (
     ...     alifestd_mark_origin_time_delta_polars(
@@ -323,11 +300,33 @@ def alifestd_tgs_estimate_polars(
     ...         trait_transitions_neutral=trait_transitions_neutral,
     ...         calibration_partition_by="clade_size_geom_class",
     ...         calibration_compare_by_bins="joint_quantile_bin",
-    ...         calibration_compare_by_vals=[
-    ...             "branch_length",
-    ...             "origin_time",
-    ...             "survival_duration",
-    ...         ],
+    ...     )
+    ... )
+
+    To calibrate without survival duration, leave it out of the columns that
+    bins are made from and compared by:
+
+    >>> estimates_df = (
+    ...     alifestd_mark_origin_time_delta_polars(
+    ...         df, mark_as="branch_length"
+    ...     )
+    ...     .pipe(
+    ...         alifestd_mark_clade_size_geom_classes_polars,
+    ...         weight_by=trait_transitions_neutral,
+    ...         min_class_weight=20,
+    ...     )
+    ...     .pipe(
+    ...         alifestd_mark_joint_quantile_bins_polars,
+    ...         bin_by=["branch_length", "origin_time"],
+    ...         partition_by="clade_size_geom_class",
+    ...     )
+    ...     .pipe(
+    ...         alifestd_tgs_estimate_polars,
+    ...         trait_transitions_candidate=trait_transitions_candidate,
+    ...         trait_transitions_neutral=trait_transitions_neutral,
+    ...         calibration_partition_by="clade_size_geom_class",
+    ...         calibration_compare_by_bins="joint_quantile_bin",
+    ...         calibration_compare_by_vals=["branch_length", "origin_time"],
     ...     )
     ... )
     """
@@ -345,6 +344,7 @@ def _alifestd_tgs_estimate_polars_impl(
     calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
         "branch_length",
         "origin_time",
+        "survival_duration",
     ),
     calibration_neighborhood_fractions: typing.Sequence[float] = (
         0.005,
@@ -592,12 +592,12 @@ def _add_estimate_arguments(
     )
     parser.add_argument(
         "--calibration-compare-by-vals",
-        default=("branch_length", "origin_time"),
+        default=("branch_length", "origin_time", "survival_duration"),
         nargs="+",
         type=str,
         help=(
             "Columns by which calibration bins are compared (default: "
-            "branch_length origin_time)."
+            "branch_length origin_time survival_duration)."
         ),
     )
     parser.add_argument(
