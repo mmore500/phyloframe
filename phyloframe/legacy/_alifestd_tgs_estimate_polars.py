@@ -33,6 +33,8 @@ from ._impl import (
 def alifestd_tgs_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
+    trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_neutral: typing.Sequence[str],
     calibration_compare_by_bins: typing.Optional[str] = None,
     calibration_compare_by_vals: typing.Optional[
         typing.Union[str, typing.Sequence[str]]
@@ -54,8 +56,6 @@ def alifestd_tgs_estimate_polars(
     loss_rate: float = 0.0,
     nll_coarsegrain_rtol: float = 1e-2,
     progress_wrap: typing.Callable = identity,
-    trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
-    trait_transitions_neutral: typing.Sequence[str],
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and selection coefficient (tgs, for
     trait gain/selection) from how often branches gain each trait.
@@ -82,6 +82,22 @@ def alifestd_tgs_estimate_polars(
     phylogeny_df : polars.DataFrame or polars.LazyFrame
         The phylogeny as a dataframe in alife standard format; see Input
         Schema.
+    trait_transitions_candidate : str or Sequence[str]
+        For traits to screen, names of columns with trait state transitions
+        (+1 gain, 0 otherwise).
+
+        See `alifestd_mark_lineage_delta_polars`.
+    trait_transitions_neutral : Sequence[str]
+        For known-neutral traits, names of columns with trait state
+        transitions (+1 gain, 0 otherwise). At least two neutral traits are
+        required.
+
+        See `alifestd_mark_lineage_delta_polars`.
+
+        Used to calibrate exposure episode durations and as the reference for
+        gain ratios. Neutral trait gain/selection estimates are reported using
+        leave-one-out calibration and reference, i.e., each neutral trait
+        against the other neutral traits.
     calibration_compare_by_bins : str, optional
         Name of a column of calibration bin ids, at each exposure episode's
         end node, e.g., from `alifestd_mark_joint_quantile_bins_polars`.
@@ -124,22 +140,6 @@ def alifestd_tgs_estimate_polars(
         (exact calculation).
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display progress over traits.
-    trait_transitions_candidate : str or Sequence[str]
-        For traits to screen, names of columns with trait state transitions
-        (+1 gain, 0 otherwise).
-
-        See `alifestd_mark_lineage_delta_polars`.
-    trait_transitions_neutral : Sequence[str]
-        For known-neutral traits, names of columns with trait state
-        transitions (+1 gain, 0 otherwise). At least two neutral traits are
-        required.
-
-        See `alifestd_mark_lineage_delta_polars`.
-
-        Used to calibrate exposure episode durations and as the reference for
-        gain ratios. Neutral trait gain/selection estimates are reported using
-        leave-one-out calibration and reference, i.e., each neutral trait
-        against the other neutral traits.
 
     Returns
     -------
@@ -175,6 +175,10 @@ def alifestd_tgs_estimate_polars(
     'origin_time' : float
         Time of each taxon's origin, from which episode durations and survival
         durations are taken; must be finite.
+    `trait_transitions_candidate` columns : integer
+        See Parameters.
+    `trait_transitions_neutral` columns : integer
+        See Parameters.
     `calibration_compare_by_bins` column : optional
         See Parameters.
     `calibration_compare_by_vals` columns : optional
@@ -182,10 +186,6 @@ def alifestd_tgs_estimate_polars(
     `calibration_partition_by` column : optional
         See Parameters.
     `episode_mask` column : boolean, optional
-        See Parameters.
-    `trait_transitions_candidate` columns : integer
-        See Parameters.
-    `trait_transitions_neutral` columns : integer
         See Parameters.
 
     Output Schema
@@ -308,13 +308,13 @@ def alifestd_tgs_estimate_polars(
     ...     )
     ...     .pipe(
     ...         alifestd_tgs_estimate_polars,
+    ...         trait_transitions_candidate=trait_transitions_candidate,
+    ...         trait_transitions_neutral=trait_transitions_neutral,
     ...         calibration_compare_by_bins="joint_quantile_bin",
     ...         calibration_compare_by_vals=[
     ...             f"{col}_rank" for col in calibration_cols
     ...         ],
     ...         calibration_partition_by="clade_size_geom_class",
-    ...         trait_transitions_candidate=trait_transitions_candidate,
-    ...         trait_transitions_neutral=trait_transitions_neutral,
     ...     )
     ... )
     """
@@ -324,6 +324,8 @@ def alifestd_tgs_estimate_polars(
 def _alifestd_tgs_estimate_polars_impl(
     phylogeny_df: pl.DataFrame,
     *,
+    trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_neutral: typing.Sequence[str],
     calibration_compare_by_bins: typing.Optional[str] = None,
     calibration_compare_by_vals: typing.Optional[
         typing.Union[str, typing.Sequence[str]]
@@ -345,8 +347,6 @@ def _alifestd_tgs_estimate_polars_impl(
     loss_rate: float = 0.0,
     nll_coarsegrain_rtol: float = 1e-2,
     progress_wrap: typing.Callable = identity,
-    trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
-    trait_transitions_neutral: typing.Sequence[str],
 ) -> typing.Tuple[pl.DataFrame, pl.DataFrame, typing.Callable]:
     """Implementation detail for `alifestd_tgs_estimate_polars` and
     `alifestd_tgs_estimate_bootstrap_polars`.
@@ -647,6 +647,8 @@ def _get_estimate_kwargs(
     `_add_estimate_arguments`).
     """
     return dict(
+        trait_transitions_candidate=args.trait_transitions_candidate,
+        trait_transitions_neutral=args.trait_transitions_neutral,
         calibration_compare_by_bins=args.calibration_compare_by_bins,
         calibration_compare_by_vals=args.calibration_compare_by_vals,
         calibration_neighborhood_candidates=args.calibration_neighborhood_candidates,
@@ -656,8 +658,6 @@ def _get_estimate_kwargs(
         fit_selection_coef_starts=args.fit_selection_coef_starts,
         loss_rate=args.loss_rate,
         nll_coarsegrain_rtol=args.nll_coarsegrain_rtol,
-        trait_transitions_candidate=args.trait_transitions_candidate,
-        trait_transitions_neutral=args.trait_transitions_neutral,
     )
 
 
