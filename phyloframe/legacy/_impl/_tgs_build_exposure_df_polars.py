@@ -124,7 +124,8 @@ def tgs_build_exposure_df_polars(
         Calibration bin, numbered from 0, partition-major.
     'calibration_compare_by_{name}' : per `calibration_compare_by_vals` name
         Episode column `name`, if any, with `branch_length` naming
-        `episode_length`; else the end node's `phylogeny_df` value.
+        `episode_length`; else the end node's `phylogeny_df` value. Likewise
+        for the partition and bin columns.
     """
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     if "ancestor_id" not in phylogeny_df.lazy().collect_schema().names():
@@ -137,9 +138,8 @@ def tgs_build_exposure_df_polars(
         episode_mask,
         calibration_partition_by,
         calibration_compare_by_bins,
-        # branch_length names the episode's own length
-        *(set(calibration_compare_by_vals) - {"branch_length"}),
-    } - {None, *computed_cols}
+        *calibration_compare_by_vals,
+    } - {None, "branch_length", *computed_cols}
     # affinity RE https://github.com/pola-rs/polars/issues/30408
     # TODO: drop the engine affinity for polars>2.1.0
     with pl.Config(engine_affinity="in-memory"):
@@ -214,8 +214,10 @@ def tgs_build_exposure_df_polars(
         is_episode &= mask.to_numpy()
 
     # episode columns take precedence over phylogeny_df's
-    episodes_df = nodes_df.with_columns(pl.DataFrame(episode_cols)).filter(
-        is_episode
+    episodes_df = (
+        nodes_df.with_columns(pl.DataFrame(episode_cols))
+        # branch_length names the episode's own length
+        .with_columns(branch_length="episode_length").filter(is_episode)
     )
     del nodes_df  # clear memory
     gc.collect()
@@ -231,26 +233,30 @@ def tgs_build_exposure_df_polars(
             "supported; exclude them with episode_mask",
         )
 
-    partition = (
+    partition_classes = (
         pl.lit(0)
         if calibration_partition_by is None
         else pl.col(calibration_partition_by)
     )
-    bin_ = (
+    bin_classes = (
         pl.lit(0)
         if calibration_compare_by_bins is None
         else pl.col(calibration_compare_by_bins)
     )
+    partition_bin_classes = pl.struct(
+        partition_classes.alias("partition"), bin_classes.alias("bin")
+    )
 
-    partition_bin = pl.struct(partition.alias("partition"), bin_.alias("bin"))
     exposure_df = episodes_df.select(
         *episode_cols,
-        (partition.rank("dense").cast(pl.Int64) - 1).alias("partition_id"),
-        (partition_bin.rank("dense").cast(pl.Int64) - 1).alias("bin_id"),
+        (partition_classes.rank("dense").cast(pl.Int64) - 1).alias(
+            "partition_id"
+        ),
+        (partition_bin_classes.rank("dense").cast(pl.Int64) - 1).alias(
+            "bin_id"
+        ),
         *(
-            pl.col({"branch_length": "episode_length"}.get(col, col)).alias(
-                f"calibration_compare_by_{col}"
-            )
+            pl.col(col).alias(f"calibration_compare_by_{col}")
             for col in calibration_compare_by_vals
         ),
     )

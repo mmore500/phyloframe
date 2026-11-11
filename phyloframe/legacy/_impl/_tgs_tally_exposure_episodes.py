@@ -13,7 +13,7 @@ def tgs_tally_exposure_episodes(
 
     Output Schema
     -------------
-    'trait' : string
+    'trait_name' : string
         Trait name.
     'num_leaf_episodes' : integer
         Leaf branches that started without the trait.
@@ -37,5 +37,5 @@ def tgs_tally_exposure_episodes(
         ).cast(pl.Int64)
 
     return pl.concat(map(tally_trait, range(len(trait_names)))).select(
-        pl.Series("trait", trait_names, dtype=pl.String), pl.all()
+        pl.Series("trait_name", trait_names, dtype=pl.String), pl.all()
     )

@@ -135,7 +135,7 @@ def test_recovers_gain_selection(calibrate: bool):
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
     )
-    assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
+    assert res["trait_name"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_inner_episodes"] == 40_000).all()
     assert (res["num_inner_gains"] > 0).all()
 
@@ -370,7 +370,7 @@ def test_trait_named_by_columns():
         trait_transitions_neutral=["b", "c"],
     )
     # candidate traits come first, then neutral traits
-    assert res["trait"].tolist() == list("adebc")
+    assert res["trait_name"].tolist() == list("adebc")
 
 
 apply_params = pytest.mark.parametrize(

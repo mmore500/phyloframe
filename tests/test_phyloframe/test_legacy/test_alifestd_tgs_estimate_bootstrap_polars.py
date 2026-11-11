@@ -55,7 +55,7 @@ def test_recovers_gain_selection(calibrate: bool):
         num_bootstrap=10,
         seed=1,
     )
-    assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
+    assert res["trait_name"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_inner_episodes"] == 40_000).all()
     assert (res["num_inner_gains"] > 0).all()
 

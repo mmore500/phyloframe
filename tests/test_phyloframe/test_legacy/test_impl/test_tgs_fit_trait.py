@@ -31,7 +31,7 @@ def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
 def _sample(gain_rate: float, selection_coef: float, seed: int):
     rng = np.random.default_rng(seed)
     length = np.linspace(0.5, 60.0, 120)
-    num_trials = np.full_like(length, 20_000)
+    num_episodes = np.full_like(length, 20_000)
     p = (
         gain_rate * length
         if selection_coef == 0
@@ -40,11 +40,11 @@ def _sample(gain_rate: float, selection_coef: float, seed: int):
     return make_pendant_nll_kwargs(
         pl.DataFrame(
             {
-                "num_trials": num_trials,
-                "num_successes": rng.binomial(
-                    num_trials.astype(int), p
-                ).astype(float),
-                "mean_episode_length": length,
+                "num_episodes": num_episodes,
+                "num_gains": rng.binomial(num_episodes.astype(int), p).astype(
+                    float
+                ),
+                "mean_episode_duration": length,
             },
         )
     )
@@ -95,9 +95,9 @@ def test_empty_rows_ignored():
                 nll_kwargs["coarsegrain_df"],
                 pl.DataFrame(
                     {
-                        "num_trials": [0.0],
-                        "num_successes": [0.0],
-                        "mean_episode_length": [0.0],
+                        "num_episodes": [0.0],
+                        "num_gains": [0.0],
+                        "mean_episode_duration": [0.0],
                     }
                 ),
             ],
@@ -143,9 +143,9 @@ def test_keyword_only():
 def test_no_successes_skips_fit_without_warning():
     coarsegrain_df = pl.DataFrame(
         {
-            "num_trials": [10.0],
-            "num_successes": [0.0],
-            "mean_episode_length": [1.0],
+            "num_episodes": [10.0],
+            "num_gains": [0.0],
+            "mean_episode_duration": [1.0],
         }
     )
     with warnings.catch_warnings():
@@ -160,7 +160,7 @@ def test_no_successes_skips_fit_without_warning():
 def test_selection_bounded_by_growth_exponent_bound():
     nll_kwargs = _sample(1e-3, 0.0, seed=10)
     max_episode_length = nll_kwargs["coarsegrain_df"][
-        "mean_episode_length"
+        "mean_episode_duration"
     ].max()
     # from far past the bound, clipped into it, staying finite
     best = tgs_minimize_nll(

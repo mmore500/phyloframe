@@ -55,7 +55,7 @@ def test_recovers_gain_selection(calibrate: bool):
         num_bootstrap=20,
         seed=1,
     )
-    assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
+    assert res["trait_name"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_leaf_episodes"] <= 80_000).all()
 
     focal = res.iloc[0]

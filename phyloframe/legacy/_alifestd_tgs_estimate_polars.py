@@ -186,7 +186,7 @@ def alifestd_tgs_estimate_polars(
 
     Output Schema
     -------------
-    'trait' : string
+    'trait_name' : string
         Trait, named by its transitions column; candidate traits come
         first, then neutral traits.
     'num_leaf_episodes' : integer
@@ -436,7 +436,7 @@ def _alifestd_tgs_estimate_polars_impl(
 
     undefined_estimate_traits = estimates_df.filter(
         pl.col("gain_ratio_lrt_naive").is_nan()
-    )["trait"].to_list()
+    )["trait_name"].to_list()
     if undefined_estimate_traits:
         warnings.warn(
             f"traits {undefined_estimate_traits} have undefined (nan) "
@@ -475,7 +475,7 @@ Output Schema
 =============
 One row per trait, not a phylogeny.
 
-'trait' : string
+'trait_name' : string
     Trait, named by its transition column; candidate traits come first,
     then neutral traits.
 

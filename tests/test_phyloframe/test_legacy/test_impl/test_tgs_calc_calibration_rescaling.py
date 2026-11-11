@@ -5,16 +5,16 @@ from scipy import sparse
 from phyloframe.legacy._impl import tgs_calc_calibration_rescaling
 
 
-def _counts(num_successes) -> pl.DataFrame:
-    num_successes = np.asarray(num_successes, dtype=float)
-    num_traits, num_bins = num_successes.shape
+def _counts(num_gains) -> pl.DataFrame:
+    num_gains = np.asarray(num_gains, dtype=float)
+    num_traits, num_bins = num_gains.shape
     return pl.DataFrame(
         {
             "trait_id": np.repeat(np.arange(num_traits), num_bins),
             "bin_id": np.tile(np.arange(num_bins), num_traits),
-            "num_trials": 100.0,
-            "num_successes": num_successes.ravel(),
-            "length_sum": 1000.0,
+            "num_episodes": 100.0,
+            "num_gains": num_gains.ravel(),
+            "total_episode_duration": 1000.0,
         },
     )
 

@@ -1,5 +1,4 @@
 import gc
-import logging
 import typing
 
 import numpy as np
@@ -7,7 +6,6 @@ import polars as pl
 from scipy import sparse
 
 from ..._auxlib._calc_geometric_bins import calc_geometric_bins
-from ..._auxlib._log_memory_usage import log_memory_usage
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
 )
@@ -60,12 +58,12 @@ def _tgs_coarsegrain_episodes(
 
     Output Schema
     -------------
-    'num_trials' : float
+    'num_episodes' : float
         Weighted (by `weight`) count of the granule's episodes.
-    'num_successes' : float
+    'num_gains' : float
         Of those, the weighted count that gained the trait.
-    'mean_episode_length' : float
-        Their weighted mean calibrated length.
+    'mean_episode_duration' : float
+        Their weighted average calibrated length.
     """
     calibrated_episodes_df = exposure_df.filter(
         pl.col(f"trait{trait_id}_starts_absent"),
@@ -96,23 +94,23 @@ def _tgs_coarsegrain_episodes(
     coarsegrain_df = (
         calibrated_episodes_df.group_by("granule_id")
         .agg(
-            num_trials=pl.col("weight").sum(),
-            num_successes=pl.col("weight").filter("gained_trait").sum(),
+            num_episodes=pl.col("weight").sum(),
+            num_gains=pl.col("weight").filter("gained_trait").sum(),
             calibrated_length_sum=(
                 pl.col("weight") * pl.col("calibrated_length")
             ).sum(),
         )
         .sort("granule_id")
         .select(
-            "num_trials",
-            "num_successes",
-            mean_episode_length=pl.col("calibrated_length_sum")
-            / pl.col("num_trials"),
+            "num_episodes",
+            "num_gains",
+            mean_episode_duration=pl.col("calibrated_length_sum")
+            / pl.col("num_episodes"),
         )
     )
 
     survival_duration_granule_mass = sparse.diags(
-        1 / coarsegrain_df["num_trials"].to_numpy()
+        1 / coarsegrain_df["num_episodes"].to_numpy()
     ) @ sparse.csr_matrix(
         (
             calibrated_episodes_df["weight"].to_numpy(),
@@ -145,11 +143,13 @@ def tgs_fit_traits(
 
     Fits each trait to the exposure episodes of `exposure_df` (see
     `tgs_build_exposure_df_polars`), each weighted by `weights` (e.g.,
-    bootstrap draw counts): calibrates episode lengths by calibration bin
-    (see `tgs_calc_calibration_rescaling`), groups episodes of similar
-    length into granules (see `_tgs_coarsegrain_episodes`), and fits gain rate
-    and selection coefficient. Returns one row per trait; see
+    bootstrap draw counts). Returns one row per trait; see
     `tgs_fit_traits_coarsegrain`.
+
+    Episode lengths are first calibrated by calibration bin (see
+    `tgs_calc_calibration_rescaling`). Episodes of similar length are then
+    grouped into granules (see `_tgs_coarsegrain_episodes`), to which gain
+    rate and selection coefficient are fit.
     """
     trait_bin_counts_df = tgs_count_trait_bin_exposures(
         exposure_df, trait_ids=neutral_trait_ids, weights=weights
@@ -193,8 +193,6 @@ def tgs_fit_traits(
 
     del exposure_df, trait_bin_counts_df  # clear memory
     gc.collect()
-    # called per bootstrap replicate, so log at debug level
-    log_memory_usage(logging.debug)
 
     return tgs_fit_traits_coarsegrain(
         trait_nll_kwargs=trait_nll_kwargs,

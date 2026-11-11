@@ -14,9 +14,9 @@ def test_count():
         },
     )
     res = tgs_tally_exposure_episodes(exposure_df, trait_names=["a", "b"])
-    assert res["trait"].to_list() == ["a", "b"]
+    assert res["trait_name"].to_list() == ["a", "b"]
     assert res.columns == [
-        "trait",
+        "trait_name",
         "num_leaf_episodes",
         "num_leaf_gains",
         "num_inner_episodes",

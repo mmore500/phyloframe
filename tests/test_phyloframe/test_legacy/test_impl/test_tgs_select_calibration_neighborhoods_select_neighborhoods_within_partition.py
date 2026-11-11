@@ -7,7 +7,7 @@ import pytest
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
 from phyloframe.legacy._impl import tgs_count_trait_bin_exposures
 from phyloframe.legacy._impl._tgs_select_calibration_neighborhoods import (
-    _tgs_select_partition_neighborhoods,
+    _tgs_select_neighborhoods_within_partition,
 )
 
 from ._simulate_exposure_df import simulate_exposure_df
@@ -26,7 +26,7 @@ def test_select(first_bin: int, caplog):
     )
     num_bins = exposure_df["bin_id"].max() + 1
     with caplog.at_level(logging.INFO):
-        res = _tgs_select_partition_neighborhoods(
+        res = _tgs_select_neighborhoods_within_partition(
             exposure_df.select("episode_length", "origin_time", "bin_id")
             .group_by("bin_id")
             .mean()

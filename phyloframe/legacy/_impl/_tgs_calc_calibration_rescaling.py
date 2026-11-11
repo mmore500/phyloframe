@@ -26,19 +26,19 @@ def tgs_calc_calibration_rescaling(
     `max_rate_ratio`. Takes the neutral traits' `trait_bin_counts_df` (see
     `tgs_count_trait_bin_exposures`).
     """
-    # a neutral trait is not calibrated against itself
     reference_counts_df = (
+        # exclude neutral traits from own calibration set
         trait_bin_counts_df.filter(
             pl.col("trait_id").is_in(set(neutral_trait_ids) - {trait_id})
         )
         .group_by("bin_id")
-        .agg(pl.col("num_successes", "length_sum").sum())
+        .agg(pl.col("num_gains", "total_episode_duration").sum())
         .sort("bin_id")
     )
     return calc_neighborhood_rate_ratios(
         neighborhoods=calibration_neighborhoods,
-        num_events=reference_counts_df["num_successes"].to_numpy(),
-        exposure=reference_counts_df["length_sum"].to_numpy(),
+        num_events=reference_counts_df["num_gains"].to_numpy(),
+        exposure=reference_counts_df["total_episode_duration"].to_numpy(),
         max_ratio=max_rate_ratio,
         pseudocount=1.0,  # stabilizes calibration against sparse gains
     )

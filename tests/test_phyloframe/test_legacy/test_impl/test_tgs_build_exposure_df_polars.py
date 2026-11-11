@@ -123,8 +123,8 @@ def test_branch_length_partition_column():
         calibration_partition_by="branch_length",
         calibration_compare_by_vals=["branch_length"],
     )
-    # only calibration_compare_by_vals names the episode's own length
-    assert res["partition_id"].to_list() == [0, 0, 1, 1]
+    # the exposure table's own branch lengths take precedence
+    assert res["partition_id"].to_list() == [0, 1, 2, 3]
     assert res["calibration_compare_by_branch_length"].to_list() == [
         1.0,
         2.0,

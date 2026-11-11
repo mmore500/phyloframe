@@ -33,13 +33,13 @@ def _tgs_calc_heldout_nll(
     trait_counts_df = trait_bin_counts_df.filter(
         pl.col("trait_id") == trait_id, pl.col("bin_id").is_in(bin_ids)
     )
-    num_trials = trait_counts_df["num_trials"].to_numpy()
-    num_successes = trait_counts_df["num_successes"].to_numpy()
+    num_episodes = trait_counts_df["num_episodes"].to_numpy()
+    num_gains = trait_counts_df["num_gains"].to_numpy()
     mean_lengths = np.divide(
-        trait_counts_df["length_sum"].to_numpy(),
-        num_trials,
-        out=np.zeros(num_trials.shape),
-        where=num_trials > 0,
+        trait_counts_df["total_episode_duration"].to_numpy(),
+        num_episodes,
+        out=np.zeros(num_episodes.shape),
+        where=num_episodes > 0,
     )
     calibrated_lengths = (
         mean_lengths
@@ -50,17 +50,17 @@ def _tgs_calc_heldout_nll(
         )[bin_ids]
     )
 
-    exposure = (num_trials * calibrated_lengths).sum()
-    if not (num_successes.any() and exposure):
+    exposure = (num_episodes * calibrated_lengths).sum()
+    if not (num_gains.any() and exposure):
         return 0.0  # no gains, so every neighborhood size scores alike
 
-    gain_rate = num_successes.sum() / exposure  # fit under no selection
+    gain_rate = num_gains.sum() / exposure  # fit under no selection
     return calc_binomial_nll_proxy(
-        num_trials, num_successes, gain_rate * calibrated_lengths
+        num_episodes, num_gains, gain_rate * calibrated_lengths
     )[0]
 
 
-def _tgs_select_partition_neighborhoods(
+def _tgs_select_neighborhoods_within_partition(
     bin_coords: np.ndarray,
     *,
     bin_ids: np.ndarray,
@@ -76,10 +76,13 @@ def _tgs_select_partition_neighborhoods(
     bins; other bins' rows are empty.
     """
 
-    def calc_neighborhoods(fraction: float) -> sparse.csr_matrix:
+    def calc_candidate_neighborhoods(
+        neighborhood_fraction: float,
+    ) -> sparse.csr_matrix:
         # each bin's nearest bins in the partition, itself included
         rows, cols = calc_knn_neighborhoods(
-            bin_coords, num_neighbors=round(fraction * len(bin_coords))
+            bin_coords,
+            num_neighbors=round(neighborhood_fraction * len(bin_coords)),
         ).nonzero()
         # among all bins, so gain rates compare to overall, as when fitting
         return sparse.csr_matrix(
@@ -87,7 +90,9 @@ def _tgs_select_partition_neighborhoods(
             shape=(num_bins, num_bins),
         )
 
-    candidates = [*map(calc_neighborhoods, neighborhood_fractions)]
+    candidate_neighborhoods = [
+        *map(calc_candidate_neighborhoods, neighborhood_fractions)
+    ]
 
     nlls = [
         sum(  # holding out each neutral trait in turn
@@ -100,12 +105,13 @@ def _tgs_select_partition_neighborhoods(
             )
             for trait_id in neutral_trait_ids
         )
-        for calibration_neighborhoods in candidates
+        for calibration_neighborhoods in candidate_neighborhoods
     ]
 
-    for fraction, nll in zip(neighborhood_fractions, nlls):
+    for neighborhood_fraction, nll in zip(neighborhood_fractions, nlls):
         logging.info(
-            f"- tgs: calibration neighborhoods of {fraction:.1%} of "
+            "- tgs: calibration neighborhoods of "
+            f"{neighborhood_fraction:.1%} of "
             f"{len(bin_coords)} bins give held-out neutral negative log "
             f"likelihood {nll:.1f}",
         )
@@ -118,7 +124,7 @@ def _tgs_select_partition_neighborhoods(
         "- tgs: selected calibration neighborhoods of "
         f"{neighborhood_fractions[best_idx]:.1%} of bins",
     )
-    return candidates[best_idx]
+    return candidate_neighborhoods[best_idx]
 
 
 def tgs_select_calibration_neighborhoods(
@@ -136,9 +142,9 @@ def tgs_select_calibration_neighborhoods(
 
     A bin's neighborhood is its nearest bins within its partition, by its
     episodes' mean ranks of `exposure_df`'s `calibration_compare_by_*`
-    columns (see `tgs_build_exposure_df_polars`). Neighborhood size is
-    selected per partition, as the fraction of its bins, among
-    `neighborhood_fractions`, that best predicts each neutral trait's gains
+    columns (see `tgs_build_exposure_df_polars`). Each partition's
+    neighborhood size is the fraction of its bins among
+    `neighborhood_fractions` that best predicts each neutral trait's gains
     when calibrating against the other neutral traits.
     """
     trait_bin_counts_df = tgs_count_trait_bin_exposures(
@@ -160,9 +166,9 @@ def tgs_select_calibration_neighborhoods(
         .sort("bin_id")
     )
 
-    # each partition fills its own bins' rows
+    # each partition fills its own bins' rows, combined by sum
     calibration_neighborhoods = sum(
-        _tgs_select_partition_neighborhoods(
+        _tgs_select_neighborhoods_within_partition(
             partition_df.drop("partition_id", "bin_id").to_numpy(),
             bin_ids=partition_df["bin_id"].to_numpy(),
             num_bins=len(bin_coords_df),

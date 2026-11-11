@@ -64,15 +64,15 @@ def tgs_calc_nll(
     ------------
     `coarsegrain_df` columns:
 
-    'num_trials' : float
+    'num_episodes' : float
         (Weighted) count of the row's exposure episodes.
-    'num_successes' : float
+    'num_gains' : float
         Of those, the (weighted) count that gained the trait.
-    'mean_episode_length' : float
-        Their mean calibrated length.
+    'mean_episode_duration' : float
+        Their average calibrated length.
     """
     effective_length, effective_length_deriv = _tgs_calc_effective_length(
-        length=coarsegrain_df["mean_episode_length"].to_numpy(),
+        length=coarsegrain_df["mean_episode_duration"].to_numpy(),
         growth_rate=growth_rate,
     )
 
@@ -86,8 +86,8 @@ def tgs_calc_nll(
 
     gain_prob = gain_rate * effective_length * row_survival
     nll, dnll_dgain_prob = calc_binomial_nll_proxy(
-        coarsegrain_df["num_trials"].to_numpy(),
-        coarsegrain_df["num_successes"].to_numpy(),
+        coarsegrain_df["num_episodes"].to_numpy(),
+        coarsegrain_df["num_gains"].to_numpy(),
         gain_prob,
     )
 

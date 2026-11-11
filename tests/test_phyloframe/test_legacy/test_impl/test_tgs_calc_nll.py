@@ -20,7 +20,7 @@ def _data():
     shares = rng.random((6, 3))
     shares /= shares.sum(axis=1, keepdims=True)
     coarsegrain_df = pl.DataFrame(
-        {"num_trials": n, "num_successes": k, "mean_episode_length": lengths}
+        {"num_episodes": n, "num_gains": k, "mean_episode_duration": lengths}
     )
     data = dict(
         coarsegrain_df=coarsegrain_df, survival_duration_granule_mass=shares
@@ -33,7 +33,7 @@ def _pendant_coarsegrain_df(
 ):
     rng = np.random.default_rng(seed)
     length = np.linspace(0.5, 60.0, 120)
-    num_trials = np.full_like(length, 20_000)
+    num_episodes = np.full_like(length, 20_000)
     p = (
         gain_rate * length
         if selection_coef == 0
@@ -41,9 +41,9 @@ def _pendant_coarsegrain_df(
     )
     return pl.DataFrame(
         {
-            "num_trials": num_trials,
-            "num_successes": rng.binomial(num_trials.astype(int), p),
-            "mean_episode_length": length,
+            "num_episodes": num_episodes,
+            "num_gains": rng.binomial(num_episodes.astype(int), p),
+            "mean_episode_duration": length,
         },
     )
 

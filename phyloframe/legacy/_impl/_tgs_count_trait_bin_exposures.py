@@ -23,11 +23,11 @@ def tgs_count_trait_bin_exposures(
         Trait index.
     'bin_id' : integer
         Calibration bin index; every bin, for each trait.
-    'num_trials' : float
+    'num_episodes' : float
         Weighted count of the trait's exposure episodes in the bin.
-    'num_successes' : float
+    'num_gains' : float
         Of those, the weighted count that gained the trait.
-    'length_sum' : float
+    'total_episode_duration' : float
         Weighted sum of those episodes' lengths.
     """
     episode_lengths = exposure_df["episode_length"].to_numpy()
@@ -44,13 +44,15 @@ def tgs_count_trait_bin_exposures(
             {
                 "trait_id": np.full(num_bins, trait_id, dtype=np.int64),
                 "bin_id": np.arange(num_bins, dtype=np.int64),
-                "num_trials": sum_by_bin(trait_weights),
-                "num_successes": sum_by_bin(
+                "num_episodes": sum_by_bin(trait_weights),
+                "num_gains": sum_by_bin(
                     trait_weights
                     * exposure_df[f"trait{trait_id}_gain"].to_numpy()
                 ),
-                "length_sum": sum_by_bin(trait_weights * episode_lengths),
+                "total_episode_duration": sum_by_bin(
+                    trait_weights * episode_lengths
+                ),
             },
         )
 
-    return pl.concat(map(count_trait_bin_exposures, trait_ids))
+    return pl.concat(map(count_trait_bin_exposures, trait_ids), how="vertical")

@@ -66,7 +66,10 @@ def _nll_kwargs(fixture, trait: int):
 
 def test_calc_scales(fixture):
     coarsegrain_df = _nll_kwargs(fixture, 0)["coarsegrain_df"]
-    n, x = coarsegrain_df["num_trials"], coarsegrain_df["mean_episode_length"]
+    n, x = (
+        coarsegrain_df["num_episodes"],
+        coarsegrain_df["mean_episode_duration"],
+    )
     selection_rescale = tgs_pick_selection_rescale(coarsegrain_df)
     assert selection_rescale == pytest.approx(n.sum() / (n * x).sum())
 

@@ -39,12 +39,13 @@ def tgs_fit_trait(
     https://doi.org/10.1080/10635150701607033
     """
     coarsegrain_df = nll_kwargs["coarsegrain_df"]
-    num_gains = coarsegrain_df["num_successes"].sum()
+    num_gains = coarsegrain_df["num_gains"].sum()
     if not num_gains:
         return dict(gain_rate=0.0, selection_coef=np.nan, nll=np.nan)
 
     exposure = (
-        coarsegrain_df["num_trials"] * coarsegrain_df["mean_episode_length"]
+        coarsegrain_df["num_episodes"]
+        * coarsegrain_df["mean_episode_duration"]
     )
     log_gain_start = np.log(num_gains / exposure.sum())  # no selection
     best = tgs_minimize_nll(

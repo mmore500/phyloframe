@@ -17,7 +17,7 @@ from phyloframe.legacy import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 from phyloframe.legacy._impl._tgs_select_calibration_neighborhoods import (
-    _tgs_select_partition_neighborhoods,
+    _tgs_select_neighborhoods_within_partition,
 )
 
 from ._impl import add_trait_transitions, mark_tgs_calibration_columns
@@ -132,7 +132,7 @@ def test_recovers_gain_selection(calibrate: bool):
         neutral_traits=[1, 2, 3, 4],
         calibrate=calibrate,
     )
-    assert res["trait"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
+    assert res["trait_name"].tolist() == ["focal", "n1", "n2", "n3", "n4"]
     assert (res["num_leaf_episodes"] <= 80_000).all()
 
     focal = res.iloc[0]
@@ -246,12 +246,12 @@ def test_tgs_select_calibration_neighborhoods():
         {
             "trait_id": np.repeat(np.arange(3), 256),
             "bin_id": np.tile(np.arange(256), 3),
-            "num_trials": 100.0,
-            "num_successes": rng.binomial(100, 0.01, 3 * 256).astype(float),
-            "length_sum": 1000.0,
+            "num_episodes": 100.0,
+            "num_gains": rng.binomial(100, 0.01, 3 * 256).astype(float),
+            "total_episode_duration": 1000.0,
         },
     )
-    res = _tgs_select_partition_neighborhoods(
+    res = _tgs_select_neighborhoods_within_partition(
         bin_coords,
         neighborhood_fractions=(0.01, 0.1, 0.5),
         trait_bin_counts_df=counts,

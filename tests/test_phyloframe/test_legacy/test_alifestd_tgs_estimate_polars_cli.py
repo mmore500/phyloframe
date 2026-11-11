@@ -85,7 +85,7 @@ def test_cli(input_pqt, ext, tmp_path):
         if ext == ".csv"
         else pd.read_parquet(output_file)
     )
-    assert result_df["trait"].tolist() == ["focal", *NEUTRAL_TRAITS]
+    assert result_df["trait_name"].tolist() == ["focal", *NEUTRAL_TRAITS]
     assert "selection_coef_p" not in result_df.columns
     assert result_df.loc[0, "gain_ratio"] > 1.0
 

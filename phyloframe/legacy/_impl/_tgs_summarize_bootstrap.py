@@ -83,7 +83,7 @@ def tgs_summarize_bootstrap(
 
     degenerate_traits = estimates_df.filter(
         summary_df["num_bootstrap_degenerate"] > 0
-    )["trait"].to_list()
+    )["trait_name"].to_list()
     if degenerate_traits:
         warnings.warn(
             "bootstrap replicates with undefined estimates were excluded for "

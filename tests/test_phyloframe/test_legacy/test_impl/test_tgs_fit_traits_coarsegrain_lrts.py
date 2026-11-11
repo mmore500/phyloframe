@@ -10,7 +10,7 @@ from ._make_pendant_nll_kwargs import make_pendant_nll_kwargs
 def _simulate(gain_rate: float, selection_coef: float, seed: int):
     rng = np.random.default_rng(seed)
     length = np.linspace(0.5, 60.0, 120)
-    num_trials = np.full_like(length, 20_000)
+    num_episodes = np.full_like(length, 20_000)
     p = (
         gain_rate * length
         if selection_coef == 0
@@ -19,11 +19,11 @@ def _simulate(gain_rate: float, selection_coef: float, seed: int):
     return make_pendant_nll_kwargs(
         pl.DataFrame(
             {
-                "num_trials": num_trials,
-                "num_successes": rng.binomial(
-                    num_trials.astype(int), p
-                ).astype(float),
-                "mean_episode_length": length,
+                "num_episodes": num_episodes,
+                "num_gains": rng.binomial(num_episodes.astype(int), p).astype(
+                    float
+                ),
+                "mean_episode_duration": length,
             },
         ),
     )

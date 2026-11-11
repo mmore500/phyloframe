@@ -13,10 +13,10 @@ def tgs_pick_selection_rescale(coarsegrain_df: pl.DataFrame) -> float:
     Returns the rate by which to rescale the selection coefficient for
     optimization: 1 / mean length of `coarsegrain_df`'s episodes.
     """
-    exposure = (
-        coarsegrain_df["num_trials"] * coarsegrain_df["mean_episode_length"]
-    )
-    return coarsegrain_df["num_trials"].sum() / exposure.sum()
+    exposure = pl.col("num_episodes") * pl.col("mean_episode_duration")
+    return coarsegrain_df.select(
+        pl.col("num_episodes").sum() / exposure.sum()
+    ).item()
 
 
 def tgs_minimize_nll(
@@ -48,7 +48,7 @@ def tgs_minimize_nll(
     coarsegrain_df = nll_kwargs["coarsegrain_df"]
     selection_rescale = tgs_pick_selection_rescale(coarsegrain_df)
     # longest granule of exposure episodes, by mean calibrated length
-    max_episode_length = coarsegrain_df["mean_episode_length"].max()
+    max_episode_length = coarsegrain_df["mean_episode_duration"].max()
     max_survival_duration = nll_kwargs["distinct_survival_durations"].max(
         initial=0.0
     )

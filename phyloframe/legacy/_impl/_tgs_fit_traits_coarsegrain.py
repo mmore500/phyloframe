@@ -68,8 +68,8 @@ def _tgs_fit_trait_coarsegrain(
         loss_rate=loss_rate,
         growth_exponent_bound=growth_exponent_bound,
     )
-    # null of no selection: one start suffices, as the negative log
-    # likelihood is then convex in log gain rate
+    # null hypothesis of no selection: one start suffices, as the negative
+    # log likelihood is then convex in log gain rate
     res["selection_coef_lrt_naive"] = _tgs_calc_lrt(
         starts=[(np.log(fit["gain_rate"]), 0.0)],
         fit_gain=True,
@@ -78,8 +78,9 @@ def _tgs_fit_trait_coarsegrain(
     )
 
     if np.isfinite(reference_gain_rate):
-        # null of gain rate equal to the neutral reference's, taken as
-        # known; start from the free fit, too
+        # null hypothesis of gain ratio 1: fix the gain rate at the neutral
+        # reference's and refit the selection coefficient, starting from
+        # its free fit as well as selection_coef_starts
         selection_rescale = tgs_pick_selection_rescale(
             nll_kwargs["coarsegrain_df"]
         )
