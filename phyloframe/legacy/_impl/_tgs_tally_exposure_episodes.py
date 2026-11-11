@@ -13,8 +13,6 @@ def tgs_tally_exposure_episodes(
 
     Output Schema
     -------------
-    'trait_name' : string
-        Trait name.
     'num_leaf_episodes' : integer
         Leaf branches that started without the trait.
     'num_leaf_gains' : integer
@@ -23,6 +21,8 @@ def tgs_tally_exposure_episodes(
         Inner branches that started without the trait.
     'num_inner_gains' : integer
         Of those, the number that gained the trait.
+    'trait_name' : string
+        Trait name.
     """
     is_leaf = pl.col("clade_size") == 1
 
@@ -37,6 +37,6 @@ def tgs_tally_exposure_episodes(
             num_inner_gains=(gain & ~is_leaf).sum(),
         ).cast(pl.Int64)
 
-    return pl.concat(map(tally_trait, range(len(trait_names)))).insert_column(
-        0, pl.Series("trait_name", trait_names, dtype=pl.String)
+    return pl.concat(map(tally_trait, range(len(trait_names)))).with_columns(
+        trait_name=pl.Series(trait_names, dtype=pl.String),
     )
