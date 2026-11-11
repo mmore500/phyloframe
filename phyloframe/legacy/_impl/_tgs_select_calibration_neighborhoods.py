@@ -143,12 +143,18 @@ def tgs_select_calibration_neighborhoods(
     calibrate its episode durations (see `tgs_calc_calibration_rescaling`).
 
     A bin's neighborhood is its nearest bins within its partition, by its
-    episodes' mean ranks of `exposure_df`'s `calibration_compare_by_*`
-    columns (see `tgs_build_exposure_df_polars`). Each partition's
+    episodes' mean values of `exposure_df`'s `calibration_compare_by_*`
+    columns (see `tgs_build_exposure_df_polars`); itself alone without such
+    columns. Each partition's
     neighborhood size is the fraction of its bins among
     `neighborhood_fractions` that best predicts each neutral trait's gains
     when calibrating against the other neutral traits.
     """
+    compare_by = cs.starts_with("calibration_compare_by_")
+    if not cs.expand_selector(exposure_df, compare_by):
+        num_bins = exposure_df["bin_id"].max() + 1  # numbered densely
+        return sparse.identity(num_bins, format="csr")
+
     trait_bin_counts_df = tgs_count_trait_exposures_binwise(
         exposure_df,
         trait_ids=neutral_trait_ids,
@@ -156,13 +162,7 @@ def tgs_select_calibration_neighborhoods(
     )
 
     bin_coords_df = (
-        exposure_df.select(
-            "partition_id",
-            "bin_id",
-            # tied episodes share a rank, so row order does not matter
-            cs.starts_with("calibration_compare_by_").rank("average")
-            / pl.len(),
-        )
+        exposure_df.select("partition_id", "bin_id", compare_by)
         .group_by("partition_id", "bin_id")
         .mean()
         .sort("bin_id")

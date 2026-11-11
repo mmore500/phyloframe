@@ -18,8 +18,10 @@ def mark_tgs_calibration_columns(
     min_class_weight: float = 20.0,
     max_num_bins: int = 4096,
 ) -> pl.DataFrame:
-    """Mark calibration partitions, `clade_size_geom_class`, and bins within
-    them, `joint_quantile_bin`, as the tgs estimators' Examples show."""
+    """Mark calibration partitions, `clade_size_geom_class`, bins within
+    them, `joint_quantile_bin`, and columns to compare bins by,
+    `branch_length_rank` and `origin_time_rank`, as the tgs estimators'
+    Examples show."""
     phylogeny_df = alifestd_mark_leaves_polars(
         alifestd_mark_origin_time_delta_polars(
             phylogeny_df, mark_as="branch_length"
@@ -31,9 +33,10 @@ def mark_tgs_calibration_columns(
         weight_by=list(dict.fromkeys(neutral_traits)),
         min_class_weight=min_class_weight,
     )
+    bin_by = ["branch_length", "origin_time"]
     return alifestd_mark_joint_quantile_bins_polars(
         phylogeny_df,
-        bin_by=["branch_length", "origin_time"],
+        bin_by=bin_by,
         partition_by="clade_size_geom_class",
         max_num_bins=max_num_bins,
-    )
+    ).with_columns((pl.col(bin_by).rank() / pl.len()).name.suffix("_rank"))

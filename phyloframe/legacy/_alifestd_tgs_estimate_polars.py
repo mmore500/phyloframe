@@ -9,6 +9,7 @@ import warnings
 import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
+import opytional as opyt
 import polars as pl
 from tqdm import tqdm
 
@@ -37,12 +38,10 @@ def alifestd_tgs_estimate_polars(
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
-        "branch_length",
-        "origin_time",
-        "survival_duration",
-    ),
-    calibration_neighborhood_fractions: typing.Sequence[float] = (
+    calibration_compare_by_vals: typing.Optional[
+        typing.Union[str, typing.Sequence[str]]
+    ] = None,
+    calibration_neighborhood_candidates: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -112,19 +111,23 @@ def alifestd_tgs_estimate_polars(
     calibration_compare_by_bins : str, optional
         Name of a column of calibration bin ids, at each exposure episode's
         end node, e.g., from `alifestd_mark_joint_quantile_bins_polars`.
+        Requires `calibration_compare_by_vals`.
 
         Calibration rescales each episode's duration by the neutral gain rate
         in its bin's neighborhood relative to global rate, removing tree shape
         distortion. If not given, each partition is one bin.
-    calibration_compare_by_vals : str or Sequence[str], default ("branch_length", "origin_time", "survival_duration")
+    calibration_compare_by_vals : str or Sequence[str], optional
         Columns used to select comparator bins for calibration against neutral
-        traits (see Notes). Calibration bins should be made from the same
-        columns; see Examples.
+        traits (see Notes). Requires `calibration_compare_by_bins`.
+
+        Values are compared as given, so rank or otherwise normalize them
+        beforehand; see Examples. Calibration bins should be made from the
+        same quantities.
 
         May be episode columns `branch_length` (the episode's duration),
         `origin_time`, `clade_size`, or `survival_duration`, or other
         columns of `phylogeny_df`. Values taken at each episode's end node.
-    calibration_neighborhood_fractions : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
+    calibration_neighborhood_candidates : Sequence[float], default (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
         Candidate calibration neighborhood sizes, as fractions of a
         partition's available bins.
 
@@ -243,9 +246,9 @@ def alifestd_tgs_estimate_polars(
     -----
     Calibration rescales each episode's duration by the neutral gain rate
     in similar calibration bins, relative to the global rate. A bin's
-    neighborhood is its nearest bins within its partition, by mean rank of
+    neighborhood is its nearest bins within its partition, by mean value of
     the `calibration_compare_by_vals` columns. Each partition's neighborhood
-    size is chosen among `calibration_neighborhood_fractions`, by how well
+    size is chosen among `calibration_neighborhood_candidates`, by how well
     each neutral trait's gains are predicted when calibrated against the
     other neutral traits.
 
@@ -256,9 +259,8 @@ def alifestd_tgs_estimate_polars(
     unit episode duration, whatever the survival duration. If neutral traits
     are instead gained more or less often on episodes with longer survival
     durations (e.g., from distorted inner branch lengths), selection
-    coefficients may be biased. To correct for this, calibration bins are
-    compared by survival duration by default, and should be made from it,
-    too; see Examples.
+    coefficients may be biased. To correct for this, make and compare
+    calibration bins by survival duration; see Examples.
 
     Leaf pendant branches have zero survival duration, so disagreement
     between estimates with and without `episode_mask="is_leaf"` may suggest
@@ -273,26 +275,36 @@ def alifestd_tgs_estimate_polars(
     >>> trait_transitions_neutral = ["site2", "site3"]
 
     To calibrate within clade size classes, by bins of similar branch length,
-    origin time, and survival duration:
+    origin time, and survival duration, compared by rank:
 
+    >>> calibration_cols = ["branch_length", "origin_time", "survival_duration"]
     >>> estimates_df = (
     ...     alifestd_mark_origin_time_delta_polars(
     ...         df, mark_as="branch_length"
     ...     )
-    ...     .pipe(alifestd_mark_max_descendant_origin_time_polars)
+    ...     .pipe(
+    ...         alifestd_mark_max_descendant_origin_time_polars,
+    ...         mark_as="max_descendant_origin_time",
+    ...     )
     ...     .with_columns(
     ...         survival_duration=pl.col("max_descendant_origin_time")
     ...         - pl.col("origin_time"),
     ...     )
     ...     .pipe(
     ...         alifestd_mark_clade_size_geom_classes_polars,
+    ...         mark_as="clade_size_geom_class",
     ...         weight_by=trait_transitions_neutral,
     ...         min_class_weight=20,
     ...     )
     ...     .pipe(
     ...         alifestd_mark_joint_quantile_bins_polars,
-    ...         bin_by=["branch_length", "origin_time", "survival_duration"],
+    ...         bin_by=calibration_cols,
+    ...         mark_as="joint_quantile_bin",
     ...         partition_by="clade_size_geom_class",
+    ...     )
+    ...     .with_columns(
+    ...         (pl.col(calibration_cols).rank() / pl.len())
+    ...         .name.suffix("_rank"),
     ...     )
     ...     .pipe(
     ...         alifestd_tgs_estimate_polars,
@@ -300,33 +312,9 @@ def alifestd_tgs_estimate_polars(
     ...         trait_transitions_neutral=trait_transitions_neutral,
     ...         calibration_partition_by="clade_size_geom_class",
     ...         calibration_compare_by_bins="joint_quantile_bin",
-    ...     )
-    ... )
-
-    To calibrate without survival duration, leave it out of the columns that
-    bins are made from and compared by:
-
-    >>> estimates_df = (
-    ...     alifestd_mark_origin_time_delta_polars(
-    ...         df, mark_as="branch_length"
-    ...     )
-    ...     .pipe(
-    ...         alifestd_mark_clade_size_geom_classes_polars,
-    ...         weight_by=trait_transitions_neutral,
-    ...         min_class_weight=20,
-    ...     )
-    ...     .pipe(
-    ...         alifestd_mark_joint_quantile_bins_polars,
-    ...         bin_by=["branch_length", "origin_time"],
-    ...         partition_by="clade_size_geom_class",
-    ...     )
-    ...     .pipe(
-    ...         alifestd_tgs_estimate_polars,
-    ...         trait_transitions_candidate=trait_transitions_candidate,
-    ...         trait_transitions_neutral=trait_transitions_neutral,
-    ...         calibration_partition_by="clade_size_geom_class",
-    ...         calibration_compare_by_bins="joint_quantile_bin",
-    ...         calibration_compare_by_vals=["branch_length", "origin_time"],
+    ...         calibration_compare_by_vals=[
+    ...             f"{col}_rank" for col in calibration_cols
+    ...         ],
     ...     )
     ... )
     """
@@ -341,12 +329,10 @@ def _alifestd_tgs_estimate_polars_impl(
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
-    calibration_compare_by_vals: typing.Union[str, typing.Sequence[str]] = (
-        "branch_length",
-        "origin_time",
-        "survival_duration",
-    ),
-    calibration_neighborhood_fractions: typing.Sequence[float] = (
+    calibration_compare_by_vals: typing.Optional[
+        typing.Union[str, typing.Sequence[str]]
+    ] = None,
+    calibration_neighborhood_candidates: typing.Sequence[float] = (
         0.005,
         0.01,
         0.025,
@@ -380,10 +366,14 @@ def _alifestd_tgs_estimate_polars_impl(
     tgs_validate_args(
         trait_transitions_candidate=trait_transitions_candidate,
         trait_transitions_neutral=trait_transitions_neutral,
+        calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
-        calibration_neighborhood_fractions=calibration_neighborhood_fractions,
+        calibration_neighborhood_candidates=calibration_neighborhood_candidates,
         nll_coarsegrain_rtol=nll_coarsegrain_rtol,
         fit_growth_exponent_bound=fit_growth_exponent_bound,
+    )
+    calibration_compare_by_vals = opyt.or_value(
+        calibration_compare_by_vals, ()
     )
     # candidate traits first, then neutral traits
     trait_transitions = [
@@ -421,7 +411,7 @@ def _alifestd_tgs_estimate_polars_impl(
         neutral_trait_ids=neutral_trait_ids,
         calibration_neighborhoods=tgs_select_calibration_neighborhoods(
             exposure_df,
-            neighborhood_fractions=calibration_neighborhood_fractions,
+            neighborhood_fractions=calibration_neighborhood_candidates,
             neutral_trait_ids=neutral_trait_ids,
         ),
         nll_coarsegrain_rtol=nll_coarsegrain_rtol,
@@ -586,18 +576,19 @@ def _add_estimate_arguments(
         default=None,
         type=str,
         help=(
-            "Name of integer column of calibration bins (default: none, "
-            "i.e., one bin per partition)."
+            "Name of integer column of calibration bins; requires "
+            "--calibration-compare-by-vals (default: none, i.e., one bin per "
+            "partition)."
         ),
     )
     parser.add_argument(
         "--calibration-compare-by-vals",
-        default=("branch_length", "origin_time", "survival_duration"),
+        default=None,
         nargs="+",
         type=str,
         help=(
-            "Columns by which calibration bins are compared (default: "
-            "branch_length origin_time survival_duration)."
+            "Columns by which calibration bins are compared, as given; "
+            "required with --calibration-compare-by-bins (default: none)."
         ),
     )
     parser.add_argument(
@@ -611,7 +602,7 @@ def _add_estimate_arguments(
         ),
     )
     parser.add_argument(
-        "--calibration-neighborhood-fractions",
+        "--calibration-neighborhood-candidates",
         default=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
         nargs="+",
         type=float,
@@ -662,7 +653,7 @@ def _get_estimate_kwargs(
         calibration_partition_by=args.calibration_partition_by,
         calibration_compare_by_bins=args.calibration_compare_by_bins,
         calibration_compare_by_vals=args.calibration_compare_by_vals,
-        calibration_neighborhood_fractions=args.calibration_neighborhood_fractions,
+        calibration_neighborhood_candidates=args.calibration_neighborhood_candidates,
         nll_coarsegrain_rtol=args.nll_coarsegrain_rtol,
         loss_rate=args.loss_rate,
         fit_selection_coef_starts=args.fit_selection_coef_starts,

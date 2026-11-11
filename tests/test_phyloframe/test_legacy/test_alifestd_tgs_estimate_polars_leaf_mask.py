@@ -56,6 +56,10 @@ def _estimate_pandas(
             max_num_bins=calibrate_max_num_bins,
         )
         kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
+        kwargs.setdefault(
+            "calibration_compare_by_vals",
+            ["branch_length_rank", "origin_time_rank"],
+        )
     return estimator(df_pl, **kwargs).to_pandas()
 
 
@@ -273,7 +277,7 @@ def test_invalid_neighborhood_fractions_raise(fractions):
         _estimate_from_masks(
             phylogeny_df,
             trait_masks=traits,
-            calibration_neighborhood_fractions=fractions,
+            calibration_neighborhood_candidates=fractions,
         )
 
 
@@ -284,7 +288,7 @@ def test_neighborhood_fractions_single_candidate():
         trait_masks=traits,
         neutral_traits=[1, 2, 3, 4],
         calibrate=True,
-        calibration_neighborhood_fractions=[0.1],
+        calibration_neighborhood_candidates=[0.1],
     )
     assert np.isfinite(res["selection_coef"]).all()
 
@@ -304,23 +308,23 @@ def test_calibrate_max_num_bins(calibrate_max_num_bins: int):
 
 def test_calibration_compare_by_vals():
     phylogeny_df, traits = _make_cherries(2_000)
-    kwargs = dict(trait_masks=traits, calibrate=True)
+    kwargs = dict(
+        trait_masks=traits,
+        calibrate=True,
+        # small neighborhoods, so that which bins are nearest matters
+        calibration_neighborhood_candidates=[0.1],
+    )
     default = _estimate_from_masks(phylogeny_df, **kwargs)
     explicit = _estimate_from_masks(
         phylogeny_df,
-        calibration_compare_by_vals=["branch_length", "origin_time"],
+        calibration_compare_by_vals=["branch_length_rank", "origin_time_rank"],
         **kwargs,
     )
     pd.testing.assert_frame_equal(explicit, default)
-    # a phylogeny column, here a copy of origin time, compares like one
-    by_column = _estimate_from_masks(
-        phylogeny_df.assign(t=phylogeny_df["origin_time"]),
-        calibration_compare_by_vals=["branch_length", "t"],
-        **kwargs,
-    )
-    pd.testing.assert_frame_equal(by_column, default)
     by_length = _estimate_from_masks(
-        phylogeny_df, calibration_compare_by_vals=["branch_length"], **kwargs
+        phylogeny_df,
+        calibration_compare_by_vals=["branch_length_rank"],
+        **kwargs,
     )
     assert not by_length.equals(default)
 

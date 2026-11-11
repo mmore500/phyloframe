@@ -35,6 +35,10 @@ def _estimate(
         )
         kwargs["calibration_partition_by"] = "clade_size_geom_class"
         kwargs["calibration_compare_by_bins"] = "joint_quantile_bin"
+        kwargs.setdefault(
+            "calibration_compare_by_vals",
+            ["branch_length_rank", "origin_time_rank"],
+        )
     return estimator(df_pl, **kwargs).to_pandas()
 
 
@@ -269,7 +273,7 @@ def test_calibration_compare_by_vals_clade_size():
     default = _estimate_from_masks(phylogeny_df, **kwargs)
     res = _estimate_from_masks(
         phylogeny_df,
-        calibration_compare_by_vals=["branch_length", "clade_size"],
+        calibration_compare_by_vals=["branch_length_rank", "clade_size"],
         **kwargs,
     )
     assert not res.equals(default)
@@ -448,15 +452,29 @@ def test_episode_mask_all_true_matches_unmasked():
 
 
 def test_single_string_calibration_compare_by_vals():
-    df_pl = _make_cherries_polars(2_000)
+    df_pl = _make_cherries_polars(2_000).with_columns(bin=pl.col("id") % 8)
+    kwargs = dict(calibration_compare_by_bins="bin", **_MASK_KWARGS)
     pltest.assert_frame_equal(
         alifestd_tgs_estimate_polars(
-            df_pl, calibration_compare_by_vals="origin_time", **_MASK_KWARGS
+            df_pl, calibration_compare_by_vals="origin_time", **kwargs
         ),
         alifestd_tgs_estimate_polars(
-            df_pl, calibration_compare_by_vals=["origin_time"], **_MASK_KWARGS
+            df_pl, calibration_compare_by_vals=["origin_time"], **kwargs
         ),
     )
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(calibration_compare_by_bins="bin"),
+        dict(calibration_compare_by_vals=["origin_time"]),
+    ],
+)
+def test_calibration_compare_by_bins_without_vals_raises(kwargs: dict):
+    df_pl = _make_cherries_polars(100).with_columns(bin=pl.col("id") % 8)
+    with pytest.raises(ValueError, match="must be given together"):
+        alifestd_tgs_estimate_polars(df_pl, **kwargs, **_MASK_KWARGS)
 
 
 def test_episode_mask_leaves_counts_no_inner_episodes():

@@ -1,3 +1,4 @@
+import numpy as np
 import polars as pl
 
 from phyloframe.legacy import alifestd_mark_joint_quantile_bins_polars
@@ -42,3 +43,13 @@ def test_block_diagonal():
 def test_one_bin_is_uncalibrated():
     neighborhoods = _select(simulate_exposure_df(400, num_neutral=3))
     assert neighborhoods.toarray().tolist() == [[1.0]]
+
+
+def test_uncompared_bins_stand_alone():
+    exposure_df = simulate_exposure_df(400, num_neutral=3).with_columns(
+        bin_id=pl.int_range(pl.len()) % 3,
+    )
+    neighborhoods = tgs_select_calibration_neighborhoods(
+        exposure_df, neighborhood_fractions=(0.5, 1.0), neutral_trait_ids=[1]
+    )
+    assert (neighborhoods.toarray() == np.eye(3)).all()
