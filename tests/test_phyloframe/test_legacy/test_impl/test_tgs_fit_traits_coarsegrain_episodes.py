@@ -27,7 +27,7 @@ def _coarsegrain(trait: int, weights=np.ones(4), **kwargs):
             **dict(
                 trait_id=trait,
                 calibration_factors=np.ones(2),
-                length_rtol=1e-3,
+                exposure_duration_rtol=1e-3,
                 num_survival_durations=2,
             ),
             **kwargs,
@@ -60,7 +60,7 @@ def test_merges_within_tolerance():
 
 
 def test_no_merging():
-    coarsegrain_df, __ = _coarsegrain(0, length_rtol=0.0)
+    coarsegrain_df, __ = _coarsegrain(0, exposure_duration_rtol=0.0)
     assert len(coarsegrain_df) == 4
 
 

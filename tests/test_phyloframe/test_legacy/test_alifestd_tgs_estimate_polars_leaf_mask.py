@@ -344,24 +344,28 @@ def test_calibration_partition_by():
     assert np.isfinite(by_time["selection_coef"]).all()
 
 
-@pytest.mark.parametrize("length_rtol", [0.0, 1e-2])
-def test_length_rtol(length_rtol: float):
+@pytest.mark.parametrize("exposure_duration_rtol", [0.0, 1e-2])
+def test_exposure_duration_rtol(exposure_duration_rtol: float):
     phylogeny_df, traits = _make_cherries(4_000)
     kwargs = dict(trait_masks=traits, calibrate=True)
     default = _estimate_from_masks(phylogeny_df, **kwargs)
-    res = _estimate_from_masks(phylogeny_df, length_rtol=length_rtol, **kwargs)
+    res = _estimate_from_masks(
+        phylogeny_df, exposure_duration_rtol=exposure_duration_rtol, **kwargs
+    )
     np.testing.assert_allclose(res["gain_ratio"], default["gain_ratio"], 1e-2)
     np.testing.assert_allclose(
         res["selection_coef"], default["selection_coef"], atol=3e-4
     )
 
 
-@pytest.mark.parametrize("length_rtol", [-1e-3, np.nan])
-def test_invalid_length_rtol_raises(length_rtol: float):
+@pytest.mark.parametrize("exposure_duration_rtol", [-1e-3, np.nan])
+def test_invalid_exposure_duration_rtol_raises(exposure_duration_rtol: float):
     phylogeny_df, traits = _make_cherries(100)
-    with pytest.raises(ValueError, match="length_rtol"):
+    with pytest.raises(ValueError, match="exposure_duration_rtol"):
         _estimate_from_masks(
-            phylogeny_df, trait_masks=traits, length_rtol=length_rtol
+            phylogeny_df,
+            trait_masks=traits,
+            exposure_duration_rtol=exposure_duration_rtol,
         )
 
 

@@ -51,7 +51,7 @@ def alifestd_tgs_estimate_polars(
         0.5,
         1.0,
     ),
-    length_rtol: float = 1e-2,
+    exposure_duration_rtol: float = 1e-2,
     loss_rate: float = 0.0,
     fit_selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     fit_growth_exponent_bound: float = 600.0,
@@ -82,16 +82,17 @@ def alifestd_tgs_estimate_polars(
         The phylogeny as a dataframe in alife standard format; see Input
         Schema.
     trait_transitions_candidate : str or Sequence[str]
-        Names of integer columns, one per trait to assess, with each node's
-        trait state transition on the branch from its parent: +1 for a gain
-        and 0 for none.
+        Names of columns with trait state transitions for traits to assess,
+        with each node's trait state transition on the branch from its
+        parent: +1 for a gain and 0 for none.
 
         See `alifestd_mark_lineage_delta_polars` to make transitions from
         trait states.
     trait_transitions_neutral : Sequence[str]
-        Names of integer columns, one per trait known to be neutral, with
-        each node's trait state transition on the branch from its parent: +1
-        for a gain and 0 for none. At least two are required.
+        Names of columns with trait state transitions for known-neutral
+        traits, with each node's trait state transition on the branch from
+        its parent: +1 for a gain and 0 for none. At least two neutral traits
+        are required.
 
         Used to calibrate exposure episode durations and as the reference for
         gain ratios. Neutral trait gain/selection estimates are reported using
@@ -125,14 +126,14 @@ def alifestd_tgs_estimate_polars(
         Candidate calibration neighborhood sizes, as fractions of a
         partition's available bins.
 
-        Among candidates, neighborhood size is chosen that best aligns
-        neutral traits' gains to neutral expectation when calibrated against
-        other neutral traits.
-    length_rtol : float, default 1e-2
-        Relative tolerance for pooling similar episodes, to streamline bulk
-        likelihood evaluation. Episodes whose calibrated lengths and survival
-        durations both agree within this tolerance are pooled as one granule;
-        0 to disable coarsening.
+        Among candidate values, neighborhood size is chosen per partition
+        that best aligns neutral traits' gains to neutral expectation when
+        calibrated against other neutral traits.
+    exposure_duration_rtol : float, default 1e-2
+        Relative tolerance for pooling similar exposure episodes, to
+        streamline bulk likelihood evaluation. Episodes whose calibrated
+        lengths and survival durations both agree within this tolerance are
+        pooled as one granule; 0 to disable coarsening.
     loss_rate : float, default 0.0
         Known per-unit-time trait loss rate.
     fit_selection_coef_starts : Sequence[float], default (0.0, -0.3, -1.8)
@@ -239,15 +240,15 @@ def alifestd_tgs_estimate_polars(
     Notes
     -----
     Calibration rescales each episode's length by the neutral gain rate
-    around its calibration bin, relative to the global rate. A bin's
+    in similar calibration bins, relative to the global rate. A bin's
     neighborhood is its nearest bins within its partition, by mean rank of
     the `calibration_compare_by_vals` columns. Each partition's neighborhood
     size is chosen among `calibration_neighborhood_fractions`, by how well
     each neutral trait's gains are predicted when calibrated against the
     other neutral traits.
 
-    Calibration rescales episode lengths only. Survival durations are used
-    as measured on the tree.
+    Calibration rescales exposure episode durations only. Survival
+    durations are used as measured on the tree.
 
     With `loss_rate` 0, a neutral trait should be gained equally often per
     unit episode length, whatever the survival duration. If neutral traits
@@ -355,7 +356,7 @@ def _alifestd_tgs_estimate_polars_impl(
         0.5,
         1.0,
     ),
-    length_rtol: float = 1e-2,
+    exposure_duration_rtol: float = 1e-2,
     loss_rate: float = 0.0,
     fit_selection_coef_starts: typing.Sequence[float] = (0.0, -0.3, -1.8),
     fit_growth_exponent_bound: float = 600.0,
@@ -381,7 +382,7 @@ def _alifestd_tgs_estimate_polars_impl(
         trait_transitions_neutral=trait_transitions_neutral,
         calibration_compare_by_vals=calibration_compare_by_vals,
         calibration_neighborhood_fractions=calibration_neighborhood_fractions,
-        length_rtol=length_rtol,
+        exposure_duration_rtol=exposure_duration_rtol,
         fit_growth_exponent_bound=fit_growth_exponent_bound,
     )
     # candidate traits first, then neutral traits
@@ -423,7 +424,7 @@ def _alifestd_tgs_estimate_polars_impl(
             neighborhood_fractions=calibration_neighborhood_fractions,
             neutral_trait_ids=neutral_trait_ids,
         ),
-        length_rtol=length_rtol,
+        exposure_duration_rtol=exposure_duration_rtol,
         loss_rate=loss_rate,
         fit_selection_coef_starts=fit_selection_coef_starts,
         fit_growth_exponent_bound=fit_growth_exponent_bound,
@@ -600,7 +601,7 @@ def _add_estimate_arguments(
         ),
     )
     parser.add_argument(
-        "--length-rtol",
+        "--exposure-duration-rtol",
         default=1e-2,
         type=float,
         help=(
@@ -661,7 +662,7 @@ def _get_estimate_kwargs(
         calibration_compare_by_bins=args.calibration_compare_by_bins,
         calibration_compare_by_vals=args.calibration_compare_by_vals,
         calibration_neighborhood_fractions=args.calibration_neighborhood_fractions,
-        length_rtol=args.length_rtol,
+        exposure_duration_rtol=args.exposure_duration_rtol,
         loss_rate=args.loss_rate,
         fit_selection_coef_starts=args.fit_selection_coef_starts,
         fit_growth_exponent_bound=args.fit_growth_exponent_bound,

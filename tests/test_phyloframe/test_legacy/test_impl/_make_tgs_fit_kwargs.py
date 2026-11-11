@@ -29,7 +29,7 @@ def make_tgs_fit_kwargs(
             num_traits=num_traits,
             calibration_neighborhoods=sparse.identity(num_bins, format="csr"),
             neutral_trait_ids=list(range(1, num_traits)),
-            length_rtol=1e-3,
+            exposure_duration_rtol=1e-3,
             loss_rate=0.0,
             fit_selection_coef_starts=(0.0, -0.3, -1.8),
             fit_growth_exponent_bound=600.0,

@@ -40,14 +40,14 @@ def _tgs_coarsegrain_episodes(
     *,
     trait_id: int,
     calibration_factors: np.ndarray,
-    length_rtol: float,
+    exposure_duration_rtol: float,
     num_survival_durations: int,
 ) -> typing.Tuple[pl.DataFrame, sparse.csr_matrix]:
     """Implementation detail for `tgs_fit_traits`.
 
     Groups `trait_id`'s exposure episodes into granules, each holding
     episodes whose calibrated lengths and survival durations both agree
-    within relative tolerance `length_rtol` (0 for one granule per episode),
+    within relative tolerance `exposure_duration_rtol` (0 for one granule per episode),
     so have nearly the same chance of gain. Each episode's length is
     calibrated by its calibration bin's entry of `calibration_factors`.
 
@@ -77,12 +77,12 @@ def _tgs_coarsegrain_episodes(
         * pl.lit(pl.Series(calibration_factors)).gather("bin_id"),
     )
 
-    if length_rtol > 0:
+    if exposure_duration_rtol > 0:
         length_bin = _tgs_calc_log_scale_bins(
-            pl.col("calibrated_length"), rtol=length_rtol
+            pl.col("calibrated_length"), rtol=exposure_duration_rtol
         )
         survival_bin = _tgs_calc_log_scale_bins(
-            pl.col("survival_duration"), rtol=length_rtol
+            pl.col("survival_duration"), rtol=exposure_duration_rtol
         )
         granule_id = pl.struct(length_bin, survival_bin).rank("dense") - 1
     else:
@@ -131,7 +131,7 @@ def tgs_fit_traits(
     num_traits: int,
     neutral_trait_ids: typing.Sequence[int],
     calibration_neighborhoods: sparse.spmatrix,
-    length_rtol: float,
+    exposure_duration_rtol: float,
     loss_rate: float,
     fit_selection_coef_starts: typing.Sequence[float],
     fit_growth_exponent_bound: float,
@@ -178,7 +178,7 @@ def tgs_fit_traits(
                 neutral_trait_ids=neutral_trait_ids,
                 calibration_neighborhoods=calibration_neighborhoods,
             ),
-            length_rtol=length_rtol,
+            exposure_duration_rtol=exposure_duration_rtol,
             num_survival_durations=len(distinct_survival_durations),
         )
         trait_nll_kwargs.append(
