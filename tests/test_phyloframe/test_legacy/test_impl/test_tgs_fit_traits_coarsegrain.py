@@ -25,6 +25,7 @@ def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
         growth_exponent_bound=600.0,
+        calc_lrts=True,
         progress_wrap=identity,
         **kwargs,
     )["selection_coef_lrt_naive"][0]
@@ -133,6 +134,7 @@ def test_fit_traits_coarsegrain(fixture):
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
         selection_coef_starts=(0.0, -0.3),
+        calc_lrts=True,
         progress_wrap=identity,
     )
     assert res.columns == [

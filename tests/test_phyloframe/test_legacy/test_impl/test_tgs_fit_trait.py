@@ -22,6 +22,7 @@ def _calc_selection_lrt(nll_kwargs, **kwargs) -> float:
         neutral_trait_ids=[1, 2],
         loss_rate=0.0,
         growth_exponent_bound=600.0,
+        calc_lrts=True,
         progress_wrap=identity,
         **kwargs,
     )["selection_coef_lrt_naive"][0]

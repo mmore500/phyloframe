@@ -15,6 +15,7 @@ def _fit(exposure_df, weights=None, **kwargs):
         weights = np.ones(len(exposure_df))
     return tgs_fit_traits(
         weights=weights,
+        calc_lrts=True,
         progress_wrap=identity,
         **make_tgs_fit_kwargs(exposure_df, **kwargs),
     )

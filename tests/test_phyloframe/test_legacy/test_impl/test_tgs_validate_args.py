@@ -25,7 +25,7 @@ def test_valid():
     )
 
 
-@pytest.mark.parametrize("trait_transitions_neutral", [(), ["b"]])
+@pytest.mark.parametrize("trait_transitions_neutral", [(), ["b"], "bc"])
 def test_too_few_neutral_traits(trait_transitions_neutral):
     with pytest.raises(NotImplementedError, match="fewer than two"):
         tgs_validate_args(

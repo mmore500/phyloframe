@@ -121,7 +121,8 @@ def alifestd_tgs_estimate_bootstrap_polars(
         "bootstrap replicates...",
     )
     replicate_fits = run_weighted_bootstrap(
-        functools.partial(fit_traits, progress_wrap=identity),
+        # standard errors take replicates' estimates only
+        functools.partial(fit_traits, calc_lrts=False, progress_wrap=identity),
         num_items=len(exposure_df),
         num_replicates=num_bootstrap,
         seed=seed,

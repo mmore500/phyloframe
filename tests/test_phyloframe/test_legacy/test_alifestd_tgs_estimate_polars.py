@@ -492,3 +492,28 @@ def test_episode_mask_excluding_all_raises():
         alifestd_tgs_estimate_polars(
             df_pl, episode_mask="keep", **_MASK_KWARGS
         )
+
+
+def test_neutral_trait_without_exposure_episodes_raises():
+    #       0
+    #     1   2
+    #    3 4 5 6
+    # trait a is gained on the branches into 1 and 2, so every leaf has it
+    df_pl = pl.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6],
+            "ancestor_id": [0, 0, 0, 1, 1, 2, 2],
+            "origin_time": [0.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0],
+            "a": [0, 1, 1, 0, 0, 0, 0],
+            "b": [0, 0, 0, 1, 0, 0, 0],
+            "c": [0, 0, 0, 0, 0, 1, 0],
+            "is_leaf": [False, False, False, True, True, True, True],
+        },
+    )
+    with pytest.raises(ValueError, match="neutral trait a has no exposure"):
+        alifestd_tgs_estimate_polars(
+            df_pl,
+            trait_transitions_candidate=["c"],
+            trait_transitions_neutral=["a", "b"],
+            episode_mask="is_leaf",
+        )

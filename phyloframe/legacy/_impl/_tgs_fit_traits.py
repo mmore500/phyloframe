@@ -138,6 +138,7 @@ def tgs_fit_traits(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
+    calc_lrts: bool,
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
     """Implementation detail for `alifestd_tgs_estimate_polars`.
@@ -201,5 +202,6 @@ def tgs_fit_traits(
         loss_rate=loss_rate,
         selection_coef_starts=selection_coef_starts,
         growth_exponent_bound=growth_exponent_bound,
+        calc_lrts=calc_lrts,
         progress_wrap=progress_wrap,
     )

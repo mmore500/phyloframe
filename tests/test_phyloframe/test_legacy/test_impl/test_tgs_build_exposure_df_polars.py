@@ -116,6 +116,23 @@ def test_calibration_columns():
     ]
 
 
+def test_branch_length_partition_column():
+    df_pl = _make_tree().with_columns(branch_length=pl.Series([0, 7, 7, 8, 8]))
+    res = _build(
+        df_pl,
+        calibration_partition_by="branch_length",
+        calibration_compare_by_vals=["branch_length"],
+    )
+    # only calibration_compare_by_vals names the episode's own length
+    assert res["partition_id"].to_list() == [0, 0, 1, 1]
+    assert res["calibration_compare_by_branch_length"].to_list() == [
+        1.0,
+        2.0,
+        4.0,
+        5.0,
+    ]
+
+
 def test_missing_calibration_column_raises():
     with pytest.raises(pl.exceptions.ColumnNotFoundError):
         _build(_make_tree(), calibration_compare_by_bins="x")
@@ -245,9 +262,10 @@ def test_integer_origin_time_exact_is_quiet():
     assert res["episode_length"].to_list() == [1.0, 2.0, 4.0, 5.0]
 
 
-def test_integer_origin_time_precision_loss_warns():
+@pytest.mark.parametrize("value", [2**53 + 1, 2**63 - 1])
+def test_integer_origin_time_precision_loss_warns(value: int):
     with pytest.warns(UserWarning, match="precision"):
-        res = _tgs_cast_origin_time_float(pl.Series([0, 2**53 + 1]))
+        res = _tgs_cast_origin_time_float(pl.Series([0, value]))
     assert res.dtype == pl.Float64
 
 

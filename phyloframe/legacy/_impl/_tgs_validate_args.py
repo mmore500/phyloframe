@@ -18,6 +18,14 @@ def tgs_validate_args(
     Raises ValueError for invalid arguments, and NotImplementedError for
     fewer than two neutral traits.
     """
+    if (
+        isinstance(trait_transitions_neutral, str)  # one trait's name
+        or len(trait_transitions_neutral) < 2
+    ):
+        raise NotImplementedError(
+            "fewer than two neutral traits not yet supported; they calibrate "
+            "lengths and are the reference for gain ratios",
+        )
     trait_transitions = [
         *trait_transitions_candidate,
         *trait_transitions_neutral,
@@ -26,11 +34,6 @@ def tgs_validate_args(
         raise ValueError(
             "trait_transitions_candidate and trait_transitions_neutral must "
             "not have duplicate columns",
-        )
-    if len(trait_transitions_neutral) < 2:
-        raise NotImplementedError(
-            "fewer than two neutral traits not yet supported; they calibrate "
-            "lengths and are the reference for gain ratios",
         )
     if not len(calibration_compare_by_vals):
         raise ValueError("calibration_compare_by_vals must be nonempty")

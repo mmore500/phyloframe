@@ -145,8 +145,9 @@ def alifestd_tgs_estimate_polars(
     Raises
     ------
     ValueError
-        If there are no exposure episodes, if an argument is invalid, or if
-        a trait is gained more than once along a lineage.
+        If there are no exposure episodes, or none for a neutral trait, if
+        an argument is invalid, or if a trait is gained more than once along
+        a lineage.
     NotImplementedError
         For unsupported input, e.g., fewer than two neutral traits, a
         non-asexual phylogeny, unifurcations, null values, non-finite
@@ -352,8 +353,8 @@ def _alifestd_tgs_estimate_polars_impl(
 
     Returns `alifestd_tgs_estimate_polars`'s estimates, the exposure
     episodes they were fit to (see `tgs_build_exposure_df_polars`), and a
-    partial of `tgs_fit_traits`, taking `weights` and `progress_wrap`, with
-    which bootstrap replicates refit.
+    partial of `tgs_fit_traits`, taking `weights`, `calc_lrts`, and
+    `progress_wrap`, with which bootstrap replicates refit.
     """
     log_memory_usage(logging.info)
 
@@ -388,6 +389,13 @@ def _alifestd_tgs_estimate_polars_impl(
         calibration_compare_by_bins=calibration_compare_by_bins,
         calibration_compare_by_vals=calibration_compare_by_vals,
     )
+    for trait_id in neutral_trait_ids:
+        if not exposure_df[f"trait{trait_id}_starts_absent"].any():
+            raise ValueError(
+                f"neutral trait {trait_transitions[trait_id]} has no exposure "
+                "episodes to fit",
+            )
+
     logging.info(
         f"- alifestd_tgs_estimate_polars: fitting {len(trait_transitions)} "
         f"traits to {len(exposure_df)} exposure episodes...",
@@ -416,7 +424,9 @@ def _alifestd_tgs_estimate_polars_impl(
                 exposure_df, trait_names=trait_transitions
             ),
             fit_traits(
-                weights=np.ones(len(exposure_df)), progress_wrap=progress_wrap
+                weights=np.ones(len(exposure_df)),
+                calc_lrts=True,
+                progress_wrap=progress_wrap,
             ),
         ],
         how="horizontal",

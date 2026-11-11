@@ -29,7 +29,7 @@ def _simulate(gain_rate: float, selection_coef: float, seed: int):
     )
 
 
-def _fit(traits, **kwargs) -> pl.DataFrame:
+def _fit(traits, *, calc_lrts: bool = True, **kwargs) -> pl.DataFrame:
     return tgs_fit_traits_coarsegrain(
         trait_nll_kwargs=[
             _simulate(gain_rate, selection_coef, seed)
@@ -38,6 +38,7 @@ def _fit(traits, **kwargs) -> pl.DataFrame:
         loss_rate=0.0,
         selection_coef_starts=(0.0, -0.3, -1.8),
         growth_exponent_bound=600.0,
+        calc_lrts=calc_lrts,
         progress_wrap=identity,
         **kwargs,
     )
@@ -75,3 +76,14 @@ def test_gain_ratio_undefined_without_reference_gains():
     assert res["gain_ratio"].is_nan().all()
     assert res["gain_ratio_lrt_naive"].is_nan().all()
     assert np.isfinite(res["selection_coef_lrt_naive"][0])
+
+
+def test_calc_lrts_false_skips_lrts_only():
+    traits = [(2e-3, -0.05), (1e-3, 0.0), (1e-3, 0.0)]
+    res = _fit(traits, neutral_trait_ids=[1, 2], calc_lrts=False)
+    assert res["selection_coef_lrt_naive"].is_nan().all()
+    assert res["gain_ratio_lrt_naive"].is_nan().all()
+
+    estimates = ["gain_rate", "selection_coef", "gain_ratio"]
+    expected = _fit(traits, neutral_trait_ids=[1, 2])
+    assert res.select(estimates).equals(expected.select(estimates))

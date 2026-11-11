@@ -39,6 +39,7 @@ def _tgs_fit_trait_coarsegrain(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
+    calc_lrts: bool,
 ) -> typing.Dict[str, float]:
     """Implementation detail for `tgs_fit_traits_coarsegrain`.
 
@@ -57,8 +58,9 @@ def _tgs_fit_trait_coarsegrain(
         selection_coef_lrt_naive=np.nan,
         gain_ratio_lrt_naive=np.nan,
     )
-    if not fit["gain_rate"] > 0:
-        return res  # selection is undefined without gains
+    # selection is undefined without gains
+    if not calc_lrts or not fit["gain_rate"] > 0:
+        return res
 
     lrt_kwargs = dict(
         free_nll=fit["nll"],
@@ -102,13 +104,14 @@ def tgs_fit_traits_coarsegrain(
     loss_rate: float,
     selection_coef_starts: typing.Sequence[float],
     growth_exponent_bound: float,
+    calc_lrts: bool,
     progress_wrap: typing.Callable,
 ) -> pl.DataFrame:
     """Implementation detail for `tgs_fit_traits`.
 
     Fits each trait's gain rate and selection coefficient, given each
     trait's `tgs_calc_nll` arguments but the rate parameters. Returns one
-    row per trait.
+    row per trait. Likelihood-ratio statistics are nan unless `calc_lrts`.
 
     Output Schema
     -------------
@@ -152,6 +155,7 @@ def tgs_fit_traits_coarsegrain(
                 nll_kwargs=nll_kwargs,
                 reference_gain_rate=calc_reference_gain_rate(trait_id),
                 selection_coef_starts=selection_coef_starts,
+                calc_lrts=calc_lrts,
                 **minimize_kwargs,
             )
             for trait_id, (fit, nll_kwargs) in enumerate(

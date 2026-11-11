@@ -46,9 +46,9 @@ def _tgs_cast_origin_time_float(origin_time: pl.Series) -> pl.Series:
     as_float = origin_time.cast(pl.Float64)
     if (
         not origin_time.dtype.is_float()
-        and (
-            as_float.cast(origin_time.dtype, strict=False) != origin_time
-        ).any()
+        and as_float.cast(origin_time.dtype, strict=False)
+        .ne_missing(origin_time)  # overflow gives null
+        .any()
     ):
         warnings.warn(
             "origin_time values lose precision as float64",
@@ -133,11 +133,13 @@ def tgs_build_exposure_df_polars(
     computed_cols = (
         "origin_time", "episode_length", "survival_duration", "clade_size",
     )  # fmt: skip
-    calibration_cols = (
+    phylogeny_cols = {
+        episode_mask,
         calibration_partition_by,
         calibration_compare_by_bins,
-        *calibration_compare_by_vals,
-    )
+        # branch_length names the episode's own length
+        *(set(calibration_compare_by_vals) - {"branch_length"}),
+    } - {None, *computed_cols}
     # affinity RE https://github.com/pola-rs/polars/issues/30408
     # TODO: drop the engine affinity for polars>2.1.0
     with pl.Config(engine_affinity="in-memory"):
@@ -146,10 +148,7 @@ def tgs_build_exposure_df_polars(
             .select(
                 cs.by_name("id", "ancestor_id", "origin_time")
                 | cs.by_name(*trait_transitions)
-                | cs.by_name(
-                    {episode_mask, *calibration_cols}
-                    - {None, "branch_length", *computed_cols}
-                ),
+                | cs.by_name(phylogeny_cols),
             )
             .collect()
         )
@@ -249,7 +248,6 @@ def tgs_build_exposure_df_polars(
         (partition.rank("dense").cast(pl.Int64) - 1).alias("partition_id"),
         (partition_bin.rank("dense").cast(pl.Int64) - 1).alias("bin_id"),
         *(
-            # branch_length names the episode's own length
             pl.col({"branch_length": "episode_length"}.get(col, col)).alias(
                 f"calibration_compare_by_{col}"
             )
