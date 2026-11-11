@@ -31,9 +31,9 @@ def alifestd_tgs_estimate_bootstrap_polars(
     phylogeny_df: pl.DataFrame,
     *,
     num_bootstrap: int,
-    seed: typing.Optional[int] = None,
     parallel_backend: typing.Optional[str] = None,
     progress_wrap: typing.Callable = identity,
+    seed: typing.Optional[int] = None,
     **kwargs: typing.Any,
 ) -> pl.DataFrame:
     """Estimate per-trait gain rate and selection coefficient, as
@@ -53,14 +53,14 @@ def alifestd_tgs_estimate_bootstrap_polars(
         Schema of `alifestd_tgs_estimate_polars`.
     num_bootstrap : int
         Number of bootstrap replicates; must be positive.
-    seed : int, optional
-        Seed for bootstrap resampling.
     parallel_backend : str, optional
         joblib backend to run bootstrap replicates in parallel, e.g.,
         "loky"; if None, runs them sequentially.
     progress_wrap : Callable, default identity
         Pass tqdm or equivalent to display progress over traits and
         bootstrap replicates.
+    seed : int, optional
+        Seed for bootstrap resampling.
     **kwargs
         Passed to `alifestd_tgs_estimate_polars`, e.g.,
         `trait_transitions_candidate` and `trait_transitions_neutral`.
