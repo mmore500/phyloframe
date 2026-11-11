@@ -55,7 +55,7 @@ def test_exposure_duration_rtol_approximates_exact():
 
 def test_trait_without_gains():
     exposure_df = simulate_exposure_df(4_000)
-    exposure_df = exposure_df.with_columns(trait0_gain=False)
+    exposure_df = exposure_df.with_columns(trait0_episode_ends_absent=True)
     res = _fit(exposure_df)
     assert res["gain_rate"][0] == 0.0
     assert np.isnan(res["selection_coef"][0])

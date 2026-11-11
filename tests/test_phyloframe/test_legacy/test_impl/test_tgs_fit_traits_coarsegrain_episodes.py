@@ -13,9 +13,9 @@ def _exposure_df() -> pl.DataFrame:
             "survival_duration": [0.0, 0.0, 0.0, 5.0],
             "survival_duration_id": [0, 0, 0, 1],
             "trait0_episode_starts_absent": [True, True, True, True],
-            "trait0_gain": [False, True, True, False],
+            "trait0_episode_ends_absent": [True, False, False, True],
             "trait1_episode_starts_absent": [False, True, True, False],
-            "trait1_gain": [False, False, True, False],
+            "trait1_episode_ends_absent": [False, True, False, False],
         },
     )
 

@@ -10,9 +10,9 @@ def _exposure_df() -> pl.DataFrame:
             "bin_id": [0, 0, 2, 2],
             "episode_duration": [1.0, 2.0, 3.0, 4.0],
             "trait0_episode_starts_absent": [True, True, True, False],
-            "trait0_gain": [False, True, False, False],
+            "trait0_episode_ends_absent": [True, False, True, False],
             "trait1_episode_starts_absent": [True, True, True, True],
-            "trait1_gain": [False, False, True, True],
+            "trait1_episode_ends_absent": [True, True, False, False],
         },
     )
 

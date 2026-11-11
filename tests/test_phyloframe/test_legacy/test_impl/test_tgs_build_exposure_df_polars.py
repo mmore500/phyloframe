@@ -56,7 +56,13 @@ def test_prepare(lazy: bool):
         False,
         False,
     ]
-    assert res["trait0_gain"].to_list() == [True, False, False, False]
+    # 1 gains t, which 3 and 4 inherit
+    assert res["trait0_episode_ends_absent"].to_list() == [
+        False,
+        True,
+        False,
+        False,
+    ]
 
 
 def test_traits_numbered_in_order():
@@ -65,8 +71,18 @@ def test_traits_numbered_in_order():
         trait_transitions=["t", "u"],
     )
     # t is gained on the branch into 1, u on that into leaf 2
-    assert res["trait0_gain"].to_list() == [True, False, False, False]
-    assert res["trait1_gain"].to_list() == [False, True, False, False]
+    assert res["trait0_episode_ends_absent"].to_list() == [
+        False,
+        True,
+        False,
+        False,
+    ]
+    assert res["trait1_episode_ends_absent"].to_list() == [
+        True,
+        False,
+        True,
+        True,
+    ]
 
 
 def test_empty():
@@ -187,7 +203,7 @@ def test_unifurcating_root_supported():
     )
     res = _build(df_pl)
     assert res["episode_duration"].to_list() == [1.0, 1.0, 3.0]
-    assert res["trait0_gain"].to_list() == [False, True, False]
+    assert res["trait0_episode_ends_absent"].to_list() == [True, False, True]
 
 
 def test_masked_out_zero_length_branch_ok():

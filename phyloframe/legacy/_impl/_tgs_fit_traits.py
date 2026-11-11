@@ -75,7 +75,7 @@ def _tgs_coarsegrain_episodes(
         "weight",
         "survival_duration",
         "survival_duration_id",
-        gained_trait=f"trait{trait_id}_gain",
+        gained_trait=~pl.col(f"trait{trait_id}_episode_ends_absent"),
         calibrated_duration=pl.col("episode_duration")
         * pl.lit(pl.Series(calibration_factors)).gather("bin_id"),
     )

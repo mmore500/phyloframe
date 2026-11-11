@@ -36,5 +36,7 @@ def simulate_exposure_df(
         columns[f"trait{i}_episode_starts_absent"] = np.ones(
             num_branches, dtype=bool
         )
-        columns[f"trait{i}_gain"] = rng.random(num_branches) < p
+        columns[f"trait{i}_episode_ends_absent"] = (
+            rng.random(num_branches) >= p
+        )
     return pl.DataFrame(columns)

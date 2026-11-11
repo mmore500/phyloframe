@@ -116,8 +116,8 @@ def tgs_build_exposure_df_polars(
         Number of leaves below the end node (1 for a leaf).
     'trait{i}_episode_starts_absent' : boolean, per trait `i`
         Whether the episode started without the trait.
-    'trait{i}_gain' : boolean, per trait `i`
-        Whether the episode gained the trait.
+    'trait{i}_episode_ends_absent' : boolean, per trait `i`
+        Whether the episode ended without the trait, i.e., did not gain it.
     'partition_id' : integer
         Calibration partition, numbered from 0.
     'bin_id' : integer
@@ -198,7 +198,7 @@ def tgs_build_exposure_df_polars(
         episode_cols[f"trait{trait_id}_episode_starts_absent"] = (
             states[ancestor_ids] == 0
         )
-        episode_cols[f"trait{trait_id}_gain"] = transitions == 1
+        episode_cols[f"trait{trait_id}_episode_ends_absent"] = states == 0
 
     # a root has no parent, so no branch over which to gain a trait
     is_episode = ancestor_ids != np.arange(len(ancestor_ids))

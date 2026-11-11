@@ -28,7 +28,8 @@ def tgs_tally_exposure_episodes(
 
     def tally_trait(trait_id: int) -> pl.DataFrame:
         starts_absent = pl.col(f"trait{trait_id}_episode_starts_absent")
-        gain = pl.col(f"trait{trait_id}_gain")
+        ends_absent = pl.col(f"trait{trait_id}_episode_ends_absent")
+        gain = starts_absent & ~ends_absent
         return exposure_df.select(
             num_leaf_episodes=(starts_absent & is_leaf).sum(),
             num_leaf_gains=(gain & is_leaf).sum(),

@@ -48,7 +48,9 @@ def tgs_count_trait_exposures_binwise(
                 "num_episodes": sum_by_bin(trait_weights),
                 "num_gains": sum_by_bin(
                     trait_weights
-                    * exposure_df[f"trait{trait_id}_gain"].to_numpy()
+                    * ~exposure_df[
+                        f"trait{trait_id}_episode_ends_absent"
+                    ].to_numpy()
                 ),
                 "total_episode_duration": sum_by_bin(
                     trait_weights * episode_durations
