@@ -33,7 +33,7 @@ def alifestd_tgs_estimate_polars(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
-    trait_transitions_neutral: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_neutral: typing.Sequence[str],
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
@@ -86,7 +86,7 @@ def alifestd_tgs_estimate_polars(
 
         See `alifestd_mark_lineage_delta_polars` to make transitions from
         trait states.
-    trait_transitions_neutral : str or Sequence[str]
+    trait_transitions_neutral : Sequence[str]
         Names of such columns for at least two other traits, known to be
         neutral, used to calibrate episode lengths and as the reference for
         gain ratios.
@@ -322,7 +322,7 @@ def _alifestd_tgs_estimate_polars_impl(
     phylogeny_df: pl.DataFrame,
     *,
     trait_transitions_candidate: typing.Union[str, typing.Sequence[str]],
-    trait_transitions_neutral: typing.Union[str, typing.Sequence[str]],
+    trait_transitions_neutral: typing.Sequence[str],
     episode_mask: typing.Optional[str] = None,
     calibration_partition_by: typing.Optional[str] = None,
     calibration_compare_by_bins: typing.Optional[str] = None,
@@ -359,8 +359,6 @@ def _alifestd_tgs_estimate_polars_impl(
 
     if isinstance(trait_transitions_candidate, str):
         trait_transitions_candidate = [trait_transitions_candidate]
-    if isinstance(trait_transitions_neutral, str):
-        trait_transitions_neutral = [trait_transitions_neutral]
     if isinstance(calibration_compare_by_vals, str):
         calibration_compare_by_vals = [calibration_compare_by_vals]
 
