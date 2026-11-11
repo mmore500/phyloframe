@@ -273,7 +273,8 @@ def test_calibration_compare_by_vals_clade_size():
     default = _estimate_from_masks(phylogeny_df, **kwargs)
     res = _estimate_from_masks(
         phylogeny_df,
-        calibration_compare_by_vals=["branch_length_rank", "clade_size"],
+        # leaf counts, as marked for the calibration partitions
+        calibration_compare_by_vals=["branch_length_rank", "num_leaves"],
         **kwargs,
     )
     assert not res.equals(default)

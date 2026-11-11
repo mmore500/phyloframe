@@ -16,7 +16,7 @@ def _build(phylogeny_df, **kwargs) -> pl.DataFrame:
             "trait_transitions": ["t"],
             "calibration_partition_by": None,
             "calibration_compare_by_bins": None,
-            "calibration_compare_by_vals": ["branch_length"],
+            "calibration_compare_by_vals": [],
             "episode_mask": None,
             **kwargs,
         },
@@ -116,47 +116,54 @@ def test_calibration_columns():
         p=pl.Series([-1, 7, 8, 9, 10]),
         b=pl.Series([-1, 3, 4, 5, 6]),
         v=pl.Series([0.0, 0.5, 1.5, 2.5, 3.5]),
-        branch_length=pl.Series([9.0] * 5),
     )
     res = _build(
         df_pl,
         calibration_partition_by="p",
         calibration_compare_by_bins="b",
-        calibration_compare_by_vals=["v", "branch_length"],
+        calibration_compare_by_vals=["v"],
     )
     # numbered from 0
     assert res["partition_id"].to_list() == [0, 1, 2, 3]
     assert res["bin_id"].to_list() == [0, 1, 2, 3]
     assert res["calibration_compare_by_v"].to_list() == [0.5, 1.5, 2.5, 3.5]
-    # the exposure table's own branch lengths take precedence
-    assert res["calibration_compare_by_branch_length"].to_list() == [
-        1.0,
-        2.0,
-        4.0,
-        5.0,
-    ]
 
 
-def test_branch_length_partition_column():
-    df_pl = _make_tree().with_columns(branch_length=pl.Series([0, 7, 7, 8, 8]))
+def test_calibration_columns_named_like_episode_columns():
+    df_pl = _make_tree().with_columns(
+        clade_size=pl.Series([0, 7, 7, 8, 8]),
+        survival_duration=pl.Series([0.0, 0.1, 0.2, 0.3, 0.4]),
+    )
     res = _build(
         df_pl,
-        calibration_partition_by="branch_length",
-        calibration_compare_by_vals=["branch_length"],
+        calibration_partition_by="clade_size",
+        calibration_compare_by_vals=["survival_duration"],
     )
-    # the exposure table's own branch lengths take precedence
-    assert res["partition_id"].to_list() == [0, 1, 2, 3]
-    assert res["calibration_compare_by_branch_length"].to_list() == [
-        1.0,
-        2.0,
-        4.0,
-        5.0,
+    # the phylogeny's columns calibrate, as given
+    assert res["partition_id"].to_list() == [0, 0, 1, 1]
+    assert res["calibration_compare_by_survival_duration"].to_list() == [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
     ]
+    # and the episodes' own are as ever
+    assert res["clade_size"].to_list() == [2, 1, 1, 1]
+    assert res["survival_duration"].to_list() == [5.0, 0.0, 0.0, 0.0]
 
 
-def test_missing_calibration_column_raises():
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(calibration_compare_by_bins="x"),
+        # episode columns are not the phylogeny's
+        dict(calibration_compare_by_vals=["clade_size"]),
+        dict(calibration_partition_by="branch_length"),
+    ],
+)
+def test_missing_calibration_column_raises(kwargs: dict):
     with pytest.raises(pl.exceptions.ColumnNotFoundError):
-        _build(_make_tree(), calibration_compare_by_bins="x")
+        _build(_make_tree(), **kwargs)
 
 
 def test_origin_time_delta_branch_lengths_match():
