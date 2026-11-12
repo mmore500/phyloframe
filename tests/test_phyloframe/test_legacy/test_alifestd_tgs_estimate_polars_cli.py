@@ -1,0 +1,180 @@
+import subprocess
+
+import pandas as pd
+import polars as pl
+import pytest
+
+from phyloframe.legacy import (
+    alifestd_mark_leaves_polars,
+    alifestd_tgs_estimate_polars,
+)
+from phyloframe.legacy._alifestd_tgs_estimate_polars import (
+    _create_parser,
+)
+
+from ._impl import mark_tgs_calibration_columns
+from .test_alifestd_tgs_estimate_polars import _make_cherries_polars
+
+MODULE = "phyloframe.legacy._alifestd_tgs_estimate_polars"
+NEUTRAL_TRAITS = ["n1", "n2", "n3", "n4"]
+
+
+@pytest.fixture
+def input_pqt(tmp_path):
+    """Create a parquet phylogeny with trait and calibration columns."""
+    path = tmp_path / "input.pqt"
+    mark_tgs_calibration_columns(
+        _make_cherries_polars(5_000), neutral_traits=NEUTRAL_TRAITS
+    ).write_parquet(path)
+    return str(path)
+
+
+def test_cli_help():
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--trait-transitions-candidate",
+            "focal",
+            "--trait-transitions-neutral",
+            "n1",
+            "n2",
+            "--help",
+        ],
+        check=True,
+    )
+
+
+def test_cli_version():
+    subprocess.run(  # nosec B603
+        ["python3", "-m", MODULE, "--version"],
+        check=True,
+    )
+
+
+def test_create_parser():
+    parser = _create_parser()
+    assert parser is not None
+
+
+@pytest.mark.parametrize("ext", [".csv", ".pqt"])
+def test_cli(input_pqt, ext, tmp_path):
+    output_file = str(tmp_path / f"output{ext}")
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--trait-transitions-candidate",
+            "focal",
+            "--trait-transitions-neutral",
+            *NEUTRAL_TRAITS,
+            "--calibration-partition-by",
+            "clade_size_geom_class",
+            "--calibration-compare-by-bins",
+            "joint_quantile_bin",
+            "--calibration-compare-by-vals",
+            "branch_length_rank",
+            "origin_time_rank",
+            "--eager-write",
+            output_file,
+        ],
+        check=True,
+        input=input_pqt.encode(),
+    )
+    result_df = (
+        pd.read_csv(output_file)
+        if ext == ".csv"
+        else pd.read_parquet(output_file)
+    )
+    assert result_df["trait_name"].tolist() == ["focal", *NEUTRAL_TRAITS]
+    assert "selection_coef_p" not in result_df.columns
+    assert result_df.loc[0, "gain_ratio"] > 1.0
+
+
+def test_cli_matches_function(input_pqt, tmp_path):
+    output_file = str(tmp_path / "output.pqt")
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--trait-transitions-candidate",
+            "focal",
+            "--trait-transitions-neutral",
+            "n1",
+            "n2",
+            "--calibration-compare-by-bins",
+            "joint_quantile_bin",
+            "--calibration-compare-by-vals",
+            "origin_time",
+            "--calibration-neighborhood-candidates",
+            "0.1",
+            "1.0",
+            "--nll-coarsegrain-rtol",
+            "1e-2",
+            "--loss-rate",
+            "0.001",
+            "--fit-selection-coef-starts",
+            "0.0",
+            "-0.5",
+            "--fit-growth-exponent-bound",
+            "300.0",
+            "--eager-write",
+            output_file,
+        ],
+        check=True,
+        input=input_pqt.encode(),
+    )
+    expected = alifestd_tgs_estimate_polars(
+        pl.read_parquet(input_pqt),
+        trait_transitions_candidate=["focal"],
+        trait_transitions_neutral=["n1", "n2"],
+        calibration_compare_by_bins="joint_quantile_bin",
+        calibration_compare_by_vals=["origin_time"],
+        calibration_neighborhood_candidates=(0.1, 1.0),
+        nll_coarsegrain_rtol=1e-2,
+        loss_rate=0.001,
+        fit_selection_coef_starts=(0.0, -0.5),
+        fit_growth_exponent_bound=300.0,
+    )
+    pd.testing.assert_frame_equal(
+        pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False
+    )
+
+
+def test_cli_episode_mask_matches_function(input_pqt, tmp_path):
+    masked_pqt = str(tmp_path / "masked.pqt")
+    alifestd_mark_leaves_polars(pl.read_parquet(input_pqt)).write_parquet(
+        masked_pqt
+    )
+    output_file = str(tmp_path / "output.pqt")
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--trait-transitions-candidate",
+            "focal",
+            "--trait-transitions-neutral",
+            "n1",
+            "n2",
+            "--episode-mask",
+            "is_leaf",
+            "--eager-write",
+            output_file,
+        ],
+        check=True,
+        input=masked_pqt.encode(),
+    )
+    expected = alifestd_tgs_estimate_polars(
+        pl.read_parquet(masked_pqt),
+        trait_transitions_candidate=["focal"],
+        trait_transitions_neutral=["n1", "n2"],
+        episode_mask="is_leaf",
+    )
+    assert (expected["num_inner_episodes"] == 0).all()
+    pd.testing.assert_frame_equal(
+        pd.read_parquet(output_file), expected.to_pandas(), check_dtype=False
+    )

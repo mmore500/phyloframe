@@ -1,0 +1,206 @@
+import gc
+import typing
+
+import numpy as np
+import polars as pl
+from scipy import sparse
+
+from ..._auxlib._calc_geometric_bins import calc_geometric_bins
+from ._tgs_calc_calibration_rescaling import (
+    tgs_calc_calibration_rescaling,
+)
+from ._tgs_count_trait_exposures_binwise import (
+    tgs_count_trait_exposures_binwise,
+)
+from ._tgs_fit_traits_coarsegrain import tgs_fit_traits_coarsegrain
+
+
+def _tgs_calc_log_scale_bins(values: pl.Expr, *, rtol: float) -> pl.Expr:
+    """Implementation detail for `_tgs_coarsegrain_episodes`.
+
+    Returns each nonnegative value's bin on a log scale with ratio 1 +
+    `rtol` (see `calc_geometric_bins`), numbering occupied bins from 0; zero
+    values get bin -1.
+    """
+
+    def do_calc_bins(values: pl.Series) -> pl.Series:
+        values = values.to_numpy()
+        bin_ids = np.full(len(values), -1)
+        is_positive = values > 0
+        # number occupied bins consecutively, skipping empty ones
+        __, bin_ids[is_positive] = np.unique(
+            calc_geometric_bins(values[is_positive], ratio=1 + rtol),
+            return_inverse=True,
+        )
+        return pl.Series(bin_ids)
+
+    return values.map_batches(do_calc_bins, return_dtype=pl.Int64)
+
+
+def _tgs_coarsegrain_episodes(
+    exposure_df: pl.DataFrame,
+    *,
+    trait_id: int,
+    calibration_factors: np.ndarray,
+    nll_coarsegrain_rtol: float,
+    num_survival_durations: int,
+) -> typing.Tuple[pl.DataFrame, sparse.csr_matrix]:
+    """Implementation detail for `tgs_fit_traits`.
+
+    Groups `trait_id`'s exposure episodes into granules, each holding
+    episodes whose calibrated durations and survival durations both agree
+    within relative tolerance `nll_coarsegrain_rtol` (0 for no coarsening,
+    one granule per episode), so have nearly the same chance of gain. Each
+    episode's duration is calibrated by its calibration bin's entry of
+    `calibration_factors`.
+
+    Returns `coarsegrain_df`, one row per granule (see Output Schema), and
+    `survival_duration_granule_mass`, a sparse matrix giving, per granule
+    (row), the fraction of its episodes with each distinct survival duration
+    (column, `survival_duration_id`).
+
+    Output Schema
+    -------------
+    'num_episodes' : float
+        Weighted (by `weight`) count of the granule's episodes.
+    'num_gains' : float
+        Of those, the weighted count that gained the trait.
+    'mean_episode_duration' : float
+        Their weighted average calibrated duration.
+    """
+    calibrated_episodes_df = exposure_df.filter(
+        pl.col(f"trait{trait_id}_episode_starts_absent"),
+        pl.col("weight") > 0,  # optimization
+    ).select(
+        "weight",
+        "survival_duration",
+        "survival_duration_id",
+        gained_trait=~pl.col(f"trait{trait_id}_episode_ends_absent"),
+        calibrated_duration=pl.col("episode_duration")
+        * pl.lit(pl.Series(calibration_factors)).gather("bin_id"),
+    )
+
+    if nll_coarsegrain_rtol > 0:
+        duration_bin = _tgs_calc_log_scale_bins(
+            pl.col("calibrated_duration"), rtol=nll_coarsegrain_rtol
+        )
+        survival_bin = _tgs_calc_log_scale_bins(
+            pl.col("survival_duration"), rtol=nll_coarsegrain_rtol
+        )
+        granule_id = pl.struct(duration_bin, survival_bin).rank("dense") - 1
+    else:
+        granule_id = pl.int_range(pl.len())
+    calibrated_episodes_df = calibrated_episodes_df.with_columns(
+        granule_id=granule_id
+    )
+
+    coarsegrain_df = (
+        calibrated_episodes_df.group_by("granule_id")
+        .agg(
+            num_episodes=pl.col("weight").sum(),
+            num_gains=pl.col("weight").filter("gained_trait").sum(),
+            calibrated_duration_sum=(
+                pl.col("weight") * pl.col("calibrated_duration")
+            ).sum(),
+        )
+        .sort("granule_id")
+        .select(
+            "num_episodes",
+            "num_gains",
+            mean_episode_duration=pl.col("calibrated_duration_sum")
+            / pl.col("num_episodes"),
+        )
+    )
+
+    survival_duration_granule_mass = sparse.diags(
+        1 / coarsegrain_df["num_episodes"].to_numpy()
+    ) @ sparse.csr_matrix(
+        (
+            calibrated_episodes_df["weight"].to_numpy(),
+            (  # row indices, col indices
+                calibrated_episodes_df["granule_id"].to_numpy(),
+                calibrated_episodes_df["survival_duration_id"].to_numpy(),
+            ),
+        ),
+        shape=(len(coarsegrain_df), num_survival_durations),
+    )
+    return coarsegrain_df, survival_duration_granule_mass
+
+
+def tgs_fit_traits(
+    exposure_df: pl.DataFrame,
+    *,
+    weights: np.ndarray,
+    num_traits: int,
+    neutral_trait_ids: typing.Sequence[int],
+    calibration_neighborhoods: sparse.spmatrix,
+    nll_coarsegrain_rtol: float,
+    loss_rate: float,
+    fit_selection_coef_starts: typing.Sequence[float],
+    fit_growth_exponent_bound: float,
+    calc_lrts: bool,
+    progress_wrap: typing.Callable,
+) -> pl.DataFrame:
+    """Implementation detail for `alifestd_tgs_estimate_polars`.
+
+    Fits each trait to the exposure episodes of `exposure_df` (see
+    `tgs_build_exposure_df_polars`), each weighted by `weights` (e.g.,
+    bootstrap draw counts). Returns one row per trait; see
+    `tgs_fit_traits_coarsegrain`.
+
+    Episode durations are first calibrated by calibration bin (see
+    `tgs_calc_calibration_rescaling`). Episodes of similar duration are then
+    grouped into granules (see `_tgs_coarsegrain_episodes`), to which gain
+    rate and selection coefficient are fit.
+    """
+    trait_bin_counts_df = tgs_count_trait_exposures_binwise(
+        exposure_df, trait_ids=neutral_trait_ids, weights=weights
+    )
+
+    survival_durations = exposure_df["survival_duration"].to_numpy()
+    assert np.isfinite(survival_durations).all()
+    distinct_survival_durations, survival_duration_ids = np.unique(
+        survival_durations, return_inverse=True
+    )
+    exposure_df = exposure_df.with_columns(
+        weight=weights, survival_duration_id=survival_duration_ids
+    )
+
+    trait_nll_kwargs = []  # each trait's, but the rate parameters
+    # coarsegrain one trait at a time, to reduce peak memory
+    for trait_id in progress_wrap(range(num_traits)):
+        (
+            coarsegrain_df,
+            survival_duration_granule_mass,
+        ) = _tgs_coarsegrain_episodes(
+            exposure_df,
+            trait_id=trait_id,
+            calibration_factors=tgs_calc_calibration_rescaling(
+                trait_bin_counts_df=trait_bin_counts_df,
+                trait_id=trait_id,
+                neutral_trait_ids=neutral_trait_ids,
+                calibration_neighborhoods=calibration_neighborhoods,
+            ),
+            nll_coarsegrain_rtol=nll_coarsegrain_rtol,
+            num_survival_durations=len(distinct_survival_durations),
+        )
+        trait_nll_kwargs.append(
+            dict(
+                coarsegrain_df=coarsegrain_df,
+                survival_duration_granule_mass=survival_duration_granule_mass,
+                distinct_survival_durations=distinct_survival_durations,
+            ),
+        )
+
+    del exposure_df, trait_bin_counts_df  # free memory
+    gc.collect()
+
+    return tgs_fit_traits_coarsegrain(
+        trait_nll_kwargs=trait_nll_kwargs,
+        neutral_trait_ids=neutral_trait_ids,
+        loss_rate=loss_rate,
+        fit_selection_coef_starts=fit_selection_coef_starts,
+        fit_growth_exponent_bound=fit_growth_exponent_bound,
+        calc_lrts=calc_lrts,
+        progress_wrap=progress_wrap,
+    )
