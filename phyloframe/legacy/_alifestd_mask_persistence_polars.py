@@ -27,42 +27,23 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 
 
 @jit(nopython=True)
-def _compare_mrcas(
-    first: int,
-    second: int,
-    clade_candidate_ids: np.ndarray,
-    cherry_values: np.ndarray,
-    trunk_legs: np.ndarray,
-    tiebreak_values: np.ndarray,
-) -> int:
+def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
     """Implementation detail for `_alifestd_mask_persistence_fast_path`.
 
     Returns -1, 0, or 1 if node `first` is closer than, as close as, or
     further than node `second`, as an mrca with its clade's closest
-    candidate. Node -1 is closer than any other, and node n further.
+    candidate, comparing fields of their `mrca_values` in order. Node -1 is
+    closer than any other, and node n further.
     """
-    n = len(clade_candidate_ids)
     if first == second:
         return 0
-    if first == -1 or second == n:
+    if first == -1 or second == len(mrca_values):
         return -1
-    if second == -1 or first == n:
+    if second == -1 or first == len(mrca_values):
         return 1
-    first_candidate = clade_candidate_ids[first]
-    second_candidate = clade_candidate_ids[second]
-    for field in range(cherry_values.shape[1]):
-        first_value = (
-            cherry_values[first_candidate, field] - cherry_values[first, field]
-        ) + trunk_legs[first, field]
-        second_value = (
-            cherry_values[second_candidate, field]
-            - cherry_values[second, field]
-        ) + trunk_legs[second, field]
-        if first_value != second_value:
-            return -1 if first_value < second_value else 1
-    for field in range(tiebreak_values.shape[1]):
-        first_value = tiebreak_values[first_candidate, field]
-        second_value = tiebreak_values[second_candidate, field]
+    for first_value, second_value in zip(
+        mrca_values[first], mrca_values[second]
+    ):
         if first_value != second_value:
             return -1 if first_value < second_value else 1
     return 0
@@ -86,33 +67,39 @@ def _alifestd_mask_persistence_fast_path(
     then tiebreak values.
     """
     n = len(ancestor_ids)
-    clade_candidate_ids = np.where(candidate_mask, np.arange(n), -1)
-
-    def compare(first: int, second: int) -> int:
-        return _compare_mrcas(
-            first,
-            second,
-            clade_candidate_ids,
-            cherry_values,
-            trunk_legs,
-            tiebreak_values,
-        )
+    num_fields = cherry_values.shape[1]
 
     # sweep up, for each node's clade: the closest candidate to taxa outside
-    # it, and the mrca within it that is furthest among those closest to
-    # each extant taxon within it (-1 if none, n if without candidates)
+    # it; distance from the node, as mrca, to that candidate, then its
+    # tiebreak; and the mrca within it that is furthest among those closest
+    # to each extant taxon within it (-1 if none, n if without candidates)
+    clade_candidate_ids = np.where(candidate_mask, np.arange(n), -1)
+    mrca_values = np.column_stack(
+        (trunk_legs + cherry_values, tiebreak_values)
+    )
     clade_mrca_ids = np.full(n, -1)
     for id_ in range(n - 1, -1, -1):
-        mrca_id = id_ if clade_candidate_ids[id_] != -1 else n
-        if extant_mask[id_] or compare(mrca_id, clade_mrca_ids[id_]) == -1:
+        candidate_id = clade_candidate_ids[id_]
+        mrca_id = id_ if candidate_id != -1 else n
+        if candidate_id != -1:
+            mrca_values[id_, :num_fields] = trunk_legs[id_] + (
+                cherry_values[candidate_id] - cherry_values[id_]
+            )
+            mrca_values[id_, num_fields:] = tiebreak_values[candidate_id]
+        if extant_mask[id_] or (
+            _compare_mrcas(mrca_id, clade_mrca_ids[id_], mrca_values) == -1
+        ):
             clade_mrca_ids[id_] = mrca_id
 
         ancestor_id = ancestor_ids[id_]
         if ancestor_id == id_:
             continue
-        if compare(clade_mrca_ids[id_], clade_mrca_ids[ancestor_id]) == 1:
+        ancestor_mrca_id = clade_mrca_ids[ancestor_id]
+        if (
+            _compare_mrcas(clade_mrca_ids[id_], ancestor_mrca_id, mrca_values)
+            == 1
+        ):
             clade_mrca_ids[ancestor_id] = clade_mrca_ids[id_]
-        candidate_id = clade_candidate_ids[id_]
         ancestor_candidate_id = clade_candidate_ids[ancestor_id]
         if candidate_id != -1 and (
             ancestor_candidate_id == -1
@@ -132,13 +119,15 @@ def _alifestd_mask_persistence_fast_path(
         ancestor_id = ancestor_ids[id_]
         if ancestor_id != id_:
             lineage_candidate_ranks[id_] = lineage_candidate_ranks[ancestor_id]
-            if compare(lineage_mrca_ids[ancestor_id], mrca_id) == -1:
-                lineage_mrca_ids[id_] = lineage_mrca_ids[ancestor_id]
+            ancestor_mrca_id = lineage_mrca_ids[ancestor_id]
+            if _compare_mrcas(ancestor_mrca_id, mrca_id, mrca_values) == -1:
+                lineage_mrca_ids[id_] = ancestor_mrca_id
 
         if (
             mrca_id != n
-            and compare(mrca_id, lineage_mrca_ids[id_]) == 0
-            and compare(mrca_id, clade_mrca_ids[id_]) == 0
+            and _compare_mrcas(mrca_id, lineage_mrca_ids[id_], mrca_values)
+            == 0
+            and _compare_mrcas(mrca_id, clade_mrca_ids[id_], mrca_values) == 0
         ):
             lineage_candidate_ranks[id_] = max(
                 lineage_candidate_ranks[id_],
