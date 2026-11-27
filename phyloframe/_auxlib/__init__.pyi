@@ -15,6 +15,7 @@ from ._calc_two_sided_normal_p import calc_two_sided_normal_p
 from ._ceil_div import ceil_div
 from ._clamp import clamp
 from ._cmp import cmp
+from ._cmpseq import cmpseq
 from ._coerce_to_pandas import coerce_to_pandas
 from ._coerce_to_polars import coerce_to_polars
 from ._collapse_nonleading_whitespace import collapse_nonleading_whitespace
@@ -74,6 +75,7 @@ __all__ = [
     "ceil_div",
     "clamp",
     "cmp",
+    "cmpseq",
     "calc_tiebroken_ranks",
     "run_weighted_bootstrap",
     "calc_geometric_bins",

@@ -2,17 +2,14 @@ import typing
 
 from ._jit import jit
 
+_T = typing.TypeVar("_T")
+
 
 @jit(nopython=True)
-def cmp(first: typing.Sequence, second: typing.Sequence) -> int:
-    """Compare equal-length sequences `first` and `second` by their first
-    differing items.
+def cmp(first: _T, second: _T) -> int:
+    """Compare values `first` and `second`.
 
-    Returns -1 if `first` orders before `second`, 1 if after, and 0 if all
-    items are equal.
+    Returns -1 if `first` orders before `second`, 1 if after, and 0
+    otherwise.
     """
-    # loop, as numba does not support next over a generator expression
-    for a, b in zip(first, second):
-        if a != b:
-            return int(a > b) - int(a < b)
-    return 0
+    return int(first > second) - int(first < second)
