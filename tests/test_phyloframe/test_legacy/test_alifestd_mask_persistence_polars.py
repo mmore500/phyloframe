@@ -7,6 +7,7 @@ import pytest
 from phyloframe.legacy import (
     alifestd_calc_mrca_id_matrix_asexual_polars,
     alifestd_find_pair_distance_polars,
+    alifestd_mark_leaves_polars,
     alifestd_mark_node_depth_polars,
     alifestd_mask_persistence_polars,
     alifestd_prune_extinct_lineages_polars,
@@ -281,6 +282,74 @@ def test_inner_nodes():
         mark_as="m",
     )
     assert res["m"].arg_true().to_list() == [1]
+
+
+def test_inner_node_candidates_before_time():
+    # among all taxa before time 49, node 2 is the latest ancestor of leaf 4
+    res = alifestd_mask_persistence_polars(
+        _make_comb(),
+        candidate_mask=pl.col("origin_time") < 49,
+        extant_mask=pl.col("id") == 4,
+        criterion_cherry=pl.lit(0),
+        mark_as="m",
+    )
+    assert res["m"].arg_true().to_list() == [2]
+
+
+def test_inner_node_candidates_before_time_tied():
+    # nodes 1 and 2 are at the same time, so tie as closest to leaf 3
+    df_pl = pl.DataFrame(
+        {
+            "id": range(4),
+            "ancestor_id": [0, 0, 1, 2],
+            "origin_time": [0, 1, 1, 5],
+        },
+    )
+    kwargs = dict(
+        candidate_mask=pl.col("origin_time") < 2,
+        extant_mask=pl.col("id") == 3,
+        criterion_cherry=pl.lit(0),
+        mark_as="m",
+    )
+    res = alifestd_mask_persistence_polars(df_pl, **kwargs)
+    assert res["m"].arg_true().to_list() == [1]
+    res = alifestd_mask_persistence_polars(
+        df_pl, criterion_tiebreak=pl.lit(0), **kwargs
+    )
+    assert res["m"].arg_true().to_list() == [1, 2]
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_inner_node_candidates_before_time_marks_latest_ancestors(seed: int):
+    df_pl = (
+        _make_random_tree(seed, n=300)
+        .pipe(alifestd_mark_leaves_polars)
+        .pipe(alifestd_mark_node_depth_polars)
+        .with_columns(  # ensure no taxa at same time as ancestor
+            origin_time=pl.col("origin_time") + pl.col("node_depth"),
+        )
+    )
+    ancestor_ids = df_pl["ancestor_id"].to_list()
+    origin_times = df_pl["origin_time"].to_list()
+    extant_mask = pl.col("is_leaf") & (pl.col("origin_time") > 12)
+    extant_ids = df_pl.select(extant_mask).to_series().arg_true().to_list()
+    for time in 4, 8:
+        expected = set()
+        for id_ in extant_ids:
+            while origin_times[id_] >= time and ancestor_ids[id_] != id_:
+                id_ = ancestor_ids[id_]
+            if origin_times[id_] < time:
+                expected.add(id_)
+
+        res = alifestd_mask_persistence_polars(
+            df_pl,
+            candidate_mask=pl.col("origin_time") < time,
+            extant_mask=extant_mask,
+            criterion_cherry=pl.lit(0),
+            mark_as="m",
+        )
+        assert res["m"].arg_true().to_list() == sorted(expected)
+        assert 1 < len(expected) < len(extant_ids)
 
 
 def test_extant_candidate_is_own_closest():

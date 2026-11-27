@@ -275,6 +275,22 @@ def alifestd_mask_persistence_polars(
     ...     criterion_cherry=pl.lit(0),
     ...     mark_as="is_persistent",
     ... )
+
+    Candidates may include inner nodes. To mark the latest ancestor before
+    time 50 of each leaf after time 100, take all taxa before time 50 as
+    candidates, by most recent common ancestor:
+
+    >>> persistence_df = alifestd_mark_leaves_polars(df).pipe(
+    ...     alifestd_mask_persistence_polars,
+    ...     candidate_mask=origin_time < 50,
+    ...     extant_mask=extant_mask,
+    ...     criterion_cherry=pl.lit(0),
+    ...     mark_as="is_persistent",
+    ... )
+
+    Each such ancestor ties with its other descendants before time 50, and
+    is marked as the earliest among them. Any of its ancestors at the same
+    time also tie, of which the first in row order is marked.
     """
     if isinstance(candidate_mask, str):
         candidate_mask = pl.col(candidate_mask)
