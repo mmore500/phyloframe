@@ -35,18 +35,18 @@ def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
     candidate, comparing fields of their `mrca_values` in order. Node -1 is
     closer than any other, and node n further.
     """
-    if first == second:
+    if first == second:  # same node
         return 0
-    if first == -1 or second == len(mrca_values):
+    if first == -1 or second == len(mrca_values):  # sentinel: closer
         return -1
-    if second == -1 or first == len(mrca_values):
+    if second == -1 or first == len(mrca_values):  # sentinel: further
         return 1
     for first_value, second_value in zip(
         mrca_values[first], mrca_values[second]
     ):
-        if first_value != second_value:
+        if first_value != second_value:  # fields differ
             return -1 if first_value < second_value else 1
-    return 0
+    return 0  # all equal
 
 
 @jit(nopython=True)
