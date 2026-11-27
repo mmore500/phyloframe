@@ -10,7 +10,7 @@ import numpy as np
 import polars as pl
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
-from .._auxlib._cmpseq import cmpseq
+from .._auxlib._cmplex import cmplex
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
@@ -43,7 +43,7 @@ def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
     elif second == -1 or first == len(mrca_values):  # sentinel: further
         return 1
     else:  # first field differing
-        return cmpseq(mrca_values[first], mrca_values[second])
+        return cmplex(mrca_values[first], mrca_values[second])
 
 
 @jit(nopython=True)
