@@ -2,8 +2,10 @@ import os
 import subprocess
 
 import pandas as pd
+import polars as pl
 import pytest
 
+from phyloframe.legacy import alifestd_mask_persistence_polars
 from phyloframe.legacy._alifestd_mask_persistence_polars import (
     _create_parser,
 )
@@ -92,7 +94,9 @@ def test_cli_criterion_mark_as(input_csv_with_masks, tmp_path):
             MODULE,
             "--candidate-mask",
             "is_candidate",
-            "--criterion",
+            "--criterion-cherry",
+            "depth",
+            "--criterion-trunk",
             "depth",
             "--extant-mask",
             "is_extant",
@@ -107,3 +111,34 @@ def test_cli_criterion_mark_as(input_csv_with_masks, tmp_path):
     result_df = pd.read_csv(output_file)
     assert "custom_col_name" in result_df.columns
     assert result_df["custom_col_name"].any()
+
+
+@pytest.mark.parametrize("name", ["criterion_cherry", "criterion_trunk"])
+def test_cli_criterion_not_counted(name, input_csv_with_masks, tmp_path):
+    output_file = str(tmp_path / "output.csv")
+    subprocess.run(  # nosec B603
+        [
+            "python3",
+            "-m",
+            MODULE,
+            "--candidate-mask",
+            "is_candidate",
+            "--extant-mask",
+            "is_extant",
+            f"--{name.replace('_', '-')}",
+            "",
+            "--eager-write",
+            output_file,
+        ],
+        check=True,
+        input=input_csv_with_masks.encode(),
+    )
+    expected = alifestd_mask_persistence_polars(
+        pl.read_csv(input_csv_with_masks),
+        candidate_mask="is_candidate",
+        extant_mask="is_extant",
+        **{name: None},
+    )
+    col = "alifestd_mask_persistence_polars"
+    assert pd.read_csv(output_file)[col].tolist() == expected[col].to_list()
+    assert expected[col].any()

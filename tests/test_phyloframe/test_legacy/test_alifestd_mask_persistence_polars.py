@@ -10,7 +10,6 @@ from phyloframe.legacy import (
     alifestd_mask_persistence_asexual,
     alifestd_mask_persistence_polars,
     alifestd_prune_extinct_lineages_polars,
-    alifestd_ultrametricize_polars,
 )
 
 apply_params = pytest.mark.parametrize(
@@ -102,24 +101,24 @@ def test_mask_column_names():
     ]
 
 
-def test_criterion():
-    df_pl = _make_tree().with_columns(
-        depth=pl.Series([0, 1, 1, 2, 2, 2, 2, 3, 3]),
-        origin_time=pl.Series([0, 1, 1, 2, 3, 3, 9, 9, 20]),
-    )
-    kwargs = dict(
-        candidate_mask=pl.col("id").is_in([4, 8]),
-        extant_mask=pl.col("id") == 7,
-        mark_as="m",
-    )
-    # leaf 8's long branch puts it further from leaf 7 than leaf 4
-    res = alifestd_mask_persistence_polars(df_pl, **kwargs)
-    assert res["m"].arg_true().to_list() == [4]
-    res = alifestd_mask_persistence_polars(df_pl, criterion="depth", **kwargs)
-    assert res["m"].arg_true().to_list() == [8]
-
-
-def test_criterion_origin_time_vs_node_depth_vs_ultrametric():
+@pytest.mark.parametrize(
+    "criteria, expected",
+    [
+        # by elapsed time, leaf 6 is closest: (100 - 48) + (50 - 48)
+        pytest.param({}, [6], id="default"),
+        # by number of edges, sibling leaf 5 is closest
+        pytest.param(
+            dict(criterion_cherry="node_depth", criterion_trunk="node_depth"),
+            [5],
+            id="node-depth",
+        ),
+        # leaf 5 shares the most recent mrca with leaf 4
+        pytest.param(dict(criterion_cherry=None), [5], id="trunk-only"),
+        # leaf 7 sits closest to the lineage of leaf 4: 40 - 39
+        pytest.param(dict(criterion_trunk=None), [7], id="cherry-only"),
+    ],
+)
+def test_criterion_cherry_trunk(criteria: dict, expected: list):
     # 0 -- 1 -- 2 -- 3 -- 4
     #      |    |    +--- 5
     #      |    +-------- 6
@@ -130,32 +129,15 @@ def test_criterion_origin_time_vs_node_depth_vs_ultrametric():
             "ancestor_id": [0, 0, 1, 2, 3, 3, 2, 1],
             "origin_time": [0, 39, 48, 50, 100, 60, 50, 40],
         },
-    ).with_columns(
-        is_candidate=pl.col("id").is_in([5, 6, 7]),
-        is_extant=pl.col("id") == 4,
     )
-    kwargs = dict(
-        candidate_mask="is_candidate", extant_mask="is_extant", mark_as="m"
-    )
-    # by elapsed time, leaf 6 is closest to leaf 4: (100 - 48) + (50 - 48)
-    res = alifestd_mask_persistence_polars(df_pl, **kwargs)
-    assert res["m"].arg_true().to_list() == [6]
-    # by number of edges, sibling leaf 5 is closest
     res = alifestd_mark_node_depth_polars(df_pl).pipe(
-        alifestd_mask_persistence_polars, criterion="node_depth", **kwargs
-    )
-    assert res["m"].arg_true().to_list() == [5]
-    # with contemporaneous leaves, leaf 5 is closest, by most recent mrca
-    ultrametric_df = alifestd_ultrametricize_polars(df_pl)
-    res = df_pl.with_columns(
-        origin_time_ultrametric=ultrametric_df["origin_time"],
-    ).pipe(
         alifestd_mask_persistence_polars,
-        criterion="origin_time_ultrametric",
-        **kwargs,
+        candidate_mask=pl.col("id").is_in([5, 6, 7]),
+        extant_mask=pl.col("id") == 4,
+        mark_as="m",
+        **criteria,
     )
-    assert res["m"].arg_true().to_list() == [5]
-    assert res["origin_time"].equals(df_pl["origin_time"])
+    assert res["m"].arg_true().to_list() == expected
 
 
 def test_prune_extinct_lineages():
@@ -168,45 +150,73 @@ def test_prune_extinct_lineages():
     assert res["id"].to_list() == [0, 1, 2, 3, 5, 8]
 
 
-@pytest.mark.parametrize("name", ["is_leaf", "origin_time"])
+@pytest.mark.parametrize("name", ["is_leaf", "origin_time", "depth"])
 def test_null_raises(name: str):
-    df_pl = _make_tree().with_columns(
-        pl.when(pl.col("id") == 4)
-        .then(None)
-        .otherwise(pl.col(name))
-        .alias(name)
+    df_pl = (
+        _make_tree()
+        .with_columns(depth=pl.Series([0, 1, 1, 2, 2, 2, 2, 3, 3]))
+        .with_columns(
+            pl.when(pl.col("id") == 4)
+            .then(None)
+            .otherwise(pl.col(name))
+            .alias(name)
+        )
     )
     for kwargs in (
         dict(candidate_mask="is_leaf", extant_mask=pl.lit(True)),
         dict(candidate_mask=pl.lit(True), extant_mask="is_leaf"),
     ):
         with pytest.raises(NotImplementedError):
-            alifestd_mask_persistence_polars(df_pl, **kwargs)
+            alifestd_mask_persistence_polars(
+                df_pl, criterion_cherry="depth", **kwargs
+            )
 
 
+@pytest.mark.parametrize("name", ["criterion_cherry", "criterion_trunk"])
 @pytest.mark.parametrize(
-    "origin_time",
+    "values",
     [
         pytest.param([1.0, 0.0, 2.0], id="decreasing"),
         pytest.param([0.0, float("nan"), 1.0], id="nan"),
         pytest.param([0.0, float("inf"), 1.0], id="inf"),
     ],
 )
-def test_unsupported_criterion_raises(origin_time: list):
+def test_unsupported_criterion_raises(values: list, name: str):
     df_pl = pl.DataFrame(
-        {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": origin_time}
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "origin_time": [0.0, 1.0, 1.0],
+            "unsupported": values,
+        }
     )
     with pytest.raises(NotImplementedError):
         alifestd_mask_persistence_polars(
-            df_pl, candidate_mask=pl.lit(True), extant_mask=pl.lit(True)
+            df_pl,
+            candidate_mask=pl.lit(True),
+            extant_mask=pl.lit(True),
+            **{name: "unsupported"},
         )
 
 
-def test_missing_criterion_raises():
-    df_pl = pl.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
+@pytest.mark.parametrize(
+    "criteria",
+    [
+        dict(criterion_cherry="missing"),
+        dict(criterion_trunk="missing"),
+        dict(criterion_cherry=None, criterion_trunk=None),
+    ],
+)
+def test_invalid_criterion_raises(criteria: dict):
+    df_pl = pl.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": [0, 1, 1]}
+    )
     with pytest.raises(ValueError):
         alifestd_mask_persistence_polars(
-            df_pl, candidate_mask=pl.lit(True), extant_mask=pl.lit(True)
+            df_pl,
+            candidate_mask=pl.lit(True),
+            extant_mask=pl.lit(True),
+            **criteria,
         )
 
 
@@ -242,18 +252,30 @@ def test_not_working_format_raises(df_pl: pl.DataFrame):
         )
 
 
-def test_random_tree_matches_pandas():
+@pytest.mark.parametrize(
+    "criteria",
+    [
+        pytest.param({}, id="default"),
+        pytest.param(dict(criterion_cherry="mutations"), id="mixed"),
+        pytest.param(dict(criterion_cherry=None), id="trunk-only"),
+        pytest.param(dict(criterion_trunk=None), id="cherry-only"),
+    ],
+)
+def test_random_tree_matches_pandas(criteria: dict):
     rng = np.random.default_rng(1)
     n = 500
     ancestor_id = np.concatenate([[0], rng.integers(0, np.arange(1, n))])
     origin_time = np.zeros(n, dtype=int)
+    mutations = np.zeros(n, dtype=int)
     for id_, ancestor_id_ in enumerate(ancestor_id):  # integers, so ties
         origin_time[id_] = origin_time[ancestor_id_] + rng.integers(3)
+        mutations[id_] = mutations[ancestor_id_] + rng.integers(3)
     df_pd = pd.DataFrame(
         {
             "id": range(n),
             "ancestor_id": ancestor_id,
             "origin_time": origin_time,
+            "mutations": mutations,
             "is_candidate": rng.random(n) < 0.3,
             "is_extant": rng.random(n) < 0.1,
         },
@@ -262,17 +284,21 @@ def test_random_tree_matches_pandas():
         df_pd,
         candidate_mask=df_pd["is_candidate"].to_numpy(),
         extant_mask=df_pd["is_extant"].to_numpy(),
+        **criteria,
     )
     res = alifestd_mask_persistence_polars(
         pl.from_pandas(df_pd),
         candidate_mask="is_candidate",
         extant_mask="is_extant",
+        **criteria,
     )
     assert (
         res["alifestd_mask_persistence_polars"].to_list()
         == expected["alifestd_mask_persistence_asexual"].tolist()
     )
     assert res["alifestd_mask_persistence_polars"].any()
-    assert not res["alifestd_mask_persistence_polars"].equals(
-        res["is_candidate"]
-    )
+    # without cherry distance, all candidates tie for extant taxa at root
+    if criteria != dict(criterion_cherry=None):
+        assert not res["alifestd_mask_persistence_polars"].equals(
+            res["is_candidate"]
+        )

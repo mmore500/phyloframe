@@ -1,9 +1,12 @@
+import typing
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from phyloframe.legacy import (
     alifestd_find_pair_distance_asexual,
+    alifestd_find_pair_mrca_id_asexual,
     alifestd_make_empty,
     alifestd_mark_node_depth_asexual,
 )
@@ -12,7 +15,6 @@ from phyloframe.legacy import (
 )
 from phyloframe.legacy import (
     alifestd_prune_extinct_lineages_asexual,
-    alifestd_ultrametricize,
 )
 
 from ._impl import enforce_dtype_stability_pandas
@@ -32,6 +34,44 @@ def _make_tree() -> pd.DataFrame:
             "id": range(9),
             "ancestor_id": [0, 0, 0, 1, 1, 2, 2, 3, 3],
             "origin_time": [0, 1, 1, 2, 3, 3, 9, 9, 4],
+        },
+    )
+
+
+def _make_comb() -> pd.DataFrame:
+    # 0 -- 1 -- 2 -- 3 -- 4
+    #      |    |    +--- 5
+    #      |    +-------- 6
+    #      +------------- 7
+    return pd.DataFrame(
+        {
+            "id": range(8),
+            "ancestor_id": [0, 0, 1, 2, 3, 3, 2, 1],
+            "origin_time": [0, 39, 48, 50, 100, 60, 50, 40],
+        },
+    )
+
+
+def _make_random_tree(seed: int) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    n = 40
+    ancestor_ids = np.concatenate([[0], rng.integers(0, np.arange(1, n))])
+    ancestor_ids[n // 2] = n // 2  # second root
+    origin_times, mutations = np.zeros(n), np.zeros(n)
+    for id_, ancestor_id in enumerate(ancestor_ids):  # integers, so ties
+        origin_times[id_] = origin_times[ancestor_id] + rng.integers(3)
+        mutations[id_] = mutations[ancestor_id] + rng.integers(3)
+    return pd.DataFrame(
+        {
+            "id": range(n),
+            "ancestor_list": [
+                f"[{'none' if id_ == ancestor_id else ancestor_id}]"
+                for id_, ancestor_id in enumerate(ancestor_ids)
+            ],
+            "origin_time": origin_times,
+            "mutations": mutations,
+            "is_extant": rng.random(n) < 0.3,
+            "is_candidate": rng.random(n) < 0.3,
         },
     )
 
@@ -97,64 +137,36 @@ def test_closer_branch_beats_later_mrca():
     assert np.flatnonzero(res["m"]).tolist() == [4]
 
 
-def test_criterion():
-    phylogeny_df = _make_tree()
-    phylogeny_df["depth"] = [0, 1, 1, 2, 2, 2, 2, 3, 3]
-    phylogeny_df.loc[8, "origin_time"] = 20
+@pytest.mark.parametrize(
+    "criteria, expected",
+    [
+        # by elapsed time, leaf 6 is closest: (100 - 48) + (50 - 48)
+        pytest.param({}, [6], id="default"),
+        # by number of edges, sibling leaf 5 is closest
+        pytest.param(
+            dict(criterion_cherry="node_depth", criterion_trunk="node_depth"),
+            [5],
+            id="node-depth",
+        ),
+        # leaf 5 shares the most recent mrca with leaf 4
+        pytest.param(dict(criterion_cherry=None), [5], id="trunk-only"),
+        # leaf 7 sits closest to the lineage of leaf 4: 40 - 39
+        pytest.param(dict(criterion_trunk=None), [7], id="cherry-only"),
+    ],
+)
+def test_criterion_cherry_trunk(criteria: dict, expected: list):
+    phylogeny_df = alifestd_mark_node_depth_asexual(_make_comb())
     res = alifestd_mask_persistence_asexual(
         phylogeny_df,
-        candidate_mask=_mask(phylogeny_df, [4, 8]),
-        criterion="depth",
-        extant_mask=_mask(phylogeny_df, [7]),
-        mark_as="m",
-    )
-    assert np.flatnonzero(res["m"]).tolist() == [8]
-
-
-def _make_comb() -> pd.DataFrame:
-    # 0 -- 1 -- 2 -- 3 -- 4
-    #      |    |    +--- 5
-    #      |    +-------- 6
-    #      +------------- 7
-    return pd.DataFrame(
-        {
-            "id": range(8),
-            "ancestor_id": [0, 0, 1, 2, 3, 3, 2, 1],
-            "origin_time": [0, 39, 48, 50, 100, 60, 50, 40],
-        },
-    )
-
-
-def test_criterion_origin_time_vs_node_depth_vs_ultrametric():
-    phylogeny_df = _make_comb()
-    kwargs = dict(
         candidate_mask=_mask(phylogeny_df, [5, 6, 7]),
         extant_mask=_mask(phylogeny_df, [4]),
         mark_as="m",
+        **criteria,
     )
-    # by elapsed time, leaf 6 is closest to leaf 4: (100 - 48) + (50 - 48)
-    res = alifestd_mask_persistence_asexual(phylogeny_df, **kwargs)
-    assert np.flatnonzero(res["m"]).tolist() == [6]
-    # by number of edges, sibling leaf 5 is closest
-    res = alifestd_mask_persistence_asexual(
-        alifestd_mark_node_depth_asexual(phylogeny_df),
-        criterion="node_depth",
-        **kwargs,
-    )
-    assert np.flatnonzero(res["m"]).tolist() == [5]
-    # with contemporaneous leaves, leaf 5 is closest, by most recent mrca
-    ultrametric_df = alifestd_ultrametricize(phylogeny_df)
-    phylogeny_df["origin_time_ultrametric"] = ultrametric_df[
-        "origin_time"
-    ].values
-    res = alifestd_mask_persistence_asexual(
-        phylogeny_df, criterion="origin_time_ultrametric", **kwargs
-    )
-    assert np.flatnonzero(res["m"]).tolist() == [5]
-    assert res["origin_time"].tolist() == _make_comb()["origin_time"].tolist()
+    assert np.flatnonzero(res["m"]).tolist() == expected
 
 
-def test_ultrametric_marks_all_sharing_most_recent_mrca():
+def test_trunk_only_marks_all_sharing_most_recent_mrca():
     phylogeny_df = _make_tree()
     # leaves 7 and 8 share extant leaf 5's most recent mrca with any
     # candidate; leaf 8's long branch otherwise puts it further away
@@ -166,12 +178,8 @@ def test_ultrametric_marks_all_sharing_most_recent_mrca():
     )
     res = alifestd_mask_persistence_asexual(phylogeny_df, **kwargs)
     assert np.flatnonzero(res["m"]).tolist() == [7]
-    ultrametric_df = alifestd_ultrametricize(phylogeny_df)
-    phylogeny_df["origin_time_ultrametric"] = ultrametric_df[
-        "origin_time"
-    ].values
     res = alifestd_mask_persistence_asexual(
-        phylogeny_df, criterion="origin_time_ultrametric", **kwargs
+        phylogeny_df, criterion_cherry=None, **kwargs
     )
     assert np.flatnonzero(res["m"]).tolist() == [7, 8]
 
@@ -258,33 +266,14 @@ def test_multiple_roots():
 
 @pytest.mark.parametrize("seed", range(5))
 def test_matches_pair_distances(seed: int):
-    rng = np.random.default_rng(seed)
-    n = 40
-    ancestor_ids = np.concatenate([[0], rng.integers(0, np.arange(1, n))])
-    ancestor_ids[n // 2] = n // 2  # second root
-    origin_times = np.zeros(n)
-    for id_, ancestor_id in enumerate(ancestor_ids):  # integers, so ties
-        origin_times[id_] = origin_times[ancestor_id] + rng.integers(3)
-    phylogeny_df = pd.DataFrame(
-        {
-            "id": range(n),
-            "ancestor_list": [
-                f"[{'none' if id_ == ancestor_id else ancestor_id}]"
-                for id_, ancestor_id in enumerate(ancestor_ids)
-            ],
-            "origin_time": origin_times,
-        },
-    )
-    extant_mask = rng.random(n) < 0.3
-    candidate_mask = rng.random(n) < 0.3
-
-    expected = np.zeros(n, dtype=bool)
-    for extant_id in np.flatnonzero(extant_mask):
+    phylogeny_df = _make_random_tree(seed)
+    expected = np.zeros(len(phylogeny_df), dtype=bool)
+    for extant_id in np.flatnonzero(phylogeny_df["is_extant"]):
         distances = {
             candidate_id: alifestd_find_pair_distance_asexual(
                 phylogeny_df, int(extant_id), int(candidate_id)
             )
-            for candidate_id in np.flatnonzero(candidate_mask)
+            for candidate_id in np.flatnonzero(phylogeny_df["is_candidate"])
         }
         distances = {k: v for k, v in distances.items() if v is not None}
         for candidate_id, distance in distances.items():
@@ -292,8 +281,56 @@ def test_matches_pair_distances(seed: int):
 
     res = alifestd_mask_persistence_asexual(
         phylogeny_df,
-        candidate_mask=candidate_mask,
-        extant_mask=extant_mask,
+        candidate_mask=phylogeny_df["is_candidate"].to_numpy(),
+        extant_mask=phylogeny_df["is_extant"].to_numpy(),
+        mark_as="m",
+    )
+    assert res["m"].tolist() == expected.tolist()
+    assert expected.any()
+
+
+@pytest.mark.parametrize("seed", range(3))
+@pytest.mark.parametrize(
+    "criterion_cherry, criterion_trunk",
+    [
+        ("origin_time", "mutations"),
+        ("mutations", "origin_time"),
+        ("origin_time", None),
+        (None, "origin_time"),
+    ],
+)
+def test_matches_brute_force(
+    criterion_cherry: typing.Optional[str],
+    criterion_trunk: typing.Optional[str],
+    seed: int,
+):
+    phylogeny_df = _make_random_tree(seed)
+    phylogeny_df["zero"] = 0.0
+    cherry_values = phylogeny_df[criterion_cherry or "zero"]
+    trunk_values = phylogeny_df[criterion_trunk or "zero"]
+    expected = np.zeros(len(phylogeny_df), dtype=bool)
+    for extant_id in np.flatnonzero(phylogeny_df["is_extant"]):
+        distances = {}
+        for candidate_id in np.flatnonzero(phylogeny_df["is_candidate"]):
+            mrca_id = alifestd_find_pair_mrca_id_asexual(
+                phylogeny_df, int(extant_id), int(candidate_id)
+            )
+            if mrca_id is not None:
+                distances[candidate_id] = (
+                    trunk_values[extant_id]
+                    - trunk_values[mrca_id]
+                    + cherry_values[candidate_id]
+                    - cherry_values[mrca_id]
+                )
+        for candidate_id, distance in distances.items():
+            expected[candidate_id] |= distance == min(distances.values())
+
+    res = alifestd_mask_persistence_asexual(
+        phylogeny_df,
+        candidate_mask=phylogeny_df["is_candidate"].to_numpy(),
+        criterion_cherry=criterion_cherry,
+        criterion_trunk=criterion_trunk,
+        extant_mask=phylogeny_df["is_extant"].to_numpy(),
         mark_as="m",
     )
     assert res["m"].tolist() == expected.tolist()
@@ -363,31 +400,49 @@ def test_non_bool_mask_raises(masks: dict):
         alifestd_mask_persistence_asexual(phylogeny_df, **masks)
 
 
-def test_missing_criterion_raises():
-    phylogeny_df = pd.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
+@pytest.mark.parametrize(
+    "criteria",
+    [
+        dict(criterion_cherry="missing"),
+        dict(criterion_trunk="missing"),
+        dict(criterion_cherry=None, criterion_trunk=None),
+    ],
+)
+def test_invalid_criterion_raises(criteria: dict):
+    phylogeny_df = pd.DataFrame(
+        {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": [0, 1, 1]}
+    )
     with pytest.raises(ValueError):
         alifestd_mask_persistence_asexual(
             phylogeny_df,
             candidate_mask=np.ones(3, dtype=bool),
             extant_mask=np.ones(3, dtype=bool),
+            **criteria,
         )
 
 
+@pytest.mark.parametrize("name", ["criterion_cherry", "criterion_trunk"])
 @pytest.mark.parametrize(
-    "origin_time",
+    "values",
     [
         pytest.param([1.0, 0.0, 2.0], id="decreasing"),
         pytest.param([0.0, np.nan, 1.0], id="nan"),
         pytest.param([0.0, np.inf, 1.0], id="inf"),
     ],
 )
-def test_unsupported_criterion_raises(origin_time: list):
+def test_unsupported_criterion_raises(values: list, name: str):
     phylogeny_df = pd.DataFrame(
-        {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": origin_time}
+        {
+            "id": [0, 1, 2],
+            "ancestor_id": [0, 0, 0],
+            "origin_time": [0.0, 1.0, 1.0],
+            "unsupported": values,
+        }
     )
     with pytest.raises(NotImplementedError):
         alifestd_mask_persistence_asexual(
             phylogeny_df,
             candidate_mask=np.ones(3, dtype=bool),
             extant_mask=np.ones(3, dtype=bool),
+            **{name: "unsupported"},
         )

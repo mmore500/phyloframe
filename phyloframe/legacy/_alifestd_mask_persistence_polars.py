@@ -31,7 +31,8 @@ def alifestd_mask_persistence_polars(
     phylogeny_df: pl.DataFrame,
     *,
     candidate_mask: typing.Union[str, pl.Expr],
-    criterion: str = "origin_time",
+    criterion_cherry: typing.Optional[str] = "origin_time",
+    criterion_trunk: typing.Optional[str] = "origin_time",
     extant_mask: typing.Union[str, pl.Expr],
     mark_as: str = "alifestd_mask_persistence_polars",
 ) -> pl.DataFrame:
@@ -44,11 +45,12 @@ def alifestd_mask_persistence_polars(
     leaves).
 
     Distance between an extant taxon and a candidate is measured via their
-    most recent common ancestor (MRCA), as in
-    `alifestd_find_pair_distance_polars`:
+    most recent common ancestor (MRCA), as the trunk distance along the
+    extant taxon's lineage back to the MRCA, plus the cherry distance from
+    the MRCA out to the candidate:
 
-        distance = (criterion[extant] - criterion[mrca])
-                 + (criterion[candidate] - criterion[mrca])
+        distance = (criterion_trunk[extant] - criterion_trunk[mrca])
+                 + (criterion_cherry[candidate] - criterion_cherry[mrca])
 
     If several candidates tie as an extant taxon's closest, all are marked.
     Extant taxa that share no common ancestor with any candidate do not
@@ -68,11 +70,18 @@ def alifestd_mask_persistence_polars(
         Column name or boolean expression marking taxa eligible to be
         marked as closest relatives, e.g., leaves within an earlier time
         window. May include inner nodes. Null values are not supported.
-    criterion : str, default "origin_time"
-        Column name used to measure distance between taxa and their MRCA,
-        e.g., "origin_time" for elapsed time or "node_depth" for number of
-        edges (see `alifestd_mark_node_depth_polars`). Values must be
-        finite, and must not decrease from ancestor to descendant.
+    criterion_cherry : str, optional, default "origin_time"
+        Column name used to measure cherry distance, from MRCA to
+        candidate, e.g., "origin_time" for elapsed time or "node_depth" for
+        number of edges (see `alifestd_mark_node_depth_polars`). Values
+        must be finite, and must not decrease from ancestor to descendant.
+
+        If None, cherry distance is not counted; see Notes.
+    criterion_trunk : str, optional, default "origin_time"
+        Column name used to measure trunk distance, from MRCA to extant
+        taxon, with requirements as for `criterion_cherry`.
+
+        If None, trunk distance is not counted; see Notes.
     extant_mask : str or polars.Expr
         Column name or boolean expression marking taxa whose closest
         relatives are sought, e.g., leaves after a time threshold. May
@@ -85,11 +94,13 @@ def alifestd_mask_persistence_polars(
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
         non-contiguous or not topologically sorted, if `extant_mask` or
-        `candidate_mask` has null values, or if `criterion` values are null,
-        non-finite, or decrease from ancestor to descendant (see
+        `candidate_mask` has null values, or if `criterion_cherry` or
+        `criterion_trunk` values are null, non-finite, or decrease from
+        ancestor to descendant (see
         `alifestd_coerce_chronological_consistency_polars`).
     ValueError
-        If `criterion` is not a column in `phylogeny_df`.
+        If `criterion_cherry` or `criterion_trunk` is not a column in
+        `phylogeny_df`, or if both are None.
 
     Returns
     -------
@@ -108,18 +119,21 @@ def alifestd_mask_persistence_polars(
     alifestd_prune_extinct_lineages_polars :
         Drops taxa without marked descendants, e.g., pass `mark_as` column
         as `criterion` to keep only lineages of marked candidates.
-    alifestd_ultrametricize_polars :
-        Makes leaves contemporaneous, e.g., to mark candidates by most
-        recent common ancestor.
 
     Notes
     -----
-    Which candidates are closest depends on `criterion`. With leaves'
-    own "origin_time" values, a candidate on a long branch can be further
-    from an extant taxon than a candidate that diverged from its lineage
-    earlier. With leaves made contemporaneous, an extant leaf's closest
-    candidate leaves are those sharing its most recent common ancestor with
-    any candidate; see Examples.
+    Which candidates are closest depends on how trunk and cherry distances
+    are counted:
+
+    - with both (default), candidates are closest by total distance, as in
+      `alifestd_find_pair_distance_polars`;
+    - with `criterion_cherry` None, candidates are closest by most recent
+      common ancestor, whatever their own branch lengths, so all candidates
+      sharing an extant taxon's most recent common ancestor with any
+      candidate are marked; and
+    - with `criterion_trunk` None, candidates are closest by how far they
+      sit from an extant taxon's lineage, however long ago they diverged
+      from it.
 
     Examples
     --------
@@ -144,21 +158,14 @@ def alifestd_mask_persistence_polars(
     ... )
 
     To instead mark by most recent common ancestor, whatever leaves' own
-    branch lengths, measure distance with leaves made contemporaneous:
+    branch lengths:
 
-    >>> ultrametric_df = alifestd_ultrametricize_polars(df)
-    >>> persistence_df = (
-    ...     alifestd_mark_leaves_polars(df)
-    ...     .with_columns(
-    ...         origin_time_ultrametric=ultrametric_df["origin_time"],
-    ...     )
-    ...     .pipe(
-    ...         alifestd_mask_persistence_polars,
-    ...         candidate_mask=candidate_mask,
-    ...         criterion="origin_time_ultrametric",
-    ...         extant_mask=extant_mask,
-    ...         mark_as="is_persistent",
-    ...     )
+    >>> persistence_df = alifestd_mark_leaves_polars(df).pipe(
+    ...     alifestd_mask_persistence_polars,
+    ...     candidate_mask=candidate_mask,
+    ...     criterion_cherry=None,
+    ...     extant_mask=extant_mask,
+    ...     mark_as="is_persistent",
     ... )
     """
     if isinstance(extant_mask, str):
@@ -166,12 +173,17 @@ def alifestd_mask_persistence_polars(
     if isinstance(candidate_mask, str):
         candidate_mask = pl.col(candidate_mask)
 
+    if criterion_cherry is None and criterion_trunk is None:
+        raise ValueError(
+            "at least one of criterion_cherry and criterion_trunk required",
+        )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
-    if criterion not in schema_names:
-        raise ValueError(
-            f"criterion column {criterion!r} not found in phylogeny_df",
-        )
+    for criterion in (criterion_cherry, criterion_trunk):
+        if criterion is not None and criterion not in schema_names:
+            raise ValueError(
+                f"criterion column {criterion!r} not found in phylogeny_df",
+            )
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
             "alifestd_mask_persistence_polars only supports asexual phylogenies.",
@@ -193,28 +205,40 @@ def alifestd_mask_persistence_polars(
             pl.col("ancestor_id"),
             extant_mask=extant_mask.cast(pl.Boolean),
             candidate_mask=candidate_mask.cast(pl.Boolean),
-            criterion=pl.col(criterion).cast(pl.Float64),
+            **{
+                name: pl.lit(0.0)
+                if criterion is None
+                else pl.col(criterion).cast(pl.Float64)
+                for name, criterion in (
+                    ("criterion_cherry", criterion_cherry),
+                    ("criterion_trunk", criterion_trunk),
+                )
+            },
         )
         .collect()
     )
-    for name in ("extant_mask", "candidate_mask", "criterion"):
+    for name in selected.columns[1:]:
         if selected[name].has_nulls():
             raise NotImplementedError(f"null {name} values not supported")
     ancestor_ids = selected["ancestor_id"].to_numpy()
-    criterion_values = selected["criterion"].to_numpy()
-    if not np.isfinite(criterion_values).all():
-        raise NotImplementedError("non-finite criterion values not supported")
-    if (criterion_values < criterion_values[ancestor_ids]).any():
-        raise NotImplementedError(
-            "criterion values decreasing from ancestor to descendant "
-            "not supported",
-        )
+    for name in "criterion_cherry", "criterion_trunk":
+        values = selected[name].to_numpy()
+        if not np.isfinite(values).all():
+            raise NotImplementedError(
+                f"non-finite {name} values not supported",
+            )
+        if (values < values[ancestor_ids]).any():
+            raise NotImplementedError(
+                f"{name} values decreasing from ancestor to descendant "
+                "not supported",
+            )
 
     result = _alifestd_mask_persistence_asexual_fast_path(
         ancestor_ids,
         selected["extant_mask"].to_numpy(),
         selected["candidate_mask"].to_numpy(),
-        criterion_values,
+        selected["criterion_cherry"].to_numpy(),
+        selected["criterion_trunk"].to_numpy(),
     )
     return phylogeny_df.with_columns(pl.Series(name=mark_as, values=result))
 
@@ -236,12 +260,14 @@ Additional Notes
 ================
 - Requires contiguous, topologically sorted ids.
 
-- Requires `--criterion` column (default: 'origin_time'), used to measure
-distance between taxa via their most recent common ancestor.
+- Requires `--criterion-cherry` and `--criterion-trunk` columns (default:
+'origin_time'), used to measure distance from the most recent common
+ancestor of an extant taxon and a candidate out to the candidate (cherry)
+and to the extant taxon (trunk).
 
-- To mark candidates by most recent common ancestor, whatever leaves' own
-branch lengths, pass a `--criterion` column with leaves made contemporaneous
-(see _alifestd_ultrametricize_polars).
+- Pass `--criterion-cherry ''` to mark candidates by most recent common
+ancestor, whatever their own branch lengths, or `--criterion-trunk ''` to
+mark candidates by how far they sit from an extant taxon's lineage.
 
 - Use `--with-column` to add mask columns, e.g.,
 `--with-column '(pl.col("is_leaf") & (pl.col("origin_time") > 100)).alias("is_extant")'`.
@@ -283,12 +309,21 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--criterion",
+        "--criterion-cherry",
         default="origin_time",
         type=str,
         help=(
-            "Column name used to measure distance between taxa and their "
-            "MRCA (default: origin_time)."
+            "Column name used to measure distance from MRCA to candidate; "
+            "pass '' to not count (default: origin_time)."
+        ),
+    )
+    parser.add_argument(
+        "--criterion-trunk",
+        default="origin_time",
+        type=str,
+        help=(
+            "Column name used to measure distance from MRCA to extant "
+            "taxon; pass '' to not count (default: origin_time)."
         ),
     )
     parser.add_argument(
@@ -328,7 +363,8 @@ if __name__ == "__main__":
                 output_dataframe_op=functools.partial(
                     alifestd_mask_persistence_polars,
                     candidate_mask=args.candidate_mask,
-                    criterion=args.criterion,
+                    criterion_cherry=args.criterion_cherry or None,
+                    criterion_trunk=args.criterion_trunk or None,
                     extant_mask=args.extant_mask,
                     mark_as=args.mark_as,
                 ),
