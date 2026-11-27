@@ -37,9 +37,9 @@ def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
     """
     if first == second:  # same node
         return 0
-    if first == -1 or second == len(mrca_values):  # sentinel: closer
+    elif first == -1 or second == len(mrca_values):  # sentinel: closer
         return -1
-    if second == -1 or first == len(mrca_values):  # sentinel: further
+    elif second == -1 or first == len(mrca_values):  # sentinel: further
         return 1
     for first_value, second_value in zip(
         mrca_values[first], mrca_values[second]
