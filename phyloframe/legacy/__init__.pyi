@@ -665,9 +665,6 @@ from ._alifestd_mask_monomorphic_clades_asexual import (
 from ._alifestd_mask_monomorphic_clades_polars import (
     alifestd_mask_monomorphic_clades_polars,
 )
-from ._alifestd_mask_persistence_asexual import (
-    alifestd_mask_persistence_asexual,
-)
 from ._alifestd_mask_persistence_polars import (
     alifestd_mask_persistence_polars,
 )
@@ -1117,7 +1114,6 @@ __all__ = [
     "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
     "alifestd_mask_monomorphic_clades_polars",
-    "alifestd_mask_persistence_asexual",
     "alifestd_mask_persistence_polars",
     "alifestd_mask_trait_singletons_asexual",
     "alifestd_mask_trait_singletons_polars",

@@ -127,8 +127,10 @@ def test_cli_column_names(input_csv, tmp_path):
     assert expected.any()
 
 
-@pytest.mark.parametrize("name", ["criterion_cherry", "criterion_trunk"])
-def test_cli_criterion_not_counted(name, input_csv, tmp_path):
+@pytest.mark.parametrize(
+    "name", ["criterion_cherry", "criterion_tiebreak", "criterion_trunk"]
+)
+def test_cli_criterion_none(name, input_csv, tmp_path):
     output_file = str(tmp_path / "output.csv")
     subprocess.run(  # nosec B603
         [
