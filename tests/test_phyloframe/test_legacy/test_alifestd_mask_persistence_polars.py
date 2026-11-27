@@ -221,8 +221,10 @@ def test_criterion_cherry_trunk(criteria: dict, expected: list):
 @pytest.mark.parametrize(
     "criterion_tiebreak, expected",
     [
-        # default: earliest, then first in row order
-        pytest.param(pl.col("origin_time").rank("ordinal"), [7], id="default"),
+        # default: earliest, then lowest id
+        pytest.param(
+            pl.struct("origin_time", "id").rank("ordinal"), [7], id="default"
+        ),
         pytest.param(pl.lit(0), [7, 8], id="constant"),
         pytest.param("priority", [8], id="column"),
         pytest.param(-pl.col("id"), [8], id="expr"),
