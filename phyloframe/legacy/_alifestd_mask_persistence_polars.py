@@ -31,97 +31,74 @@ from ._alifestd_try_add_ancestor_id_col_polars import (
 )
 
 
-def _rank_rows(*values: np.ndarray) -> np.ndarray:
-    """Implementation detail for `alifestd_mask_persistence_polars`.
-
-    Returns ranks of rows of `values` arrays' columns, taken side by side
-    and compared from first to last, from 0 for the lowest, with equal rows
-    sharing a rank.
-    """
-    return (
-        pl.from_numpy(np.column_stack(values))
-        .select(pl.struct(pl.all()).rank("dense") - 1)
-        .to_series()
-        .to_numpy()
-    )
-
-
 def _alifestd_mask_persistence_fast_path(
     ancestor_ids: np.ndarray,
     candidate_mask: np.ndarray,
     extant_mask: np.ndarray,
+    candidate_ranks: np.ndarray,
     cherry_values: np.ndarray,
     trunk_values: np.ndarray,
     tiebreak_values: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mask_persistence_polars`.
 
-    Assumes contiguous, topologically sorted ids and finite values, with
-    one row per taxon and columns compared from first to last. Columns of
-    `cherry_values` and `trunk_values` must correspond, and not decrease
-    from ancestor to descendant.
+    Assumes contiguous, topologically sorted ids. Values have a row per
+    taxon, with columns compared in order, and `candidate_ranks` rank taxa
+    by cherry then tiebreak values, from zero.
     """
-    # rank taxa by cherry then tiebreak values; the lowest-ranked candidates
-    # in a clade are the clade's closest to any taxon outside it
-    candidate_ranks = _rank_rows(cherry_values, tiebreak_values)
+    n = len(ancestor_ids)
+
+    # closest candidates in each clade to taxa outside it, n if none
     clade_candidate_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
         ancestor_ids,
-        np.where(candidate_mask, candidate_ranks, np.nan),
-        True,  # reverse
-        True,  # skipna
+        np.where(candidate_mask, candidate_ranks, n),
+        reverse=True,
+        skipna=True,
     )
-    has_candidate = ~np.isnan(clade_candidate_ranks)
+    rank_ids = np.zeros(n + 1, dtype=np.int64)  # a taxon id with each rank
+    rank_ids[candidate_ranks] = np.arange(n)
+    clade_candidate_ids = rank_ids[clade_candidate_ranks]
 
-    # look up one of each clade's lowest-ranked candidates, for their values
-    rank_ids = np.empty_like(ancestor_ids)
-    rank_ids[candidate_ranks] = np.arange(len(ancestor_ids))
-    clade_candidate_ids = rank_ids[
-        np.where(has_candidate, clade_candidate_ranks, 0).astype(np.int64)
-    ]
-
-    # rank nodes as mrcas, by distance terms that do not depend on the
-    # extant taxon, then by tiebreak values; an extant taxon's closest
-    # candidates are in the clade of the lowest-ranked node along its
-    # lineage (as values do not decrease, a clade's lowest-ranked candidate
-    # that shares a later mrca with the taxon is only closer than ranked)
-    mrca_ranks = np.where(
-        has_candidate,
-        _rank_rows(
+    # rank nodes as mrcas with those candidates, lowest closest, n if none
+    mrca_values = np.column_stack(
+        [
             cherry_values[clade_candidate_ids]
             - (trunk_values + cherry_values),
             tiebreak_values[clade_candidate_ids],
-        ),
-        np.nan,
+        ],
     )
-    best_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
+    mrca_ranks = np.where(
+        clade_candidate_ranks < n,
+        pl.from_numpy(mrca_values)
+        .select((pl.struct(pl.all()).rank("dense") - 1).cast(pl.Int64))
+        .to_series()
+        .to_numpy(),
+        n,
+    )
+
+    # mrcas ranked lowest along the lineage of any extant taxon
+    lineage_mrca_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
         ancestor_ids,
         mrca_ranks,
-        False,  # reverse
-        True,  # skipna
+        reverse=False,
+        skipna=True,
     )
+    extant_mrca_ranks = _alifestd_mark_lineage_cummax_asexual_fast_path(
+        ancestor_ids,
+        np.where(extant_mask, lineage_mrca_ranks, -1),
+        reverse=True,
+        skipna=True,
+    )
+    is_closest_mrca = mrca_ranks == extant_mrca_ranks
 
-    # nodes ranked best by any extant taxon; a taxon's best rank can't
-    # exceed the rank of a node along its lineage
-    is_closest_mrca = mrca_ranks == (
-        _alifestd_mark_lineage_cummax_asexual_fast_path(
-            ancestor_ids,
-            np.where(extant_mask, best_ranks, np.nan),
-            True,  # reverse
-            True,  # skipna
-        )
+    # closest candidates in clades of those mrcas
+    closest_candidate_ranks = _alifestd_mark_lineage_cummax_asexual_fast_path(
+        ancestor_ids,
+        np.where(is_closest_mrca, clade_candidate_ranks, -1),
+        reverse=False,
+        skipna=True,
     )
-
-    # lowest-ranked candidates in such nodes' clades; a clade's lowest rank
-    # can't exceed the rank of a candidate in it
-    return candidate_mask & (
-        candidate_ranks
-        == _alifestd_mark_lineage_cummax_asexual_fast_path(
-            ancestor_ids,
-            np.where(is_closest_mrca, clade_candidate_ranks, np.nan),
-            False,  # reverse
-            True,  # skipna
-        )
-    )
+    return candidate_mask & (candidate_ranks == closest_candidate_ranks)
 
 
 def alifestd_mask_persistence_polars(
@@ -262,6 +239,24 @@ def alifestd_mask_persistence_polars(
       they sit from an extant taxon's lineage, however long ago they
       diverged from it.
 
+    Marking generalizes the persistence filter of the MODES toolbox (Dolson
+    et al., 2019), which keeps taxa at one time point with descendants a
+    filter length later, to screen out transient taxa without the neutral
+    shadow runs of evolutionary activity statistics (Bedau et al., 1998).
+    With taxa before a time point as candidates, extant taxa mark their
+    ancestors, as for that filter; see Examples. Otherwise, e.g., with
+    only leaves as candidates, their closest relatives stand in.
+
+    References
+    ----------
+    Dolson EL, Vostinar AE, Wiser MJ, and Ofria C. The MODES toolbox:
+        measurements of open-ended dynamics in evolving systems. Artificial
+        Life 2019, 25(1):50-73 (https://doi.org/10.1162/artl_a_00280)
+
+    Bedau MA, Snyder E, and Packard NH. A classification of long-term
+        evolutionary dynamics. In: Artificial Life VI. MIT Press, 1998,
+        pp. 228-237.
+
     Examples
     --------
     Take phylogeny `df` in working format. To mark leaves from times 40 to
@@ -313,13 +308,16 @@ def alifestd_mask_persistence_polars(
         candidate_mask = pl.col(candidate_mask)
     if isinstance(extant_mask, str):
         extant_mask = pl.col(extant_mask)
+    if isinstance(criterion_cherry, str):
+        criterion_cherry = pl.col(criterion_cherry)
+    if isinstance(criterion_trunk, str):
+        criterion_trunk = pl.col(criterion_trunk)
+    if isinstance(criterion_tiebreak, str):
+        criterion_tiebreak = pl.col(criterion_tiebreak)
     criteria = {
-        name: pl.col(criterion) if isinstance(criterion, str) else criterion
-        for name, criterion in (
-            ("criterion_cherry", criterion_cherry),
-            ("criterion_trunk", criterion_trunk),
-            ("criterion_tiebreak", criterion_tiebreak),
-        )
+        "criterion_cherry": criterion_cherry,
+        "criterion_trunk": criterion_trunk,
+        "criterion_tiebreak": criterion_tiebreak,
     }
 
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
@@ -328,12 +326,6 @@ def alifestd_mask_persistence_polars(
         raise NotImplementedError(
             "alifestd_mask_persistence_polars only supports asexual phylogenies.",
         )
-    for name, criterion in criteria.items():
-        for column in criterion.meta.root_names():
-            if column not in (*schema_names, "node_depth"):
-                raise ValueError(
-                    f"{name} column {column!r} not found in phylogeny_df",
-                )
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
             pl.lit(False, dtype=pl.Boolean).alias(mark_as),
@@ -345,23 +337,28 @@ def alifestd_mask_persistence_polars(
             "non-topologically-sorted data not supported",
         )
 
-    exprs = (candidate_mask, extant_mask, *criteria.values())
-    selected = (
-        alifestd_mark_node_depth_polars(phylogeny_df)
-        if "node_depth" not in schema_names
-        and any("node_depth" in expr.meta.root_names() for expr in exprs)
-        else phylogeny_df
-    )
+    selected = phylogeny_df
+    if "node_depth" not in schema_names:
+        selected = alifestd_mark_node_depth_polars(selected)
+        schema_names = [*schema_names, "node_depth"]
+    for name, criterion in criteria.items():
+        for column in criterion.meta.root_names():
+            if column not in schema_names:
+                raise ValueError(
+                    f"{name} column {column!r} not found in phylogeny_df",
+                )
+
+    candidate_rank = pl.struct(
+        cherry=criterion_cherry, tiebreak=criterion_tiebreak
+    ).rank("dense")
     selected = (
         selected.lazy()
         .select(
             pl.col("ancestor_id"),
             candidate_mask=candidate_mask.cast(pl.Boolean),
             extant_mask=extant_mask.cast(pl.Boolean),
-            **{
-                name: criterion.cast(pl.Float64)
-                for name, criterion in criteria.items()
-            },
+            candidate_rank=(candidate_rank - 1).cast(pl.Int64),
+            **{k: v.cast(pl.Float64) for k, v in criteria.items()},
         )
         .collect()
     )
@@ -390,17 +387,18 @@ def alifestd_mask_persistence_polars(
         values[name].shape[1]
         for name in ("criterion_cherry", "criterion_trunk")
     )
-    for name in ("criterion_cherry", "criterion_trunk"):
-        values[name] = np.pad(
-            values[name], [(0, 0), (0, num_fields - values[name].shape[1])]
-        )
+    cherry_values, trunk_values = (
+        np.pad(values[name], [(0, 0), (0, num_fields - values[name].shape[1])])
+        for name in ("criterion_cherry", "criterion_trunk")
+    )
 
     result = _alifestd_mask_persistence_fast_path(
         ancestor_ids,
         selected["candidate_mask"].to_numpy(),
         selected["extant_mask"].to_numpy(),
-        values["criterion_cherry"],
-        values["criterion_trunk"],
+        selected["candidate_rank"].to_numpy(),
+        cherry_values,
+        trunk_values,
         values["criterion_tiebreak"],
     )
     return phylogeny_df.with_columns(pl.Series(name=mark_as, values=result))
