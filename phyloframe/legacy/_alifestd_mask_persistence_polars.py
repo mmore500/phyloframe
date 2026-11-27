@@ -19,9 +19,6 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_lineage_cummax_asexual import (
-    _alifestd_mark_lineage_cummax_asexual_fast_path,
-)
 from ._alifestd_mark_lineage_cummin_asexual import (
     _alifestd_mark_lineage_cummin_asexual_fast_path,
 )
@@ -43,28 +40,30 @@ def _alifestd_mask_persistence_fast_path(
     """Implementation detail for `alifestd_mask_persistence_polars`.
 
     Assumes contiguous, topologically sorted ids. Values have a row per
-    taxon, with columns compared in order, and `candidate_ranks` rank taxa
-    by cherry then tiebreak values, from zero.
+    taxon, with columns compared in order, and `candidate_ranks` distinctly
+    rank taxa by cherry values, then tiebreak values, then id, from zero.
     """
     n = len(ancestor_ids)
+    ids = np.arange(n)
 
-    # closest candidates in each clade to taxa outside it, n if none
+    # closest candidate in each clade to taxa outside it
     clade_candidate_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
         ancestor_ids,
-        np.where(candidate_mask, candidate_ranks, n),
+        np.where(candidate_mask, candidate_ranks, n),  # n if none
         reverse=True,
         skipna=True,
     )
-    rank_ids = np.zeros(n + 1, dtype=np.int64)  # a taxon id with each rank
-    rank_ids[candidate_ranks] = np.arange(n)
-    clade_candidate_ids = rank_ids[clade_candidate_ranks]
+    candidate_ids = np.zeros(n + 1, dtype=np.int64)  # by rank
+    candidate_ids[candidate_ranks] = ids
+    clade_candidate_ids = candidate_ids[clade_candidate_ranks]
 
-    # rank nodes as mrcas with those candidates, lowest closest, n if none
+    # rank nodes as mrcas with those candidates, lowest closest
     mrca_values = np.column_stack(
         [
             (cherry_values[clade_candidate_ids] - cherry_values)
             + (trunk_values.max(axis=0) - trunk_values),
             tiebreak_values[clade_candidate_ids],
+            clade_candidate_ids,
         ],
     )
     mrca_ranks = np.where(
@@ -73,32 +72,22 @@ def _alifestd_mask_persistence_fast_path(
         .select((pl.struct(pl.all()).rank("dense") - 1).cast(pl.Int64))
         .to_series()
         .to_numpy(),
-        n,
+        n,  # if no candidate
     )
+    mrca_ids = np.zeros(n + 1, dtype=np.int64)  # by rank
+    mrca_ids[mrca_ranks] = ids
 
-    # mrcas ranked lowest along the lineage of any extant taxon
-    lineage_mrca_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
+    # closest candidate to each extant taxon, via its lowest-ranked mrca
+    extant_mrca_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
         ancestor_ids,
         mrca_ranks,
         reverse=False,
         skipna=True,
-    )
-    extant_mrca_ranks = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        ancestor_ids,
-        np.where(extant_mask, lineage_mrca_ranks, -1),
-        reverse=True,
-        skipna=True,
-    )
-    is_closest_mrca = mrca_ranks == extant_mrca_ranks
-
-    # closest candidates in clades of those mrcas
-    closest_candidate_ranks = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        ancestor_ids,
-        np.where(is_closest_mrca, clade_candidate_ranks, -1),
-        reverse=False,
-        skipna=True,
-    )
-    return candidate_mask & (candidate_ranks == closest_candidate_ranks)
+    )[extant_mask]
+    extant_mrca_ids = mrca_ids[extant_mrca_ranks[extant_mrca_ranks < n]]
+    result = np.zeros(n, dtype=bool)
+    result[clade_candidate_ids[extant_mrca_ids]] = True
+    return result
 
 
 def alifestd_mask_persistence_polars(
@@ -113,9 +102,9 @@ def alifestd_mask_persistence_polars(
         "origin_time", "node_depth"
     ),
     mark_as: str = "alifestd_mask_persistence_polars",
-    criterion_tiebreak: typing.Union[str, pl.Expr] = pl.struct(
-        pl.col("origin_time").rank("dense", descending=True), "id"
-    ).rank("ordinal"),
+    criterion_tiebreak: typing.Union[str, pl.Expr] = pl.col(
+        "origin_time"
+    ).rank("dense", descending=True),
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
     of at least one extant taxon.
@@ -187,14 +176,11 @@ def alifestd_mask_persistence_polars(
         Column name or expression used to choose among candidates tied as
         an extant taxon's closest, taking the candidate with the lowest
         value. Values must be numeric and finite. If a struct, fields are
-        compared in order. Candidates also tied by `criterion_tiebreak`
-        value are all marked.
-
-        By default, takes the latest tied candidate by "origin_time", or
-        the one with the lowest id among equally late candidates, so that
+        compared in order. Among candidates also tied by
+        `criterion_tiebreak` value, the one with the lowest id is taken, so
         each extant taxon marks at most one candidate.
 
-        Pass a constant, e.g., `pl.lit(0)`, to mark all tied candidates.
+        By default, takes the latest tied candidate by "origin_time".
 
     Raises
     ------
@@ -349,7 +335,7 @@ def alifestd_mask_persistence_polars(
                 )
 
     candidate_rank = pl.struct(
-        cherry=criterion_cherry, tiebreak=criterion_tiebreak
+        cherry=criterion_cherry, tiebreak=criterion_tiebreak, id="id"
     ).rank("dense")
     selected = (
         selected.lazy()
@@ -441,8 +427,7 @@ an extant taxon's lineage.
 
 - Among candidates tied as an extant taxon's closest, the one with the
 lowest `--criterion-tiebreak` value is marked (default: latest
-'origin_time', then lowest 'id'). Pass `--criterion-tiebreak 'pl.lit(0)'`
-to mark all tied candidates.
+'origin_time'), then the one with the lowest 'id'.
 
 - Use `--eager-read` if modifying data file inplace.
 
@@ -526,16 +511,13 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--criterion-tiebreak",
-        default=(
-            'pl.struct(pl.col("origin_time").rank("dense", descending=True), '
-            '"id").rank("ordinal")'
-        ),
+        default='pl.col("origin_time").rank("dense", descending=True)',
         type=str,
         help=(
             "Python expression evaluating to a column name or polars "
             "expression used to choose among tied candidates, taking the "
             "lowest, with polars available as `pl` "
-            "(default: latest origin_time, then lowest id)."
+            "(default: latest origin_time)."
         ),
     )
     return parser
