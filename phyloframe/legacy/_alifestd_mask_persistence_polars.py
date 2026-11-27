@@ -19,21 +19,21 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mask_closest_relatives_asexual import (
-    _alifestd_mask_closest_relatives_asexual_fast_path,
+from ._alifestd_mask_persistence_asexual import (
+    _alifestd_mask_persistence_asexual_fast_path,
 )
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 
 
-def alifestd_mask_closest_relatives_polars(
+def alifestd_mask_persistence_polars(
     phylogeny_df: pl.DataFrame,
     *,
     candidate_mask: typing.Union[str, pl.Expr],
     criterion: str = "origin_time",
     extant_mask: typing.Union[str, pl.Expr],
-    mark_as: str = "alifestd_mask_closest_relatives_polars",
+    mark_as: str = "alifestd_mask_persistence_polars",
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
     of at least one extant taxon.
@@ -76,7 +76,7 @@ def alifestd_mask_closest_relatives_polars(
         Column name or boolean expression marking taxa whose closest
         relatives are sought, e.g., leaves after a time threshold. May
         include inner nodes. Null values are not supported.
-    mark_as : str, default "alifestd_mask_closest_relatives_polars"
+    mark_as : str, default "alifestd_mask_persistence_polars"
         Column name for the boolean mask.
 
     Raises
@@ -102,7 +102,7 @@ def alifestd_mask_closest_relatives_polars(
         Calculates distance between a single pair of taxa.
     alifestd_mark_sample_tips_lineage_polars :
         Marks leaves closest to the lineage of a single target leaf.
-    alifestd_mask_closest_relatives_asexual :
+    alifestd_mask_persistence_asexual :
         Pandas-based implementation.
     alifestd_prune_extinct_lineages_polars :
         Drops taxa without marked descendants, e.g., pass `mark_as` column
@@ -116,7 +116,7 @@ def alifestd_mask_closest_relatives_polars(
     >>> is_leaf = pl.col("is_leaf")
     >>> origin_time = pl.col("origin_time")
     >>> df = alifestd_mark_leaves_polars(df).pipe(
-    ...     alifestd_mask_closest_relatives_polars,
+    ...     alifestd_mask_persistence_polars,
     ...     candidate_mask=is_leaf & origin_time.is_between(40, 60),
     ...     extant_mask=is_leaf & (origin_time > 100),
     ...     mark_as="is_persistent",
@@ -141,7 +141,7 @@ def alifestd_mask_closest_relatives_polars(
         )
     if "ancestor_id" not in schema_names:
         raise NotImplementedError(
-            "alifestd_mask_closest_relatives_polars only supports asexual phylogenies.",
+            "alifestd_mask_persistence_polars only supports asexual phylogenies.",
         )
     if phylogeny_df.lazy().limit(1).collect().is_empty():
         return phylogeny_df.with_columns(
@@ -177,7 +177,7 @@ def alifestd_mask_closest_relatives_polars(
             "not supported",
         )
 
-    result = _alifestd_mask_closest_relatives_asexual_fast_path(
+    result = _alifestd_mask_persistence_asexual_fast_path(
         ancestor_ids,
         selected["extant_mask"].to_numpy(),
         selected["candidate_mask"].to_numpy(),
@@ -233,9 +233,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser = _add_parser_base(
         parser=parser,
-        dfcli_module=(
-            "phyloframe.legacy._alifestd_mask_closest_relatives_polars"
-        ),
+        dfcli_module=("phyloframe.legacy._alifestd_mask_persistence_polars"),
         dfcli_version=get_phyloframe_version(),
     )
     parser.add_argument(
@@ -267,11 +265,11 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mark-as",
-        default="alifestd_mask_closest_relatives_polars",
+        default="alifestd_mask_persistence_polars",
         type=str,
         help=(
             "Column name for the boolean mask "
-            "(default: alifestd_mask_closest_relatives_polars)."
+            "(default: alifestd_mask_persistence_polars)."
         ),
     )
     return parser
@@ -285,13 +283,13 @@ if __name__ == "__main__":
 
     try:
         with log_context_duration(
-            "phyloframe.legacy._alifestd_mask_closest_relatives_polars",
+            "phyloframe.legacy._alifestd_mask_persistence_polars",
             logging.info,
         ):
             _run_dataframe_cli(
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
-                    alifestd_mask_closest_relatives_polars,
+                    alifestd_mask_persistence_polars,
                     candidate_mask=args.candidate_mask,
                     criterion=args.criterion,
                     extant_mask=args.extant_mask,

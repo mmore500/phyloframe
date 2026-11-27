@@ -7,7 +7,7 @@ from phyloframe.legacy import (
     alifestd_make_empty,
 )
 from phyloframe.legacy import (
-    alifestd_mask_closest_relatives_asexual as alifestd_mask_closest_relatives_asexual_,
+    alifestd_mask_persistence_asexual as alifestd_mask_persistence_asexual_,
 )
 from phyloframe.legacy import (
     alifestd_prune_extinct_lineages_asexual,
@@ -15,8 +15,8 @@ from phyloframe.legacy import (
 
 from ._impl import enforce_dtype_stability_pandas
 
-alifestd_mask_closest_relatives_asexual = enforce_dtype_stability_pandas(
-    alifestd_mask_closest_relatives_asexual_
+alifestd_mask_persistence_asexual = enforce_dtype_stability_pandas(
+    alifestd_mask_persistence_asexual_
 )
 
 
@@ -41,12 +41,12 @@ def _mask(phylogeny_df: pd.DataFrame, ids: list) -> np.ndarray:
 def test_empty():
     phylogeny_df = alifestd_make_empty()
     phylogeny_df["origin_time"] = pd.Series([], dtype=float)
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=np.array([], dtype=bool),
         extant_mask=np.array([], dtype=bool),
     )
-    assert "alifestd_mask_closest_relatives_asexual" in res.columns
+    assert "alifestd_mask_persistence_asexual" in res.columns
     assert len(res) == 0
 
 
@@ -54,7 +54,7 @@ def test_empty():
 def test_simple(mutate: bool):
     phylogeny_df = _make_tree()
     original_df = phylogeny_df.copy()
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         mutate=mutate,
         candidate_mask=_mask(phylogeny_df, [4, 5, 8]),
@@ -63,7 +63,7 @@ def test_simple(mutate: bool):
     # leaf 7 is closest to its sibling 8, and leaf 6 to its sibling 5; leaf
     # 4 is further from leaf 7 than leaf 8 is, so is not marked
     assert np.flatnonzero(
-        res["alifestd_mask_closest_relatives_asexual"]
+        res["alifestd_mask_persistence_asexual"]
     ).tolist() == [5, 8]
     if not mutate:
         assert original_df.equals(phylogeny_df)
@@ -71,14 +71,14 @@ def test_simple(mutate: bool):
 
 def test_mark_as():
     phylogeny_df = _make_tree()
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [4, 5, 8]),
         extant_mask=_mask(phylogeny_df, [6]),
         mark_as="m",
     )
     assert np.flatnonzero(res["m"]).tolist() == [5]
-    assert "alifestd_mask_closest_relatives_asexual" not in res.columns
+    assert "alifestd_mask_persistence_asexual" not in res.columns
 
 
 def test_closer_branch_beats_later_mrca():
@@ -86,7 +86,7 @@ def test_closer_branch_beats_later_mrca():
     # leaf 7 shares a later mrca with leaf 8 than with leaf 4, but leaf 8's
     # long branch puts it further away
     phylogeny_df.loc[8, "origin_time"] = 20
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [4, 8]),
         extant_mask=_mask(phylogeny_df, [7]),
@@ -99,7 +99,7 @@ def test_criterion():
     phylogeny_df = _make_tree()
     phylogeny_df["depth"] = [0, 1, 1, 2, 2, 2, 2, 3, 3]
     phylogeny_df.loc[8, "origin_time"] = 20
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [4, 8]),
         criterion="depth",
@@ -112,7 +112,7 @@ def test_criterion():
 def test_ties_all_marked():
     phylogeny_df = _make_tree()
     phylogeny_df["origin_time"] = [0, 1, 1, 2, 2, 2, 2, 3, 3]
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [4, 7, 8]),
         extant_mask=_mask(phylogeny_df, [5]),
@@ -120,7 +120,7 @@ def test_ties_all_marked():
     )
     # leaf 4 is closer than tied leaves 7 and 8
     assert np.flatnonzero(res["m"]).tolist() == [4]
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [7, 8]),
         extant_mask=_mask(phylogeny_df, [5]),
@@ -132,7 +132,7 @@ def test_ties_all_marked():
 def test_inner_nodes():
     phylogeny_df = _make_tree()
     # candidate ancestors (1) and descendants (7) of extant node 3
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [0, 1, 7]),
         extant_mask=_mask(phylogeny_df, [3]),
@@ -143,7 +143,7 @@ def test_inner_nodes():
 
 def test_extant_candidate_is_own_closest():
     phylogeny_df = _make_tree()
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [7, 8]),
         extant_mask=_mask(phylogeny_df, [7]),
@@ -155,7 +155,7 @@ def test_extant_candidate_is_own_closest():
 def test_no_extant_or_no_candidates():
     phylogeny_df = _make_tree()
     for candidate_ids, extant_ids in ([], [6, 7]), ([4, 5, 8], []):
-        res = alifestd_mask_closest_relatives_asexual(
+        res = alifestd_mask_persistence_asexual(
             phylogeny_df,
             candidate_mask=_mask(phylogeny_df, candidate_ids),
             extant_mask=_mask(phylogeny_df, extant_ids),
@@ -173,14 +173,14 @@ def test_multiple_roots():
         },
     )
     # extant leaf 5 has no candidate in its tree
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [2, 3]),
         extant_mask=_mask(phylogeny_df, [5]),
         mark_as="m",
     )
     assert not res["m"].any()
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [2, 4]),
         extant_mask=_mask(phylogeny_df, [3, 5]),
@@ -223,7 +223,7 @@ def test_matches_pair_distances(seed: int):
         for candidate_id, distance in distances.items():
             expected[candidate_id] |= distance == min(distances.values())
 
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=candidate_mask,
         extant_mask=extant_mask,
@@ -235,7 +235,7 @@ def test_matches_pair_distances(seed: int):
 
 def test_prune_extinct_lineages():
     phylogeny_df = _make_tree()
-    res = alifestd_mask_closest_relatives_asexual(
+    res = alifestd_mask_persistence_asexual(
         phylogeny_df,
         candidate_mask=_mask(phylogeny_df, [4, 5, 8]),
         extant_mask=_mask(phylogeny_df, [6, 7]),
@@ -274,7 +274,7 @@ def test_prune_extinct_lineages():
 )
 def test_not_working_format_raises(phylogeny_df: pd.DataFrame):
     with pytest.raises(NotImplementedError):
-        alifestd_mask_closest_relatives_asexual(
+        alifestd_mask_persistence_asexual(
             phylogeny_df,
             candidate_mask=np.ones(3, dtype=bool),
             extant_mask=np.ones(3, dtype=bool),
@@ -293,13 +293,13 @@ def test_non_bool_mask_raises(masks: dict):
         {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": [0, 1, 1]}
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mask_closest_relatives_asexual(phylogeny_df, **masks)
+        alifestd_mask_persistence_asexual(phylogeny_df, **masks)
 
 
 def test_missing_criterion_raises():
     phylogeny_df = pd.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
     with pytest.raises(ValueError):
-        alifestd_mask_closest_relatives_asexual(
+        alifestd_mask_persistence_asexual(
             phylogeny_df,
             candidate_mask=np.ones(3, dtype=bool),
             extant_mask=np.ones(3, dtype=bool),
@@ -319,7 +319,7 @@ def test_unsupported_criterion_raises(origin_time: list):
         {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": origin_time}
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mask_closest_relatives_asexual(
+        alifestd_mask_persistence_asexual(
             phylogeny_df,
             candidate_mask=np.ones(3, dtype=bool),
             extant_mask=np.ones(3, dtype=bool),

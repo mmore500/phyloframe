@@ -6,8 +6,8 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
-    alifestd_mask_closest_relatives_asexual,
-    alifestd_mask_closest_relatives_polars,
+    alifestd_mask_persistence_asexual,
+    alifestd_mask_persistence_polars,
     alifestd_prune_extinct_lineages_polars,
 )
 
@@ -48,14 +48,14 @@ def test_empty(apply: typing.Callable):
         ),
     )
     res = (
-        alifestd_mask_closest_relatives_polars(
+        alifestd_mask_persistence_polars(
             df_pl, candidate_mask="is_leaf", extant_mask="is_leaf"
         )
         .lazy()
         .collect()
     )
     assert res.is_empty()
-    assert "alifestd_mask_closest_relatives_polars" in res.columns
+    assert "alifestd_mask_persistence_polars" in res.columns
 
 
 @apply_params
@@ -64,7 +64,7 @@ def test_matches_pandas(apply: typing.Callable):
     candidate_mask = pl.col("is_leaf") & pl.col("origin_time").is_between(3, 4)
     extant_mask = pl.col("is_leaf") & (pl.col("origin_time") > 8)
     res = (
-        alifestd_mask_closest_relatives_polars(
+        alifestd_mask_persistence_polars(
             apply(df_pl),
             candidate_mask=candidate_mask,
             extant_mask=extant_mask,
@@ -73,7 +73,7 @@ def test_matches_pandas(apply: typing.Callable):
         .lazy()
         .collect()
     )
-    expected = alifestd_mask_closest_relatives_asexual(
+    expected = alifestd_mask_persistence_asexual(
         df_pl.to_pandas(),
         candidate_mask=df_pl.select(candidate_mask).to_series().to_numpy(),
         extant_mask=df_pl.select(extant_mask).to_series().to_numpy(),
@@ -91,12 +91,10 @@ def test_mask_column_names():
         is_candidate=pl.col("id").is_in([4, 5, 8]),
         is_extant=pl.col("id").is_in([6, 7]),
     )
-    res = alifestd_mask_closest_relatives_polars(
+    res = alifestd_mask_persistence_polars(
         df_pl, candidate_mask="is_candidate", extant_mask="is_extant"
     )
-    assert res[
-        "alifestd_mask_closest_relatives_polars"
-    ].arg_true().to_list() == [
+    assert res["alifestd_mask_persistence_polars"].arg_true().to_list() == [
         5,
         8,
     ]
@@ -113,16 +111,14 @@ def test_criterion():
         mark_as="m",
     )
     # leaf 8's long branch puts it further from leaf 7 than leaf 4
-    res = alifestd_mask_closest_relatives_polars(df_pl, **kwargs)
+    res = alifestd_mask_persistence_polars(df_pl, **kwargs)
     assert res["m"].arg_true().to_list() == [4]
-    res = alifestd_mask_closest_relatives_polars(
-        df_pl, criterion="depth", **kwargs
-    )
+    res = alifestd_mask_persistence_polars(df_pl, criterion="depth", **kwargs)
     assert res["m"].arg_true().to_list() == [8]
 
 
 def test_prune_extinct_lineages():
-    res = alifestd_mask_closest_relatives_polars(
+    res = alifestd_mask_persistence_polars(
         _make_tree(),
         candidate_mask=pl.col("id").is_in([4, 5, 8]),
         extant_mask=pl.col("id").is_in([6, 7]),
@@ -144,7 +140,7 @@ def test_null_raises(name: str):
         dict(candidate_mask=pl.lit(True), extant_mask="is_leaf"),
     ):
         with pytest.raises(NotImplementedError):
-            alifestd_mask_closest_relatives_polars(df_pl, **kwargs)
+            alifestd_mask_persistence_polars(df_pl, **kwargs)
 
 
 @pytest.mark.parametrize(
@@ -160,7 +156,7 @@ def test_unsupported_criterion_raises(origin_time: list):
         {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": origin_time}
     )
     with pytest.raises(NotImplementedError):
-        alifestd_mask_closest_relatives_polars(
+        alifestd_mask_persistence_polars(
             df_pl, candidate_mask=pl.lit(True), extant_mask=pl.lit(True)
         )
 
@@ -168,7 +164,7 @@ def test_unsupported_criterion_raises(origin_time: list):
 def test_missing_criterion_raises():
     df_pl = pl.DataFrame({"id": [0, 1, 2], "ancestor_id": [0, 0, 0]})
     with pytest.raises(ValueError):
-        alifestd_mask_closest_relatives_polars(
+        alifestd_mask_persistence_polars(
             df_pl, candidate_mask=pl.lit(True), extant_mask=pl.lit(True)
         )
 
@@ -200,7 +196,7 @@ def test_missing_criterion_raises():
 )
 def test_not_working_format_raises(df_pl: pl.DataFrame):
     with pytest.raises(NotImplementedError):
-        alifestd_mask_closest_relatives_polars(
+        alifestd_mask_persistence_polars(
             df_pl, candidate_mask=pl.lit(True), extant_mask=pl.lit(True)
         )
 
@@ -221,21 +217,21 @@ def test_random_tree_matches_pandas():
             "is_extant": rng.random(n) < 0.1,
         },
     )
-    expected = alifestd_mask_closest_relatives_asexual(
+    expected = alifestd_mask_persistence_asexual(
         df_pd,
         candidate_mask=df_pd["is_candidate"].to_numpy(),
         extant_mask=df_pd["is_extant"].to_numpy(),
     )
-    res = alifestd_mask_closest_relatives_polars(
+    res = alifestd_mask_persistence_polars(
         pl.from_pandas(df_pd),
         candidate_mask="is_candidate",
         extant_mask="is_extant",
     )
     assert (
-        res["alifestd_mask_closest_relatives_polars"].to_list()
-        == expected["alifestd_mask_closest_relatives_asexual"].tolist()
+        res["alifestd_mask_persistence_polars"].to_list()
+        == expected["alifestd_mask_persistence_asexual"].tolist()
     )
-    assert res["alifestd_mask_closest_relatives_polars"].any()
-    assert not res["alifestd_mask_closest_relatives_polars"].equals(
+    assert res["alifestd_mask_persistence_polars"].any()
+    assert not res["alifestd_mask_persistence_polars"].equals(
         res["is_candidate"]
     )

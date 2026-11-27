@@ -13,14 +13,14 @@ from ._alifestd_mark_lineage_cummin_asexual import (
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
 
 
-def _alifestd_mask_closest_relatives_asexual_fast_path(
+def _alifestd_mask_persistence_asexual_fast_path(
     ancestor_ids: np.ndarray,
     extant_mask: np.ndarray,
     candidate_mask: np.ndarray,
     criterion_values: np.ndarray,
 ) -> np.ndarray:
-    """Implementation detail for `alifestd_mask_closest_relatives_asexual`
-    and `alifestd_mask_closest_relatives_polars`.
+    """Implementation detail for `alifestd_mask_persistence_asexual`
+    and `alifestd_mask_persistence_polars`.
 
     Assumes contiguous, topologically sorted ids, with finite float
     `criterion_values` that do not decrease from ancestor to descendant.
@@ -68,14 +68,14 @@ def _alifestd_mask_closest_relatives_asexual_fast_path(
     )
 
 
-def alifestd_mask_closest_relatives_asexual(
+def alifestd_mask_persistence_asexual(
     phylogeny_df: pd.DataFrame,
     mutate: bool = False,
     *,
     candidate_mask: np.ndarray,
     criterion: str = "origin_time",
     extant_mask: np.ndarray,
-    mark_as: str = "alifestd_mask_closest_relatives_asexual",
+    mark_as: str = "alifestd_mask_persistence_asexual",
 ) -> pd.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
     of at least one extant taxon.
@@ -117,7 +117,7 @@ def alifestd_mask_closest_relatives_asexual(
         Boolean array marking taxa whose closest relatives are sought, e.g.,
         leaves after a time threshold, aligned with `phylogeny_df.index`,
         with boolean dtype. May include inner nodes.
-    mark_as : str, default "alifestd_mask_closest_relatives_asexual"
+    mark_as : str, default "alifestd_mask_persistence_asexual"
         Column name for the mask.
 
     Returns
@@ -143,7 +143,7 @@ def alifestd_mask_closest_relatives_asexual(
         Calculates distance between a single pair of taxa.
     alifestd_mark_sample_tips_lineage_asexual :
         Marks leaves closest to the lineage of a single target leaf.
-    alifestd_mask_closest_relatives_polars :
+    alifestd_mask_persistence_polars :
         Polars-based implementation.
     alifestd_prune_extinct_lineages_asexual :
         Drops taxa without marked descendants, e.g., pass `mark_as` column
@@ -156,7 +156,7 @@ def alifestd_mask_closest_relatives_asexual(
 
     >>> is_leaf = alifestd_mark_leaves(df)["is_leaf"].to_numpy()
     >>> origin_time = df["origin_time"].to_numpy()
-    >>> df = alifestd_mask_closest_relatives_asexual(
+    >>> df = alifestd_mask_persistence_asexual(
     ...     df,
     ...     candidate_mask=is_leaf & (origin_time >= 40) & (origin_time <= 60),
     ...     extant_mask=is_leaf & (origin_time > 100),
@@ -203,7 +203,7 @@ def alifestd_mask_closest_relatives_asexual(
             "not supported",
         )
 
-    phylogeny_df[mark_as] = _alifestd_mask_closest_relatives_asexual_fast_path(
+    phylogeny_df[mark_as] = _alifestd_mask_persistence_asexual_fast_path(
         ancestor_ids,
         extant_mask,
         candidate_mask,
