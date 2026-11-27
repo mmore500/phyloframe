@@ -125,15 +125,11 @@ def alifestd_mask_persistence_polars(
     *,
     candidate_mask: typing.Union[str, pl.Expr],
     extant_mask: typing.Union[str, pl.Expr],
-    criterion_cherry: typing.Optional[
-        typing.Union[str, pl.Expr]
-    ] = "origin_time",
-    criterion_tiebreak: typing.Optional[typing.Union[str, pl.Expr]] = pl.col(
+    criterion_cherry: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_tiebreak: typing.Union[str, pl.Expr] = pl.col(
         "origin_time"
     ).rank("ordinal"),
-    criterion_trunk: typing.Optional[
-        typing.Union[str, pl.Expr]
-    ] = "origin_time",
+    criterion_trunk: typing.Union[str, pl.Expr] = "origin_time",
     mark_as: str = "alifestd_mask_persistence_polars",
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
@@ -174,14 +170,15 @@ def alifestd_mask_persistence_polars(
         Column name or boolean expression marking taxa whose closest
         relatives are sought, e.g., leaves after a time threshold. May
         include inner nodes. Null values are not supported.
-    criterion_cherry : str or polars.Expr, optional, default "origin_time"
+    criterion_cherry : str or polars.Expr, default "origin_time"
         Column name or expression used to measure cherry distance, from
         MRCA to candidate, e.g., "origin_time" for elapsed time or
         "node_depth" for number of edges (see
         `alifestd_mark_node_depth_polars`). Values must be finite, and must
         not decrease from ancestor to descendant.
 
-        If None, cherry distance is not counted; see Notes.
+        Pass a constant, e.g., `pl.lit(0)`, to not count cherry distance;
+        see Notes.
     criterion_tiebreak : str or polars.Expr, optional
         Column name or expression used to choose among candidates tied as
         an extant taxon's closest, taking the candidate with the lowest
@@ -192,12 +189,13 @@ def alifestd_mask_persistence_polars(
         candidate, or the first in row order among equally early candidates,
         so that each extant taxon marks at most one candidate.
 
-        If None, all tied candidates are marked.
-    criterion_trunk : str or polars.Expr, optional, default "origin_time"
+        Pass a constant, e.g., `pl.lit(0)`, to mark all tied candidates.
+    criterion_trunk : str or polars.Expr, default "origin_time"
         Column name or expression used to measure trunk distance, from MRCA
         to extant taxon, with requirements as for `criterion_cherry`.
 
-        If None, trunk distance is not counted; see Notes.
+        Pass a constant, e.g., `pl.lit(0)`, to not count trunk distance;
+        see Notes.
     mark_as : str, default "alifestd_mask_persistence_polars"
         Column name for the boolean mask.
 
@@ -211,8 +209,7 @@ def alifestd_mask_persistence_polars(
         decrease from ancestor to descendant (see
         `alifestd_coerce_chronological_consistency_polars`).
     ValueError
-        If a criterion is given as a column name not in `phylogeny_df`, or
-        if `criterion_cherry` and `criterion_trunk` are both None.
+        If a criterion is given as a column name not in `phylogeny_df`.
 
     Returns
     -------
@@ -237,13 +234,13 @@ def alifestd_mask_persistence_polars(
 
     - with both (default), candidates are closest by total distance, as in
       `alifestd_find_pair_distance_polars`;
-    - with `criterion_cherry` None, candidates are closest by most recent
-      common ancestor, whatever their own branch lengths, so all candidates
-      sharing an extant taxon's most recent common ancestor with any
-      candidate tie, and are chosen among by `criterion_tiebreak`; and
-    - with `criterion_trunk` None, candidates are closest by how far they
-      sit from an extant taxon's lineage, however long ago they diverged
-      from it.
+    - with constant `criterion_cherry`, candidates are closest by most
+      recent common ancestor, whatever their own branch lengths, so all
+      candidates sharing an extant taxon's most recent common ancestor with
+      any candidate tie, and are chosen among by `criterion_tiebreak`; and
+    - with constant `criterion_trunk`, candidates are closest by how far
+      they sit from an extant taxon's lineage, however long ago they
+      diverged from it.
 
     Examples
     --------
@@ -273,7 +270,7 @@ def alifestd_mask_persistence_polars(
     >>> persistence_df = alifestd_mark_leaves_polars(df).pipe(
     ...     alifestd_mask_persistence_polars,
     ...     candidate_mask=candidate_mask,
-    ...     criterion_cherry=None,
+    ...     criterion_cherry=pl.lit(0),
     ...     extant_mask=extant_mask,
     ...     mark_as="is_persistent",
     ... )
@@ -283,10 +280,6 @@ def alifestd_mask_persistence_polars(
     if isinstance(candidate_mask, str):
         candidate_mask = pl.col(candidate_mask)
 
-    if criterion_cherry is None and criterion_trunk is None:
-        raise ValueError(
-            "at least one of criterion_cherry and criterion_trunk required",
-        )
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
     criteria = {
@@ -322,9 +315,7 @@ def alifestd_mask_persistence_polars(
             candidate_mask=candidate_mask.cast(pl.Boolean),
             **{
                 name: (
-                    pl.lit(0.0)  # not counted
-                    if criterion is None
-                    else pl.col(criterion)
+                    pl.col(criterion)
                     if isinstance(criterion, str)
                     else criterion
                 ).cast(pl.Float64)
@@ -390,14 +381,15 @@ Column names must be quoted, e.g., `--criterion-trunk '"node_depth"'`.
 an extant taxon and a candidate out to the candidate (cherry) and to the
 extant taxon (trunk).
 
-- Pass `--criterion-cherry None` to mark candidates by most recent common
-ancestor, whatever their own branch lengths, or `--criterion-trunk None` to
-mark candidates by how far they sit from an extant taxon's lineage.
+- Pass `--criterion-cherry 'pl.lit(0)'` to mark candidates by most recent
+common ancestor, whatever their own branch lengths, or
+`--criterion-trunk 'pl.lit(0)'` to mark candidates by how far they sit from
+an extant taxon's lineage.
 
 - Among candidates tied as an extant taxon's closest, the one with the
 lowest `--criterion-tiebreak` value is marked (default: earliest
-'origin_time', then first in row order). Pass `--criterion-tiebreak None`
-to mark all tied candidates.
+'origin_time', then first in row order). Pass
+`--criterion-tiebreak 'pl.lit(0)'` to mark all tied candidates.
 
 - Use `--eager-read` if modifying data file inplace.
 
@@ -454,8 +446,8 @@ def _create_parser() -> argparse.ArgumentParser:
         type=str,
         help=(
             "Python expression evaluating to a column name or polars "
-            "expression used to measure distance from MRCA to candidate, or "
-            "None to not count, with polars available as `pl` "
+            "expression used to measure distance from MRCA to candidate, "
+            "with polars available as `pl` "
             '(default: "origin_time").'
         ),
     )
@@ -466,8 +458,7 @@ def _create_parser() -> argparse.ArgumentParser:
         help=(
             "Python expression evaluating to a column name or polars "
             "expression used to choose among tied candidates, taking the "
-            "lowest, or None to mark all tied candidates, with polars "
-            "available as `pl` "
+            "lowest, with polars available as `pl` "
             '(default: pl.col("origin_time").rank("ordinal")).'
         ),
     )
@@ -478,7 +469,7 @@ def _create_parser() -> argparse.ArgumentParser:
         help=(
             "Python expression evaluating to a column name or polars "
             "expression used to measure distance from MRCA to extant taxon, "
-            "or None to not count, with polars available as `pl` "
+            "with polars available as `pl` "
             '(default: "origin_time").'
         ),
     )

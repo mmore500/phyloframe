@@ -64,6 +64,7 @@ def _make_random_tree(seed: int, n: int = 60) -> pl.DataFrame:
             "origin_time": origin_times,
             "mutations": mutations,
             "priority": rng.integers(4, size=n),
+            "zero": 0,
             "is_extant": rng.random(n) < 0.3,
             "is_candidate": rng.random(n) < 0.3,
         },
@@ -72,15 +73,14 @@ def _make_random_tree(seed: int, n: int = 60) -> pl.DataFrame:
 
 def _calc_expected(
     phylogeny_df: pl.DataFrame,
-    criterion_cherry: typing.Optional[str],
-    criterion_tiebreak: typing.Optional[str],
-    criterion_trunk: typing.Optional[str],
+    criterion_cherry: str,
+    criterion_tiebreak: str,
+    criterion_trunk: str,
 ) -> typing.List[bool]:
     """Brute-force reference, over all extant/candidate pairs."""
     ancestor_ids = phylogeny_df["ancestor_id"].to_list()
-    zeros = np.zeros(len(phylogeny_df))
     cherry_values, tiebreak_values, trunk_values = (
-        zeros if criterion is None else phylogeny_df[criterion].to_numpy()
+        phylogeny_df[criterion].to_numpy()
         for criterion in (
             criterion_cherry,
             criterion_tiebreak,
@@ -213,9 +213,9 @@ def test_closer_branch_beats_later_mrca():
             id="expr",
         ),
         # leaf 5 shares the most recent mrca with leaf 4
-        pytest.param(dict(criterion_cherry=None), [5], id="trunk-only"),
+        pytest.param(dict(criterion_cherry=pl.lit(0)), [5], id="trunk-only"),
         # leaf 7 sits closest to the lineage of leaf 4: 40 - 39
-        pytest.param(dict(criterion_trunk=None), [7], id="cherry-only"),
+        pytest.param(dict(criterion_trunk=pl.lit(0)), [7], id="cherry-only"),
     ],
 )
 def test_criterion_cherry_trunk(criteria: dict, expected: list):
@@ -234,7 +234,7 @@ def test_criterion_cherry_trunk(criteria: dict, expected: list):
     [
         # default: earliest, then first in row order
         pytest.param(pl.col("origin_time").rank("ordinal"), [7], id="default"),
-        pytest.param(None, [7, 8], id="none"),
+        pytest.param(pl.lit(0), [7, 8], id="constant"),
         pytest.param("priority", [8], id="column"),
         pytest.param(-pl.col("id"), [8], id="expr"),
         # candidates also tied by tiebreak value are all marked
@@ -242,7 +242,7 @@ def test_criterion_cherry_trunk(criteria: dict, expected: list):
     ],
 )
 def test_criterion_tiebreak(
-    criterion_tiebreak: typing.Union[str, pl.Expr, None], expected: list
+    criterion_tiebreak: typing.Union[str, pl.Expr], expected: list
 ):
     # leaves 7 and 8 are equally close to leaf 5; leaf 4 is closer to
     # leaf 6, whatever its tiebreak value
@@ -272,14 +272,14 @@ def test_default_tiebreak_takes_earliest_sharing_most_recent_mrca():
     )
     kwargs = dict(
         candidate_mask=pl.col("id").is_in([7, 8]),
-        criterion_cherry=None,
+        criterion_cherry=pl.lit(0),
         extant_mask=pl.col("id") == 5,
         mark_as="m",
     )
     res = alifestd_mask_persistence_polars(df_pl, **kwargs)
     assert res["m"].arg_true().to_list() == [8]
     res = alifestd_mask_persistence_polars(
-        df_pl, criterion_tiebreak=None, **kwargs
+        df_pl, criterion_tiebreak=pl.lit(0), **kwargs
     )
     assert res["m"].arg_true().to_list() == [7, 8]
 
@@ -361,7 +361,7 @@ def test_matches_pair_distances(seed: int):
     res = alifestd_mask_persistence_polars(
         df_pl,
         candidate_mask="is_candidate",
-        criterion_tiebreak=None,
+        criterion_tiebreak=pl.lit(0),
         extant_mask="is_extant",
         mark_as="m",
     )
@@ -370,21 +370,21 @@ def test_matches_pair_distances(seed: int):
 
 
 @pytest.mark.parametrize("seed", range(5))
-@pytest.mark.parametrize("criterion_tiebreak", [None, "priority", "id"])
+@pytest.mark.parametrize("criterion_tiebreak", ["zero", "priority", "id"])
 @pytest.mark.parametrize(
     "criterion_cherry, criterion_trunk",
     [
         ("origin_time", "origin_time"),
         ("origin_time", "mutations"),
         ("mutations", "origin_time"),
-        ("origin_time", None),
-        (None, "origin_time"),
+        ("origin_time", "zero"),
+        ("zero", "origin_time"),
     ],
 )
 def test_matches_brute_force(
-    criterion_cherry: typing.Optional[str],
-    criterion_trunk: typing.Optional[str],
-    criterion_tiebreak: typing.Optional[str],
+    criterion_cherry: str,
+    criterion_trunk: str,
+    criterion_tiebreak: str,
     seed: int,
 ):
     df_pl = _make_random_tree(seed)
@@ -406,9 +406,9 @@ def test_matches_brute_force(
 
 
 @pytest.mark.parametrize("seed", range(5))
-@pytest.mark.parametrize("criterion_cherry", ["origin_time", None])
+@pytest.mark.parametrize("criterion_cherry", ["origin_time", pl.lit(0)])
 def test_default_tiebreak_marks_one_per_extant(
-    criterion_cherry: typing.Optional[str], seed: int
+    criterion_cherry: typing.Union[str, pl.Expr], seed: int
 ):
     df_pl = _make_random_tree(seed, n=300)
     kwargs = dict(
@@ -420,7 +420,10 @@ def test_default_tiebreak_marks_one_per_extant(
         df_pl, extant_mask="is_extant", **kwargs
     )
     res_all = alifestd_mask_persistence_polars(
-        df_pl, criterion_tiebreak=None, extant_mask="is_extant", **kwargs
+        df_pl,
+        criterion_tiebreak=pl.lit(0),
+        extant_mask="is_extant",
+        **kwargs,
     )
     assert (~res["m"] | res_all["m"]).all()  # subset of all tied
     assert res["m"].sum() < res_all["m"].sum()
@@ -518,7 +521,6 @@ def test_decreasing_criterion_raises(name: str):
         dict(criterion_cherry="missing"),
         dict(criterion_tiebreak="missing"),
         dict(criterion_trunk="missing"),
-        dict(criterion_cherry=None, criterion_trunk=None),
     ],
 )
 def test_invalid_criterion_raises(criteria: dict):

@@ -130,7 +130,7 @@ def test_cli_column_names(input_csv, tmp_path):
 @pytest.mark.parametrize(
     "name", ["criterion_cherry", "criterion_tiebreak", "criterion_trunk"]
 )
-def test_cli_criterion_none(name, input_csv, tmp_path):
+def test_cli_criterion_constant(name, input_csv, tmp_path):
     output_file = str(tmp_path / "output.csv")
     subprocess.run(  # nosec B603
         [
@@ -142,14 +142,14 @@ def test_cli_criterion_none(name, input_csv, tmp_path):
             "--extant-mask",
             EXTANT_MASK,
             f"--{name.replace('_', '-')}",
-            "None",
+            "pl.lit(0)",
             "--eager-write",
             output_file,
         ],
         check=True,
         input=input_csv.encode(),
     )
-    expected = _expected(input_csv, **{name: None})
+    expected = _expected(input_csv, **{name: pl.lit(0)})
     col = "alifestd_mask_persistence_polars"
     assert pd.read_csv(output_file)[col].tolist() == expected.to_list()
     assert expected.any()
