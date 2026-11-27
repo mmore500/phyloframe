@@ -653,6 +653,12 @@ from ._alifestd_mark_unifurcation_length_asexual import (
 from ._alifestd_mark_unifurcation_length_polars import (
     alifestd_mark_unifurcation_length_polars,
 )
+from ._alifestd_mask_closest_relatives_asexual import (
+    alifestd_mask_closest_relatives_asexual,
+)
+from ._alifestd_mask_closest_relatives_polars import (
+    alifestd_mask_closest_relatives_polars,
+)
 from ._alifestd_mask_descendants_asexual import (
     alifestd_mask_descendants_asexual,
 )
@@ -1107,6 +1113,8 @@ __all__ = [
     "alifestd_mark_sister_polars",
     "alifestd_mark_to_array",
     "alifestd_mark_to_array_polars",
+    "alifestd_mask_closest_relatives_asexual",
+    "alifestd_mask_closest_relatives_polars",
     "alifestd_mask_descendants_asexual",
     "alifestd_mask_descendants_polars",
     "alifestd_mask_monomorphic_clades_asexual",
