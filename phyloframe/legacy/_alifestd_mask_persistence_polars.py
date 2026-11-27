@@ -358,7 +358,10 @@ def alifestd_mask_persistence_polars(
             pl.col("ancestor_id"),
             candidate_mask=candidate_mask.cast(pl.Boolean),
             extant_mask=extant_mask.cast(pl.Boolean),
-            **criteria,
+            **{
+                name: criterion.cast(pl.Float64)
+                for name, criterion in criteria.items()
+            },
         )
         .collect()
     )
@@ -366,18 +369,15 @@ def alifestd_mask_persistence_polars(
         if selected[name].has_nulls():
             raise NotImplementedError(f"null {name} values not supported")
     ancestor_ids = selected["ancestor_id"].to_numpy()
-    values = {}
+    # a row per taxon and a column per struct field, with nulls as nan
+    values = {
+        name: selected[name].to_numpy().reshape(len(selected), -1)
+        for name in criteria
+    }
     for name in criteria:
-        fields = selected.select(name).unnest(
-            name if isinstance(selected[name].dtype, pl.Struct) else []
-        )
-        fields = fields.cast(pl.Float64)
-        if sum(fields.null_count().row(0)):
-            raise NotImplementedError(f"null {name} values not supported")
-        values[name] = fields.to_numpy()
         if not np.isfinite(values[name]).all():
             raise NotImplementedError(
-                f"non-finite {name} values not supported",
+                f"null or non-finite {name} values not supported",
             )
     for name in ("criterion_cherry", "criterion_trunk"):
         if (values[name] < values[name][ancestor_ids]).any():
