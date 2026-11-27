@@ -12,6 +12,7 @@ import polars as pl
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
+from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
@@ -19,86 +20,132 @@ from ._alifestd_has_contiguous_ids_polars import (
 from ._alifestd_is_topologically_sorted_polars import (
     alifestd_is_topologically_sorted_polars,
 )
-from ._alifestd_mark_lineage_cummax_asexual import (
-    _alifestd_mark_lineage_cummax_asexual_fast_path,
-)
-from ._alifestd_mark_lineage_cummin_asexual import (
-    _alifestd_mark_lineage_cummin_asexual_fast_path,
-)
 from ._alifestd_mark_node_depth_polars import alifestd_mark_node_depth_polars
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
 
 
+@jit(nopython=True)
+def _compare_mrcas(
+    first: int,
+    second: int,
+    clade_candidate_ids: np.ndarray,
+    cherry_values: np.ndarray,
+    trunk_legs: np.ndarray,
+    tiebreak_values: np.ndarray,
+) -> int:
+    """Implementation detail for `_alifestd_mask_persistence_fast_path`.
+
+    Returns -1, 0, or 1 if node `first` is closer than, as close as, or
+    further than node `second`, as an mrca with its clade's closest
+    candidate. Node -1 is closer than any other, and node n further.
+    """
+    n = len(clade_candidate_ids)
+    if first == second:
+        return 0
+    if first == -1 or second == n:
+        return -1
+    if second == -1 or first == n:
+        return 1
+    first_candidate = clade_candidate_ids[first]
+    second_candidate = clade_candidate_ids[second]
+    for field in range(cherry_values.shape[1]):
+        first_value = (
+            cherry_values[first_candidate, field] - cherry_values[first, field]
+        ) + trunk_legs[first, field]
+        second_value = (
+            cherry_values[second_candidate, field]
+            - cherry_values[second, field]
+        ) + trunk_legs[second, field]
+        if first_value != second_value:
+            return -1 if first_value < second_value else 1
+    for field in range(tiebreak_values.shape[1]):
+        first_value = tiebreak_values[first_candidate, field]
+        second_value = tiebreak_values[second_candidate, field]
+        if first_value != second_value:
+            return -1 if first_value < second_value else 1
+    return 0
+
+
+@jit(nopython=True)
 def _alifestd_mask_persistence_fast_path(
     ancestor_ids: np.ndarray,
     candidate_mask: np.ndarray,
     extant_mask: np.ndarray,
     candidate_ranks: np.ndarray,
     cherry_values: np.ndarray,
-    trunk_values: np.ndarray,
+    trunk_legs: np.ndarray,
     tiebreak_values: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mask_persistence_polars`.
 
     Assumes contiguous, topologically sorted ids. Values have a row per
-    taxon, with columns compared in order, and `candidate_ranks` rank taxa
-    by cherry then tiebreak values, from zero.
+    taxon, with columns compared in order; `trunk_legs` are distances from
+    the largest trunk values, and `candidate_ranks` rank taxa by cherry
+    then tiebreak values.
     """
     n = len(ancestor_ids)
+    clade_candidate_ids = np.where(candidate_mask, np.arange(n), -1)
 
-    # closest candidates in each clade to taxa outside it, n if none
-    clade_candidate_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
-        ancestor_ids,
-        np.where(candidate_mask, candidate_ranks, n),
-        reverse=True,
-        skipna=True,
-    )
-    rank_ids = np.zeros(n + 1, dtype=np.int64)  # a taxon id with each rank
-    rank_ids[candidate_ranks] = np.arange(n)
-    clade_candidate_ids = rank_ids[clade_candidate_ranks]
+    def compare(first: int, second: int) -> int:
+        return _compare_mrcas(
+            first,
+            second,
+            clade_candidate_ids,
+            cherry_values,
+            trunk_legs,
+            tiebreak_values,
+        )
 
-    # rank nodes as mrcas with those candidates, lowest closest, n if none
-    mrca_values = np.column_stack(
-        [
-            (cherry_values[clade_candidate_ids] - cherry_values)
-            + (trunk_values.max(axis=0) - trunk_values),
-            tiebreak_values[clade_candidate_ids],
-        ],
-    )
-    mrca_ranks = np.where(
-        clade_candidate_ranks < n,
-        pl.from_numpy(mrca_values)
-        .select((pl.struct(pl.all()).rank("dense") - 1).cast(pl.Int64))
-        .to_series()
-        .to_numpy(),
-        n,
-    )
+    # sweep up, for each node's clade: the closest candidate to taxa outside
+    # it, and the mrca within it that is furthest among those closest to
+    # each extant taxon within it (-1 if none, n if without candidates)
+    clade_mrca_ids = np.full(n, -1)
+    for id_ in range(n - 1, -1, -1):
+        mrca_id = id_ if clade_candidate_ids[id_] != -1 else n
+        if extant_mask[id_] or compare(mrca_id, clade_mrca_ids[id_]) == -1:
+            clade_mrca_ids[id_] = mrca_id
 
-    # mrcas ranked lowest along the lineage of any extant taxon
-    lineage_mrca_ranks = _alifestd_mark_lineage_cummin_asexual_fast_path(
-        ancestor_ids,
-        mrca_ranks,
-        reverse=False,
-        skipna=True,
-    )
-    extant_mrca_ranks = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        ancestor_ids,
-        np.where(extant_mask, lineage_mrca_ranks, -1),
-        reverse=True,
-        skipna=True,
-    )
-    is_closest_mrca = mrca_ranks == extant_mrca_ranks
+        ancestor_id = ancestor_ids[id_]
+        if ancestor_id == id_:
+            continue
+        if compare(clade_mrca_ids[id_], clade_mrca_ids[ancestor_id]) == 1:
+            clade_mrca_ids[ancestor_id] = clade_mrca_ids[id_]
+        candidate_id = clade_candidate_ids[id_]
+        ancestor_candidate_id = clade_candidate_ids[ancestor_id]
+        if candidate_id != -1 and (
+            ancestor_candidate_id == -1
+            or candidate_ranks[candidate_id]
+            < candidate_ranks[ancestor_candidate_id]
+        ):
+            clade_candidate_ids[ancestor_id] = candidate_id
 
-    # closest candidates in clades of those mrcas
-    closest_candidate_ranks = _alifestd_mark_lineage_cummax_asexual_fast_path(
-        ancestor_ids,
-        np.where(is_closest_mrca, clade_candidate_ranks, -1),
-        reverse=False,
-        skipna=True,
-    )
-    return candidate_mask & (candidate_ranks == closest_candidate_ranks)
+    # sweep down, for each node's lineage: the closest mrca along it, and
+    # the highest rank sought of candidates by mrcas closest to extant taxa
+    lineage_mrca_ids = np.empty(n, dtype=np.int64)
+    lineage_candidate_ranks = np.full(n, -1)
+    for id_ in range(n):
+        mrca_id = id_ if clade_candidate_ids[id_] != -1 else n
+        lineage_mrca_ids[id_] = mrca_id
+
+        ancestor_id = ancestor_ids[id_]
+        if ancestor_id != id_:
+            lineage_candidate_ranks[id_] = lineage_candidate_ranks[ancestor_id]
+            if compare(lineage_mrca_ids[ancestor_id], mrca_id) == -1:
+                lineage_mrca_ids[id_] = lineage_mrca_ids[ancestor_id]
+
+        if (
+            mrca_id != n
+            and compare(mrca_id, lineage_mrca_ids[id_]) == 0
+            and compare(mrca_id, clade_mrca_ids[id_]) == 0
+        ):
+            lineage_candidate_ranks[id_] = max(
+                lineage_candidate_ranks[id_],
+                candidate_ranks[clade_candidate_ids[id_]],
+            )
+
+    return candidate_mask & (candidate_ranks == lineage_candidate_ranks)
 
 
 def alifestd_mask_persistence_polars(
@@ -400,7 +447,7 @@ def alifestd_mask_persistence_polars(
         selected["extant_mask"].to_numpy(),
         selected["candidate_rank"].to_numpy(),
         cherry_values,
-        trunk_values,
+        trunk_values.max(axis=0) - trunk_values,
         tiebreak_values,
     )
     return phylogeny_df.with_columns(pl.Series(name=mark_as, values=result))
