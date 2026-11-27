@@ -98,6 +98,7 @@ def _calc_expected(
                 - trunk_values[mrca_id]
                 + cherry_values[candidate_id]
                 - cherry_values[mrca_id],
+                -mrca_id,  # most recent first, as ids are sorted
                 tiebreak_values[candidate_id],
             )
             for candidate_id in phylogeny_df["is_candidate"].arg_true()
@@ -221,10 +222,12 @@ def test_criterion_cherry_trunk(criteria: dict, expected: list):
 @pytest.mark.parametrize(
     "criterion_tiebreak, expected",
     [
-        # default: latest, then highest id
+        # default: latest, then lowest id
         pytest.param(
-            pl.struct("origin_time", "id").rank("ordinal", descending=True),
-            [8],
+            pl.struct(
+                pl.col("origin_time").rank("dense", descending=True), "id"
+            ).rank("ordinal"),
+            [7],
             id="default",
         ),
         pytest.param(pl.lit(0), [7, 8], id="constant"),
@@ -300,42 +303,52 @@ def test_inner_node_candidates_before_time():
 
 
 def test_inner_node_candidates_before_time_tied():
-    # nodes 1 and 2 are at the same time, so tie as closest to leaf 3
+    #   0
+    #   1
+    #  2 5
+    # 3 4
+    # nodes 1, 2, 3, and 5 are at the same time, so tie as closest to leaf
+    # 4; of these, node 2 is its latest ancestor
     df_pl = pl.DataFrame(
         {
-            "id": range(4),
-            "ancestor_id": [0, 0, 1, 2],
-            "origin_time": [0, 1, 1, 5],
+            "id": range(6),
+            "ancestor_id": [0, 0, 1, 2, 2, 1],
+            "origin_time": [0, 5, 5, 5, 20, 5],
         },
     )
     kwargs = dict(
-        candidate_mask=pl.col("origin_time") < 2,
-        extant_mask=pl.col("id") == 3,
+        candidate_mask=pl.col("origin_time") < 10,
+        extant_mask=pl.col("id") == 4,
         mark_as="m",
     )
     res = alifestd_mask_persistence_polars(df_pl, **kwargs)
     assert res["m"].arg_true().to_list() == [2]
+    # nodes 2 and 3 share the most recent mrca with leaf 4
     res = alifestd_mask_persistence_polars(
         df_pl, criterion_tiebreak=pl.lit(0), **kwargs
     )
-    assert res["m"].arg_true().to_list() == [1, 2]
+    assert res["m"].arg_true().to_list() == [2, 3]
+
+
+def test_unsigned_origin_time():
+    df_pl = _make_tree().with_columns(pl.col("origin_time").cast(pl.UInt32))
+    res = alifestd_mask_persistence_polars(
+        df_pl,
+        candidate_mask=pl.col("id").is_in([4, 5, 8]),
+        extant_mask=pl.col("id").is_in([6, 7]),
+        mark_as="m",
+    )
+    assert res["m"].arg_true().to_list() == [5, 8]
 
 
 @pytest.mark.parametrize("seed", range(5))
 def test_inner_node_candidates_before_time_marks_latest_ancestors(seed: int):
-    df_pl = (
-        _make_random_tree(seed, n=300)
-        .pipe(alifestd_mark_leaves_polars)
-        .pipe(alifestd_mark_node_depth_polars)
-        .with_columns(  # ensure no taxa at same time as ancestor
-            origin_time=pl.col("origin_time") + pl.col("node_depth"),
-        )
-    )
+    df_pl = alifestd_mark_leaves_polars(_make_random_tree(seed, n=300))
     ancestor_ids = df_pl["ancestor_id"].to_list()
     origin_times = df_pl["origin_time"].to_list()
-    extant_mask = pl.col("is_leaf") & (pl.col("origin_time") > 12)
+    extant_mask = pl.col("is_leaf") & (pl.col("origin_time") > 7)
     extant_ids = df_pl.select(extant_mask).to_series().arg_true().to_list()
-    for time in 4, 8:
+    for time in 5, 7:
         expected = set()
         for id_ in extant_ids:
             while origin_times[id_] >= time and ancestor_ids[id_] != id_:
@@ -402,29 +415,28 @@ def test_multiple_roots():
 
 
 @pytest.mark.parametrize("seed", range(3))
-def test_matches_pair_distances(seed: int):
+def test_marked_candidates_minimize_pair_distance(seed: int):
     df_pl = _make_random_tree(seed)
-    expected = [False] * len(df_pl)
+    candidate_ids = df_pl["is_candidate"].arg_true().to_list()
     for extant_id in df_pl["is_extant"].arg_true():
         distances = {
             candidate_id: alifestd_find_pair_distance_polars(
                 df_pl, extant_id, candidate_id
             )
-            for candidate_id in df_pl["is_candidate"].arg_true()
+            for candidate_id in candidate_ids
         }
         distances = {k: v for k, v in distances.items() if v is not None}
-        for candidate_id, distance in distances.items():
-            expected[candidate_id] |= distance == min(distances.values())
-
-    res = alifestd_mask_persistence_polars(
-        df_pl,
-        candidate_mask="is_candidate",
-        criterion_tiebreak=pl.lit(0),
-        extant_mask="is_extant",
-        mark_as="m",
-    )
-    assert res["m"].to_list() == expected
-    assert any(expected)
+        res = alifestd_mask_persistence_polars(
+            df_pl,
+            candidate_mask="is_candidate",
+            extant_mask=pl.col("id") == extant_id,
+            mark_as="m",
+        )
+        marked_ids = res["m"].arg_true().to_list()
+        assert len(marked_ids) == bool(distances)
+        assert all(
+            distances[id_] == min(distances.values()) for id_ in marked_ids
+        )
 
 
 @pytest.mark.parametrize("seed", range(5))
