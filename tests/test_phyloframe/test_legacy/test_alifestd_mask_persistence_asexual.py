@@ -143,10 +143,15 @@ def test_criterion_origin_time_vs_node_depth_vs_ultrametric():
     )
     assert np.flatnonzero(res["m"]).tolist() == [5]
     # with contemporaneous leaves, leaf 5 is closest, by most recent mrca
+    ultrametric_df = alifestd_ultrametricize(phylogeny_df)
+    phylogeny_df["origin_time_ultrametric"] = ultrametric_df[
+        "origin_time"
+    ].values
     res = alifestd_mask_persistence_asexual(
-        alifestd_ultrametricize(phylogeny_df), **kwargs
+        phylogeny_df, criterion="origin_time_ultrametric", **kwargs
     )
     assert np.flatnonzero(res["m"]).tolist() == [5]
+    assert res["origin_time"].tolist() == _make_comb()["origin_time"].tolist()
 
 
 def test_ultrametric_marks_all_sharing_most_recent_mrca():
@@ -161,8 +166,12 @@ def test_ultrametric_marks_all_sharing_most_recent_mrca():
     )
     res = alifestd_mask_persistence_asexual(phylogeny_df, **kwargs)
     assert np.flatnonzero(res["m"]).tolist() == [7]
+    ultrametric_df = alifestd_ultrametricize(phylogeny_df)
+    phylogeny_df["origin_time_ultrametric"] = ultrametric_df[
+        "origin_time"
+    ].values
     res = alifestd_mask_persistence_asexual(
-        alifestd_ultrametricize(phylogeny_df), **kwargs
+        phylogeny_df, criterion="origin_time_ultrametric", **kwargs
     )
     assert np.flatnonzero(res["m"]).tolist() == [7, 8]
 

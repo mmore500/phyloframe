@@ -158,9 +158,9 @@ def alifestd_mask_persistence_asexual(
     Which candidates are closest depends on `criterion`. With leaves'
     own "origin_time" values, a candidate on a long branch can be further
     from an extant taxon than a candidate that diverged from its lineage
-    earlier. With contemporaneous leaves, an extant leaf's closest candidate
-    leaves are those sharing its most recent common ancestor with any
-    candidate; see Examples.
+    earlier. With leaves made contemporaneous, an extant leaf's closest
+    candidate leaves are those sharing its most recent common ancestor with
+    any candidate; see Examples.
 
     Examples
     --------
@@ -185,11 +185,14 @@ def alifestd_mask_persistence_asexual(
     ... )
 
     To instead mark by most recent common ancestor, whatever leaves' own
-    branch lengths, make leaves contemporaneous first:
+    branch lengths, measure distance with leaves made contemporaneous:
 
+    >>> ultrametric_df = alifestd_ultrametricize(df)
+    >>> df["origin_time_ultrametric"] = ultrametric_df["origin_time"].values
     >>> persistence_df = alifestd_mask_persistence_asexual(
-    ...     alifestd_ultrametricize(df),
+    ...     df,
     ...     candidate_mask=candidate_mask,
+    ...     criterion="origin_time_ultrametric",
     ...     extant_mask=extant_mask,
     ...     mark_as="is_persistent",
     ... )

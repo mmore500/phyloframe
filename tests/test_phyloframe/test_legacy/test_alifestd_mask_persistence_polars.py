@@ -146,10 +146,16 @@ def test_criterion_origin_time_vs_node_depth_vs_ultrametric():
     )
     assert res["m"].arg_true().to_list() == [5]
     # with contemporaneous leaves, leaf 5 is closest, by most recent mrca
-    res = alifestd_ultrametricize_polars(df_pl).pipe(
-        alifestd_mask_persistence_polars, **kwargs
+    ultrametric_df = alifestd_ultrametricize_polars(df_pl)
+    res = df_pl.with_columns(
+        origin_time_ultrametric=ultrametric_df["origin_time"],
+    ).pipe(
+        alifestd_mask_persistence_polars,
+        criterion="origin_time_ultrametric",
+        **kwargs,
     )
     assert res["m"].arg_true().to_list() == [5]
+    assert res["origin_time"].equals(df_pl["origin_time"])
 
 
 def test_prune_extinct_lineages():

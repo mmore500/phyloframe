@@ -117,9 +117,9 @@ def alifestd_mask_persistence_polars(
     Which candidates are closest depends on `criterion`. With leaves'
     own "origin_time" values, a candidate on a long branch can be further
     from an extant taxon than a candidate that diverged from its lineage
-    earlier. With contemporaneous leaves, an extant leaf's closest candidate
-    leaves are those sharing its most recent common ancestor with any
-    candidate; see Examples.
+    earlier. With leaves made contemporaneous, an extant leaf's closest
+    candidate leaves are those sharing its most recent common ancestor with
+    any candidate; see Examples.
 
     Examples
     --------
@@ -128,14 +128,12 @@ def alifestd_mask_persistence_polars(
 
     >>> is_leaf = pl.col("is_leaf")
     >>> origin_time = pl.col("origin_time")
-    >>> masked_df = alifestd_mark_leaves_polars(df).with_columns(
-    ...     is_candidate=is_leaf & origin_time.is_between(40, 60),
-    ...     is_extant=is_leaf & (origin_time > 100),
-    ... )
-    >>> persistence_df = alifestd_mask_persistence_polars(
-    ...     masked_df,
-    ...     candidate_mask="is_candidate",
-    ...     extant_mask="is_extant",
+    >>> candidate_mask = is_leaf & origin_time.is_between(40, 60)
+    >>> extant_mask = is_leaf & (origin_time > 100)
+    >>> persistence_df = alifestd_mark_leaves_polars(df).pipe(
+    ...     alifestd_mask_persistence_polars,
+    ...     candidate_mask=candidate_mask,
+    ...     extant_mask=extant_mask,
     ...     mark_as="is_persistent",
     ... )
 
@@ -146,13 +144,21 @@ def alifestd_mask_persistence_polars(
     ... )
 
     To instead mark by most recent common ancestor, whatever leaves' own
-    branch lengths, make leaves contemporaneous first:
+    branch lengths, measure distance with leaves made contemporaneous:
 
-    >>> persistence_df = alifestd_ultrametricize_polars(masked_df).pipe(
-    ...     alifestd_mask_persistence_polars,
-    ...     candidate_mask="is_candidate",
-    ...     extant_mask="is_extant",
-    ...     mark_as="is_persistent",
+    >>> ultrametric_df = alifestd_ultrametricize_polars(df)
+    >>> persistence_df = (
+    ...     alifestd_mark_leaves_polars(df)
+    ...     .with_columns(
+    ...         origin_time_ultrametric=ultrametric_df["origin_time"],
+    ...     )
+    ...     .pipe(
+    ...         alifestd_mask_persistence_polars,
+    ...         candidate_mask=candidate_mask,
+    ...         criterion="origin_time_ultrametric",
+    ...         extant_mask=extant_mask,
+    ...         mark_as="is_persistent",
+    ...     )
     ... )
     """
     if isinstance(extant_mask, str):
@@ -234,8 +240,8 @@ Additional Notes
 distance between taxa via their most recent common ancestor.
 
 - To mark candidates by most recent common ancestor, whatever leaves' own
-branch lengths, make leaves contemporaneous first (see
-_alifestd_ultrametricize_polars).
+branch lengths, pass a `--criterion` column with leaves made contemporaneous
+(see _alifestd_ultrametricize_polars).
 
 - Use `--with-column` to add mask columns, e.g.,
 `--with-column '(pl.col("is_leaf") & (pl.col("origin_time") > 100)).alias("is_extant")'`.
