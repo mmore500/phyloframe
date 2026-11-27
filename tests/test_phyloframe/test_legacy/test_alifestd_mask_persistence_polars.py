@@ -5,6 +5,7 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_calc_mrca_id_matrix_asexual_polars,
     alifestd_find_pair_distance_polars,
     alifestd_mark_node_depth_polars,
     alifestd_mask_persistence_polars,
@@ -74,47 +75,34 @@ def _make_random_tree(seed: int, n: int = 60) -> pl.DataFrame:
 def _calc_expected(
     phylogeny_df: pl.DataFrame,
     criterion_cherry: str,
-    criterion_tiebreak: str,
     criterion_trunk: str,
+    criterion_tiebreak: str,
 ) -> typing.List[bool]:
     """Brute-force reference, over all extant/candidate pairs."""
-    ancestor_ids = phylogeny_df["ancestor_id"].to_list()
-    cherry_values, tiebreak_values, trunk_values = (
+    mrca_ids = alifestd_calc_mrca_id_matrix_asexual_polars(phylogeny_df)
+    cherry_values, trunk_values, tiebreak_values = (
         phylogeny_df[criterion].to_numpy()
         for criterion in (
             criterion_cherry,
-            criterion_tiebreak,
             criterion_trunk,
+            criterion_tiebreak,
         )
     )
 
-    def unfurl_lineage(id_: int) -> typing.List[int]:
-        lineage = [id_]
-        while ancestor_ids[lineage[-1]] != lineage[-1]:
-            lineage.append(ancestor_ids[lineage[-1]])
-        return lineage
-
     expected = [False] * len(phylogeny_df)
     for extant_id in phylogeny_df["is_extant"].arg_true():
-        extant_lineage = unfurl_lineage(extant_id)
-        scores = {}
-        for candidate_id in phylogeny_df["is_candidate"].arg_true():
-            mrca_id = next(
-                (
-                    id_
-                    for id_ in unfurl_lineage(candidate_id)
-                    if id_ in extant_lineage
-                ),
-                None,
+        scores = {
+            candidate_id: (
+                trunk_values[extant_id]
+                - trunk_values[mrca_id]
+                + cherry_values[candidate_id]
+                - cherry_values[mrca_id],
+                tiebreak_values[candidate_id],
             )
-            if mrca_id is not None:
-                distance = (
-                    trunk_values[extant_id]
-                    - trunk_values[mrca_id]
-                    + cherry_values[candidate_id]
-                    - cherry_values[mrca_id]
-                )
-                scores[candidate_id] = distance, tiebreak_values[candidate_id]
+            for candidate_id in phylogeny_df["is_candidate"].arg_true()
+            for mrca_id in [mrca_ids[extant_id, candidate_id]]
+            if mrca_id != -1
+        }
         for candidate_id, score in scores.items():
             expected[candidate_id] |= score == min(scores.values())
 
@@ -251,9 +239,9 @@ def test_criterion_tiebreak(
         priority=pl.Series([0, 0, 0, 0, 9, 0, 0, 2, 1]),
     )
     kwargs = dict(
-        criterion_tiebreak=criterion_tiebreak,
         extant_mask=pl.col("id") == 5,
         mark_as="m",
+        criterion_tiebreak=criterion_tiebreak,
     )
     res = alifestd_mask_persistence_polars(
         df_pl, candidate_mask=pl.col("id").is_in([7, 8]), **kwargs
@@ -272,8 +260,8 @@ def test_default_tiebreak_takes_earliest_sharing_most_recent_mrca():
     )
     kwargs = dict(
         candidate_mask=pl.col("id").is_in([7, 8]),
-        criterion_cherry=pl.lit(0),
         extant_mask=pl.col("id") == 5,
+        criterion_cherry=pl.lit(0),
         mark_as="m",
     )
     res = alifestd_mask_persistence_polars(df_pl, **kwargs)
