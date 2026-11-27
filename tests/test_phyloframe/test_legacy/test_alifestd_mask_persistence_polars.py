@@ -415,13 +415,18 @@ def test_non_numeric_criterion_raises(criterion: pl.Expr, name: str):
         )
 
 
-def test_unsigned_origin_time():
+@pytest.mark.parametrize(
+    "criteria",
+    [{}, dict(criterion_cherry="origin_time", criterion_trunk="origin_time")],
+)
+def test_unsigned_origin_time(criteria: dict):
     df_pl = _make_tree().with_columns(pl.col("origin_time").cast(pl.UInt32))
     res = alifestd_mask_persistence_polars(
         df_pl,
         candidate_mask=pl.col("id").is_in([4, 5, 8]),
         extant_mask=pl.col("id").is_in([6, 7]),
         mark_as="m",
+        **criteria,
     )
     assert res["m"].arg_true().to_list() == [5, 8]
 

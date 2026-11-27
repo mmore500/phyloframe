@@ -41,12 +41,11 @@ def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
         return -1
     elif second == -1 or first == len(mrca_values):  # sentinel: further
         return 1
-    for first_value, second_value in zip(
-        mrca_values[first], mrca_values[second]
-    ):
-        if first_value != second_value:  # fields differ
-            return -1 if first_value < second_value else 1
-    return 0  # all equal
+    first_values, second_values = mrca_values[first], mrca_values[second]
+    signs = (first_values > second_values).astype(np.int64) - (
+        first_values < second_values
+    )
+    return signs[signs != 0][0] if signs.any() else 0  # first field differing
 
 
 @jit(nopython=True)
