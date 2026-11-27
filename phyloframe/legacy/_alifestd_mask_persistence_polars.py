@@ -131,7 +131,7 @@ def alifestd_mask_persistence_polars(
     mark_as: str = "alifestd_mask_persistence_polars",
     criterion_tiebreak: typing.Union[str, pl.Expr] = pl.struct(
         "origin_time", "id"
-    ).rank("ordinal"),
+    ).rank("ordinal", descending=True),
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
     of at least one extant taxon.
@@ -188,14 +188,14 @@ def alifestd_mask_persistence_polars(
         see Notes.
     mark_as : str, default "alifestd_mask_persistence_polars"
         Column name for the boolean mask.
-    criterion_tiebreak : str or polars.Expr, default pl.struct("origin_time", "id").rank("ordinal")
+    criterion_tiebreak : str or polars.Expr, default pl.struct("origin_time", "id").rank("ordinal", descending=True)
         Column name or expression used to choose among candidates tied as
         an extant taxon's closest, taking the candidate with the lowest
         value. Values must be finite. Candidates also tied by
         `criterion_tiebreak` value are all marked.
 
-        By default, takes the earliest tied candidate, or the one with the
-        lowest id among equally early candidates, so that each extant taxon
+        By default, takes the latest tied candidate, or the one with the
+        highest id among equally late candidates, so that each extant taxon
         marks at most one candidate.
 
         Pass a constant, e.g., `pl.lit(0)`, to mark all tied candidates.
@@ -278,19 +278,18 @@ def alifestd_mask_persistence_polars(
 
     Candidates may include inner nodes. To mark the latest ancestor before
     time 50 of each leaf after time 100, take all taxa before time 50 as
-    candidates, by most recent common ancestor:
+    candidates:
 
     >>> persistence_df = alifestd_mark_leaves_polars(df).pipe(
     ...     alifestd_mask_persistence_polars,
     ...     candidate_mask=origin_time < 50,
     ...     extant_mask=extant_mask,
-    ...     criterion_cherry=pl.lit(0),
     ...     mark_as="is_persistent",
     ... )
 
-    Each such ancestor ties with its other descendants before time 50, and
-    is marked as the earliest among them. Any of its ancestors at the same
-    time also tie, of which the one with the lowest id is marked.
+    Each such ancestor is closer than its own ancestors and its other
+    descendants, except any at the same time, which tie with it; of these,
+    the one with the highest id is marked.
     """
     if isinstance(candidate_mask, str):
         candidate_mask = pl.col(candidate_mask)
@@ -402,8 +401,8 @@ common ancestor, whatever their own branch lengths, or
 an extant taxon's lineage.
 
 - Among candidates tied as an extant taxon's closest, the one with the
-lowest `--criterion-tiebreak` value is marked (default: earliest
-'origin_time', then lowest 'id'). Pass `--criterion-tiebreak 'pl.lit(0)'`
+lowest `--criterion-tiebreak` value is marked (default: latest
+'origin_time', then highest 'id'). Pass `--criterion-tiebreak 'pl.lit(0)'`
 to mark all tied candidates.
 
 - Use `--eager-read` if modifying data file inplace.
@@ -488,13 +487,16 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--criterion-tiebreak",
-        default='pl.struct("origin_time", "id").rank("ordinal")',
+        default=(
+            'pl.struct("origin_time", "id").rank("ordinal", descending=True)'
+        ),
         type=str,
         help=(
             "Python expression evaluating to a column name or polars "
             "expression used to choose among tied candidates, taking the "
             "lowest, with polars available as `pl` "
-            '(default: pl.struct("origin_time", "id").rank("ordinal")).'
+            "(default: "
+            'pl.struct("origin_time", "id").rank("ordinal", descending=True)).'
         ),
     )
     return parser

@@ -221,9 +221,11 @@ def test_criterion_cherry_trunk(criteria: dict, expected: list):
 @pytest.mark.parametrize(
     "criterion_tiebreak, expected",
     [
-        # default: earliest, then lowest id
+        # default: latest, then highest id
         pytest.param(
-            pl.struct("origin_time", "id").rank("ordinal"), [7], id="default"
+            pl.struct("origin_time", "id").rank("ordinal", descending=True),
+            [8],
+            id="default",
         ),
         pytest.param(pl.lit(0), [7, 8], id="constant"),
         pytest.param("priority", [8], id="column"),
@@ -256,7 +258,7 @@ def test_criterion_tiebreak(
     assert res["m"].arg_true().to_list() == [4]
 
 
-def test_default_tiebreak_takes_earliest_sharing_most_recent_mrca():
+def test_default_tiebreak_takes_latest_sharing_most_recent_mrca():
     # without cherry distance, leaves 7 and 8 tie as closest to leaf 5
     df_pl = _make_tree().with_columns(
         origin_time=pl.Series([0, 1, 1, 2, 3, 3, 9, 20, 4]),
@@ -268,7 +270,7 @@ def test_default_tiebreak_takes_earliest_sharing_most_recent_mrca():
         mark_as="m",
     )
     res = alifestd_mask_persistence_polars(df_pl, **kwargs)
-    assert res["m"].arg_true().to_list() == [8]
+    assert res["m"].arg_true().to_list() == [7]
     res = alifestd_mask_persistence_polars(
         df_pl, criterion_tiebreak=pl.lit(0), **kwargs
     )
@@ -292,7 +294,6 @@ def test_inner_node_candidates_before_time():
         _make_comb(),
         candidate_mask=pl.col("origin_time") < 49,
         extant_mask=pl.col("id") == 4,
-        criterion_cherry=pl.lit(0),
         mark_as="m",
     )
     assert res["m"].arg_true().to_list() == [2]
@@ -310,11 +311,10 @@ def test_inner_node_candidates_before_time_tied():
     kwargs = dict(
         candidate_mask=pl.col("origin_time") < 2,
         extant_mask=pl.col("id") == 3,
-        criterion_cherry=pl.lit(0),
         mark_as="m",
     )
     res = alifestd_mask_persistence_polars(df_pl, **kwargs)
-    assert res["m"].arg_true().to_list() == [1]
+    assert res["m"].arg_true().to_list() == [2]
     res = alifestd_mask_persistence_polars(
         df_pl, criterion_tiebreak=pl.lit(0), **kwargs
     )
@@ -347,7 +347,6 @@ def test_inner_node_candidates_before_time_marks_latest_ancestors(seed: int):
             df_pl,
             candidate_mask=pl.col("origin_time") < time,
             extant_mask=extant_mask,
-            criterion_cherry=pl.lit(0),
             mark_as="m",
         )
         assert res["m"].arg_true().to_list() == sorted(expected)
