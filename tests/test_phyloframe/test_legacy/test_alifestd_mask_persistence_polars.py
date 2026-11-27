@@ -6,9 +6,11 @@ import polars as pl
 import pytest
 
 from phyloframe.legacy import (
+    alifestd_mark_node_depth_polars,
     alifestd_mask_persistence_asexual,
     alifestd_mask_persistence_polars,
     alifestd_prune_extinct_lineages_polars,
+    alifestd_ultrametricize_polars,
 )
 
 apply_params = pytest.mark.parametrize(
@@ -115,6 +117,39 @@ def test_criterion():
     assert res["m"].arg_true().to_list() == [4]
     res = alifestd_mask_persistence_polars(df_pl, criterion="depth", **kwargs)
     assert res["m"].arg_true().to_list() == [8]
+
+
+def test_criterion_origin_time_vs_node_depth_vs_ultrametric():
+    # 0 -- 1 -- 2 -- 3 -- 4
+    #      |    |    +--- 5
+    #      |    +-------- 6
+    #      +------------- 7
+    df_pl = pl.DataFrame(
+        {
+            "id": range(8),
+            "ancestor_id": [0, 0, 1, 2, 3, 3, 2, 1],
+            "origin_time": [0, 39, 48, 50, 100, 60, 50, 40],
+        },
+    ).with_columns(
+        is_candidate=pl.col("id").is_in([5, 6, 7]),
+        is_extant=pl.col("id") == 4,
+    )
+    kwargs = dict(
+        candidate_mask="is_candidate", extant_mask="is_extant", mark_as="m"
+    )
+    # by elapsed time, leaf 6 is closest to leaf 4: (100 - 48) + (50 - 48)
+    res = alifestd_mask_persistence_polars(df_pl, **kwargs)
+    assert res["m"].arg_true().to_list() == [6]
+    # by number of edges, sibling leaf 5 is closest
+    res = alifestd_mark_node_depth_polars(df_pl).pipe(
+        alifestd_mask_persistence_polars, criterion="node_depth", **kwargs
+    )
+    assert res["m"].arg_true().to_list() == [5]
+    # with contemporaneous leaves, leaf 5 is closest, by most recent mrca
+    res = alifestd_ultrametricize_polars(df_pl).pipe(
+        alifestd_mask_persistence_polars, **kwargs
+    )
+    assert res["m"].arg_true().to_list() == [5]
 
 
 def test_prune_extinct_lineages():

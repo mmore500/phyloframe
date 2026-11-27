@@ -5,12 +5,14 @@ import pytest
 from phyloframe.legacy import (
     alifestd_find_pair_distance_asexual,
     alifestd_make_empty,
+    alifestd_mark_node_depth_asexual,
 )
 from phyloframe.legacy import (
     alifestd_mask_persistence_asexual as alifestd_mask_persistence_asexual_,
 )
 from phyloframe.legacy import (
     alifestd_prune_extinct_lineages_asexual,
+    alifestd_ultrametricize,
 )
 
 from ._impl import enforce_dtype_stability_pandas
@@ -107,6 +109,62 @@ def test_criterion():
         mark_as="m",
     )
     assert np.flatnonzero(res["m"]).tolist() == [8]
+
+
+def _make_comb() -> pd.DataFrame:
+    # 0 -- 1 -- 2 -- 3 -- 4
+    #      |    |    +--- 5
+    #      |    +-------- 6
+    #      +------------- 7
+    return pd.DataFrame(
+        {
+            "id": range(8),
+            "ancestor_id": [0, 0, 1, 2, 3, 3, 2, 1],
+            "origin_time": [0, 39, 48, 50, 100, 60, 50, 40],
+        },
+    )
+
+
+def test_criterion_origin_time_vs_node_depth_vs_ultrametric():
+    phylogeny_df = _make_comb()
+    kwargs = dict(
+        candidate_mask=_mask(phylogeny_df, [5, 6, 7]),
+        extant_mask=_mask(phylogeny_df, [4]),
+        mark_as="m",
+    )
+    # by elapsed time, leaf 6 is closest to leaf 4: (100 - 48) + (50 - 48)
+    res = alifestd_mask_persistence_asexual(phylogeny_df, **kwargs)
+    assert np.flatnonzero(res["m"]).tolist() == [6]
+    # by number of edges, sibling leaf 5 is closest
+    res = alifestd_mask_persistence_asexual(
+        alifestd_mark_node_depth_asexual(phylogeny_df),
+        criterion="node_depth",
+        **kwargs,
+    )
+    assert np.flatnonzero(res["m"]).tolist() == [5]
+    # with contemporaneous leaves, leaf 5 is closest, by most recent mrca
+    res = alifestd_mask_persistence_asexual(
+        alifestd_ultrametricize(phylogeny_df), **kwargs
+    )
+    assert np.flatnonzero(res["m"]).tolist() == [5]
+
+
+def test_ultrametric_marks_all_sharing_most_recent_mrca():
+    phylogeny_df = _make_tree()
+    # leaves 7 and 8 share extant leaf 5's most recent mrca with any
+    # candidate; leaf 8's long branch otherwise puts it further away
+    phylogeny_df.loc[8, "origin_time"] = 20
+    kwargs = dict(
+        candidate_mask=_mask(phylogeny_df, [7, 8]),
+        extant_mask=_mask(phylogeny_df, [5]),
+        mark_as="m",
+    )
+    res = alifestd_mask_persistence_asexual(phylogeny_df, **kwargs)
+    assert np.flatnonzero(res["m"]).tolist() == [7]
+    res = alifestd_mask_persistence_asexual(
+        alifestd_ultrametricize(phylogeny_df), **kwargs
+    )
+    assert np.flatnonzero(res["m"]).tolist() == [7, 8]
 
 
 def test_ties_all_marked():

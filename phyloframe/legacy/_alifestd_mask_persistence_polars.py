@@ -69,9 +69,10 @@ def alifestd_mask_persistence_polars(
         marked as closest relatives, e.g., leaves within an earlier time
         window. May include inner nodes. Null values are not supported.
     criterion : str, default "origin_time"
-        Column name used to measure distance between taxa and their MRCA.
-        Values must be finite, and must not decrease from ancestor to
-        descendant.
+        Column name used to measure distance between taxa and their MRCA,
+        e.g., "origin_time" for elapsed time or "node_depth" for number of
+        edges (see `alifestd_mark_node_depth_polars`). Values must be
+        finite, and must not decrease from ancestor to descendant.
     extant_mask : str or polars.Expr
         Column name or boolean expression marking taxa whose closest
         relatives are sought, e.g., leaves after a time threshold. May
@@ -107,6 +108,18 @@ def alifestd_mask_persistence_polars(
     alifestd_prune_extinct_lineages_polars :
         Drops taxa without marked descendants, e.g., pass `mark_as` column
         as `criterion` to keep only lineages of marked candidates.
+    alifestd_ultrametricize_polars :
+        Makes leaves contemporaneous, e.g., to mark candidates by most
+        recent common ancestor.
+
+    Notes
+    -----
+    Which candidates are closest depends on `criterion`. With leaves'
+    own "origin_time" values, a candidate on a long branch can be further
+    from an extant taxon than a candidate that diverged from its lineage
+    earlier. With contemporaneous leaves, an extant leaf's closest candidate
+    leaves are those sharing its most recent common ancestor with any
+    candidate; see Examples.
 
     Examples
     --------
@@ -115,17 +128,31 @@ def alifestd_mask_persistence_polars(
 
     >>> is_leaf = pl.col("is_leaf")
     >>> origin_time = pl.col("origin_time")
-    >>> df = alifestd_mark_leaves_polars(df).pipe(
-    ...     alifestd_mask_persistence_polars,
-    ...     candidate_mask=is_leaf & origin_time.is_between(40, 60),
-    ...     extant_mask=is_leaf & (origin_time > 100),
+    >>> masked_df = alifestd_mark_leaves_polars(df).with_columns(
+    ...     is_candidate=is_leaf & origin_time.is_between(40, 60),
+    ...     is_extant=is_leaf & (origin_time > 100),
+    ... )
+    >>> persistence_df = alifestd_mask_persistence_polars(
+    ...     masked_df,
+    ...     candidate_mask="is_candidate",
+    ...     extant_mask="is_extant",
     ...     mark_as="is_persistent",
     ... )
 
     To then drop all but these leaves' lineages:
 
-    >>> df = alifestd_prune_extinct_lineages_polars(
-    ...     df, criterion="is_persistent"
+    >>> persistence_df = alifestd_prune_extinct_lineages_polars(
+    ...     persistence_df, criterion="is_persistent"
+    ... )
+
+    To instead mark by most recent common ancestor, whatever leaves' own
+    branch lengths, make leaves contemporaneous first:
+
+    >>> persistence_df = alifestd_ultrametricize_polars(masked_df).pipe(
+    ...     alifestd_mask_persistence_polars,
+    ...     candidate_mask="is_candidate",
+    ...     extant_mask="is_extant",
+    ...     mark_as="is_persistent",
     ... )
     """
     if isinstance(extant_mask, str):
@@ -205,6 +232,10 @@ Additional Notes
 
 - Requires `--criterion` column (default: 'origin_time'), used to measure
 distance between taxa via their most recent common ancestor.
+
+- To mark candidates by most recent common ancestor, whatever leaves' own
+branch lengths, make leaves contemporaneous first (see
+_alifestd_ultrametricize_polars).
 
 - Use `--with-column` to add mask columns, e.g.,
 `--with-column '(pl.col("is_leaf") & (pl.col("origin_time") > 100)).alias("is_extant")'`.

@@ -110,9 +110,10 @@ def alifestd_mask_persistence_asexual(
         relatives, e.g., leaves within an earlier time window, aligned with
         `phylogeny_df.index`, with boolean dtype. May include inner nodes.
     criterion : str, default "origin_time"
-        Column name used to measure distance between taxa and their MRCA.
-        Values must be finite, and must not decrease from ancestor to
-        descendant.
+        Column name used to measure distance between taxa and their MRCA,
+        e.g., "origin_time" for elapsed time or "node_depth" for number of
+        edges (see `alifestd_mark_node_depth_asexual`). Values must be
+        finite, and must not decrease from ancestor to descendant.
     extant_mask : np.ndarray
         Boolean array marking taxa whose closest relatives are sought, e.g.,
         leaves after a time threshold, aligned with `phylogeny_df.index`,
@@ -148,6 +149,18 @@ def alifestd_mask_persistence_asexual(
     alifestd_prune_extinct_lineages_asexual :
         Drops taxa without marked descendants, e.g., pass `mark_as` column
         as `criterion` to keep only lineages of marked candidates.
+    alifestd_ultrametricize :
+        Makes leaves contemporaneous, e.g., to mark candidates by most
+        recent common ancestor.
+
+    Notes
+    -----
+    Which candidates are closest depends on `criterion`. With leaves'
+    own "origin_time" values, a candidate on a long branch can be further
+    from an extant taxon than a candidate that diverged from its lineage
+    earlier. With contemporaneous leaves, an extant leaf's closest candidate
+    leaves are those sharing its most recent common ancestor with any
+    candidate; see Examples.
 
     Examples
     --------
@@ -156,17 +169,29 @@ def alifestd_mask_persistence_asexual(
 
     >>> is_leaf = alifestd_mark_leaves(df)["is_leaf"].to_numpy()
     >>> origin_time = df["origin_time"].to_numpy()
-    >>> df = alifestd_mask_persistence_asexual(
+    >>> candidate_mask = is_leaf & (origin_time >= 40) & (origin_time <= 60)
+    >>> extant_mask = is_leaf & (origin_time > 100)
+    >>> persistence_df = alifestd_mask_persistence_asexual(
     ...     df,
-    ...     candidate_mask=is_leaf & (origin_time >= 40) & (origin_time <= 60),
-    ...     extant_mask=is_leaf & (origin_time > 100),
+    ...     candidate_mask=candidate_mask,
+    ...     extant_mask=extant_mask,
     ...     mark_as="is_persistent",
     ... )
 
     To then drop all but these leaves' lineages:
 
-    >>> df = alifestd_prune_extinct_lineages_asexual(
-    ...     df, criterion="is_persistent"
+    >>> persistence_df = alifestd_prune_extinct_lineages_asexual(
+    ...     persistence_df, criterion="is_persistent"
+    ... )
+
+    To instead mark by most recent common ancestor, whatever leaves' own
+    branch lengths, make leaves contemporaneous first:
+
+    >>> persistence_df = alifestd_mask_persistence_asexual(
+    ...     alifestd_ultrametricize(df),
+    ...     candidate_mask=candidate_mask,
+    ...     extant_mask=extant_mask,
+    ...     mark_as="is_persistent",
     ... )
     """
     if not mutate:
