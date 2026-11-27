@@ -112,6 +112,14 @@ def test_mask_column_names():
             [5],
             id="node-depth",
         ),
+        pytest.param(
+            dict(
+                criterion_cherry=pl.col("node_depth"),
+                criterion_trunk=pl.col("node_depth") * 2,
+            ),
+            [5],
+            id="expr",
+        ),
         # leaf 5 shares the most recent mrca with leaf 4
         pytest.param(dict(criterion_cherry=None), [5], id="trunk-only"),
         # leaf 7 sits closest to the lineage of leaf 4: 40 - 39

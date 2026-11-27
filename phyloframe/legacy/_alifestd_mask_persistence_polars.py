@@ -31,8 +31,12 @@ def alifestd_mask_persistence_polars(
     phylogeny_df: pl.DataFrame,
     *,
     candidate_mask: typing.Union[str, pl.Expr],
-    criterion_cherry: typing.Optional[str] = "origin_time",
-    criterion_trunk: typing.Optional[str] = "origin_time",
+    criterion_cherry: typing.Optional[
+        typing.Union[str, pl.Expr]
+    ] = "origin_time",
+    criterion_trunk: typing.Optional[
+        typing.Union[str, pl.Expr]
+    ] = "origin_time",
     extant_mask: typing.Union[str, pl.Expr],
     mark_as: str = "alifestd_mask_persistence_polars",
 ) -> pl.DataFrame:
@@ -70,16 +74,17 @@ def alifestd_mask_persistence_polars(
         Column name or boolean expression marking taxa eligible to be
         marked as closest relatives, e.g., leaves within an earlier time
         window. May include inner nodes. Null values are not supported.
-    criterion_cherry : str, optional, default "origin_time"
-        Column name used to measure cherry distance, from MRCA to
-        candidate, e.g., "origin_time" for elapsed time or "node_depth" for
-        number of edges (see `alifestd_mark_node_depth_polars`). Values
-        must be finite, and must not decrease from ancestor to descendant.
+    criterion_cherry : str or polars.Expr, optional, default "origin_time"
+        Column name or expression used to measure cherry distance, from
+        MRCA to candidate, e.g., "origin_time" for elapsed time or
+        "node_depth" for number of edges (see
+        `alifestd_mark_node_depth_polars`). Values must be finite, and must
+        not decrease from ancestor to descendant.
 
         If None, cherry distance is not counted; see Notes.
-    criterion_trunk : str, optional, default "origin_time"
-        Column name used to measure trunk distance, from MRCA to extant
-        taxon, with requirements as for `criterion_cherry`.
+    criterion_trunk : str or polars.Expr, optional, default "origin_time"
+        Column name or expression used to measure trunk distance, from MRCA
+        to extant taxon, with requirements as for `criterion_cherry`.
 
         If None, trunk distance is not counted; see Notes.
     extant_mask : str or polars.Expr
@@ -180,7 +185,7 @@ def alifestd_mask_persistence_polars(
     phylogeny_df = alifestd_try_add_ancestor_id_col_polars(phylogeny_df)
     schema_names = phylogeny_df.lazy().collect_schema().names()
     for criterion in (criterion_cherry, criterion_trunk):
-        if criterion is not None and criterion not in schema_names:
+        if isinstance(criterion, str) and criterion not in schema_names:
             raise ValueError(
                 f"criterion column {criterion!r} not found in phylogeny_df",
             )
@@ -199,21 +204,24 @@ def alifestd_mask_persistence_polars(
             "non-topologically-sorted data not supported",
         )
 
+    criteria = {
+        name: pl.lit(0.0)
+        if criterion is None
+        else pl.col(criterion)
+        if isinstance(criterion, str)
+        else criterion
+        for name, criterion in (
+            ("criterion_cherry", criterion_cherry),
+            ("criterion_trunk", criterion_trunk),
+        )
+    }
     selected = (
         phylogeny_df.lazy()
         .select(
             pl.col("ancestor_id"),
             extant_mask=extant_mask.cast(pl.Boolean),
             candidate_mask=candidate_mask.cast(pl.Boolean),
-            **{
-                name: pl.lit(0.0)
-                if criterion is None
-                else pl.col(criterion).cast(pl.Float64)
-                for name, criterion in (
-                    ("criterion_cherry", criterion_cherry),
-                    ("criterion_trunk", criterion_trunk),
-                )
-            },
+            **{k: v.cast(pl.Float64) for k, v in criteria.items()},
         )
         .collect()
     )
@@ -260,17 +268,19 @@ Additional Notes
 ================
 - Requires contiguous, topologically sorted ids.
 
-- Requires `--criterion-cherry` and `--criterion-trunk` columns (default:
-'origin_time'), used to measure distance from the most recent common
-ancestor of an extant taxon and a candidate out to the candidate (cherry)
-and to the extant taxon (trunk).
+- Mask and criterion arguments are evaluated as Python expressions, with
+polars available as `pl`, e.g.,
+`--extant-mask 'pl.col("is_leaf") & (pl.col("origin_time") > 100)'`.
+Column names must be quoted, e.g., `--criterion-trunk '"node_depth"'`.
 
-- Pass `--criterion-cherry ''` to mark candidates by most recent common
-ancestor, whatever their own branch lengths, or `--criterion-trunk ''` to
+- Uses `--criterion-cherry` and `--criterion-trunk` (default:
+'origin_time') to measure distance from the most recent common ancestor of
+an extant taxon and a candidate out to the candidate (cherry) and to the
+extant taxon (trunk).
+
+- Pass `--criterion-cherry None` to mark candidates by most recent common
+ancestor, whatever their own branch lengths, or `--criterion-trunk None` to
 mark candidates by how far they sit from an extant taxon's lineage.
-
-- Use `--with-column` to add mask columns, e.g.,
-`--with-column '(pl.col("is_leaf") & (pl.col("origin_time") > 100)).alias("is_extant")'`.
 
 - Use `--eager-read` if modifying data file inplace.
 
@@ -304,26 +314,32 @@ def _create_parser() -> argparse.ArgumentParser:
         required=True,
         type=str,
         help=(
-            "Name of boolean column marking taxa eligible to be marked as "
-            "closest relatives, e.g., leaves within an earlier time window."
+            "Python expression evaluating to a column name or boolean polars "
+            "expression marking taxa eligible to be marked as closest "
+            "relatives, e.g., leaves within an earlier time window, with "
+            "polars available as `pl`."
         ),
     )
     parser.add_argument(
         "--criterion-cherry",
-        default="origin_time",
+        default='"origin_time"',
         type=str,
         help=(
-            "Column name used to measure distance from MRCA to candidate; "
-            "pass '' to not count (default: origin_time)."
+            "Python expression evaluating to a column name or polars "
+            "expression used to measure distance from MRCA to candidate, or "
+            "None to not count, with polars available as `pl` "
+            '(default: "origin_time").'
         ),
     )
     parser.add_argument(
         "--criterion-trunk",
-        default="origin_time",
+        default='"origin_time"',
         type=str,
         help=(
-            "Column name used to measure distance from MRCA to extant "
-            "taxon; pass '' to not count (default: origin_time)."
+            "Python expression evaluating to a column name or polars "
+            "expression used to measure distance from MRCA to extant taxon, "
+            "or None to not count, with polars available as `pl` "
+            '(default: "origin_time").'
         ),
     )
     parser.add_argument(
@@ -331,8 +347,10 @@ def _create_parser() -> argparse.ArgumentParser:
         required=True,
         type=str,
         help=(
-            "Name of boolean column marking taxa whose closest relatives "
-            "are sought, e.g., leaves after a time threshold."
+            "Python expression evaluating to a column name or boolean polars "
+            "expression marking taxa whose closest relatives are sought, "
+            "e.g., leaves after a time threshold, with polars available as "
+            "`pl`."
         ),
     )
     parser.add_argument(
@@ -353,6 +371,16 @@ if __name__ == "__main__":
     parser = _create_parser()
     args, __ = parser.parse_known_args()
 
+    candidate_mask, criterion_cherry, criterion_trunk, extant_mask = (
+        eval(arg, {"pl": pl})  # nosec B307
+        for arg in (
+            args.candidate_mask,
+            args.criterion_cherry,
+            args.criterion_trunk,
+            args.extant_mask,
+        )
+    )
+
     try:
         with log_context_duration(
             "phyloframe.legacy._alifestd_mask_persistence_polars",
@@ -362,10 +390,10 @@ if __name__ == "__main__":
                 base_parser=parser,
                 output_dataframe_op=functools.partial(
                     alifestd_mask_persistence_polars,
-                    candidate_mask=args.candidate_mask,
-                    criterion_cherry=args.criterion_cherry or None,
-                    criterion_trunk=args.criterion_trunk or None,
-                    extant_mask=args.extant_mask,
+                    candidate_mask=candidate_mask,
+                    criterion_cherry=criterion_cherry,
+                    criterion_trunk=criterion_trunk,
+                    extant_mask=extant_mask,
                     mark_as=args.mark_as,
                 ),
             )
