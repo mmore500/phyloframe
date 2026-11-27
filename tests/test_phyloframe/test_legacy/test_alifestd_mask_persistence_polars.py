@@ -67,6 +67,7 @@ def _make_random_tree(seed: int, n: int = 60) -> pl.DataFrame:
             "mutations": mutations,
             "priority": rng.integers(4, size=n),
             "zero": 0,
+            "zero_": 0,
             "is_extant": rng.random(n) < 0.3,
             "is_candidate": rng.random(n) < 0.3,
         },
@@ -75,30 +76,29 @@ def _make_random_tree(seed: int, n: int = 60) -> pl.DataFrame:
 
 def _calc_expected(
     phylogeny_df: pl.DataFrame,
-    criterion_cherry: str,
-    criterion_trunk: str,
+    criterion_cherry: typing.Sequence[str],
+    criterion_trunk: typing.Sequence[str],
     criterion_tiebreak: str,
 ) -> typing.List[bool]:
-    """Brute-force reference, over all extant/candidate pairs."""
+    """Brute-force reference, over all extant/candidate pairs, with
+    distances compared by cherry and trunk columns in order."""
     mrca_ids = alifestd_calc_mrca_id_matrix_asexual_polars(phylogeny_df)
-    cherry_values, trunk_values, tiebreak_values = (
-        phylogeny_df[criterion].to_numpy()
-        for criterion in (
-            criterion_cherry,
-            criterion_trunk,
-            criterion_tiebreak,
-        )
+    cherry_values, trunk_values = (
+        phylogeny_df.select(criterion).to_numpy()
+        for criterion in (criterion_cherry, criterion_trunk)
     )
+    tiebreak_values = phylogeny_df[criterion_tiebreak].to_numpy()
 
     expected = [False] * len(phylogeny_df)
     for extant_id in phylogeny_df["is_extant"].arg_true():
         scores = {
             candidate_id: (
-                trunk_values[extant_id]
-                - trunk_values[mrca_id]
-                + cherry_values[candidate_id]
-                - cherry_values[mrca_id],
-                -mrca_id,  # most recent first, as ids are sorted
+                *(
+                    trunk_values[extant_id]
+                    - trunk_values[mrca_id]
+                    + cherry_values[candidate_id]
+                    - cherry_values[mrca_id]
+                ),
                 tiebreak_values[candidate_id],
             )
             for candidate_id in phylogeny_df["is_candidate"].arg_true()
@@ -307,8 +307,8 @@ def test_inner_node_candidates_before_time_tied():
     #   1
     #  2 5
     # 3 4
-    # nodes 1, 2, 3, and 5 are at the same time, so tie as closest to leaf
-    # 4; of these, node 2 is its latest ancestor
+    # nodes 1, 2, 3, and 5 are at the same time, so are equally close to
+    # leaf 4 in elapsed time; of these, node 2 is fewest edges away
     df_pl = pl.DataFrame(
         {
             "id": range(6),
@@ -320,14 +320,46 @@ def test_inner_node_candidates_before_time_tied():
         candidate_mask=pl.col("origin_time") < 10,
         extant_mask=pl.col("id") == 4,
         mark_as="m",
+        criterion_tiebreak=pl.lit(0),
     )
     res = alifestd_mask_persistence_polars(df_pl, **kwargs)
     assert res["m"].arg_true().to_list() == [2]
-    # nodes 2 and 3 share the most recent mrca with leaf 4
     res = alifestd_mask_persistence_polars(
-        df_pl, criterion_tiebreak=pl.lit(0), **kwargs
+        df_pl,
+        criterion_cherry="origin_time",
+        criterion_trunk="origin_time",
+        **kwargs,
     )
-    assert res["m"].arg_true().to_list() == [2, 3]
+    assert res["m"].arg_true().to_list() == [1, 2, 3, 5]
+
+
+@pytest.mark.parametrize(
+    "node_depth, expected",
+    [
+        # leaves 4 and 8 are equally close to leaf 7 in elapsed time, but
+        # leaf 8 is fewer edges away
+        pytest.param(None, [8], id="calculated"),
+        pytest.param([0, 1, 1, 2, 2, 2, 2, 3, 3], [8], id="existing"),
+        pytest.param([0] * 9, [4, 8], id="existing-constant"),
+    ],
+)
+def test_default_node_depth(
+    node_depth: typing.Optional[typing.List[int]], expected: list
+):
+    df_pl = _make_tree().with_columns(
+        origin_time=pl.Series([0, 1, 1, 1, 3, 3, 9, 9, 3]),
+    )
+    if node_depth is not None:
+        df_pl = df_pl.with_columns(node_depth=pl.Series(node_depth))
+    res = alifestd_mask_persistence_polars(
+        df_pl,
+        candidate_mask=pl.col("id").is_in([4, 8]),
+        extant_mask=pl.col("id") == 7,
+        mark_as="m",
+        criterion_tiebreak=pl.lit(0),
+    )
+    assert res["m"].arg_true().to_list() == expected
+    assert res.drop("m").equals(df_pl)  # no node depth column added
 
 
 def test_unsigned_origin_time():
@@ -444,35 +476,71 @@ def test_marked_candidates_minimize_pair_distance(seed: int):
 @pytest.mark.parametrize(
     "criterion_cherry, criterion_trunk",
     [
-        ("origin_time", "origin_time"),
-        ("origin_time", "mutations"),
-        ("mutations", "origin_time"),
-        ("origin_time", "zero"),
-        ("zero", "origin_time"),
+        (["origin_time"], ["origin_time"]),
+        (["origin_time"], ["mutations"]),
+        (["mutations"], ["origin_time"]),
+        (["origin_time"], ["zero"]),
+        (["zero"], ["origin_time"]),
+        (["origin_time", "node_depth"], ["origin_time", "node_depth"]),
+        (["origin_time", "mutations"], ["mutations", "origin_time"]),
+        (["zero", "zero_"], ["origin_time", "node_depth"]),
     ],
 )
 def test_matches_brute_force(
-    criterion_cherry: str,
-    criterion_trunk: str,
+    criterion_cherry: typing.List[str],
+    criterion_trunk: typing.List[str],
     criterion_tiebreak: str,
     seed: int,
 ):
-    df_pl = _make_random_tree(seed)
-    criteria = dict(
-        criterion_cherry=criterion_cherry,
-        criterion_tiebreak=criterion_tiebreak,
-        criterion_trunk=criterion_trunk,
+    df_pl = alifestd_mark_node_depth_polars(_make_random_tree(seed))
+    expected = _calc_expected(
+        df_pl, criterion_cherry, criterion_trunk, criterion_tiebreak
     )
-    expected = _calc_expected(df_pl, **criteria)
+    res = alifestd_mask_persistence_polars(
+        df_pl,
+        candidate_mask="is_candidate",
+        extant_mask="is_extant",
+        criterion_cherry=pl.struct(criterion_cherry),
+        criterion_trunk=pl.struct(criterion_trunk),
+        mark_as="m",
+        criterion_tiebreak=criterion_tiebreak,
+    )
+    assert res["m"].to_list() == expected
+    assert any(expected)
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_default_matches_brute_force(seed: int):
+    df_pl = _make_random_tree(seed)
+    expected = _calc_expected(
+        alifestd_mark_node_depth_polars(df_pl),
+        ["origin_time", "node_depth"],
+        ["origin_time", "node_depth"],
+        "zero",
+    )
     res = alifestd_mask_persistence_polars(
         df_pl,
         candidate_mask="is_candidate",
         extant_mask="is_extant",
         mark_as="m",
-        **criteria,
+        criterion_tiebreak=pl.lit(0),
     )
     assert res["m"].to_list() == expected
-    assert any(expected)
+    # fields beyond those of the other criterion are not counted for it
+    res = alifestd_mask_persistence_polars(
+        df_pl,
+        candidate_mask="is_candidate",
+        extant_mask="is_extant",
+        criterion_cherry=pl.lit(0),
+        mark_as="m",
+        criterion_tiebreak=pl.lit(0),
+    )
+    assert res["m"].to_list() == _calc_expected(
+        alifestd_mark_node_depth_polars(df_pl),
+        ["zero", "zero_"],
+        ["origin_time", "node_depth"],
+        "zero",
+    )
 
 
 @pytest.mark.parametrize("seed", range(5))
@@ -556,13 +624,14 @@ def test_unsupported_criterion_raises(values: list, name: str):
             "unsupported": values,
         }
     )
-    with pytest.raises(NotImplementedError):
-        alifestd_mask_persistence_polars(
-            df_pl,
-            candidate_mask=pl.lit(True),
-            extant_mask=pl.lit(True),
-            **{name: "unsupported"},
-        )
+    for criterion in "unsupported", pl.struct("origin_time", "unsupported"):
+        with pytest.raises(NotImplementedError):
+            alifestd_mask_persistence_polars(
+                df_pl,
+                candidate_mask=pl.lit(True),
+                extant_mask=pl.lit(True),
+                **{name: criterion},
+            )
 
 
 @pytest.mark.parametrize("name", ["criterion_cherry", "criterion_trunk"])
@@ -576,19 +645,21 @@ def test_decreasing_criterion_raises(name: str):
         }
     )
     kwargs = dict(candidate_mask=pl.lit(True), extant_mask=pl.lit(True))
-    with pytest.raises(NotImplementedError):
+    for criterion in "decreasing", pl.struct("origin_time", "decreasing"):
+        with pytest.raises(NotImplementedError):
+            alifestd_mask_persistence_polars(
+                df_pl, **{name: criterion}, **kwargs
+            )
         alifestd_mask_persistence_polars(
-            df_pl, **{name: "decreasing"}, **kwargs
+            df_pl, criterion_tiebreak=criterion, **kwargs
         )
-    alifestd_mask_persistence_polars(
-        df_pl, criterion_tiebreak="decreasing", **kwargs
-    )
 
 
 @pytest.mark.parametrize(
     "criteria",
     [
         dict(criterion_cherry="missing"),
+        dict(criterion_cherry=pl.struct("origin_time", "missing")),
         dict(criterion_tiebreak="missing"),
         dict(criterion_trunk="missing"),
     ],
