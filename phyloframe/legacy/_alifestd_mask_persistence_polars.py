@@ -345,10 +345,12 @@ def alifestd_mask_persistence_polars(
             "non-topologically-sorted data not supported",
         )
 
+    exprs = (candidate_mask, extant_mask, *criteria.values())
     selected = (
-        phylogeny_df
-        if "node_depth" in schema_names
-        else alifestd_mark_node_depth_polars(phylogeny_df)
+        alifestd_mark_node_depth_polars(phylogeny_df)
+        if "node_depth" not in schema_names
+        and any("node_depth" in expr.meta.root_names() for expr in exprs)
+        else phylogeny_df
     )
     selected = (
         selected.lazy()
