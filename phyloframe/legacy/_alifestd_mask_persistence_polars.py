@@ -124,6 +124,7 @@ def alifestd_mask_persistence_polars(
     phylogeny_df: pl.DataFrame,
     *,
     candidate_mask: typing.Union[str, pl.Expr],
+    extant_mask: typing.Union[str, pl.Expr],
     criterion_cherry: typing.Optional[
         typing.Union[str, pl.Expr]
     ] = "origin_time",
@@ -133,7 +134,6 @@ def alifestd_mask_persistence_polars(
     criterion_trunk: typing.Optional[
         typing.Union[str, pl.Expr]
     ] = "origin_time",
-    extant_mask: typing.Union[str, pl.Expr],
     mark_as: str = "alifestd_mask_persistence_polars",
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
@@ -170,6 +170,10 @@ def alifestd_mask_persistence_polars(
         Column name or boolean expression marking taxa eligible to be
         marked as closest relatives, e.g., leaves within an earlier time
         window. May include inner nodes. Null values are not supported.
+    extant_mask : str or polars.Expr
+        Column name or boolean expression marking taxa whose closest
+        relatives are sought, e.g., leaves after a time threshold. May
+        include inner nodes. Null values are not supported.
     criterion_cherry : str or polars.Expr, optional, default "origin_time"
         Column name or expression used to measure cherry distance, from
         MRCA to candidate, e.g., "origin_time" for elapsed time or
@@ -194,10 +198,6 @@ def alifestd_mask_persistence_polars(
         to extant taxon, with requirements as for `criterion_cherry`.
 
         If None, trunk distance is not counted; see Notes.
-    extant_mask : str or polars.Expr
-        Column name or boolean expression marking taxa whose closest
-        relatives are sought, e.g., leaves after a time threshold. May
-        include inner nodes. Null values are not supported.
     mark_as : str, default "alifestd_mask_persistence_polars"
         Column name for the boolean mask.
 
@@ -438,6 +438,17 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--extant-mask",
+        required=True,
+        type=str,
+        help=(
+            "Python expression evaluating to a column name or boolean polars "
+            "expression marking taxa whose closest relatives are sought, "
+            "e.g., leaves after a time threshold, with polars available as "
+            "`pl`."
+        ),
+    )
+    parser.add_argument(
         "--criterion-cherry",
         default='"origin_time"',
         type=str,
@@ -472,17 +483,6 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--extant-mask",
-        required=True,
-        type=str,
-        help=(
-            "Python expression evaluating to a column name or boolean polars "
-            "expression marking taxa whose closest relatives are sought, "
-            "e.g., leaves after a time threshold, with polars available as "
-            "`pl`."
-        ),
-    )
-    parser.add_argument(
         "--mark-as",
         default="alifestd_mask_persistence_polars",
         type=str,
@@ -504,10 +504,10 @@ if __name__ == "__main__":
         name: eval(getattr(args, name), {"pl": pl})  # nosec B307
         for name in (
             "candidate_mask",
+            "extant_mask",
             "criterion_cherry",
             "criterion_tiebreak",
             "criterion_trunk",
-            "extant_mask",
         )
     }
 
