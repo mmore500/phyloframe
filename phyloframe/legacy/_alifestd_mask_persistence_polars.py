@@ -62,8 +62,8 @@ def _alifestd_mask_persistence_fast_path(
     # rank nodes as mrcas with those candidates, lowest closest, n if none
     mrca_values = np.column_stack(
         [
-            cherry_values[clade_candidate_ids]
-            - (trunk_values + cherry_values),
+            (cherry_values[clade_candidate_ids] - cherry_values)
+            + (trunk_values.max(axis=0) - trunk_values),
             tiebreak_values[clade_candidate_ids],
         ],
     )
@@ -161,8 +161,8 @@ def alifestd_mask_persistence_polars(
     criterion_cherry : str or polars.Expr, default pl.struct("origin_time", "node_depth")
         Column name or expression used to measure cherry distance, from
         MRCA to candidate, e.g., "origin_time" for elapsed time or
-        "node_depth" for number of edges. Values must be finite, and must
-        not decrease from ancestor to descendant.
+        "node_depth" for number of edges. Values must be numeric and
+        finite, and must not decrease from ancestor to descendant.
 
         If a struct, distances are compared by its first field, then among
         equal distances by its next field, and so on, with requirements
@@ -186,9 +186,9 @@ def alifestd_mask_persistence_polars(
     criterion_tiebreak : str or polars.Expr, optional
         Column name or expression used to choose among candidates tied as
         an extant taxon's closest, taking the candidate with the lowest
-        value. Values must be finite. If a struct, fields are compared in
-        order. Candidates also tied by `criterion_tiebreak` value are all
-        marked.
+        value. Values must be numeric and finite. If a struct, fields are
+        compared in order. Candidates also tied by `criterion_tiebreak`
+        value are all marked.
 
         By default, takes the latest tied candidate by "origin_time", or
         the one with the lowest id among equally late candidates, so that
@@ -201,9 +201,9 @@ def alifestd_mask_persistence_polars(
     NotImplementedError
         If `phylogeny_df` has no "ancestor_id" column, if ids are
         non-contiguous or not topologically sorted, if `extant_mask` or
-        `candidate_mask` has null values, if criterion values are null or
-        non-finite, or if `criterion_cherry` or `criterion_trunk` values
-        decrease from ancestor to descendant (see
+        `candidate_mask` has null values, if criterion values are null,
+        non-numeric, or non-finite, or if `criterion_cherry` or
+        `criterion_trunk` values decrease from ancestor to descendant (see
         `alifestd_coerce_chronological_consistency_polars`).
     ValueError
         If a criterion uses a column not in `phylogeny_df`.
@@ -358,7 +358,7 @@ def alifestd_mask_persistence_polars(
             candidate_mask=candidate_mask.cast(pl.Boolean),
             extant_mask=extant_mask.cast(pl.Boolean),
             candidate_rank=(candidate_rank - 1).cast(pl.Int64),
-            **{k: v.cast(pl.Float64) for k, v in criteria.items()},
+            **criteria,
         )
         .collect()
     )
@@ -372,6 +372,10 @@ def alifestd_mask_persistence_polars(
         for name in criteria
     }
     for name in criteria:
+        if values[name].dtype.kind not in "iuf":
+            raise NotImplementedError(
+                f"non-numeric {name} values not supported",
+            )
         if not np.isfinite(values[name]).all():
             raise NotImplementedError(
                 f"null or non-finite {name} values not supported",
@@ -382,14 +386,12 @@ def alifestd_mask_persistence_polars(
                 f"{name} values decreasing from ancestor to descendant "
                 "not supported",
             )
-    # fields beyond those of the other criterion are not counted for it
-    num_fields = max(
-        values[name].shape[1]
-        for name in ("criterion_cherry", "criterion_trunk")
-    )
+    # zero pad, so fields beyond the other criterion's are not counted for it
+    cherry_values, trunk_values, tiebreak_values = values.values()
+    num_fields = max(cherry_values.shape[1], trunk_values.shape[1])
     cherry_values, trunk_values = (
-        np.pad(values[name], [(0, 0), (0, num_fields - values[name].shape[1])])
-        for name in ("criterion_cherry", "criterion_trunk")
+        np.pad(v, [(0, 0), (0, num_fields - v.shape[1])])
+        for v in (cherry_values, trunk_values)
     )
 
     result = _alifestd_mask_persistence_fast_path(
@@ -399,7 +401,7 @@ def alifestd_mask_persistence_polars(
         selected["candidate_rank"].to_numpy(),
         cherry_values,
         trunk_values,
-        values["criterion_tiebreak"],
+        tiebreak_values,
     )
     return phylogeny_df.with_columns(pl.Series(name=mark_as, values=result))
 

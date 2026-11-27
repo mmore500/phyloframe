@@ -362,6 +362,59 @@ def test_default_node_depth(
     assert res.drop("m").equals(df_pl)  # no node depth column added
 
 
+def test_large_integer_origin_time():
+    # leaf 7 is closer to leaf 4 than leaf 8 is, by less than floats resolve
+    df_pl = _make_tree().with_columns(
+        origin_time=pl.Series(
+            [0, 1, 1, 2, 2**53, 3, 9, 2**53, 2**53 + 1]
+        ),
+    )
+    kwargs = dict(
+        candidate_mask=pl.col("id").is_in([7, 8]),
+        extant_mask=pl.col("id") == 4,
+        mark_as="m",
+        criterion_tiebreak=pl.lit(0),
+    )
+    res = alifestd_mask_persistence_polars(df_pl, **kwargs)
+    assert res["m"].arg_true().to_list() == [7]
+    res = alifestd_mask_persistence_polars(
+        df_pl.with_columns(pl.col("origin_time").cast(pl.Float64)), **kwargs
+    )
+    assert res["m"].arg_true().to_list() == [7, 8]
+
+
+def test_datetime_origin_time():
+    df_pl = _make_tree().with_columns(
+        origin_time=pl.datetime(2020, 1, 1)
+        + pl.duration(days=pl.col("origin_time")),
+    )
+    kwargs = dict(
+        candidate_mask=pl.col("id").is_in([4, 5, 8]),
+        extant_mask=pl.col("id").is_in([6, 7]),
+        mark_as="m",
+    )
+    res = alifestd_mask_persistence_polars(df_pl, **kwargs)
+    assert res["m"].arg_true().to_list() == [5, 8]
+    with pytest.raises(NotImplementedError):  # not as struct field
+        alifestd_mask_persistence_polars(
+            df_pl, criterion_cherry="origin_time", **kwargs
+        )
+
+
+@pytest.mark.parametrize(
+    "name", ["criterion_cherry", "criterion_tiebreak", "criterion_trunk"]
+)
+@pytest.mark.parametrize("criterion", [pl.lit("a"), pl.lit(True)])
+def test_non_numeric_criterion_raises(criterion: pl.Expr, name: str):
+    with pytest.raises(NotImplementedError):
+        alifestd_mask_persistence_polars(
+            _make_tree(),
+            candidate_mask=pl.lit(True),
+            extant_mask=pl.lit(True),
+            **{name: criterion},
+        )
+
+
 def test_unsigned_origin_time():
     df_pl = _make_tree().with_columns(pl.col("origin_time").cast(pl.UInt32))
     res = alifestd_mask_persistence_polars(
