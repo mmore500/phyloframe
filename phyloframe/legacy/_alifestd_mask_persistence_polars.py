@@ -126,11 +126,11 @@ def alifestd_mask_persistence_polars(
     candidate_mask: typing.Union[str, pl.Expr],
     extant_mask: typing.Union[str, pl.Expr],
     criterion_cherry: typing.Union[str, pl.Expr] = "origin_time",
+    criterion_trunk: typing.Union[str, pl.Expr] = "origin_time",
+    mark_as: str = "alifestd_mask_persistence_polars",
     criterion_tiebreak: typing.Union[str, pl.Expr] = pl.col(
         "origin_time"
     ).rank("ordinal"),
-    criterion_trunk: typing.Union[str, pl.Expr] = "origin_time",
-    mark_as: str = "alifestd_mask_persistence_polars",
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
     of at least one extant taxon.
@@ -179,6 +179,14 @@ def alifestd_mask_persistence_polars(
 
         Pass a constant, e.g., `pl.lit(0)`, to not count cherry distance;
         see Notes.
+    criterion_trunk : str or polars.Expr, default "origin_time"
+        Column name or expression used to measure trunk distance, from MRCA
+        to extant taxon, with requirements as for `criterion_cherry`.
+
+        Pass a constant, e.g., `pl.lit(0)`, to not count trunk distance;
+        see Notes.
+    mark_as : str, default "alifestd_mask_persistence_polars"
+        Column name for the boolean mask.
     criterion_tiebreak : str or polars.Expr, optional
         Column name or expression used to choose among candidates tied as
         an extant taxon's closest, taking the candidate with the lowest
@@ -190,14 +198,6 @@ def alifestd_mask_persistence_polars(
         so that each extant taxon marks at most one candidate.
 
         Pass a constant, e.g., `pl.lit(0)`, to mark all tied candidates.
-    criterion_trunk : str or polars.Expr, default "origin_time"
-        Column name or expression used to measure trunk distance, from MRCA
-        to extant taxon, with requirements as for `criterion_cherry`.
-
-        Pass a constant, e.g., `pl.lit(0)`, to not count trunk distance;
-        see Notes.
-    mark_as : str, default "alifestd_mask_persistence_polars"
-        Column name for the boolean mask.
 
     Raises
     ------
@@ -452,17 +452,6 @@ def _create_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--criterion-tiebreak",
-        default='pl.col("origin_time").rank("ordinal")',
-        type=str,
-        help=(
-            "Python expression evaluating to a column name or polars "
-            "expression used to choose among tied candidates, taking the "
-            "lowest, with polars available as `pl` "
-            '(default: pl.col("origin_time").rank("ordinal")).'
-        ),
-    )
-    parser.add_argument(
         "--criterion-trunk",
         default='"origin_time"',
         type=str,
@@ -480,6 +469,17 @@ def _create_parser() -> argparse.ArgumentParser:
         help=(
             "Column name for the boolean mask "
             "(default: alifestd_mask_persistence_polars)."
+        ),
+    )
+    parser.add_argument(
+        "--criterion-tiebreak",
+        default='pl.col("origin_time").rank("ordinal")',
+        type=str,
+        help=(
+            "Python expression evaluating to a column name or polars "
+            "expression used to choose among tied candidates, taking the "
+            "lowest, with polars available as `pl` "
+            '(default: pl.col("origin_time").rank("ordinal")).'
         ),
     )
     return parser
