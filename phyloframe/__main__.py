@@ -193,6 +193,7 @@ $ python3 -m phyloframe.legacy._alifestd_mark_stem_node_id_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_stem_node_id_polars
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_asexual
 $ python3 -m phyloframe.legacy._alifestd_mark_unifurcation_length_polars
+$ python3 -m phyloframe.legacy._alifestd_mask_persistence_polars
 $ python3 -m phyloframe.legacy._alifestd_mask_trait_mdcs_strict_polars
 $ python3 -m phyloframe.legacy._alifestd_mask_trait_singletons_polars
 $ python3 -m phyloframe.legacy._alifestd_minify_asexual
