@@ -49,7 +49,7 @@ def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
 
 
 @jit(nopython=True)
-def _sweep_up(
+def _sweep_up_clade_mrcas(
     ancestor_ids: np.ndarray,
     candidate_mask: np.ndarray,
     extant_mask: np.ndarray,
@@ -107,7 +107,7 @@ def _sweep_up(
 
 
 @jit(nopython=True)
-def _sweep_down(
+def _sweep_down_sought_candidate_ranks(
     ancestor_ids: np.ndarray,
     candidate_ranks: np.ndarray,
     clade_candidate_ids: np.ndarray,
@@ -156,7 +156,7 @@ def _alifestd_mask_persistence_fast_path(
     Marks each extant taxon's closest candidates, in one sweep up the tree
     and one sweep down.
     """
-    clade_candidate_ids, mrca_values, clade_mrca_ids = _sweep_up(
+    clade_candidate_ids, mrca_values, clade_mrca_ids = _sweep_up_clade_mrcas(
         ancestor_ids,
         candidate_mask,
         extant_mask,
@@ -165,7 +165,7 @@ def _alifestd_mask_persistence_fast_path(
         trunk_legs,
         tiebreak_values,
     )
-    sought_candidate_ranks = _sweep_down(
+    sought_candidate_ranks = _sweep_down_sought_candidate_ranks(
         ancestor_ids,
         candidate_ranks,
         clade_candidate_ids,
