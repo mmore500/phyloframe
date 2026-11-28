@@ -49,47 +49,43 @@ def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
 
 
 @jit(nopython=True)
-def _find_clade_candidate_ids(
+def _sweep_up(
     ancestor_ids: np.ndarray,
     candidate_mask: np.ndarray,
+    extant_mask: np.ndarray,
     candidate_ranks: np.ndarray,
-) -> np.ndarray:
+    cherry_values: np.ndarray,
+    trunk_legs: np.ndarray,
+    tiebreak_values: np.ndarray,
+) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Implementation detail for `_alifestd_mask_persistence_fast_path`.
 
-    Returns the best-ranked candidate in each node's clade, or -1 if none.
+    Returns, for each node,
+
+    - the best-ranked candidate in its clade, or -1 if none;
+    - its values as mrca with that candidate, being distance from largest
+      trunk values then the candidate's tiebreak; and
+    - the furthest of its clade's extant taxa's closest mrcas within the
+      clade, or -1 if no extant taxa, or n if no candidates.
     """
     n = len(ancestor_ids)
+    num_fields = cherry_values.shape[1]
     clade_candidate_ids = np.where(candidate_mask, np.arange(n), -1)
+    mrca_values = np.column_stack(
+        (trunk_legs + cherry_values, tiebreak_values)
+    )
+    clade_mrca_ids = np.full(n, -1)
     for id_ in reversed_range_jit(n):
-        ancestor_id = ancestor_ids[id_]
         candidate_id = clade_candidate_ids[id_]
-        ancestor_candidate_id = clade_candidate_ids[ancestor_id]
-        if candidate_id != -1 and (
-            ancestor_candidate_id == -1
-            or candidate_ranks[candidate_id]
-            < candidate_ranks[ancestor_candidate_id]
+        mrca_id = id_ if candidate_id != -1 else n
+        if candidate_id != -1:
+            mrca_values[id_, :num_fields] = trunk_legs[id_] + (
+                cherry_values[candidate_id] - cherry_values[id_]
+            )
+            mrca_values[id_, num_fields:] = tiebreak_values[candidate_id]
+        if extant_mask[id_] or (
+            _compare_mrcas(mrca_id, clade_mrca_ids[id_], mrca_values) == -1
         ):
-            clade_candidate_ids[ancestor_id] = candidate_id
-
-    return clade_candidate_ids
-
-
-@jit(nopython=True)
-def _find_clade_mrca_ids(
-    ancestor_ids: np.ndarray,
-    extant_mask: np.ndarray,
-    mrca_ids: np.ndarray,
-    mrca_values: np.ndarray,
-) -> np.ndarray:
-    """Implementation detail for `_alifestd_mask_persistence_fast_path`.
-
-    Returns, for each node's clade, the furthest of its extant taxa's
-    closest mrcas within the clade, or -1 if it has no extant taxa.
-    """
-    clade_mrca_ids = np.where(extant_mask, mrca_ids, -1)
-    for id_ in reversed_range_jit(len(ancestor_ids)):
-        mrca_id = mrca_ids[id_]
-        if _compare_mrcas(mrca_id, clade_mrca_ids[id_], mrca_values) == -1:
             clade_mrca_ids[id_] = mrca_id  # node is closer for all in clade
 
         ancestor_id = ancestor_ids[id_]
@@ -99,16 +95,22 @@ def _find_clade_mrca_ids(
             == 1
         ):
             clade_mrca_ids[ancestor_id] = clade_mrca_ids[id_]
+        ancestor_candidate_id = clade_candidate_ids[ancestor_id]
+        if candidate_id != -1 and (
+            ancestor_candidate_id == -1
+            or candidate_ranks[candidate_id]
+            < candidate_ranks[ancestor_candidate_id]
+        ):
+            clade_candidate_ids[ancestor_id] = candidate_id
 
-    return clade_mrca_ids
+    return clade_candidate_ids, mrca_values, clade_mrca_ids
 
 
 @jit(nopython=True)
-def _find_sought_candidate_ranks(
+def _sweep_down(
     ancestor_ids: np.ndarray,
     candidate_ranks: np.ndarray,
     clade_candidate_ids: np.ndarray,
-    mrca_ids: np.ndarray,
     mrca_values: np.ndarray,
     clade_mrca_ids: np.ndarray,
 ) -> np.ndarray:
@@ -118,10 +120,13 @@ def _find_sought_candidate_ranks(
     latest node that is the closest mrca of an extant taxon, or -1 if none.
     """
     n = len(ancestor_ids)
-    lineage_mrca_ids = mrca_ids.copy()  # closest mrca along node's lineage
+    lineage_mrca_ids = np.empty(n, dtype=np.int64)  # closest along lineage
     sought_candidate_ranks = np.full(n, -1)
     for id_ in range(n):
-        mrca_id = mrca_ids[id_]
+        candidate_id = clade_candidate_ids[id_]
+        mrca_id = id_ if candidate_id != -1 else n
+        lineage_mrca_ids[id_] = mrca_id
+
         ancestor_id = ancestor_ids[id_]
         ancestor_mrca_id = lineage_mrca_ids[ancestor_id]
         sought_candidate_ranks[id_] = sought_candidate_ranks[ancestor_id]
@@ -131,7 +136,6 @@ def _find_sought_candidate_ranks(
             mrca_id != n
             and _compare_mrcas(mrca_id, clade_mrca_ids[id_], mrca_values) == 0
         ):
-            candidate_id = clade_candidate_ids[id_]
             sought_candidate_ranks[id_] = candidate_ranks[candidate_id]
 
     return sought_candidate_ranks
@@ -149,29 +153,22 @@ def _alifestd_mask_persistence_fast_path(
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mask_persistence_polars`.
 
-    Marks each extant taxon's closest candidates.
+    Marks each extant taxon's closest candidates, in one sweep up the tree
+    and one sweep down.
     """
-    n = len(ancestor_ids)
-    clade_candidate_ids = _find_clade_candidate_ids(
-        ancestor_ids, candidate_mask, candidate_ranks
+    clade_candidate_ids, mrca_values, clade_mrca_ids = _sweep_up(
+        ancestor_ids,
+        candidate_mask,
+        extant_mask,
+        candidate_ranks,
+        cherry_values,
+        trunk_legs,
+        tiebreak_values,
     )
-    # each node as mrca with its clade's candidate (n: no candidate), by
-    # distance from largest trunk values, then the candidate's tiebreak
-    mrca_ids = np.where(clade_candidate_ids != -1, np.arange(n), n)
-    mrca_values = np.column_stack(
-        (
-            (cherry_values[clade_candidate_ids] - cherry_values) + trunk_legs,
-            tiebreak_values[clade_candidate_ids],
-        )
-    )
-    clade_mrca_ids = _find_clade_mrca_ids(
-        ancestor_ids, extant_mask, mrca_ids, mrca_values
-    )
-    sought_candidate_ranks = _find_sought_candidate_ranks(
+    sought_candidate_ranks = _sweep_down(
         ancestor_ids,
         candidate_ranks,
         clade_candidate_ids,
-        mrca_ids,
         mrca_values,
         clade_mrca_ids,
     )
