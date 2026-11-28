@@ -17,7 +17,6 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._reversed_enumerate import reversed_enumerate_jit
 from .._auxlib._unfurl_lineage_with_contiguous_ids import (
     unfurl_lineage_with_contiguous_ids,
 )
@@ -80,8 +79,8 @@ def _create_has_extant_descendant_contiguous_sorted(
     """Implementation detail for alifestd_prune_extinct_lineages_asexual."""
 
     has_extant_descendant = extant_mask.copy()
-    for id_, ancestor_id in reversed_enumerate_jit(ancestor_ids):
-        has_extant_descendant[ancestor_id] |= has_extant_descendant[id_]
+    for id_ in range(len(ancestor_ids) - 1, -1, -1):
+        has_extant_descendant[ancestor_ids[id_]] |= has_extant_descendant[id_]
 
     return has_extant_descendant
 
