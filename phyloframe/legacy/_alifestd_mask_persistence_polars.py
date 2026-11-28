@@ -15,7 +15,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._reversed_range import reversed_range_jit
+from .._auxlib._reversed_enumerate import reversed_enumerate_jit
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -83,8 +83,7 @@ def _sweep_up_clade_mrcas(
     clade_candidate_ids = np.arange(n)  # best-ranked taxon in clade
     clade_mrca_ids = np.full(n, -1)  # furthest of extant taxa's closest
 
-    for id_ in reversed_range_jit(n):
-        ancestor_id = ancestor_ids[id_]
+    for id_, ancestor_id in reversed_enumerate_jit(ancestor_ids):
         candidate_id = clade_candidate_ids[id_]
         has_candidate = candidate_mask[candidate_id]
 
@@ -128,8 +127,7 @@ def _sweep_down_closest_candidate_ranks(
     lineage_mrca_ids = mrca_ids.copy()  # closest mrca along node's lineage
     closest_candidate_ranks = closest_candidate_ranks.copy()
 
-    for id_ in range(len(ancestor_ids)):
-        ancestor_id = ancestor_ids[id_]
+    for id_, ancestor_id in enumerate(ancestor_ids):
         ancestor_mrca_id = lineage_mrca_ids[ancestor_id]
 
         is_beaten = (

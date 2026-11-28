@@ -16,7 +16,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._reversed_range import reversed_range_jit
+from .._auxlib._reversed_enumerate import reversed_enumerate_jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_mark_num_leaves_asexual import alifestd_mark_num_leaves_asexual
@@ -35,8 +35,7 @@ def alifestd_mark_sackin_index_asexual_fast_path(
 
     # Accumulate Sackin index (bottom-up)
     # sackin[node] = sum over children c of (sackin[c] + num_leaves[c])
-    for idx in reversed_range_jit(n):
-        ancestor_id = ancestor_ids[idx]
+    for idx, ancestor_id in reversed_enumerate_jit(ancestor_ids):
         if ancestor_id != idx:  # Not a root
             # prevent numba float64 promotion
             num_leaves_ = np.int64(num_leaves[idx])
