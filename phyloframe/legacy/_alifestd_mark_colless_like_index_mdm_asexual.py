@@ -17,6 +17,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._reversed_range import reversed_range_jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_mark_num_children_asexual import (
@@ -62,7 +63,7 @@ def _colless_like_fast_path(
         f_size[idx] = math.log(k + math.e)
 
     # Accumulate f-size bottom-up (add children's f-sizes to parent)
-    for idx in range(n - 1, -1, -1):  # reversed enumerate
+    for idx in reversed_range_jit(n):
         ancestor_id = ancestor_ids[idx]
         if ancestor_id != idx:  # Not a root
             f_size[ancestor_id] += f_size[idx]
@@ -113,7 +114,7 @@ def _colless_like_fast_path(
 
     # Accumulate subtree Colless-like index bottom-up
     colless_like = np.zeros(n, dtype=np.float64)
-    for idx in range(n - 1, -1, -1):  # reversed enumerate
+    for idx in reversed_range_jit(n):
         ancestor_id = ancestor_ids[idx]
         colless_like[idx] += local_balance[idx]
         if ancestor_id != idx:  # Not a root

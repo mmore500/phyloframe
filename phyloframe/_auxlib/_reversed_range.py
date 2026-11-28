@@ -1,11 +1,19 @@
+import typing
+
 from ._jit import jit
 
 
-@jit(nopython=True)
-def reversed_range(n: int) -> range:
-    """Range over `n` indices in reverse, from `n - 1` down to 0.
+# adapted from https://github.com/mmore500/hstrat/blob/dcf772ef/hstrat/_auxiliary_lib/_reversed_range.py
+def reversed_range(start: int, stop: typing.Optional[int] = None) -> range:
+    """Create a range in reverse order.
 
-    Substitutes for `reversed(range(n))` within jit-compiled code, where
-    numba does not support `reversed`.
+    Equivalent to `reversed(range(*args))`. Compatible with numba jit.
     """
-    return range(n - 1, -1, -1)
+    # numba jit doesn't support reversed
+    if stop is None:
+        return range(start - 1, -1, -1)
+    else:
+        return range(stop - 1, start - 1, -1)
+
+
+reversed_range_jit = jit(nopython=True)(reversed_range)

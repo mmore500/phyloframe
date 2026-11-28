@@ -13,6 +13,7 @@ from .._auxlib._jit import jit
 from .._auxlib._jit_numpy_bool_t import jit_numpy_bool_t
 from .._auxlib._jit_numpy_int64_t import jit_numpy_int64_t
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._reversed_range import reversed_range_jit
 from ._alifestd_assign_contiguous_ids_polars import (
     alifestd_assign_contiguous_ids_polars,
 )
@@ -57,7 +58,7 @@ def _walk_leaves_isomorphic(
     # iterate over ids from back to front; after collapse_unifurcations every
     # inner node has a leaf descendant that populates its mapping before the
     # walk reaches it.
-    for id1 in range(n - 1, -1, -1):
+    for id1 in reversed_range_jit(n):
         ancestor_id1 = ancestor_ids1[id1]
         id2 = id_map[id1]
         ancestor_id2 = ancestor_ids2[id2]

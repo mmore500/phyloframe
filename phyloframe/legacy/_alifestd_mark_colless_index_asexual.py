@@ -16,6 +16,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._reversed_range import reversed_range_jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_strictly_bifurcating_asexual import (
     alifestd_is_strictly_bifurcating_asexual,
@@ -56,7 +57,7 @@ def alifestd_mark_colless_index_asexual_fast_path(
 
     # Reverse pass: accumulate subtree colless bottom-up
     colless_index = np.zeros(n, dtype=np.int64)
-    for idx in range(n - 1, -1, -1):  # reversed enumerate
+    for idx in reversed_range_jit(n):
         ancestor_id = ancestor_ids[idx]
         colless_index[idx] += local_colless[idx]
         if ancestor_id != idx:  # Not a root

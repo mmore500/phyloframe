@@ -15,7 +15,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
-from .._auxlib._reversed_range import reversed_range
+from .._auxlib._reversed_range import reversed_range_jit
 from ._alifestd_has_contiguous_ids_polars import (
     alifestd_has_contiguous_ids_polars,
 )
@@ -77,7 +77,7 @@ def _alifestd_mask_persistence_fast_path(
     # furthest, over extant taxa in each node's clade, of their closest
     # mrcas within it (-1: no extant taxa, n: no candidates)
     clade_mrca_ids = np.full(n, -1)
-    for id_ in reversed_range(n):
+    for id_ in reversed_range_jit(n):
         candidate_id = clade_candidate_ids[id_]
         mrca_id = id_ if candidate_id != -1 else n
         if candidate_id != -1:
