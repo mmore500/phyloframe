@@ -3,7 +3,9 @@ import typing
 import polars as pl
 import pytest
 
-from phyloframe.legacy._impl import mask_persistence_validate_values
+from phyloframe.legacy._alifestd_mask_persistence_polars import (
+    _validate_values,
+)
 
 _CRITERIA = ("criterion_cherry", "criterion_trunk", "criterion_tiebreak")
 
@@ -22,8 +24,8 @@ def _make_selected(**kwargs) -> pl.DataFrame:
 
 
 def test_valid():
-    mask_persistence_validate_values(_make_selected())
-    mask_persistence_validate_values(
+    _validate_values(_make_selected())
+    _validate_values(
         _make_selected(
             criterion_cherry=pl.struct("criterion_cherry", "ancestor_id"),
             criterion_tiebreak=pl.lit(0),
@@ -36,7 +38,7 @@ def test_valid():
 def test_null_mask(name: str):
     selected = _make_selected(**{name: pl.Series([True, None, False])})
     with pytest.raises(NotImplementedError, match=f"null {name}"):
-        mask_persistence_validate_values(selected)
+        _validate_values(selected)
 
 
 @pytest.mark.parametrize("name", _CRITERIA)
@@ -47,7 +49,7 @@ def test_null_mask(name: str):
 def test_non_numeric_criterion(values: pl.Expr, name: str):
     selected = _make_selected(**{name: values})
     with pytest.raises(NotImplementedError, match=f"non-numeric {name}"):
-        mask_persistence_validate_values(selected)
+        _validate_values(selected)
 
 
 @pytest.mark.parametrize("name", _CRITERIA)
@@ -63,7 +65,7 @@ def test_null_or_non_finite_criterion(
     with pytest.raises(
         NotImplementedError, match=f"null or non-finite {name}"
     ):
-        mask_persistence_validate_values(selected)
+        _validate_values(selected)
 
 
 @pytest.mark.parametrize("name", ["criterion_cherry", "criterion_trunk"])
@@ -75,10 +77,10 @@ def test_decreasing_criterion(as_field: bool, dtype: type, name: str):
         **{name: pl.struct(pl.lit(0), values) if as_field else values},
     )
     with pytest.raises(NotImplementedError, match=f"{name} values decreas"):
-        mask_persistence_validate_values(selected)
+        _validate_values(selected)
 
 
 def test_decreasing_tiebreak():
-    mask_persistence_validate_values(
+    _validate_values(
         _make_selected(criterion_tiebreak=pl.Series([2, 1, 0])),
     )

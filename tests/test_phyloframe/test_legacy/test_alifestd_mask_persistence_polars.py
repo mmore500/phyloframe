@@ -462,7 +462,7 @@ def test_prune_extinct_lineages():
     ],
 )
 def test_unsupported_values_raise(kwargs: dict):
-    # cases are tested in full for mask_persistence_validate_values
+    # cases are tested in full for _validate_values
     kwargs = dict(candidate_mask="is_leaf", extant_mask="is_leaf") | kwargs
     with pytest.raises(NotImplementedError):
         alifestd_mask_persistence_polars(_make_tree(), **kwargs)

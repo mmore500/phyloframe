@@ -8,6 +8,7 @@ import joinem
 from joinem._dataframe_cli import _add_parser_base, _run_dataframe_cli
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 
 from .._auxlib._begin_prod_logging import begin_prod_logging
 from .._auxlib._cmp_lex import cmp_lex
@@ -26,23 +27,21 @@ from ._alifestd_mark_node_depth_polars import alifestd_mark_node_depth_polars
 from ._alifestd_try_add_ancestor_id_col_polars import (
     alifestd_try_add_ancestor_id_col_polars,
 )
-from ._impl import mask_persistence_validate_values
 
 
 @jit(nopython=True)
 def _compare_mrcas(first: int, second: int, mrca_values: np.ndarray) -> int:
     """Implementation detail for `_alifestd_mask_persistence_fast_path`.
 
-    Returns -1, 0, or 1 if node `first` is closer than, as close as, or
-    further than node `second`, as an mrca with its clade's closest
-    candidate, comparing fields of their `mrca_values` in order. Node -1 is
-    closer than any other, and node n further.
+    Returns -1, 0, or 1 if node `first` is a better mrca than, as good as,
+    or worse than node `second`, comparing fields of their `mrca_values` in
+    order. Node -1 is better than any other, and node n worse.
     """
     if first == second:  # same node
         return 0
-    elif first == -1 or second == len(mrca_values):  # sentinel: closer
+    elif first == -1 or second == len(mrca_values):  # sentinel: better
         return -1
-    elif second == -1 or first == len(mrca_values):  # sentinel: further
+    elif second == -1 or first == len(mrca_values):  # sentinel: worse
         return 1
     else:  # first field differing
         return cmp_lex(mrca_values[first], mrca_values[second])
@@ -55,17 +54,17 @@ def _sweep_up_clade_mrcas(
     extant_mask: np.ndarray,
     candidate_ranks: np.ndarray,
     cherry_values: np.ndarray,
-    trunk_legs: np.ndarray,
+    trunk_distances: np.ndarray,
     tiebreak_values: np.ndarray,
 ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Implementation detail for `_alifestd_mask_persistence_fast_path`.
 
-    Takes each node as mrca of its clade's extant taxa with its clade's
-    best-ranked candidate. Returns, for each node, its id (n if its clade
-    has no candidate), its values as mrca (distance from largest trunk
-    values, then the candidate's tiebreak), and the rank of that candidate
-    if it is closest to any extant taxon in the clade, among candidates in
-    the clade (else -1).
+    Finds the best candidate below each node, and whether the node is the
+    best mrca so far for any extant taxon below it.
+
+    Returns each node's id, or n if no candidate is below it; its values as
+    mrca with that candidate, being distance then the candidate's tiebreak;
+    and that candidate's rank if the node is such a best mrca, or else -1.
     """
     n = len(ancestor_ids)
     num_fields = cherry_values.shape[1]
@@ -73,15 +72,12 @@ def _sweep_up_clade_mrcas(
 
     mrca_ids = np.full(n, n)
     mrca_values = np.column_stack(
-        (trunk_legs + cherry_values, tiebreak_values)
+        (trunk_distances + cherry_values, tiebreak_values)
     )
-    closest_candidate_ranks = np.full(n, -1)
-
-    def compare(first: int, second: int) -> int:
-        return _compare_mrcas(first, second, mrca_values)
+    best_candidate_ranks = np.full(n, -1)  # sentinels
 
     clade_candidate_ids = np.arange(n)  # best-ranked taxon in clade
-    clade_mrca_ids = np.full(n, -1)  # furthest of extant taxa's closest
+    clade_mrca_ids = np.full(n, -1)  # sentinels
 
     for id_, ancestor_id in reversed_enumerate_jit(ancestor_ids):
         candidate_id = clade_candidate_ids[id_]
@@ -89,57 +85,62 @@ def _sweep_up_clade_mrcas(
 
         if has_candidate:  # take node as mrca with clade's candidate
             mrca_ids[id_] = id_
-            mrca_values[id_, :num_fields] = trunk_legs[id_] + (
+            mrca_values[id_, :num_fields] = trunk_distances[id_] + (
                 cherry_values[candidate_id] - cherry_values[id_]
             )
             mrca_values[id_, num_fields:] = tiebreak_values[candidate_id]
 
-        # candidate is closest to extant taxa with no closer mrca below
+        # node is best mrca so far for itself or an extant taxon below
         mrca_id = mrca_ids[id_]
-        if extant_mask[id_] or compare(mrca_id, clade_mrca_ids[id_]) <= 0:
+        if extant_mask[id_] or (
+            _compare_mrcas(mrca_id, clade_mrca_ids[id_], mrca_values) <= 0
+        ):
             clade_mrca_ids[id_] = mrca_id
             if has_candidate:
-                closest_candidate_ranks[id_] = ranks[candidate_id]
+                best_candidate_ranks[id_] = ranks[candidate_id]
 
-        # pass up furthest mrca and best-ranked candidate
-        if compare(clade_mrca_ids[id_], clade_mrca_ids[ancestor_id]) == 1:
-            clade_mrca_ids[ancestor_id] = clade_mrca_ids[id_]
+        # pass up worst of extant taxa's best mrcas, and best-ranked candidate
+        clade_mrca_id = clade_mrca_ids[id_]
+        ancestor_mrca_id = clade_mrca_ids[ancestor_id]
+        if _compare_mrcas(clade_mrca_id, ancestor_mrca_id, mrca_values) == 1:
+            clade_mrca_ids[ancestor_id] = clade_mrca_id
         if ranks[candidate_id] < ranks[clade_candidate_ids[ancestor_id]]:
             clade_candidate_ids[ancestor_id] = candidate_id
 
-    return mrca_ids, mrca_values, closest_candidate_ranks
+    return mrca_ids, mrca_values, best_candidate_ranks
 
 
 @jit(nopython=True)
-def _sweep_down_closest_candidate_ranks(
+def _sweep_down_best_candidate_ranks(
     ancestor_ids: np.ndarray,
     mrca_ids: np.ndarray,
     mrca_values: np.ndarray,
-    closest_candidate_ranks: np.ndarray,
+    best_candidate_ranks: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `_alifestd_mask_persistence_fast_path`.
 
-    Takes the rank of each node's closest candidate within its clade, from
-    `_sweep_up_clade_mrcas`, and drops those of nodes with a closer mrca
-    among their ancestors. Returns the rank of each node's own closest
+    Takes the rank of each node's best candidate within its clade, from
+    `_sweep_up_clade_mrcas`, and drops those of nodes with a better mrca
+    among their ancestors. Returns the rank of each node's own best
     candidate, or else that of its nearest ancestor with one, or -1 if none.
     """
-    lineage_mrca_ids = mrca_ids.copy()  # closest mrca along node's lineage
-    closest_candidate_ranks = closest_candidate_ranks.copy()
+    lineage_mrca_ids = mrca_ids.copy()  # best mrca along node's lineage
+    best_candidate_ranks = best_candidate_ranks.copy()
 
     for id_, ancestor_id in enumerate(ancestor_ids):
+        mrca_id = mrca_ids[id_]
         ancestor_mrca_id = lineage_mrca_ids[ancestor_id]
 
-        is_beaten = (
-            _compare_mrcas(ancestor_mrca_id, mrca_ids[id_], mrca_values) == -1
+        has_better_ancestor = (
+            _compare_mrcas(ancestor_mrca_id, mrca_id, mrca_values) == -1
         )
-        if is_beaten:  # ancestor is closer mrca
+        if has_better_ancestor:
             lineage_mrca_ids[id_] = ancestor_mrca_id
 
-        if is_beaten or closest_candidate_ranks[id_] == -1:  # pass down
-            closest_candidate_ranks[id_] = closest_candidate_ranks[ancestor_id]
+        if has_better_ancestor or best_candidate_ranks[id_] == -1:  # pass down
+            best_candidate_ranks[id_] = best_candidate_ranks[ancestor_id]
 
-    return closest_candidate_ranks
+    return best_candidate_ranks
 
 
 @jit(nopython=True)
@@ -149,27 +150,62 @@ def _alifestd_mask_persistence_fast_path(
     extant_mask: np.ndarray,
     candidate_ranks: np.ndarray,
     cherry_values: np.ndarray,
-    trunk_legs: np.ndarray,
+    trunk_distances: np.ndarray,
     tiebreak_values: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mask_persistence_polars`.
 
-    Marks each extant taxon's closest candidates, in one sweep up the tree
-    and one sweep down.
+    Marks persisting candidates: for each extant taxon, the candidate at
+    least distance via their mrca, with ties broken by tiebreak values.
+
+    Distance sums `cherry_values` from mrca to candidate and
+    `trunk_distances`, which are from the largest trunk values to each node.
     """
-    mrca_ids, mrca_values, closest_candidate_ranks = _sweep_up_clade_mrcas(
+    mrca_ids, mrca_values, best_candidate_ranks = _sweep_up_clade_mrcas(
         ancestor_ids,
         candidate_mask,
         extant_mask,
         candidate_ranks,
         cherry_values,
-        trunk_legs,
+        trunk_distances,
         tiebreak_values,
     )
-    closest_candidate_ranks = _sweep_down_closest_candidate_ranks(
-        ancestor_ids, mrca_ids, mrca_values, closest_candidate_ranks
+    best_candidate_ranks = _sweep_down_best_candidate_ranks(
+        ancestor_ids, mrca_ids, mrca_values, best_candidate_ranks
     )
-    return candidate_mask & (candidate_ranks == closest_candidate_ranks)
+    return candidate_mask & (candidate_ranks == best_candidate_ranks)
+
+
+def _validate_values(selected: pl.DataFrame) -> None:
+    """Implementation detail for `alifestd_mask_persistence_polars`.
+
+    Raises NotImplementedError for null mask values; for non-numeric, null,
+    or non-finite criterion values; and for cherry or trunk values that
+    decrease from ancestor to descendant.
+    """
+    for name in "candidate_mask", "extant_mask":
+        if selected[name].has_nulls():
+            raise NotImplementedError(f"null {name} values not supported")
+
+    is_finite = pl.all().is_finite().fill_null(False)
+    is_decreasing = pl.all() < pl.all().gather(selected["ancestor_id"])
+    for name in "criterion_cherry", "criterion_trunk", "criterion_tiebreak":
+        fields = selected.select(name).unnest(cs.struct())  # column per field
+        if not all(dtype.is_numeric() for dtype in fields.dtypes):
+            raise NotImplementedError(
+                f"non-numeric {name} values not supported",
+            )
+        if not all(fields.select(is_finite.all()).row(0)):
+            raise NotImplementedError(
+                f"null or non-finite {name} values not supported",
+            )
+        if name != "criterion_tiebreak" and any(
+            fields.select(is_decreasing.any()).row(0)
+        ):
+            raise NotImplementedError(
+                f"{name} values decreasing from ancestor to descendant "
+                "not supported",
+            )
 
 
 def alifestd_mask_persistence_polars(
@@ -411,7 +447,7 @@ def alifestd_mask_persistence_polars(
         .select(pl.all().to_physical())  # e.g., datetimes as integers
         .collect()
     )
-    mask_persistence_validate_values(selected)
+    _validate_values(selected)
 
     # a row per taxon and a column per struct field
     cherry_values, trunk_values, tiebreak_values = (
