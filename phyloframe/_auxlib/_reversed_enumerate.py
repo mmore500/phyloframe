@@ -32,13 +32,11 @@ def reversed_enumerate(
     >>> list(reversed_enumerate(l))
     [(3, "r"), (2, "a"), (1, "t"), (0, "s")]
     """
-    # numba jit doesn't support reversed
-    i = len(sequence) - 1
-    for item in sequence[::-1]:
-        yield (i, item)
-        i -= 1
+    # numba jit doesn't support yield from or reversed (fully)
+    # avoid zip to work around numba generator-in-zip KeyError bug
+    for i in range(len(sequence) - 1, -1, -1):
+        yield (i, sequence[i])
 
 
-# no cache, as numba can't use generators loaded from cache within other
-# jit-compiled functions (KeyError)
+# no cache: numba can't call cached generators from jit code
 reversed_enumerate_jit = jit(nopython=True, cache=False)(reversed_enumerate)
