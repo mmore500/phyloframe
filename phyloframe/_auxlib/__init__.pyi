@@ -49,6 +49,7 @@ from ._log_memory_usage import log_memory_usage
 from ._pairwise import pairwise
 from ._preserve_id_dtypes import preserve_id_dtypes
 from ._preserve_id_dtypes_polars import preserve_id_dtypes_polars
+from ._reversed_range import reversed_range
 from ._run_seeded_replicates import run_seeded_replicates
 from ._run_weighted_bootstrap import run_weighted_bootstrap
 from ._sample_bootstrap_counts import sample_bootstrap_counts
@@ -114,6 +115,7 @@ __all__ = [
     "pairwise",
     "preserve_id_dtypes",
     "preserve_id_dtypes_polars",
+    "reversed_range",
     "run_seeded_replicates",
     "sample_bootstrap_counts",
     "seed_random",
