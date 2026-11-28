@@ -54,17 +54,14 @@ def _make_random_tree(seed: int, n: int = 60) -> pl.DataFrame:
     rng = np.random.default_rng(seed)
     ancestor_ids = np.concatenate([[0], rng.integers(0, np.arange(1, n))])
     ancestor_ids[n // 2] = n // 2  # second root
-    origin_times, mutations = np.zeros(n), np.zeros(n)
+    origin_times = np.zeros(n)
     for id_, ancestor_id in enumerate(ancestor_ids):  # integers, so ties
         origin_times[id_] = origin_times[ancestor_id] + rng.integers(3)
-        mutations[id_] = mutations[ancestor_id] + rng.integers(3)
     return pl.DataFrame(
         {
             "id": range(n),
             "ancestor_id": ancestor_ids,
             "origin_time": origin_times,
-            "mutations": mutations,
-            "priority": rng.integers(4, size=n),
             "is_extant": rng.random(n) < 0.3,
             "is_candidate": rng.random(n) < 0.3,
         },
@@ -510,12 +507,22 @@ def test_default_tiebreak_marks_one_per_extant(
         **kwargs,
     )
     assert (~res["m"] | res_all["m"]).all()  # subset of all tied
-    assert res["m"].sum() < res_all["m"].sum()
+    num_tied = []
     for extant_id in df_pl["is_extant"].arg_true():
+        extant_mask = pl.col("id") == extant_id
         res = alifestd_mask_persistence_polars(
-            df_pl, extant_mask=pl.col("id") == extant_id, **kwargs
+            df_pl, extant_mask=extant_mask, **kwargs
         )
-        assert res["m"].sum() == 1
+        res_all = alifestd_mask_persistence_polars(
+            df_pl,
+            criterion_tiebreak=pl.lit(0),
+            extant_mask=extant_mask,
+            **kwargs,
+        )
+        assert (~res["m"] | res_all["m"]).all()  # subset of all tied
+        assert res["m"].sum() == res_all["m"].any()  # one, if any
+        num_tied.append(res_all["m"].sum())
+    assert max(num_tied) > 1
 
 
 def test_prune_extinct_lineages():
