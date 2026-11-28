@@ -64,7 +64,8 @@ def _sweep_up_clade_mrcas(
     best-ranked candidate. Returns, for each node, its id (n if its clade
     has no candidate), its values as mrca (distance from largest trunk
     values, then the candidate's tiebreak), and the rank of that candidate
-    if any extant taxon in its clade has no closer mrca below (else -1).
+    if it is closest to any extant taxon in the clade, among candidates in
+    the clade (else -1).
     """
     n = len(ancestor_ids)
     num_fields = cherry_values.shape[1]
@@ -74,7 +75,7 @@ def _sweep_up_clade_mrcas(
     mrca_values = np.column_stack(
         (trunk_legs + cherry_values, tiebreak_values)
     )
-    sought_candidate_ranks = np.full(n, -1)
+    closest_candidate_ranks = np.full(n, -1)
 
     def compare(first: int, second: int) -> int:
         return _compare_mrcas(first, second, mrca_values)
@@ -94,12 +95,12 @@ def _sweep_up_clade_mrcas(
             )
             mrca_values[id_, num_fields:] = tiebreak_values[candidate_id]
 
-        # node seeks candidate if no closer mrca below
+        # candidate is closest to extant taxa with no closer mrca below
         mrca_id = mrca_ids[id_]
         if extant_mask[id_] or compare(mrca_id, clade_mrca_ids[id_]) <= 0:
             clade_mrca_ids[id_] = mrca_id
             if has_candidate:
-                sought_candidate_ranks[id_] = ranks[candidate_id]
+                closest_candidate_ranks[id_] = ranks[candidate_id]
 
         # pass up furthest mrca and best-ranked candidate
         if compare(clade_mrca_ids[id_], clade_mrca_ids[ancestor_id]) == 1:
@@ -107,24 +108,25 @@ def _sweep_up_clade_mrcas(
         if ranks[candidate_id] < ranks[clade_candidate_ids[ancestor_id]]:
             clade_candidate_ids[ancestor_id] = candidate_id
 
-    return mrca_ids, mrca_values, sought_candidate_ranks
+    return mrca_ids, mrca_values, closest_candidate_ranks
 
 
 @jit(nopython=True)
-def _sweep_down_sought_candidate_ranks(
+def _sweep_down_closest_candidate_ranks(
     ancestor_ids: np.ndarray,
     mrca_ids: np.ndarray,
     mrca_values: np.ndarray,
-    sought_candidate_ranks: np.ndarray,
+    closest_candidate_ranks: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `_alifestd_mask_persistence_fast_path`.
 
-    Drops ranks sought by nodes with a closer mrca among their ancestors.
-    Returns the rank sought by each node, or else by its nearest ancestor
-    that seeks one, or -1 if none.
+    Takes the rank of each node's closest candidate within its clade, from
+    `_sweep_up_clade_mrcas`, and drops those of nodes with a closer mrca
+    among their ancestors. Returns the rank of each node's own closest
+    candidate, or else that of its nearest ancestor with one, or -1 if none.
     """
     lineage_mrca_ids = mrca_ids.copy()  # closest mrca along node's lineage
-    lineage_candidate_ranks = sought_candidate_ranks.copy()
+    closest_candidate_ranks = closest_candidate_ranks.copy()
 
     for id_ in range(len(ancestor_ids)):
         ancestor_id = ancestor_ids[id_]
@@ -136,10 +138,10 @@ def _sweep_down_sought_candidate_ranks(
         if is_beaten:  # ancestor is closer mrca
             lineage_mrca_ids[id_] = ancestor_mrca_id
 
-        if is_beaten or lineage_candidate_ranks[id_] == -1:  # pass down
-            lineage_candidate_ranks[id_] = lineage_candidate_ranks[ancestor_id]
+        if is_beaten or closest_candidate_ranks[id_] == -1:  # pass down
+            closest_candidate_ranks[id_] = closest_candidate_ranks[ancestor_id]
 
-    return lineage_candidate_ranks
+    return closest_candidate_ranks
 
 
 @jit(nopython=True)
@@ -157,7 +159,7 @@ def _alifestd_mask_persistence_fast_path(
     Marks each extant taxon's closest candidates, in one sweep up the tree
     and one sweep down.
     """
-    mrca_ids, mrca_values, sought_candidate_ranks = _sweep_up_clade_mrcas(
+    mrca_ids, mrca_values, closest_candidate_ranks = _sweep_up_clade_mrcas(
         ancestor_ids,
         candidate_mask,
         extant_mask,
@@ -166,10 +168,10 @@ def _alifestd_mask_persistence_fast_path(
         trunk_legs,
         tiebreak_values,
     )
-    sought_candidate_ranks = _sweep_down_sought_candidate_ranks(
-        ancestor_ids, mrca_ids, mrca_values, sought_candidate_ranks
+    closest_candidate_ranks = _sweep_down_closest_candidate_ranks(
+        ancestor_ids, mrca_ids, mrca_values, closest_candidate_ranks
     )
-    return candidate_mask & (candidate_ranks == sought_candidate_ranks)
+    return candidate_mask & (candidate_ranks == closest_candidate_ranks)
 
 
 def alifestd_mask_persistence_polars(
