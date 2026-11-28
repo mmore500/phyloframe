@@ -19,4 +19,5 @@ def reversed_range(
         yield cur
 
 
-reversed_range_jit = jit(nopython=True)(reversed_range)
+# no cache: numba can't call cached generators from jit code
+reversed_range_jit = jit(nopython=True, cache=False)(reversed_range)

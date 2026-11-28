@@ -38,4 +38,5 @@ def reversed_enumerate(
         yield (i, sequence[i])
 
 
-reversed_enumerate_jit = jit(nopython=True)(reversed_enumerate)
+# no cache: numba can't call cached generators from jit code
+reversed_enumerate_jit = jit(nopython=True, cache=False)(reversed_enumerate)
