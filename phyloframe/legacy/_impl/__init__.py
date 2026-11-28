@@ -1,5 +1,8 @@
 """Implementation helpers."""
 
+from ._mask_persistence_validate_values import (
+    mask_persistence_validate_values,
+)
 from ._tgs_build_exposure_df_polars import tgs_build_exposure_df_polars
 from ._tgs_calc_calibration_rescaling import (
     tgs_calc_calibration_rescaling,
@@ -20,6 +23,7 @@ from ._tgs_tally_exposure_episodes import tgs_tally_exposure_episodes
 from ._tgs_validate_args import tgs_validate_args
 
 __all__ = [
+    "mask_persistence_validate_values",
     "tgs_build_exposure_df_polars",
     "tgs_calc_calibration_rescaling",
     "tgs_calc_nll",

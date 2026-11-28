@@ -5,7 +5,7 @@ from ._jit import jit
 
 
 @jit(nopython=True)
-def cmplex(first: typing.Sequence, second: typing.Sequence) -> int:
+def cmp_lex(first: typing.Sequence, second: typing.Sequence) -> int:
     """Compare equal-length sequences `first` and `second` by their first
     differing items.
 

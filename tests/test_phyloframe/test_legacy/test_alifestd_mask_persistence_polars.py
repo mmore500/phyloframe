@@ -352,10 +352,13 @@ def test_datetime_origin_time():
     )
     res = alifestd_mask_persistence_polars(df_pl, **kwargs)
     assert res["m"].arg_true().to_list() == [5, 8]
-    with pytest.raises(NotImplementedError):  # not as struct field
-        alifestd_mask_persistence_polars(
-            df_pl, criterion_cherry="origin_time", **kwargs
-        )
+    res = alifestd_mask_persistence_polars(  # not as struct fields
+        df_pl,
+        criterion_cherry="origin_time",
+        criterion_trunk="origin_time",
+        **kwargs,
+    )
+    assert res["m"].arg_true().to_list() == [5, 8]
 
 
 @pytest.mark.parametrize(
