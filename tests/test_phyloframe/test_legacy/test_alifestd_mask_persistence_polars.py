@@ -187,7 +187,7 @@ def test_criterion_cherry_trunk(criteria: dict, expected: list):
         # default: latest, then lowest id
         pytest.param(
             pl.struct(
-                pl.col("origin_time").rank("dense", descending=True), "id"
+                pl.col("origin_time").max() - pl.col("origin_time"), "id"
             ),
             [7],
             id="default",

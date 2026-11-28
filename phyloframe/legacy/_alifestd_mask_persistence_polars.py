@@ -223,7 +223,7 @@ def alifestd_mask_persistence_polars(
     ),
     mark_as: str = "alifestd_mask_persistence_polars",
     criterion_tiebreak: typing.Union[str, pl.Expr] = pl.struct(
-        pl.col("origin_time").rank("dense", descending=True), "id"
+        pl.col("origin_time").max() - pl.col("origin_time"), "id"
     ),
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
@@ -285,7 +285,7 @@ def alifestd_mask_persistence_polars(
         Pass a constant, e.g., `pl.lit(0)`, to ignore trunk distance.
     mark_as : str, default "alifestd_mask_persistence_polars"
         Column name for the boolean mask.
-    criterion_tiebreak : str or polars.Expr, default pl.struct(pl.col("origin_time").rank("dense", descending=True), "id")
+    criterion_tiebreak : str or polars.Expr, default pl.struct(pl.col("origin_time").max() - pl.col("origin_time"), "id")
         Column name or expression used to choose among candidates tied as
         an extant taxon's closest, taking the candidate with the lowest
         value. Values must be numeric and finite. If a struct, fields are
@@ -589,7 +589,7 @@ def _create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--criterion-tiebreak",
         default=(
-            'pl.struct(pl.col("origin_time").rank("dense", descending=True), '
+            'pl.struct(pl.col("origin_time").max() - pl.col("origin_time"), '
             '"id")'
         ),
         type=str,
