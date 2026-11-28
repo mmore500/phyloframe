@@ -17,6 +17,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._reversed_range import reversed_range_jit
 from ._alifestd_has_contiguous_ids import alifestd_has_contiguous_ids
 from ._alifestd_is_topologically_sorted import alifestd_is_topologically_sorted
 from ._alifestd_try_add_ancestor_id_col import alifestd_try_add_ancestor_id_col
@@ -31,7 +32,7 @@ def _alifestd_mark_lineage_cumsum_asexual_fast_path(
     """Implementation detail for `alifestd_mark_lineage_cumsum_asexual`."""
     n = ancestor_ids.shape[0]
     result = np.copy(values)
-    for k in range(n - 1, -1, -1) if reverse else range(n):
+    for k in reversed_range_jit(n) if reverse else range(n):
         anc = ancestor_ids[k]
         if anc == k:
             continue

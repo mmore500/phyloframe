@@ -4,20 +4,16 @@ from ._jit import jit
 
 
 # adapted from https://github.com/mmore500/hstrat/blob/dcf772ef/hstrat/_auxiliary_lib/_reversed_range.py
-def reversed_range(
-    start: int, stop: typing.Optional[int] = None
-) -> typing.Iterator[int]:
-    """Iterate through a range in reverse order.
+def reversed_range(start: int, stop: typing.Optional[int] = None) -> range:
+    """Create a range in reverse order.
 
     Equivalent to `reversed(range(*args))`. Compatible with numba jit.
     """
-    # numba jit doesn't support yield from or reversed
-    cur = stop if stop is not None else start
-    last = start if stop is not None else 0
-    while cur > last:
-        cur -= 1
-        yield cur
+    # numba jit doesn't support reversed
+    if stop is None:
+        return range(start - 1, -1, -1)
+    else:
+        return range(stop - 1, start - 1, -1)
 
 
-# no cache: numba can't call cached generators from jit code
-reversed_range_jit = jit(nopython=True, cache=False)(reversed_range)
+reversed_range_jit = jit(nopython=True)(reversed_range)
