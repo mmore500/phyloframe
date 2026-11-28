@@ -52,23 +52,27 @@ def _sweep_up_clade_mrcas(
     ancestor_ids: np.ndarray,
     candidate_mask: np.ndarray,
     extant_mask: np.ndarray,
-    candidate_ranks: np.ndarray,
+    candidate_ranks: np.ndarray,  # by cherry then tiebreak values
     cherry_values: np.ndarray,
-    trunk_distances: np.ndarray,
+    trunk_distances: np.ndarray,  # from largest trunk values to node
     tiebreak_values: np.ndarray,
 ) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Implementation detail for `_alifestd_mask_persistence_fast_path`.
 
-    Finds the best candidate below each node, and whether the node is the
-    best mrca so far for any extant taxon below it.
+    Finds the best-ranked candidate in each node's clade, and whether the
+    node is the best (least distance to a candidate) mrca so far for any
+    extant taxon in its clade.
 
-    Returns each node's id, or n if no candidate is below it; its values as
-    mrca with that candidate, being distance then the candidate's tiebreak;
-    and that candidate's rank if the node is such a best mrca, or else -1.
+    Returns three arrays, with an entry per node:
+
+    - the node's id, or n if its clade contains no candidates;
+    - distance via the node to its clade's candidate, then that candidate's
+      tiebreak values; and
+    - that candidate's rank if the node is such a best mrca, or else -1.
     """
     n = len(ancestor_ids)
     num_fields = cherry_values.shape[1]
-    ranks = np.where(candidate_mask, candidate_ranks, n)  # candidates first
+    ranks = np.where(candidate_mask, candidate_ranks, n)  # n sentinel
 
     mrca_ids = np.full(n, n)
     mrca_values = np.column_stack(
@@ -99,7 +103,8 @@ def _sweep_up_clade_mrcas(
             if has_candidate:
                 best_candidate_ranks[id_] = ranks[candidate_id]
 
-        # pass up worst of extant taxa's best mrcas, and best-ranked candidate
+        # pass up worst of extant taxa's best mrcas, which ancestors need
+        # only match to be best for one, and best-ranked candidate
         clade_mrca_id = clade_mrca_ids[id_]
         ancestor_mrca_id = clade_mrca_ids[ancestor_id]
         if _compare_mrcas(clade_mrca_id, ancestor_mrca_id, mrca_values) == 1:
@@ -148,18 +153,15 @@ def _alifestd_mask_persistence_fast_path(
     ancestor_ids: np.ndarray,
     candidate_mask: np.ndarray,
     extant_mask: np.ndarray,
-    candidate_ranks: np.ndarray,
+    candidate_ranks: np.ndarray,  # by cherry then tiebreak values
     cherry_values: np.ndarray,
-    trunk_distances: np.ndarray,
+    trunk_distances: np.ndarray,  # from largest trunk values to node
     tiebreak_values: np.ndarray,
 ) -> np.ndarray:
     """Implementation detail for `alifestd_mask_persistence_polars`.
 
     Marks persisting candidates: for each extant taxon, the candidate at
     least distance via their mrca, with ties broken by tiebreak values.
-
-    Distance sums `cherry_values` from mrca to candidate and
-    `trunk_distances`, which are from the largest trunk values to each node.
     """
     mrca_ids, mrca_values, best_candidate_ranks = _sweep_up_clade_mrcas(
         ancestor_ids,
@@ -222,7 +224,7 @@ def alifestd_mask_persistence_polars(
     mark_as: str = "alifestd_mask_persistence_polars",
     criterion_tiebreak: typing.Union[str, pl.Expr] = pl.struct(
         pl.col("origin_time").rank("dense", descending=True), "id"
-    ).rank("ordinal"),
+    ),
 ) -> pl.DataFrame:
     """Mark candidate taxa that are the closest relative, among candidates,
     of at least one extant taxon.
@@ -283,7 +285,7 @@ def alifestd_mask_persistence_polars(
         Pass a constant, e.g., `pl.lit(0)`, to ignore trunk distance.
     mark_as : str, default "alifestd_mask_persistence_polars"
         Column name for the boolean mask.
-    criterion_tiebreak : str or polars.Expr, default pl.struct(pl.col("origin_time").rank("dense", descending=True), "id").rank("ordinal")
+    criterion_tiebreak : str or polars.Expr, default pl.struct(pl.col("origin_time").rank("dense", descending=True), "id")
         Column name or expression used to choose among candidates tied as
         an extant taxon's closest, taking the candidate with the lowest
         value. Values must be numeric and finite. If a struct, fields are
@@ -330,36 +332,29 @@ def alifestd_mask_persistence_polars(
     Which candidates are closest depends on how trunk and cherry distances
     are counted:
 
-    - with both (default), candidates are closest by total distance, in
-      elapsed time as in `alifestd_find_pair_distance_polars`;
-    - with constant `criterion_cherry`, candidates are closest by most
-      recent common ancestor, whatever their own branch lengths, so all
+    - to mark by total distance: count both (default), in elapsed time as
+      in `alifestd_find_pair_distance_polars`;
+    - to mark by most recent common ancestor, whatever candidates' own
+      branch lengths: pass constant `criterion_cherry`, so that all
       candidates sharing an extant taxon's most recent common ancestor with
       any candidate tie, and are chosen among by `criterion_tiebreak`; and
-    - with constant `criterion_trunk`, candidates are closest by how far
-      they sit from an extant taxon's lineage, however long ago they
-      diverged from it.
+    - to mark by how far candidates sit from an extant taxon's lineage,
+      however long ago they diverged from it: pass constant
+      `criterion_trunk`.
 
     Column "node_depth" is calculated if not present in `phylogeny_df`; see
     `alifestd_mark_node_depth_polars`.
 
     Marking generalizes the persistence filter of the MODES toolbox (Dolson
     et al., 2019), which keeps taxa at one time point with descendants a
-    filter length later, to screen out transient taxa without the neutral
-    shadow runs of evolutionary activity statistics (Bedau et al., 1998).
-    With taxa before a time point as candidates, extant taxa mark their
-    ancestors, as for that filter; see Examples. Otherwise, e.g., with
-    only leaves as candidates, their closest relatives stand in.
+    filter length later, to support reconstructed or otherwise incomplete
+    ancestry trees.
 
     References
     ----------
     Dolson EL, Vostinar AE, Wiser MJ, and Ofria C. The MODES toolbox:
         measurements of open-ended dynamics in evolving systems. Artificial
         Life 2019, 25(1):50-73 (https://doi.org/10.1162/artl_a_00280)
-
-    Bedau MA, Snyder E, and Packard NH. A classification of long-term
-        evolutionary dynamics. In: Artificial Life VI. MIT Press, 1998,
-        pp. 228-237.
 
     Examples
     --------
@@ -595,7 +590,7 @@ def _create_parser() -> argparse.ArgumentParser:
         "--criterion-tiebreak",
         default=(
             'pl.struct(pl.col("origin_time").rank("dense", descending=True), '
-            '"id").rank("ordinal")'
+            '"id")'
         ),
         type=str,
         help=(

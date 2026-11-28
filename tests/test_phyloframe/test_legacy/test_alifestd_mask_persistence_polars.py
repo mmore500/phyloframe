@@ -188,7 +188,7 @@ def test_criterion_cherry_trunk(criteria: dict, expected: list):
         pytest.param(
             pl.struct(
                 pl.col("origin_time").rank("dense", descending=True), "id"
-            ).rank("ordinal"),
+            ),
             [7],
             id="default",
         ),
