@@ -19,6 +19,7 @@ from .._auxlib._format_cli_description import format_cli_description
 from .._auxlib._get_phyloframe_version import get_phyloframe_version
 from .._auxlib._jit import jit
 from .._auxlib._log_context_duration import log_context_duration
+from .._auxlib._reversed_enumerate import reversed_enumerate_jit
 from .._auxlib._union_find_lookup_path_halving import (
     union_find_lookup_path_halving,
 )
@@ -126,8 +127,7 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
 
     # upper bound on each taxon from descendant pinned taxa, inclusive
     pinned_upper_bounds = np.where(is_pinned, origin_times, np.inf)
-    for idx in range(num_taxa - 1, -1, -1):
-        ancestor_id = ancestor_ids[idx]
+    for idx, ancestor_id in reversed_enumerate_jit(ancestor_ids):
         if ancestor_id != idx:  # exclude genesis cases
             pinned_upper_bounds[ancestor_id] = min(
                 pinned_upper_bounds[ancestor_id],
@@ -149,8 +149,7 @@ def _alifestd_pool_chronological_consistency_asexual_fast_path(
     # upper bound on each taxon from descendant active or pinned taxa
     is_settled = is_active | is_pinned
     settled_bounds = np.where(is_settled, result, np.inf)
-    for idx in range(num_taxa - 1, -1, -1):
-        ancestor_id = ancestor_ids[idx]
+    for idx, ancestor_id in reversed_enumerate_jit(ancestor_ids):
         if ancestor_id != idx:  # exclude genesis cases
             settled_bounds[ancestor_id] = min(
                 settled_bounds[ancestor_id],
