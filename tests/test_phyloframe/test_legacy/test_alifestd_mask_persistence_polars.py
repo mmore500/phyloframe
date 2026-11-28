@@ -624,7 +624,7 @@ def test_invalid_criterion_raises(criteria: dict):
     df_pl = pl.DataFrame(
         {"id": [0, 1, 2], "ancestor_id": [0, 0, 0], "origin_time": [0, 1, 1]}
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
         alifestd_mask_persistence_polars(
             df_pl,
             candidate_mask=pl.lit(True),
