@@ -103,12 +103,13 @@ def _sweep_up_clade_mrcas(
             if has_candidate:
                 best_candidate_ranks[id_] = ranks[candidate_id]
 
-        # pass up worst of extant taxa's best mrcas, which ancestors need
-        # only match to be best for one, and best-ranked candidate
+        # pass up worst of extant taxa's best mrcas, for ancestors to match
         clade_mrca_id = clade_mrca_ids[id_]
         ancestor_mrca_id = clade_mrca_ids[ancestor_id]
         if _compare_mrcas(clade_mrca_id, ancestor_mrca_id, mrca_values) == 1:
             clade_mrca_ids[ancestor_id] = clade_mrca_id
+
+        # pass up best-ranked candidate
         if ranks[candidate_id] < ranks[clade_candidate_ids[ancestor_id]]:
             clade_candidate_ids[ancestor_id] = candidate_id
 
