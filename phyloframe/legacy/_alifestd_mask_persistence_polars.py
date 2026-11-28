@@ -417,12 +417,8 @@ def alifestd_mask_persistence_polars(
 
     # a row per taxon and a column per struct field
     cherry_values, trunk_values, tiebreak_values = (
-        selected[name].to_numpy().reshape(len(selected), -1)
-        for name in (
-            "criterion_cherry",
-            "criterion_trunk",
-            "criterion_tiebreak",
-        )
+        values.to_numpy().reshape(len(selected), -1)
+        for values in selected.select("^criterion_.*$")
     )
     # zero pad, so fields beyond the other criterion's are not counted for it
     num_fields = max(cherry_values.shape[1], trunk_values.shape[1])
